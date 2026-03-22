@@ -73,6 +73,10 @@ export const globTool: Tool = {
     const { pattern } = params;
     let directory = params.directory || process.cwd();
 
+    if (directory.startsWith('@')) {
+      directory = directory.substring(1);
+    }
+
     // 规范化路径
     directory = path.resolve(directory);
 

@@ -104,7 +104,11 @@ export const grepTool: Tool = {
     directory?: string;
     include?: string;
   }): Promise<string> => {
-    const { pattern, directory = process.cwd(), include } = params;
+    let { pattern, directory = process.cwd(), include } = params;
+
+    if (directory.startsWith('@')) {
+      directory = directory.substring(1);
+    }
 
     try {
       const results = grep(pattern, directory, include);

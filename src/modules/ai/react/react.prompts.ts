@@ -1,6 +1,12 @@
 import { ToolDefinition, SkillInfo } from './react.types.js';
+import os from 'os';
 
 export const REACT_SYSTEM_PROMPT = `你是一个专业的 Coding Agent，帮助用户完成代码编写、调试、重构等任务。
+
+## 运行环境
+
+- 操作系统: {platform}
+- 工作目录: {workdir}
 
 你必须按照 ReAct (Reasoning + Acting) 模式工作：
 
@@ -115,8 +121,17 @@ loadSkill 参数：
 export function buildReActPrompt(
   builtinTools: ToolDefinition[],
   skills: SkillInfo[],
-  maxIterations: number = 10
+  maxIterations: number = 10,
+  options?: { platform?: string; workdir?: string }
 ): string {
+  const platform = options?.platform || process.platform;
+  const workdir = options?.workdir || process.cwd();
+
+  const platformName = platform === 'win32' ? 'Windows' 
+    : platform === 'darwin' ? 'macOS' 
+    : platform === 'linux' ? 'Linux' 
+    : platform;
+
   const builtinToolsDesc = builtinTools.map(t => 
     `- ${t.name}: ${t.description}\n  参数: ${JSON.stringify(t.parameters.properties, null, 2)}`
   ).join('\n');
@@ -126,6 +141,8 @@ export function buildReActPrompt(
     : '（无已加载的 Skill，可使用 loadSkill 加载）';
 
   return REACT_SYSTEM_PROMPT
+    .replace('{platform}', platformName)
+    .replace('{workdir}', workdir)
     .replace('{builtinTools}', builtinToolsDesc || '（无）')
     .replace('{skills}', skillsDesc)
     .replace('{maxIterations}', String(maxIterations));

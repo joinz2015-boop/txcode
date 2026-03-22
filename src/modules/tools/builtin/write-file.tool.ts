@@ -20,7 +20,11 @@ export const writeFileTool: Tool = {
     required: ['file_path', 'content'],
   },
   execute: async (params: { file_path: string; content: string }): Promise<string> => {
-    const { file_path, content } = params;
+    let { file_path, content } = params;
+
+    if (file_path.startsWith('@')) {
+      file_path = file_path.substring(1);
+    }
 
     if (fs.existsSync(file_path)) {
       return `错误: 文件已存在: ${file_path}\n如果要修改已存在的文件，请使用 edit_file 工具。`;

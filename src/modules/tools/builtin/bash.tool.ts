@@ -7,7 +7,7 @@ import { Tool } from '../tool.types.js';
 
 export const bashTool: Tool = {
   name: 'execute_bash',
-  description: '执行 shell 命令。支持 git、npm、ls 等常见命令。',
+  description: '执行 shell 命令。注意：根据当前操作系统选择正确的命令语法（Windows 使用 dir/copy/del，Linux/macOS 使用 ls/cp/rm）。',
   parameters: {
     type: 'object',
     properties: {

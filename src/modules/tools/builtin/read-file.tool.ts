@@ -26,8 +26,12 @@ export const readFileTool: Tool = {
     required: ['file_path'],
   },
   execute: async (params: { file_path: string; offset?: number; limit?: number }): Promise<string> => {
-    const { file_path, offset = 1 } = params;
+    let { file_path, offset = 1 } = params;
     let { limit = MAX_LINES } = params;
+
+    if (file_path.startsWith('@')) {
+      file_path = file_path.substring(1);
+    }
 
     if (limit > MAX_LINES) {
       limit = MAX_LINES;

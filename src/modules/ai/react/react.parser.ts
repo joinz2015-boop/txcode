@@ -97,7 +97,19 @@ export class ReActParser {
     for (const [key, value] of Object.entries(obj)) {
       if (typeof value === 'string') {
         const match = value.match(/^\$(\S+)$/);
-        result[key] = match ? (contentMap.get(match[1]) || value) : value;
+        if (match) {
+          const placeholderKey = match[1];
+          const replacement = contentMap.get(placeholderKey);
+          if (replacement !== undefined) {
+            result[key] = replacement;
+          } else {
+            result[key] = value;
+          }
+        } else if (this.isEncodedContent(value)) {
+          result[key] = this.decodeContent(value);
+        } else {
+          result[key] = value;
+        }
       } else if (typeof value === 'object' && value !== null) {
         result[key] = this.replacePlaceholders(value, contentMap);
       } else {
@@ -105,6 +117,27 @@ export class ReActParser {
       }
     }
     return result;
+  }
+
+  private isEncodedContent(value: string): boolean {
+    if (value.startsWith('$$content:') || value.includes('$content:2')) {
+      return true;
+    }
+    const dollarCount = (value.match(/\$/g) || []).length;
+    if (dollarCount > 3 && value.includes('content:')) {
+      return true;
+    }
+    return false;
+  }
+
+  private decodeContent(value: string): string {
+    const decodedParts: string[] = [];
+    const regex = /\$\$?content:(\d+)([a-zA-Z])/g;
+    let match;
+    while ((match = regex.exec(value)) !== null) {
+      decodedParts.push(match[2]);
+    }
+    return decodedParts.length > 0 ? decodedParts.join('') : value;
   }
 
   hasFinalAnswer(steps: ReActStep[]): boolean {

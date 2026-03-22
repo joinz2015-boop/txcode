@@ -7,6 +7,7 @@ import { MemoryService } from '../memory/memory.service.js';
 import { ContextService } from '../context/context.service.js';
 import { SkillService } from '../skill/skill.service.js';
 import { ReActResult } from './react/react.types.js';
+import txConfig from '../../config/tx.config.js';
 
 export interface AIServiceConfig {
   configService?: ConfigService;
@@ -26,7 +27,7 @@ export class AIService {
     this.configService = config?.configService || defaultConfigService;
     this.toolService = config?.toolService || defaultToolService;
     this.skillService = config?.skillService;
-    this.maxToolIterations = config?.maxToolIterations || 10;
+    this.maxToolIterations = config?.maxToolIterations || txConfig.maxToolIterations;
   }
 
   private getProvider(): OpenAIProvider {

@@ -36,7 +36,11 @@ export const editFileTool: Tool = {
     new_string: string;
     replace_all?: boolean;
   }): Promise<string> => {
-    const { file_path, old_string, new_string, replace_all = false } = params;
+    let { file_path, old_string, new_string, replace_all = false } = params;
+
+    if (file_path.startsWith('@')) {
+      file_path = file_path.substring(1);
+    }
 
     if (!fs.existsSync(file_path)) {
       return `错误: 文件不存在: ${file_path}`;
