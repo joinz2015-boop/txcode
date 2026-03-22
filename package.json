@@ -1,0 +1,52 @@
+{
+  "name": "txcode",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "AI Coding Assistant",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "txcode": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts",
+    "start": "node dist/index.js",
+    "start:web": "node dist/index.js web",
+    "web:dev": "cd web && npm run dev",
+    "web:build": "cd web && npm install && npm run build",
+    "test": "jest",
+    "test:coverage": "jest --coverage"
+  },
+  "keywords": [
+    "ai",
+    "coding",
+    "assistant"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/jest": "^30.0.0",
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^25.5.0",
+    "@types/react": "^18.3.28",
+    "@types/react-dom": "^18.3.7",
+    "@types/uuid": "^10.0.0",
+    "better-sqlite3": "^12.8.0",
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "ink": "^5.1.1",
+    "jest": "^30.3.0",
+    "js-yaml": "^4.1.1",
+    "react": "^18.3.1",
+    "ts-jest": "^29.4.6",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "uuid": "^9.0.1",
+    "yaml": "^2.8.3"
+  }
+}
