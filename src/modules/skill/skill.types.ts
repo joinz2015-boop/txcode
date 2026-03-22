@@ -5,6 +5,7 @@
 export interface Skill {
   name: string;
   description: string;
+  path?: string;
   instructions: string;
   tools?: string[];
   examples?: SkillExample[];

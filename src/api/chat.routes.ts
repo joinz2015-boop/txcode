@@ -1,7 +1,3 @@
-/**
- * Chat API 路由
- */
-
 import { Router, Request, Response } from 'express';
 import { aiService } from '../modules/ai/index.js';
 import { sessionService } from '../modules/session/index.js';
@@ -29,13 +25,16 @@ chatRouter.post('/', async (req: Request, res: Response) => {
       sessionId: session.id,
       projectPath: session.projectPath || undefined,
       memoryService,
-      onStep: (state, iteration) => {
+      onStep: (step, iteration) => {
         reactSteps.push({
           iteration,
-          thought: state.thought,
-          action: state.action,
-          actionInput: state.actionInput,
-          observation: state.observation,
+          thought: step.thought,
+          action: step.action,
+          actionInput: typeof step.actionInput === 'string' 
+            ? step.actionInput 
+            : JSON.stringify(step.actionInput),
+          observation: step.observation,
+          remember: step.remember,
         });
       },
     });
@@ -44,9 +43,11 @@ chatRouter.post('/', async (req: Request, res: Response) => {
       success: true,
       data: {
         sessionId: session.id,
-        response: result.answer || result.thought,
+        response: result.answer || result.steps[result.steps.length - 1]?.thought,
         reactSteps: reactSteps.length > 0 ? reactSteps : undefined,
-        usage: result.usage || undefined,
+        iterations: result.iterations,
+        success: result.success,
+        error: result.error,
       },
     });
   } catch (error) {

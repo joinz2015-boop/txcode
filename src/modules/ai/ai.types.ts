@@ -1,7 +1,3 @@
-/**
- * AI 模块类型定义
- */
-
 export interface ChatMessage {
   role: 'user' | 'assistant' | 'system' | 'tool';
   content: string;
@@ -52,9 +48,12 @@ export interface ReActState {
   actionInput: string;
   observation?: string;
   answer?: string;
+  remember?: boolean;
   usage?: {
     promptTokens: number;
     completionTokens: number;
     totalTokens: number;
   };
 }
+
+export { ReActStep, ReActResult } from './react/react.types.js';

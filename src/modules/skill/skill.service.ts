@@ -166,6 +166,7 @@ export class SkillService {
       const content = fs.readFileSync(filePath, 'utf-8');
       const skill = this.parseSkill(content);
       if (skill) {
+        skill.path = filePath;
         this.skills.set(skill.name, skill);
       }
       return skill;
@@ -195,6 +196,10 @@ export class SkillService {
     }
     
     return count;
+  }
+
+  loadAll(): void {
+    this.loadSkillsFromDir();
   }
 
   /**

@@ -1,149 +1,205 @@
-/**
- * ReAct Agent
- * 
- * 职责：
- * - 实现 ReAct 循环（思考-行动-观察）
- * - 管理工具调用
- * - 追踪迭代次数
- */
-
 import { OpenAIProvider } from './openai.provider.js';
-import {
-  ChatMessage,
-  ChatResponse,
-  ReActState,
-  ToolDefinition,
-} from './ai.types.js';
+import { ChatMessage } from './ai.types.js';
 import { ToolService } from '../tools/tool.service.js';
+import { SkillService } from '../skill/skill.service.js';
+import { MemoryService } from '../memory/memory.service.js';
+import { reactParser } from './react/react.parser.js';
+import { buildReActPrompt } from './react/react.prompts.js';
+import { ReActStep, ReActResult, ToolDefinition, SkillInfo } from './react/react.types.js';
 
 export interface ReActAgentConfig {
   provider: OpenAIProvider;
   toolService: ToolService;
+  skillService?: SkillService;
+  memoryService?: MemoryService;
   maxIterations?: number;
-  systemPrompt?: string;
+  projectPath?: string;
+  sessionId?: string;
+}
+
+export interface ReActRunOptions {
+  onStep?: (step: ReActStep, iteration: number) => void;
+  historyMessages?: ChatMessage[];
 }
 
 export class ReActAgent {
   private provider: OpenAIProvider;
   private toolService: ToolService;
+  private skillService?: SkillService;
+  private memoryService?: MemoryService;
   private maxIterations: number;
-  private systemPrompt: string;
+  private projectPath?: string;
+  private sessionId?: string;
 
   constructor(config: ReActAgentConfig) {
     this.provider = config.provider;
     this.toolService = config.toolService;
-    this.maxIterations = config.maxIterations || 10;
-    this.systemPrompt = config.systemPrompt || this.getDefaultSystemPrompt();
+    this.skillService = config.skillService;
+    this.memoryService = config.memoryService;
+    this.maxIterations = config.maxIterations || 50;
+    this.projectPath = config.projectPath;
+    this.sessionId = config.sessionId;
   }
 
-  /**
-   * 执行 ReAct 循环
-   */
   async run(
     userMessage: string,
-    onStep?: (state: ReActState, iteration: number) => void
-  ): Promise<ReActState> {
-    const messages: ChatMessage[] = [
-      { role: 'system', content: this.systemPrompt },
-      { role: 'user', content: userMessage },
-    ];
+    options?: ReActRunOptions
+  ): Promise<ReActResult> {
+    const steps: ReActStep[] = [];
+    const messages: ChatMessage[] = [];
 
-    const tools = this.getToolDefinitions();
+    const permanentMessages = this.getPermanentMessages();
+    for (const msg of permanentMessages) {
+      messages.push({ role: msg.role as 'user' | 'assistant' | 'system' | 'tool', content: msg.content });
+    }
+
+    const skills = this.getAvailableSkills();
+    const builtinTools = this.getBuiltinTools();
+    const systemPrompt = buildReActPrompt(builtinTools, skills, this.maxIterations);
     
+    messages.push({ role: 'system', content: systemPrompt });
+    messages.push({ role: 'user', content: userMessage });
+
+    this.addMessage('user', userMessage, true);
+
+    let iteration = 0;
+    let finalAnswer = '';
     let totalUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
 
-    for (let i = 0; i < this.maxIterations; i++) {
-      const response = await this.provider.chat(messages, { tools });
+    while (iteration < this.maxIterations) {
+      iteration++;
+
+      const response = await this.provider.chat(messages);
       
       if (response.usage) {
-        totalUsage.totalTokens += response.usage.totalTokens;
         totalUsage.promptTokens += response.usage.promptTokens;
         totalUsage.completionTokens += response.usage.completionTokens;
+        totalUsage.totalTokens += response.usage.totalTokens;
       }
 
-      if (response.finishReason === 'tool_calls' && response.toolCalls) {
-        for (const toolCall of response.toolCalls) {
-          const toolName = toolCall.function.name;
-          const toolArgs = JSON.parse(toolCall.function.arguments);
+      const aiContent = response.content || '';
 
-          const observation = await this.executeTool(toolName, toolArgs);
+      const parsed = reactParser.parse(aiContent);
+      
+      if (parsed.steps.length === 0) {
+        finalAnswer = aiContent;
+        break;
+      }
 
-          messages.push({
-            role: 'assistant',
-            content: response.content || '',
-            toolCalls: response.toolCalls,
-          });
+      const latestStep = parsed.steps[parsed.steps.length - 1];
 
-          messages.push({
-            role: 'tool',
-            content: observation,
-            toolCallId: toolCall.id,
-            name: toolName,
-          });
+      if (latestStep.final_answer) {
+        finalAnswer = latestStep.final_answer;
+        steps.push(latestStep);
+        this.addMessage('assistant', finalAnswer, true);
+        break;
+      }
 
-          const state: ReActState = {
-            thought: response.content || '',
-            action: toolName,
-            actionInput: JSON.stringify(toolArgs),
-            observation,
-            usage: totalUsage,
-          };
+      if (latestStep.action && latestStep.action !== 'final_answer') {
+        const toolResult = await this.executeTool(
+          latestStep.action,
+          latestStep.actionInput
+        );
 
-          onStep?.(state, i + 1);
+        latestStep.observation = toolResult.success 
+          ? toolResult.data 
+          : { error: toolResult.error };
+        
+        steps.push(latestStep);
+        options?.onStep?.(latestStep, iteration);
+
+        const observationStr = reactParser.formatObservation(latestStep.observation);
+        messages.push({ role: 'assistant', content: aiContent });
+        messages.push({ 
+          role: 'user', 
+          content: `工具执行结果：\n---\n${observationStr}\n---\n请继续思考下一步操作。`
+        });
+
+        if (latestStep.action === 'loadSkill' && this.skillService) {
+          await this.skillService.loadAll();
         }
-      } else {
-        return {
-          thought: response.content,
-          action: 'answer',
-          actionInput: '',
-          answer: response.content,
-          usage: totalUsage,
-        };
+      }
+
+      if (reactParser.hasFinalAnswer(steps)) {
+        break;
       }
     }
 
+    const success = iteration < this.maxIterations && finalAnswer.length > 0;
+
+    if (this.sessionId && this.memoryService) {
+      this.memoryService.compressSession(this.sessionId, 5);
+    }
+
     return {
-      thought: '达到最大迭代次数',
-      action: 'max_iterations',
-      actionInput: '',
-      answer: '抱歉，我无法在限定步骤内完成此任务。',
+      answer: finalAnswer || steps[steps.length - 1]?.observation?.error || '无法完成任务',
+      steps,
+      iterations: iteration,
+      success,
+      error: iteration >= this.maxIterations ? '达到最大迭代次数' : undefined,
       usage: totalUsage,
     };
   }
 
-  /**
-   * 执行工具
-   */
-  private async executeTool(name: string, args: Record<string, any>): Promise<string> {
+  private async executeTool(
+    name: string,
+    args: Record<string, any>
+  ): Promise<{ success: boolean; data?: any; error?: string }> {
     try {
-      return await this.toolService.execute(name, args);
+      const result = await this.toolService.execute(name, args);
+      return { success: true, data: result };
     } catch (error) {
-      return `工具执行错误: ${error instanceof Error ? error.message : String(error)}`;
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : String(error) 
+      };
     }
   }
 
-  /**
-   * 获取工具定义
-   */
-  private getToolDefinitions(): ToolDefinition[] {
-    return this.toolService.getToolDefinitions();
+  private getBuiltinTools(): ToolDefinition[] {
+    const tools = this.toolService.getAll();
+    return tools.map(t => {
+      const params = t.parameters as {
+        type: string;
+        properties: Record<string, { type: string; description: string }>;
+        required: string[];
+      };
+      
+      return {
+        name: t.name,
+        description: t.description,
+        parameters: {
+          type: 'object' as const,
+          properties: params.properties || {},
+          required: params.required || [],
+        },
+      };
+    });
   }
 
-  /**
-   * 默认系统提示
-   */
-  private getDefaultSystemPrompt(): string {
-    return `你是一个 AI 编程助手，使用 ReAct 模式进行思考和行动。
+  private getAvailableSkills(): SkillInfo[] {
+    if (!this.skillService) return [];
+    
+    const skills = this.skillService.getAll();
+    return skills
+      .filter(s => s.path)
+      .map(s => ({
+        path: s.path!,
+        name: s.name,
+        description: s.description,
+      }));
+  }
 
-对于每个用户请求，你应该：
-1. 思考（Thought）：分析问题，确定下一步
-2. 行动（Action）：选择合适的工具执行
-3. 观察（Observation）：查看工具返回结果
-4. 重复直到得出最终答案
+  private getPermanentMessages(): Array<{ role: string; content: string }> {
+    if (!this.sessionId || !this.memoryService) return [];
+    const allMessages = this.memoryService.getPermanentMessages(this.sessionId);
+    return allMessages
+      .filter(m => m.role === 'user' || m.role === 'assistant' || m.role === 'system')
+      .map(m => ({ role: m.role, content: m.content }));
+  }
 
-可用工具：
-${this.toolService.getAll().map(t => `- ${t.name}: ${t.description}`).join('\n')}
-
-当你有最终答案时，直接回复用户。`;
+  private addMessage(role: 'user' | 'assistant' | 'system', content: string, permanent: boolean): void {
+    if (!this.sessionId || !this.memoryService) return;
+    this.memoryService.addMessage(this.sessionId, role, content, permanent);
   }
 }

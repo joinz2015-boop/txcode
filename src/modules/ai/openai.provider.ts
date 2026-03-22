@@ -14,6 +14,7 @@ import {
   ToolDefinition,
   ToolCall,
 } from './ai.types.js';
+import { logger } from '../logger/index.js';
 
 export interface OpenAIConfig {
   apiKey: string;
@@ -58,7 +59,10 @@ export class OpenAIProvider {
       requestBody.tool_choice = 'auto';
     }
 
-    const response = await fetch(`${this.baseUrl}/chat/completions`, {
+    const url = `${this.baseUrl}/chat/completions`;
+    logger.logRequest(url, requestBody);
+
+    const response = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -73,6 +77,7 @@ export class OpenAIProvider {
     }
 
     const data = (await response.json()) as OpenAIResponse;
+    logger.logResponse(url, data);
     return this.parseResponse(data);
   }
 
@@ -89,19 +94,24 @@ export class OpenAIProvider {
       model = this.defaultModel,
     } = options;
 
-    const response = await fetch(`${this.baseUrl}/chat/completions`, {
+    const url = `${this.baseUrl}/chat/completions`;
+    const requestBody = {
+      model,
+      messages: messages.map(m => this.formatMessage(m)),
+      temperature,
+      max_tokens: maxTokens,
+      stream: true,
+    };
+    
+    logger.logRequest(url, requestBody);
+
+    const response = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${this.apiKey}`,
       },
-      body: JSON.stringify({
-        model,
-        messages: messages.map(m => this.formatMessage(m)),
-        temperature,
-        max_tokens: maxTokens,
-        stream: true,
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
@@ -113,6 +123,7 @@ export class OpenAIProvider {
 
     const decoder = new TextDecoder();
     let buffer = '';
+    const streamData: string[] = [];
 
     while (true) {
       const { done, value } = await reader.read();
@@ -126,7 +137,11 @@ export class OpenAIProvider {
         const trimmed = line.trim();
         if (trimmed.startsWith('data: ')) {
           const data = trimmed.slice(6);
-          if (data === '[DONE]') return;
+          streamData.push(data);
+          if (data === '[DONE]') {
+            logger.logResponse(url, streamData);
+            return;
+          }
 
           try {
             const parsed = JSON.parse(data);
@@ -136,6 +151,7 @@ export class OpenAIProvider {
         }
       }
     }
+    logger.logResponse(url, streamData);
   }
 
   /**

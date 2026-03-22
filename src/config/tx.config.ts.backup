@@ -1,0 +1,105 @@
+/**
+ * TxCode 全局配置文件
+ * 
+ * 这个文件定义了 TxCode AI 编程助手的全局配置接口和默认配置。
+ * 通过修改这里的配置值，可以控制应用的基本行为，如调试模式、日志记录等。
+ * 
+ * 配置项说明：
+ * 1. debug: 控制调试模式开关，开启后会有更详细的调试信息输出
+ * 2. log: 日志相关配置
+ *    - enabled: 是否启用日志记录功能
+ *    - dir: 日志文件存储目录
+ *    - accessLog: 访问日志文件名
+ * 
+ * 使用方式：
+ * 1. 在项目中通过 import config from './config/tx.config' 导入配置
+ * 2. 通过 config.debug、config.log.enabled 等方式访问配置值
+ * 3. 修改配置值后需要重启应用才能生效
+ * 
+ * 注意：此文件是 TypeScript 配置文件，编译后会生成对应的 .d.ts 声明文件
+ */
+
+/**
+ * TxConfig 接口定义
+ * 
+ * 定义了 TxCode 应用的全局配置结构
+ * 所有配置项都通过这个接口进行类型检查
+ */
+export interface TxConfig {
+  /**
+   * 调试模式开关
+   * - true: 开启调试模式，输出详细的调试信息
+   * - false: 关闭调试模式，减少输出信息
+   * 
+   * 默认值: true (开发环境建议开启)
+   */
+  debug: boolean;
+  
+  /**
+   * 日志配置对象
+   * 控制应用的日志记录行为
+   */
+  log: {
+    /**
+     * 是否启用日志记录
+     * - true: 启用日志记录功能
+     * - false: 禁用日志记录功能
+     * 
+     * 默认值: true
+     */
+    enabled: boolean;
+    
+    /**
+     * 日志文件存储目录
+     * - 相对路径，相对于项目根目录
+     * - 如果目录不存在，应用会自动创建
+     * 
+     * 默认值: 'log' (项目根目录下的 log 文件夹)
+     */
+    dir: string;
+    
+    /**
+     * 访问日志文件名
+     * - 存储用户访问记录的日志文件
+     * - 文件存储在 log.dir 指定的目录中
+     * 
+     * 默认值: 'access.log'
+     */
+    accessLog: string;
+  };
+}
+
+/**
+ * 默认配置对象
+ * 
+ * 定义了 TxCode 应用的默认配置值
+ * 在应用启动时会使用这些默认值
+ * 
+ * 修改说明：
+ * 1. 生产环境建议将 debug 设置为 false
+ * 2. 如果需要禁用日志，将 log.enabled 设置为 false
+ * 3. 可以修改 log.dir 来改变日志存储位置
+ * 4. 可以修改 log.accessLog 来改变访问日志文件名
+ */
+const config: TxConfig = {
+  // 调试模式：开发环境建议开启，生产环境建议关闭
+  debug: true,
+  
+  // 日志配置
+  log: {
+    // 是否启用日志记录
+    enabled: true,
+    // 日志存储目录
+    dir: 'log',
+    // 访问日志文件名
+    accessLog: 'access.log',
+  },
+};
+
+/**
+ * 导出默认配置
+ * 
+ * 其他模块通过 import config from './config/tx.config' 导入此配置
+ * 配置对象是只读的，不建议在运行时修改
+ */
+export default config;

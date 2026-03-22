@@ -49,7 +49,7 @@ export class WebService {
       this.app.use(express.static(webDistPath));
 
       // SPA 路由支持 - 所有非 API 路由返回 index.html
-      this.app.get('*', (req: Request, res: Response) => {
+      this.app.get('/{*splat}', (req: Request, res: Response) => {
         // 跳过 API 路由
         if (req.path.startsWith('/api')) {
           return res.status(404).json({
@@ -61,7 +61,7 @@ export class WebService {
       });
     } else {
       // 没有前端构建产物，返回提示
-      this.app.use((req: Request, res: Response) => {
+      this.app.use('/{*splat}', (req: Request, res: Response) => {
         if (req.path.startsWith('/api')) {
           return res.status(404).json({
             success: false,
@@ -107,7 +107,7 @@ npm run dev
   async start(): Promise<void> {
     dbService.init();
 
-    return new Promise((resolve) => {
+    return new Promise(() => {
       const server = this.app.listen(this.port, () => {
         console.log(`TXCode Web 服务已启动: http://localhost:${this.port}`);
         
@@ -119,17 +119,20 @@ npm run dev
         }
         
         console.log(`API 文档: http://localhost:${this.port}/api`);
-        resolve();
+        console.log(`按 Ctrl+C 停止服务`);
       });
 
-      process.on('SIGTERM', () => {
-        console.log('正在关闭服务...');
+      const shutdown = () => {
+        console.log('\n正在关闭服务...');
         server.close(() => {
           dbService.close();
           console.log('服务已关闭');
           process.exit(0);
         });
-      });
+      };
+
+      process.on('SIGTERM', shutdown);
+      process.on('SIGINT', shutdown);
     });
   }
 

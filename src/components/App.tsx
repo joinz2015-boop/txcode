@@ -18,6 +18,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Box, Text, useInput, useApp } from 'ink';
 import { v4 as uuidv4 } from 'uuid';
+import * as fs from 'fs';
+import * as path from 'path';
 import { executeCommand } from '../cli/commands.js';
 import { sessionService } from '../modules/session/index.js';
 import { memoryService } from '../modules/memory/index.js';
@@ -168,45 +170,43 @@ export function App() {
   /**
    * 加载目录内容
    */
-  const loadDirectory = useCallback(async (dir: string, resetBaseDir: boolean = false) => {
+  const loadDirectory = useCallback((dir: string, resetBaseDir: boolean = false) => {
     try {
       // 首次加载或强制重置时设置 baseDir
       if (!baseDir || resetBaseDir) {
         setBaseDir(dir);
       }
       
-      const result = await toolService.execute('execute_bash', {
-        command: `ls -la "${dir}"`,
-      });
-      
-      const lines = result.split('\n');
       const files: FileInfo[] = [];
       
       // 添加父目录选项
-      if (dir !== '/') {
-        const parentDir = dir.split('/').slice(0, -1).join('/') || '/';
+      const parentDir = path.dirname(dir);
+      if (parentDir !== dir) {
         files.push({ name: '..', path: parentDir, isDirectory: true });
       }
       
-      for (const line of lines) {
-        // 跳过 "total X" 行和空行
-        if (!line || line.startsWith('total ')) continue;
+      // 读取目录内容
+      const entries = fs.readdirSync(dir, { withFileTypes: true });
+      
+      for (const entry of entries) {
+        if (entry.name === '.' || entry.name === '..') continue;
         
-        const parts = line.split(/\s+/);
-        if (parts.length < 9) continue;
-        
-        const perms = parts[0];
-        if (perms.length !== 10 && !perms.startsWith('-') && !perms.startsWith('d')) continue;
-        
-        const isDirectory = perms.startsWith('d');
-        // 文件名是 parts[8] 及之后的所有内容
-        const name = parts.slice(8).join(' ');
-        if (!name || name === '.' || name === '..') continue;
-        
-        const fullPath = dir === '/' ? `/${name}` : `${dir}/${name}`;
-        
-        files.push({ name, path: fullPath, isDirectory });
+        const fullPath = path.join(dir, entry.name);
+        files.push({
+          name: entry.name,
+          path: fullPath,
+          isDirectory: entry.isDirectory()
+        });
       }
+      
+      // 排序：目录在前，然后按名称排序
+      files.sort((a, b) => {
+        if (a.name === '..') return -1;
+        if (b.name === '..') return 1;
+        if (a.isDirectory && !b.isDirectory) return -1;
+        if (!a.isDirectory && b.isDirectory) return 1;
+        return a.name.localeCompare(b.name);
+      });
       
       setFileList(files.slice(0, 50));
       setCurrentDir(dir);
@@ -357,9 +357,6 @@ export function App() {
       sessionService.switchTo(sessionId);
     }
 
-    // 将用户消息保存到持久化存储
-    memoryService.addMessage(sessionId, 'user', trimmedInput, true);
-
     // 更新状态为思考中
     setStatus('thinking');
 
@@ -369,50 +366,68 @@ export function App() {
         sessionId: sessionId,
         memoryService,
         onStep: (state: ReActState, iteration: number) => {
+          // 先打印思考过程
+          if (state.thought) {
+            const thoughtPreview = state.thought.length > 150 
+              ? state.thought.slice(0, 150) + '...' 
+              : state.thought;
+            addMessage('system', `💭 ${thoughtPreview}`);
+          }
+          
+          // 再打印工具调用
           const actionNames: Record<string, string> = {
             'read_file': '读取文件',
-            'write_file': '写入文件',
+            'write_file': '创建文件',
             'edit_file': '编辑文件',
             'execute_bash': '执行命令',
             'find_files': '搜索文件',
-            'grep': '搜索文本',
+            'grep': '搜索内容',
             'glob': '文件匹配',
+            'loadSkill': '加载技能',
           };
           const actionName = actionNames[state.action] || state.action;
           
-          let stepInfo = `🔄 ${actionName}`;
+          let stepInfo = `🔧 ${actionName}`;
           
           if (state.actionInput) {
             try {
-              const inputObj = JSON.parse(state.actionInput);
+              const inputObj = typeof state.actionInput === 'string' 
+                ? JSON.parse(state.actionInput) 
+                : state.actionInput;
               if (state.action === 'read_file') {
                 const offset = inputObj.offset ?? 1;
-                const limit = inputObj.limit ?? '全部';
-                stepInfo += `: ${inputObj.file_path} start line ${offset} read line ${limit}`;
+                const limit = inputObj.limit ?? 300;
+                stepInfo += `: ${inputObj.file_path} (行${offset}-${offset + limit - 1})`;
               } else if (state.action === 'edit_file') {
                 stepInfo += `: ${inputObj.file_path}`;
               } else if (state.action === 'write_file') {
                 stepInfo += `: ${inputObj.file_path}`;
               } else if (state.action === 'execute_bash') {
-                stepInfo += `: ${inputObj.command}`;
+                stepInfo += `: ${inputObj.command?.slice(0, 50)}`;
               } else if (state.action === 'find_files' || state.action === 'glob') {
                 stepInfo += `: ${inputObj.pattern}`;
               } else if (state.action === 'grep') {
                 stepInfo += `: ${inputObj.pattern}`;
+              } else if (state.action === 'loadSkill') {
+                stepInfo += `: ${inputObj.skillPath}`;
               }
             } catch {}
           }
           
           if (state.observation) {
-            const isFailed = state.observation.includes('错误') || 
-                            state.observation.includes('失败') ||
-                            state.observation.includes('Error') ||
-                            state.observation.includes('error');
+            const obsStr = typeof state.observation === 'string' 
+              ? state.observation 
+              : JSON.stringify(state.observation);
+            // 只有以"错误:"开头才判断为失败，避免文件内容中包含 error 等词被误判
+            const isFailed = obsStr.startsWith('错误:') || 
+                            obsStr.startsWith('Error:') ||
+                            obsStr.startsWith('错误:') ||
+                            obsStr.includes('未找到') ||
+                            obsStr.includes('不存在');
             if (isFailed) {
-              addMessage('system', stepInfo);
-              addMessage('system', `  ❌ ${state.observation.slice(0, 150)}`);
+              addMessage('system', `${stepInfo} ❌`);
             } else {
-              addMessage('system', `${stepInfo} 成功`);
+              addMessage('system', `${stepInfo} ✓`);
             }
           } else {
             addMessage('system', stepInfo);
@@ -489,15 +504,8 @@ export function App() {
             // 文件：计算相对于 baseDir 的路径
             const fullPath = selected.path;
             const effectiveBaseDir = baseDir || process.cwd();
-            let relativePath = '';
-            if (fullPath.startsWith(effectiveBaseDir)) {
-              relativePath = fullPath.slice(effectiveBaseDir.length);
-              if (relativePath.startsWith('/')) {
-                relativePath = relativePath.slice(1);
-              }
-            } else {
-              relativePath = fullPath;
-            }
+            let relativePath = path.relative(effectiveBaseDir, fullPath);
+            relativePath = relativePath.split(path.sep).join('/');
             // 替换 @ 后面的内容，避免重复
             const atIndex = input.lastIndexOf('@');
             const newInput = atIndex !== -1 
@@ -601,8 +609,11 @@ export function App() {
         setCursorPosition(prev => prev - 1);
         setHistoryIndex(-1);
         // 如果删掉后以 / 结尾，尝试显示目录内容
-        if (newInput.endsWith('/') && newInput.length > 1) {
-          const dirPath = newInput.endsWith('//') ? newInput.slice(0, -1) : newInput;
+        if ((newInput.endsWith('/') || newInput.endsWith(path.sep)) && newInput.length > 1) {
+          const inputPath = newInput.endsWith('//') || newInput.endsWith(path.sep + path.sep) 
+            ? newInput.slice(0, -1) 
+            : newInput;
+          const dirPath = path.isAbsolute(inputPath) ? inputPath : path.resolve(process.cwd(), inputPath);
           setFileSelectMode(true);
           loadDirectory(dirPath);
         }
