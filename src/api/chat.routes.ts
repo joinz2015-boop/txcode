@@ -34,7 +34,7 @@ chatRouter.post('/', async (req: Request, res: Response) => {
             ? step.actionInput 
             : JSON.stringify(step.actionInput),
           observation: step.observation,
-          remember: step.remember,
+          keepContext: step.keepContext,
         });
       },
     });

@@ -14,6 +14,10 @@ export interface TxConfig {
   };
   
   maxToolIterations: number;
+  
+  ai: {
+    maxContextTokens: number;
+  };
 }
 
 /**
@@ -30,6 +34,10 @@ const config: TxConfig = {
   },
   
   maxToolIterations: 50,
+  
+  ai: {
+    maxContextTokens: 100000,
+  },
 };
 
 export default config;

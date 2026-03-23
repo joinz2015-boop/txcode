@@ -48,16 +48,19 @@ export class ReActAgent {
     const steps: ReActStep[] = [];
     const messages: ChatMessage[] = [];
 
-    const permanentMessages = this.getPermanentMessages();
-    for (const msg of permanentMessages) {
-      messages.push({ role: msg.role as 'user' | 'assistant' | 'system' | 'tool', content: msg.content });
-    }
-
     const skills = await this.getAvailableSkills();
     const builtinTools = this.getBuiltinTools();
     const systemPrompt = await buildReActPrompt(builtinTools, skills, this.maxIterations);
     
     messages.push({ role: 'system', content: systemPrompt });
+
+    const permanentMessages = this.getPermanentMessages();
+    for (const msg of permanentMessages) {
+      if (msg.role !== 'system') {
+        messages.push({ role: msg.role as 'user' | 'assistant' | 'system' | 'tool', content: msg.content });
+      }
+    }
+
     messages.push({ role: 'user', content: userMessage });
 
     this.addMessage('user', userMessage, true);
@@ -109,11 +112,15 @@ export class ReActAgent {
         options?.onStep?.(latestStep, iteration);
 
         const observationStr = reactParser.formatObservation(latestStep.observation);
+        const toolResultMessage = `工具执行结果：\n---\n${observationStr}\n---\n请继续思考下一步操作。`;
+
         messages.push({ role: 'assistant', content: aiContent });
-        messages.push({ 
-          role: 'user', 
-          content: `工具执行结果：\n---\n${observationStr}\n---\n请继续思考下一步操作。`
-        });
+        messages.push({ role: 'user', content: toolResultMessage });
+
+        if (latestStep.keepContext) {
+          this.addMessage('assistant', aiContent, true);
+          this.addMessage('user', toolResultMessage, true);
+        }
 
         if (latestStep.action === 'loadSkill' && this.skillsManager) {
           await this.skillsManager.loadAll();

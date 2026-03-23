@@ -21,7 +21,7 @@ export interface ReActStep {
   actionInput: Record<string, any>;
   observation?: any;
   error?: string;
-  remember?: boolean;
+  keepContext?: boolean;
   final_answer?: string;
 }
 

@@ -48,7 +48,7 @@ export interface ReActState {
   actionInput: string;
   observation?: string;
   answer?: string;
-  remember?: boolean;
+  keepContext?: boolean;
   usage?: {
     promptTokens: number;
     completionTokens: number;

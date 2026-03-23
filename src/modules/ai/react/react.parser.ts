@@ -27,7 +27,7 @@ export class ReActParser {
             thought: data.thought || '',
             action: data.action || '',
             actionInput: replacedInput,
-            remember: data.remember || false,
+            keepContext: data.keep_context || false,
           });
         }
       } else if (block.type === 'observation') {
