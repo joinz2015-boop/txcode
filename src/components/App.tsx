@@ -1,3 +1,18 @@
+/**
+ * App 主组件
+ * 
+ * 这是 TXCode CLI 模式的主界面组件，使用 Ink (类 React) 库渲染到终端
+ * 
+ * 核心功能：
+ * 1. 用户输入处理 - 接收键盘输入，支持命令和聊天
+ * 2. 消息展示 - 显示用户/AI 的聊天消息
+ * 3. AI 调用 - 调用 AI 服务处理用户问题
+ * 4. 工具调用展示 - 实时显示 AI 的思考和工具调用过程
+ * 5. 文件选择 - 支持 @ 符号触发文件选择器
+ * 6. 模型选择 - 支持 /model 命令切换 AI 模型
+ * 7. 状态显示 - 显示 Token 使用量、压缩比例等
+ */
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { Box, Text, useInput, useApp, Static } from 'ink';
 import { v4 as uuidv4 } from 'uuid';
@@ -10,61 +25,114 @@ import { aiService } from '../modules/ai/index.js';
 import { ReActState } from '../modules/ai/ai.types.js';
 import { MessageItem } from '../cli/cli.types.js';
 
+/**
+ * 文件信息接口
+ * 用于文件选择器显示文件列表
+ */
 interface FileInfo {
   name: string;
   path: string;
   isDirectory?: boolean;
 }
 
+/**
+ * App 主组件函数
+ * 
+ * 组件状态说明：
+ * - input: 用户输入的文本
+ * - cursorPosition: 光标位置 (支持光标左右移动)
+ * - messages: 聊天消息列表
+ * - status: 当前状态 (idle/thinking)
+ * - currentSession: 当前会话 ID
+ * - error: 错误信息
+ * - tokenStats: Token 统计
+ * - compressionPercent: 压缩百分比
+ * - currentModelName: 当前模型名称
+ * - fileSelectMode: 文件选择模式
+ * - modelSelectMode: 模型选择模式
+ * - inputHistory: 输入历史 (上下键遍历)
+ */
 export function App() {
+  // ========== Hooks ==========
+  // useApp() 提供 Ink 应用的上下文，包含 exit() 方法用于退出程序
   const { exit } = useApp();
 
-  // ==================== 状态定义 ====================
+  // ========== 输入相关状态 ==========
+  /** 用户输入的文本 */
   const [input, setInput] = useState('');
+  /** 光标在输入框中的位置 */
   const [cursorPosition, setCursorPosition] = useState(0);
+  
+  // ========== 消息相关状态 ==========
+  /** 聊天消息列表 */
   const [messages, setMessages] = useState<MessageItem[]>([]);
+  /** 当前状态：idle(空闲) 或 thinking(AI 思考中) */
   const [status, setStatus] = useState<'idle' | 'thinking'>('idle');
+  /** 当前会话 ID */
   const [currentSession, setCurrentSession] = useState<string | null>(null);
+  /** 错误信息 */
   const [error, setError] = useState<string | null>(null);
 
-  // Token 统计
+  // ========== 统计相关状态 ==========
+  /** Token 统计 */
   const [tokenStats, setTokenStats] = useState({
     promptTokens: 0,
     completionTokens: 0,
     totalTokens: 0,
   });
+  /** 压缩百分比 */
   const [compressionPercent, setCompressionPercent] = useState(0);
+  /** 当前模型名称 */
   const [currentModelName, setCurrentModelName] = useState<string>('deepseek-chat');
 
-  // 文件选择状态
+  // ========== 文件选择相关状态 ==========
+  /** 是否处于文件选择模式 */
   const [fileSelectMode, setFileSelectMode] = useState(false);
+  /** 当前目录路径 */
   const [currentDir, setCurrentDir] = useState('');
+  /** 基础目录路径 */
   const [baseDir, setBaseDir] = useState('');
+  /** 文件列表 */
   const [fileList, setFileList] = useState<FileInfo[]>([]);
+  /** 当前选中项索引 */
   const [selectedIndex, setSelectedIndex] = useState(0);
 
-  // 模型选择状态
+  // ========== 模型选择相关状态 ==========
+  /** 是否处于模型选择模式 */
   const [modelSelectMode, setModelSelectMode] = useState(false);
+  /** 模型列表 */
   const [modelList, setModelList] = useState<{id: string; name: string}[]>([]);
+  /** 当前选中模型索引 */
   const [modelSelectedIndex, setModelSelectedIndex] = useState(0);
 
-  // 历史输入状态
+  // ========== 输入历史相关状态 ==========
+  /** 输入历史记录 */
   const [inputHistory, setInputHistory] = useState<string[]>([]);
+  /** 当前历史记录索引 */
   const [historyIndex, setHistoryIndex] = useState(-1);
 
-  // ==================== 辅助函数 ====================
+  // ========== 辅助函数 ==========
+
+  /**
+   * 加载目录内容 - 用于文件选择器
+   * @param dir - 目录路径
+   * @param resetBaseDir - 是否重置基础目录
+   */
   const loadDirectory = useCallback((dir: string, resetBaseDir: boolean = false) => {
     try {
+      // 设置基础目录 (如果是首次或需要重置)
       if (!baseDir || resetBaseDir) {
         setBaseDir(dir);
       }
       
       const files: FileInfo[] = [];
+      // 添加父目录选项 (..)
       const parentDir = path.dirname(dir);
       if (parentDir !== dir) {
         files.push({ name: '..', path: parentDir, isDirectory: true });
       }
       
+      // 读取目录内容
       const entries = fs.readdirSync(dir, { withFileTypes: true });
       
       for (const entry of entries) {
@@ -93,12 +161,16 @@ export function App() {
     }
   }, [baseDir]);
 
+  /**
+   * 加载可用模型列表 - 从配置服务获取所有可用的 AI 模型
+   */
   const loadModels = useCallback(async () => {
     try {
       const { configService } = await import('../modules/config/index.js');
       const providers = configService.getProviders();
       const models: {id: string; name: string}[] = [];
       
+      // 遍历所有提供商，获取其模型列表
       for (const provider of providers) {
         const providerModels = configService.getModels(provider.id);
         for (const m of providerModels) {
@@ -106,6 +178,7 @@ export function App() {
         }
       }
       
+      // 如果没有模型，添加默认模型
       if (models.length === 0) {
         models.push({ id: 'deepseek-chat', name: 'deepseek-chat' });
       }
@@ -117,7 +190,7 @@ export function App() {
     }
   }, []);
 
-  // ==================== 初始化 ====================
+  // ========== 初始化 ==========
   useEffect(() => {
     const session = sessionService.getCurrent();
     if (session) {
@@ -143,11 +216,17 @@ export function App() {
     loadCurrentModel();
   }, []);
 
-  // ==================== 消息管理 ====================
+  // ========== 消息管理 ==========
+
+  /**
+   * 添加消息到列表 - 防止重复添加相同的消息
+   * @param role - 消息角色
+   * @param content - 消息内容
+   */
   const addMessage = useCallback((role: 'user' | 'assistant' | 'system' | 'tool', content: string) => {
     const contentKey = `${role}:${content.slice(0, 100)}`;
     setMessages(prev => {
-      // 检查最后一条消息是否相同（防重复）
+      // 检查最后一条消息是否相同 (防重复)
       const lastMsg = prev[prev.length - 1];
       if (lastMsg && lastMsg.role === role && lastMsg.content === content) {
         return prev;
@@ -162,15 +241,27 @@ export function App() {
     });
   }, []);
 
-  // ==================== 核心业务逻辑 ====================
+  // ========== 核心业务逻辑 ==========
+
+  /**
+   * 提交用户输入 - 处理流程：
+   * 1. 检查输入是否有效
+   * 2. 如果是命令 (/开头)，执行命令
+   * 3. 否则调用 AI 服务处理
+   * 4. 更新 UI 和状态
+   */
   const handleSubmit = useCallback(async () => {
+    // 验证输入：不能为空，且当前不在思考中
     if (!input.trim() || status === 'thinking') return;
 
+    // ========== 准备输入 ==========
     const trimmedInput = input.trim();
-    setInput('');
-    setCursorPosition(0);
-    setError(null);
+    setInput('');                  // 清空输入框
+    setCursorPosition(0);         // 重置光标位置
+    setError(null);               // 清空错误
 
+    // ========== 命令处理 ==========
+    // 以 / 开头的输入作为命令处理
     if (trimmedInput.startsWith('/')) {
       const result = await executeCommand(trimmedInput);
       if (result.message) {
@@ -296,8 +387,14 @@ export function App() {
     }
   }, [input, status, currentSession, addMessage, exit]);
 
-  // ==================== 键盘输入处理 ====================
+  // ========== 键盘输入处理 ==========
+
+  /**
+   * useInput Hook - 处理所有键盘输入事件
+   * 根据当前模式 (普通/文件选择/模型选择) 执行不同逻辑
+   */
   useInput((char, key) => {
+    // ========== 文件选择模式 ==========
     if (fileSelectMode) {
       const keyAny = key as any;
       if (keyAny.upArrow) {
@@ -435,13 +532,16 @@ export function App() {
     }
   });
 
-  // ==================== UI 渲染 ====================
+  // ========== UI 渲染 ==========
+  
+  // 状态栏文本
   const statusText = status === 'thinking' ? '思考中...' : '就绪';
   const sessionText = currentSession ? `会话: ${currentSession.slice(0, 8)}` : '无会话';
 
   return (
     <>
-      {/* ========== 静态消息区域（最先渲染，不受后续组件影响） ========== */}
+      {/* ========== 静态消息区域 ========== */}
+      {/* Static 组件用于渲染不受后续状态更新影响的元素 */}
       <Static items={messages}>
         {(msg: MessageItem) => (
           <Box key={msg.id} marginBottom={1}>

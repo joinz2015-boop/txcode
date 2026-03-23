@@ -1,10 +1,34 @@
 /**
  * 文件编辑工具
+ * 
+ * 用于编辑现有文件的内容，支持精确替换和全部替换
+ * 
+ * 参数说明：
+ * - file_path: 要编辑的文件路径
+ * - old_string: 要被替换的原始内容
+ * - new_string: 替换后的新内容
+ * - replace_all: 是否替换所有匹配项 (可选，默认 false)
+ * 
+ * 使用示例：
+ *   edit_file({
+ *     file_path: 'src/index.ts',
+ *     old_string: 'const a = 1;',
+ *     new_string: 'const a = 2;',
+ *     replace_all: false
+ *   })
  */
 
 import * as fs from 'fs';
 import { Tool } from '../tool.types.js';
 
+/**
+ * edit_file 工具定义
+ * 
+ * AI 可以使用此工具来：
+ * 1. 修改文件中的特定代码
+ * 2. 替换文本内容
+ * 3. 批量修改匹配的内容
+ */
 export const editFileTool: Tool = {
   name: 'edit_file',
   description: '编辑文件，替换指定内容。支持精确替换和全部替换。',

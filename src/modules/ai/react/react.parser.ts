@@ -1,5 +1,53 @@
+/**
+ * ReAct 响应解析器
+ * 
+ * 本模块负责解析 AI 返回的文本内容
+ * AI 返回的是包含 Thought、Action、Observation 等字段的文本
+ * 需要从中提取出结构化的步骤信息
+ * 
+ * 解析流程：
+ * 1. splitBlocks() - 按 "---" 分隔符分割文本为多个块
+ * 2. 识别每块的类型：
+ *    - content: 大文本内容 (用于占位符替换)
+ *    - step: 步骤块 (包含 thought, action, action_input, final_answer 等)
+ *    - observation: 观察结果块
+ * 3. replacePlaceholders() - 替换占位符 (如 $content:1)
+ * 4. 返回结构化的 steps 数组和 finalAnswer
+ * 
+ * AI 输出格式示例（XML）：
+ * ```xml
+ * <react>
+ *   <thought>我需要读取文件</thought>
+ *   <action>readFile</action>
+ *   <action_input>
+ *     <path>/path/to/file</path>
+ *   </action_input>
+ *   <keep_context>true</keep_context>
+ * </react>
+ * ---
+ * <react>
+ *   <thought>需要创建一个组件</thought>
+ *   <action>writeFile</action>
+ *   <action_input>
+ *     <path>src/Hello.tsx</path>
+ *     <content><![CDATA[import React from 'react';]]></content>
+ *   </action_input>
+ * </react>
+ * ---
+ * Tool Result:
+ * ---
+ * 观察结果
+ * ---
+ * ```
+ */
+
 import { ReActStep, ParsedBlock } from './react.types.js';
 
+/**
+ * ReActParser 类
+ * 
+ * 将 AI 返回的文本解析为结构化的 ReActStep 数组
+ */
 export class ReActParser {
   parse(content: string): { steps: ReActStep[]; finalAnswer: string } {
     const blocks = this.splitBlocks(content);
@@ -59,6 +107,14 @@ export class ReActParser {
         continue;
       }
 
+      // 尝试解析 XML 格式
+      const xmlResult = this.parseXMLBlock(trimmed);
+      if (xmlResult) {
+        blocks.push(xmlResult);
+        continue;
+      }
+
+      // 尝试解析 JSON 格式
       try {
         const json = JSON.parse(trimmed);
         if (json.observation !== undefined) {
@@ -85,6 +141,82 @@ export class ReActParser {
     }
 
     return blocks;
+  }
+
+  /**
+   * 解析 XML 格式的块
+   */
+  private parseXMLBlock(content: string): ParsedBlock | null {
+    // 匹配 <react>...</react> 块
+    const reactMatch = content.match(/<react>([\s\S]*?)<\/react>/i);
+    if (!reactMatch) return null;
+
+    const inner = reactMatch[1];
+    const data: Record<string, any> = {};
+
+    // 解析 thought
+    const thoughtMatch = inner.match(/<thought>([\s\S]*?)<\/thought>/i);
+    if (thoughtMatch) {
+      data.thought = thoughtMatch[1].trim();
+    }
+
+    // 解析 final_answer（可能包含 CDATA）
+    const finalAnswerMatch = inner.match(/<final_answer>([\s\S]*?)<\/final_answer>/i);
+    if (finalAnswerMatch) {
+      data.final_answer = this.extractCDATAOrText(finalAnswerMatch[1]);
+      return { type: 'step', data };
+    }
+
+    // 解析 action
+    const actionMatch = inner.match(/<action>([\s\S]*?)<\/action>/i);
+    if (actionMatch) {
+      data.action = actionMatch[1].trim();
+    }
+
+    // 解析 keep_context
+    const keepContextMatch = inner.match(/<keep_context>([\s\S]*?)<\/keep_context>/i);
+    if (keepContextMatch) {
+      data.keep_context = keepContextMatch[1].trim().toLowerCase() === 'true';
+    }
+
+    // 解析 action_input 内的所有参数
+    const actionInputMatch = inner.match(/<action_input>([\s\S]*?)<\/action_input>/i);
+    if (actionInputMatch) {
+      data.action_input = this.parseXMLParams(actionInputMatch[1]);
+    }
+
+    return { type: 'step', data };
+  }
+
+  /**
+   * 解析 XML 参数节点
+   */
+  private parseXMLParams(xml: string): Record<string, any> {
+    const params: Record<string, any> = {};
+    
+    // 匹配所有 <param_name>...</param_name> 或 <param_name/>
+    const paramRegex = /<(\w+)>([\s\S]*?)<\/\1>/gi;
+    let match;
+    
+    while ((match = paramRegex.exec(xml)) !== null) {
+      const paramName = match[1];
+      const paramValue = match[2];
+      params[paramName] = this.extractCDATAOrText(paramValue);
+    }
+    
+    return params;
+  }
+
+  /**
+   * 从 XML 内容中提取纯文本，处理 CDATA
+   */
+  private extractCDATAOrText(content: string): string {
+    // 匹配 CDATA
+    const cdataMatch = content.match(/<!\[CDATA\[([\s\S]*?)\]\]>/);
+    if (cdataMatch) {
+      return cdataMatch[1];
+    }
+    return content.trim();
   }
 
   private replacePlaceholders(
@@ -152,10 +284,13 @@ export class ReActParser {
   }
 
   buildObservationResponse(observation: any): string {
+    const formattedObs = typeof observation === 'string' 
+      ? `<![CDATA[${observation}]]>` 
+      : `<![CDATA[${JSON.stringify(observation, null, 2)}]]>`;
     return `---
-{
-  "observation": ${JSON.stringify(observation)}
-}
+<react>
+  <observation>${formattedObs}</observation>
+</react>
 ---`;
   }
 }

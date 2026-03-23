@@ -1,15 +1,38 @@
 /**
  * 内容搜索工具（Grep）
+ * 
+ * 在文件内容中搜索匹配的文本
+ * 
+ * 参数说明：
+ * - pattern: 要搜索的正则表达式模式
+ * - dir: 搜索的根目录
+ * - filePattern: 文件名匹配模式 (可选，如 *.ts, *.js)
+ * 
+ * 功能特性：
+ * - 支持正则表达式搜索
+ * - 支持文件名过滤
+ * - 自动忽略 node_modules, .git 等目录
+ * - 限制最大结果数为 100 条
+ * 
+ * 使用示例：
+ *   grep({
+ *     pattern: 'function\\s+\\w+',
+ *     dir: '/project/src',
+ *     filePattern: '*.ts'
+ *   })
  */
 
 import * as fs from 'fs';
 import * as path from 'path';
 import { Tool } from '../tool.types.js';
 
+/**
+ * 搜索结果接口
+ */
 interface Match {
-  file: string;
-  line: number;
-  content: string;
+  file: string;      // 文件路径
+  line: number;      // 行号
+  content: string;   // 匹配的行内容
 }
 
 function grep(
