@@ -1,7 +1,7 @@
 import { OpenAIProvider } from './openai.provider.js';
 import { ChatMessage } from './ai.types.js';
 import { ToolService } from '../tools/tool.service.js';
-import { SkillService } from '../skill/skill.service.js';
+import { SkillsManager } from '../skill/skills.manager.js';
 import { MemoryService } from '../memory/memory.service.js';
 import { reactParser } from './react/react.parser.js';
 import { buildReActPrompt } from './react/react.prompts.js';
@@ -10,7 +10,7 @@ import { ReActStep, ReActResult, ToolDefinition, SkillInfo } from './react/react
 export interface ReActAgentConfig {
   provider: OpenAIProvider;
   toolService: ToolService;
-  skillService?: SkillService;
+  skillsManager?: SkillsManager;
   memoryService?: MemoryService;
   maxIterations?: number;
   projectPath?: string;
@@ -25,7 +25,7 @@ export interface ReActRunOptions {
 export class ReActAgent {
   private provider: OpenAIProvider;
   private toolService: ToolService;
-  private skillService?: SkillService;
+  private skillsManager?: SkillsManager;
   private memoryService?: MemoryService;
   private maxIterations: number;
   private projectPath?: string;
@@ -34,7 +34,7 @@ export class ReActAgent {
   constructor(config: ReActAgentConfig) {
     this.provider = config.provider;
     this.toolService = config.toolService;
-    this.skillService = config.skillService;
+    this.skillsManager = config.skillsManager;
     this.memoryService = config.memoryService;
     this.maxIterations = config.maxIterations || 50;
     this.projectPath = config.projectPath;
@@ -53,9 +53,9 @@ export class ReActAgent {
       messages.push({ role: msg.role as 'user' | 'assistant' | 'system' | 'tool', content: msg.content });
     }
 
-    const skills = this.getAvailableSkills();
+    const skills = await this.getAvailableSkills();
     const builtinTools = this.getBuiltinTools();
-    const systemPrompt = buildReActPrompt(builtinTools, skills, this.maxIterations);
+    const systemPrompt = await buildReActPrompt(builtinTools, skills, this.maxIterations);
     
     messages.push({ role: 'system', content: systemPrompt });
     messages.push({ role: 'user', content: userMessage });
@@ -115,8 +115,8 @@ export class ReActAgent {
           content: `工具执行结果：\n---\n${observationStr}\n---\n请继续思考下一步操作。`
         });
 
-        if (latestStep.action === 'loadSkill' && this.skillService) {
-          await this.skillService.loadAll();
+        if (latestStep.action === 'loadSkill' && this.skillsManager) {
+          await this.skillsManager.loadAll();
         }
       }
 
@@ -177,17 +177,16 @@ export class ReActAgent {
     });
   }
 
-  private getAvailableSkills(): SkillInfo[] {
-    if (!this.skillService) return [];
-    
-    const skills = this.skillService.getAll();
-    return skills
-      .filter(s => s.path)
-      .map(s => ({
-        path: s.path!,
-        name: s.name,
-        description: s.description,
-      }));
+  private async getAvailableSkills(): Promise<SkillInfo[]> {
+    if (!this.skillsManager) return [];
+
+    await this.skillsManager.loadAll();
+    const skills = this.skillsManager.getAllSkills();
+    return skills.map((s: { filePath: string; name: string; description: string }) => ({
+      path: s.filePath,
+      name: s.name,
+      description: s.description,
+    }));
   }
 
   private getPermanentMessages(): Array<{ role: string; content: string }> {

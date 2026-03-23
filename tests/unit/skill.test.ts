@@ -1,20 +1,24 @@
 /**
  * Skill 模块测试
+ * 按照 skill-guide.md 规范实现
  */
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { SkillService } from '../../src/modules/skill/skill.service';
+import { SkillsManager } from '../../src/modules/skill/skills.manager';
+import { skillHandler } from '../../src/modules/skill/skill.tool';
+import { buildAvailableSkillsPrompt } from '../../src/modules/skill/skill.tool';
+import { skillsManager as globalSkillsManager } from '../../src/modules/skill/skills.manager';
 
 describe('Skill 模块', () => {
-  let skillService: SkillService;
+  let manager: SkillsManager;
   const testDir = path.join(__dirname, 'test-skills');
 
   beforeEach(() => {
-    skillService = new SkillService(testDir);
     if (!fs.existsSync(testDir)) {
       fs.mkdirSync(testDir, { recursive: true });
     }
+    manager = new SkillsManager(testDir);
   });
 
   afterEach(() => {
@@ -23,107 +27,202 @@ describe('Skill 模块', () => {
     }
   });
 
-  describe('内置 Skills', () => {
-    test('应该加载 5 个内置 Skills', () => {
-      const skills = skillService.getAll();
-      expect(skills.length).toBe(5);
+  describe('SKILL.md 解析', () => {
+    test('应该解析带 frontmatter 的 SKILL.md', async () => {
+      const skillDir = path.join(testDir, 'test-skill');
+      fs.mkdirSync(skillDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(skillDir, 'SKILL.md'),
+        `---
+name: test-skill
+description: 测试 Skill 描述
+license: MIT
+---
+## What I do
+这是一个测试 Skill。
+## When to use me
+测试时使用。`
+      );
+
+      const skill = await manager.loadSkill(path.join(skillDir, 'SKILL.md'));
+      expect(skill).not.toBeNull();
+      expect(skill?.name).toBe('test-skill');
+      expect(skill?.description).toBe('测试 Skill 描述');
+      expect(skill?.license).toBe('MIT');
+      expect(skill?.rawContent).toContain('What I do');
     });
 
-    test('应该包含 code_review Skill', () => {
-      expect(skillService.has('code_review')).toBe(true);
+    test('应该拒绝无效的 name（含大写）', async () => {
+      const skillDir = path.join(testDir, 'Invalid-Name');
+      fs.mkdirSync(skillDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(skillDir, 'SKILL.md'),
+        `---
+name: Invalid-Name
+description: 无效名称
+---`
+      );
+
+      const skill = await manager.loadSkill(path.join(skillDir, 'SKILL.md'));
+      expect(skill).toBeNull();
     });
 
-    test('应该包含 refactor Skill', () => {
-      expect(skillService.has('refactor')).toBe(true);
-    });
+    test('应该拒绝 name 与目录名不匹配', async () => {
+      const skillDir = path.join(testDir, 'skill-a');
+      fs.mkdirSync(skillDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(skillDir, 'SKILL.md'),
+        `---
+name: skill-b
+description: 名称不匹配
+---`
+      );
 
-    test('应该包含 debug Skill', () => {
-      expect(skillService.has('debug')).toBe(true);
-    });
-
-    test('应该包含 write_tests Skill', () => {
-      expect(skillService.has('write_tests')).toBe(true);
-    });
-
-    test('应该包含 explain Skill', () => {
-      expect(skillService.has('explain')).toBe(true);
-    });
-  });
-
-  describe('Skill 管理', () => {
-    test('get() 应该返回 Skill', () => {
-      const skill = skillService.get('code_review');
-      expect(skill?.name).toBe('code_review');
-      expect(skill?.description).toContain('代码审查');
-    });
-
-    test('get() 不存在的 Skill 应该返回 undefined', () => {
-      const skill = skillService.get('non_existent');
-      expect(skill).toBeUndefined();
-    });
-
-    test('register() 应该注册新 Skill', () => {
-      skillService.register({
-        name: 'custom_skill',
-        description: '自定义 Skill',
-        instructions: '自定义指令',
-      });
-
-      expect(skillService.has('custom_skill')).toBe(true);
-    });
-
-    test('remove() 应该移除 Skill', () => {
-      skillService.register({
-        name: 'temp_skill',
-        description: '临时',
-        instructions: '临时指令',
-      });
-
-      skillService.remove('temp_skill');
-      expect(skillService.has('temp_skill')).toBe(false);
-    });
-
-    test('search() 应该搜索 Skills', () => {
-      const results = skillService.search('代码');
-      expect(results.length).toBeGreaterThan(0);
+      const skill = await manager.loadSkill(path.join(skillDir, 'SKILL.md'));
+      expect(skill).toBeNull();
     });
   });
 
-  describe('系统提示', () => {
-    test('getSystemPrompt() 应该返回系统提示', () => {
-      const prompt = skillService.getSystemPrompt('code_review');
-      expect(prompt).toContain('代码审查');
+  describe('name 验证', () => {
+    test('有效名称应该通过验证', async () => {
+      const validNames = ['test', 'test-skill', 'my-skill-123', 'a1b2c3'];
+      for (const name of validNames) {
+        const skillDir = path.join(testDir, name);
+        fs.mkdirSync(skillDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(skillDir, 'SKILL.md'),
+          `---
+name: ${name}
+description: 测试
+---`
+        );
+        const skill = await manager.loadSkill(path.join(skillDir, 'SKILL.md'));
+        expect(skill?.name).toBe(name);
+      }
     });
 
-    test('getSystemPrompt() 不存在的 Skill 应该返回 undefined', () => {
-      const prompt = skillService.getSystemPrompt('non_existent');
-      expect(prompt).toBeUndefined();
+    test('无效名称应该被拒绝', async () => {
+      const invalidNames = ['-test', 'test-', 'test--skill', 'TEST', 'test_skill'];
+      for (const name of invalidNames) {
+        const skillDir = path.join(testDir, `dir-${name}`);
+        fs.mkdirSync(skillDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(skillDir, 'SKILL.md'),
+          `---
+name: ${name}
+description: 测试
+---`
+        );
+        const skill = await manager.loadSkill(path.join(skillDir, 'SKILL.md'));
+        expect(skill).toBeNull();
+      }
     });
   });
 
-  describe('YAML 导出', () => {
-    test('exportToYaml() 应该导出 YAML', () => {
-      const yaml = skillService.exportToYaml('code_review');
-      expect(yaml).toContain('name: code_review');
-      expect(yaml).toContain('description:');
+  describe('权限控制', () => {
+    test('deny 权限应该隐藏 Skill', async () => {
+      const skillDir = path.join(testDir, 'internal-secret');
+      fs.mkdirSync(skillDir, { recursive: true });
+      const skillPath = path.join(skillDir, 'SKILL.md');
+      fs.writeFileSync(
+        skillPath,
+        `---
+name: internal-secret
+description: 秘密 Skill
+---`
+      );
+
+      manager.setPermissions({ 'internal-*': 'deny' });
+      await manager.loadSkill(skillPath);
+
+      expect(manager.has('internal-secret')).toBe(false);
+    });
+
+    test('allow 权限应该显示 Skill', async () => {
+      const skillDir = path.join(testDir, 'public-skill');
+      fs.mkdirSync(skillDir, { recursive: true });
+      const skillPath = path.join(skillDir, 'SKILL.md');
+      fs.writeFileSync(
+        skillPath,
+        `---
+name: public-skill
+description: 公开 Skill
+---`
+      );
+
+      manager.setPermissions({ '*': 'allow' });
+      await manager.loadSkill(skillPath);
+
+      expect(manager.has('public-skill')).toBe(true);
     });
   });
 
-  describe('从文件加载', () => {
-    test('loadSkillFromFile() 应该加载 YAML 文件', () => {
-      const yamlPath = path.join(testDir, 'test-skill.yaml');
-      fs.writeFileSync(yamlPath, `
-name: test_skill
-description: Test skill
-instructions: Test instructions
-tools:
-  - read_file
-  - write_file
-`);
+  describe('skill 工具', () => {
+    test('应该返回 Skill 内容', async () => {
+      const skillDir = path.join(testDir, 'demo-skill');
+      fs.mkdirSync(skillDir, { recursive: true });
+      const skillPath = path.join(skillDir, 'SKILL.md');
+      fs.writeFileSync(
+        skillPath,
+        `---
+name: demo-skill
+description: Demo Skill
+---
+## What I do
+Demo content.`
+      );
 
-      const skill = skillService.loadSkillFromFile(yamlPath);
-      expect(skill?.name).toBe('test_skill');
-      expect(skill?.tools).toContain('read_file');
+      const skill = await manager.loadSkill(skillPath);
+      expect(skill).not.toBeNull();
+      expect(skill?.name).toBe('demo-skill');
+      expect(skill?.rawContent).toContain('Demo content');
+    });
+
+    test('不存在的 Skill 应该返回错误', async () => {
+      const result = await skillHandler({ name: 'non-existent' });
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('not found');
+    });
+  });
+
+  describe('AI 集成', () => {
+    test('buildAvailableSkillsPrompt 应该生成 XML 格式', async () => {
+      const prompt = buildAvailableSkillsPrompt();
+
+      expect(prompt).toContain('<available_skills>');
+      expect(prompt).toContain('</available_skills>');
+    });
+
+    test('getAvailableSkills 应该返回技能列表', async () => {
+      const skillDir = path.join(testDir, 'xml-skill');
+      fs.mkdirSync(skillDir, { recursive: true });
+      const skillPath = path.join(skillDir, 'SKILL.md');
+      fs.writeFileSync(
+        skillPath,
+        `---
+name: xml-skill
+description: XML 测试
+---`
+      );
+
+      const skill = await manager.loadSkill(skillPath);
+      expect(skill?.name).toBe('xml-skill');
+
+      const skills = manager.getAvailableSkills();
+      expect(skills.some(s => s.name === 'xml-skill')).toBe(true);
+    });
+  });
+
+  describe('搜索路径', () => {
+    test('应该返回 6 个搜索路径', () => {
+      const paths = manager.getSearchPaths();
+      expect(paths.length).toBe(6);
+    });
+
+    test('应该包含 .txcode/skills 路径', () => {
+      const paths = manager.getSearchPaths();
+      const hasTxcode = paths.some(p => p.includes('.txcode'));
+      expect(hasTxcode).toBe(true);
     });
   });
 });

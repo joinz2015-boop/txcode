@@ -1,10 +1,16 @@
 /**
  * Skill 模块
- * 
- * 职责：
- * - Skill 加载和解析
- * - Skill 管理
+ * 按照 skill-guide.md 规范实现
  */
 
-export { SkillService, skillService } from './skill.service.js';
-export type { Skill, SkillExample, SkillFile } from './skill.types.js';
+export { SkillsManager, skillsManager } from './skills.manager.js';
+export { skillTool, skillHandler, buildAvailableSkillsPrompt } from './skill.tool.js';
+export type {
+  Skill,
+  SkillMetadata,
+  SkillToolParams,
+  SkillToolResult,
+  SkillPermission,
+  SkillsConfig,
+  AvailableSkill,
+} from './skill.types.js';

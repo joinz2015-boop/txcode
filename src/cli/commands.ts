@@ -4,7 +4,7 @@
 
 import { sessionService } from '../modules/session/index.js';
 import { configService } from '../modules/config/index.js';
-import { skillService } from '../modules/skill/index.js';
+import { skillsManager } from '../modules/skill/index.js';
 import { memoryService } from '../modules/memory/index.js';
 import { CommandResult } from './cli.types.js';
 
@@ -119,24 +119,26 @@ registerCommand('delete', (args) => {
   return { success: true, message: `已删除会话: ${id}` };
 });
 
-registerCommand('skills', () => {
-  const skills = skillService.getAll();
-  const list = skills.map(s => `  ${s.name} - ${s.description}`).join('\n');
+registerCommand('skills', async () => {
+  await skillsManager.loadAll();
+  const skills = skillsManager.getAvailableSkills();
+  const list = skills.map((s: { name: string; description: string }) => `  ${s.name} - ${s.description}`).join('\n');
   return { success: true, message: `可用技能:\n${list}`, data: skills };
 });
 
-registerCommand('use', (args) => {
+registerCommand('use', async (args) => {
   const skillName = args[0];
   if (!skillName) {
     return { success: false, message: '请提供技能名称' };
   }
-  
-  const skill = skillService.get(skillName);
+
+  await skillsManager.loadAll();
+  const skill = skillsManager.getSkill(skillName);
   if (!skill) {
     return { success: false, message: `技能不存在: ${skillName}` };
   }
-  
-  return { success: true, message: `已激活技能: ${skill.name}\n${skill.instructions}`, data: skill };
+
+  return { success: true, message: `已激活技能: ${skill.name}\n${skill.rawContent}`, data: skill };
 });
 
 registerCommand('providers', () => {

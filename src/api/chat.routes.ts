@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { aiService } from '../modules/ai/index.js';
 import { sessionService } from '../modules/session/index.js';
 import { memoryService } from '../modules/memory/index.js';
-import { skillService } from '../modules/skill/index.js';
+import { skillsManager } from '../modules/skill/index.js';
 import { ApiResponse, ChatRequest } from './api.types.js';
 
 export const chatRouter = Router();

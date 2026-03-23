@@ -9,6 +9,7 @@ import { editFileTool } from './edit-file.tool.js';
 import { bashTool } from './bash.tool.js';
 import { globTool } from './glob.tool.js';
 import { grepTool } from './grep.tool.js';
+import { skillTool } from './skill.tool.js';
 
 export const builtinTools: Tool[] = [
   readFileTool,
@@ -17,4 +18,5 @@ export const builtinTools: Tool[] = [
   bashTool,
   globTool,
   grepTool,
+  skillTool,
 ];

@@ -1,4 +1,5 @@
 import { ToolDefinition, SkillInfo } from './react.types.js';
+import { buildAvailableSkillsPrompt } from '../../skill/skill.tool.js';
 import os from 'os';
 
 export const REACT_SYSTEM_PROMPT = `你是一个专业的 Coding Agent，帮助用户完成代码编写、调试、重构等任务。
@@ -84,24 +85,24 @@ $content:1
 
 {builtinTools}
 
-## loadSkill 工具
+## skill 工具
 
-当内置工具不足以完成任务时，可以使用 loadSkill 加载扩展技能：
+在执行特定任务前，可以使用 skill 工具加载相关的 Skill 指南，了解该领域的约束、最佳实践和操作方法：
 
 \`\`\`json
 {
-  "thought": "需要加载 react-helper 技能来创建 React 组件",
-  "action": "loadSkill",
+  "thought": "用户要求创建发布版本，我需要先查看 git-release Skill",
+  "action": "skill",
   "action_input": {
-    "skillPath": "skills/react-helper.md"
+    "name": "git-release"
   }
 }
 \`\`\`
 
-loadSkill 参数：
-- skillPath: Skill 文件路径，相对于项目根目录或用户主目录下的 .txcode/skills 目录
+skill 参数：
+- name: Skill 名称（必填），例如：git-release, testing-guide, code-review 等
 
-加载成功后，该 Skill 中定义的工具会自动可用。
+加载成功后，返回该 Skill 的完整内容。AI 会根据 Skill 中的指南来执行任务，确保遵循最佳实践和约束。
 
 ## 可用 Skills
 
@@ -110,7 +111,7 @@ loadSkill 参数：
 ## 重要规则
 
 - 优先使用内置工具
-- 如果内置工具不足，使用 loadSkill 加载需要的 Skill
+- 在执行任务前，先使用 skill 加载相关 Skill 指南了解约束和最佳实践
 - 加载 Skill 后，其提供的工具会自动可用
 - 每个步骤后用 \\n---\\n 分隔
 - 如果工具执行失败，思考原因并尝试其他方法
@@ -118,12 +119,12 @@ loadSkill 参数：
 - 最大迭代次数: {maxIterations}
 `;
 
-export function buildReActPrompt(
+export async function buildReActPrompt(
   builtinTools: ToolDefinition[],
-  skills: SkillInfo[],
+  _skills: SkillInfo[],
   maxIterations: number = 10,
   options?: { platform?: string; workdir?: string }
-): string {
+): Promise<string> {
   const platform = options?.platform || process.platform;
   const workdir = options?.workdir || process.cwd();
 
@@ -136,14 +137,12 @@ export function buildReActPrompt(
     `- ${t.name}: ${t.description}\n  参数: ${JSON.stringify(t.parameters.properties, null, 2)}`
   ).join('\n');
 
-  const skillsDesc = skills.length > 0 
-    ? skills.map(s => `- ${s.path}: ${s.name} - ${s.description}`).join('\n')
-    : '（无已加载的 Skill，可使用 loadSkill 加载）';
+  const skillsPrompt = await buildAvailableSkillsPrompt();
 
   return REACT_SYSTEM_PROMPT
     .replace('{platform}', platformName)
     .replace('{workdir}', workdir)
     .replace('{builtinTools}', builtinToolsDesc || '（无）')
-    .replace('{skills}', skillsDesc)
+    .replace('{skills}', skillsPrompt)
     .replace('{maxIterations}', String(maxIterations));
 }

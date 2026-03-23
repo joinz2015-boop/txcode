@@ -5,28 +5,28 @@ import { ChatMessage, ChatOptions, ChatResponse, ReActState } from './ai.types.j
 import { ToolService, toolService as defaultToolService } from '../tools/tool.service.js';
 import { MemoryService } from '../memory/memory.service.js';
 import { ContextService } from '../context/context.service.js';
-import { SkillService } from '../skill/skill.service.js';
+import { SkillsManager } from '../skill/skills.manager.js';
 import { ReActResult } from './react/react.types.js';
 import txConfig from '../../config/tx.config.js';
 
 export interface AIServiceConfig {
   configService?: ConfigService;
   toolService?: ToolService;
-  skillService?: SkillService;
+  skillsManager?: SkillsManager;
   maxToolIterations?: number;
 }
 
 export class AIService {
   private configService: ConfigService;
   private toolService: ToolService;
-  private skillService?: SkillService;
+  private skillsManager?: SkillsManager;
   private provider: OpenAIProvider | null = null;
   private maxToolIterations: number;
 
   constructor(config?: AIServiceConfig) {
     this.configService = config?.configService || defaultConfigService;
     this.toolService = config?.toolService || defaultToolService;
-    this.skillService = config?.skillService;
+    this.skillsManager = config?.skillsManager;
     this.maxToolIterations = config?.maxToolIterations || txConfig.maxToolIterations;
   }
 
@@ -81,7 +81,7 @@ export class AIService {
     const agent = new ReActAgent({
       provider,
       toolService: this.toolService,
-      skillService: this.skillService,
+      skillsManager: this.skillsManager,
       memoryService: options?.memoryService,
       maxIterations: this.maxToolIterations,
       projectPath: options?.projectPath,
