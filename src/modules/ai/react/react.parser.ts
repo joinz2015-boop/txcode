@@ -27,7 +27,7 @@
  * ---
  * <react>
  *   <thought>需要创建一个组件</thought>
- *   <action>writeFile</action>
+ *   <action>write_file</action>
  *   <action_input>
  *     <path>src/Hello.tsx</path>
  *     <content><![CDATA[import React from 'react';]]></content>

@@ -47,7 +47,7 @@ const config: TxConfig = {
     maxContextTokens: 100000,
     context: {
       mode: 'fixed',
-      maxTokens: 10000,
+      maxTokens: 100000,
       percentage: 0.95,
       autoCompact: true,
     },
