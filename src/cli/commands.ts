@@ -6,11 +6,14 @@ import { sessionService } from '../modules/session/index.js';
 import { configService } from '../modules/config/index.js';
 import { skillsManager } from '../modules/skill/index.js';
 import { memoryService } from '../modules/memory/index.js';
+import { SummarizerService } from '../modules/ai/summarizer/index.js';
 import { CommandResult } from './cli.types.js';
 
 export type CommandHandler = (args: string[]) => CommandResult | Promise<CommandResult>;
 
 const commands: Map<string, CommandHandler> = new Map();
+
+const summarizerService = new SummarizerService(sessionService, memoryService, configService);
 
 /**
  * 注册命令
@@ -59,21 +62,22 @@ export function getAllCommands(): string[] {
 registerCommand('help', () => ({
   success: true,
   message: `
-可用命令:
-  /help          - 显示帮助信息
-  /new [title]   - 创建新会话
-  /sessions      - 列出所有会话
-  /switch <id>   - 切换到指定会话
-  /delete <id>   - 删除指定会话
-  /skills        - 列出所有技能
-  /use <skill>   - 使用指定技能
-  /providers     - 列出所有服务商
-  /models        - 列出所有模型
-  /model <id>    - 切换模型
-  /token         - 查看 Token 统计
-  /config <k=v>  - 设置配置项
-  /clear         - 清除当前会话
-  /exit          - 退出程序
+Available commands:
+  /help          - Show help
+  /new [title]   - Create new session
+  /sessions      - List all sessions
+  /switch <id>   - Switch to session
+  /delete <id>   - Delete session
+  /compact       - Compact current session context
+  /skills        - List all skills
+  /use <skill>   - Use skill
+  /providers     - List providers
+  /models        - List models
+  /model <id>    - Switch model
+  /token         - Show token stats
+  /config <k=v>  - Set config
+  /clear         - Clear current session
+  /exit          - Exit program
 `,
 }));
 
@@ -219,14 +223,30 @@ export function updateTokenStats(usage: { promptTokens: number; completionTokens
 registerCommand('token', () => {
   const current = sessionService.getCurrentId();
   if (!current) {
-    return { success: true, message: `Token 统计:\n  Prompt: ${tokenStats.promptTokens}\n  Completion: ${tokenStats.completionTokens}\n  Total: ${tokenStats.totalTokens}`, data: tokenStats };
+    return { success: true, message: `Token stats:\n  Prompt: ${tokenStats.promptTokens}\n  Completion: ${tokenStats.completionTokens}\n  Total: ${tokenStats.totalTokens}`, data: tokenStats };
   }
+  const session = sessionService.get(current);
   const stats = memoryService.getSessionStats(current);
   const compressPercent = stats.totalMessages > 0 ? Math.round((stats.compressedCount / stats.totalMessages) * 100) : 0;
+  
+  const checkResult = summarizerService.checkNeedsCompact(current);
+  const thresholdInfo = checkResult.needed 
+    ? `\n  Threshold: ${checkResult.threshold} (EXCEEDED)` 
+    : `\n  Threshold: ${checkResult.threshold}`;
+  
   return {
     success: true,
-    message: `会话 Token 统计:\n  Prompt: ${tokenStats.promptTokens}\n  Completion: ${tokenStats.completionTokens}\n  Total: ${tokenStats.totalTokens}\n会话消息: ${stats.totalMessages} (压缩 ${compressPercent}%)`,
-    data: { ...tokenStats, sessionStats: stats }
+    message: `Session Token stats:\n  Prompt: ${session?.promptTokens || 0}\n  Completion: ${session?.completionTokens || 0}\n  Total: ${session ? session.promptTokens + session.completionTokens : 0}${thresholdInfo}\nMessages: ${stats.totalMessages} (compressed ${compressPercent}%)`,
+    data: { 
+      sessionTokens: {
+        prompt: session?.promptTokens || 0,
+        completion: session?.completionTokens || 0,
+        total: session ? session.promptTokens + session.completionTokens : 0,
+      },
+      ...tokenStats, 
+      sessionStats: stats,
+      compactionCheck: checkResult,
+    }
   };
 });
 
@@ -250,6 +270,53 @@ registerCommand('config', (args) => {
 registerCommand('clear', () => {
   sessionService.clearCurrent();
   return { success: true, message: '已清除当前会话' };
+});
+
+registerCommand('compact', async () => {
+  const currentSessionId = sessionService.getCurrentId();
+  
+  if (!currentSessionId) {
+    return { 
+      success: false, 
+      message: 'No active session. Create or switch to a session first.' 
+    };
+  }
+  
+  const session = sessionService.get(currentSessionId);
+  if (!session) {
+    return { 
+      success: false, 
+      message: 'Session not found' 
+    };
+  }
+  
+  const messages = memoryService.getAllMessages(currentSessionId);
+  if (messages.length === 0) {
+    return { 
+      success: false, 
+      message: 'No messages to compact' 
+    };
+  }
+  
+  const tokensBefore = session.promptTokens + session.completionTokens;
+  
+  const result = await summarizerService.compact({
+    sessionId: currentSessionId,
+    onProgress: (msg) => console.log(`[Compact] ${msg}`),
+  });
+  
+  if (!result.success) {
+    return { 
+      success: false, 
+      message: `Compact failed: ${result.error}` 
+    };
+  }
+  
+  return { 
+    success: true, 
+    message: `Compact completed!\n  - Before: ${tokensBefore} tokens\n  - After: ${result.tokensAfter} tokens\n  - Summary: ${result.summary.length} chars`,
+    data: result 
+  };
 });
 
 registerCommand('exit', () => {

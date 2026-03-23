@@ -5,16 +5,18 @@
  * - 会话 CRUD
  * - 会话切换
  * - 当前会话状态管理
+ * - Token 统计
+ * - 上下文压缩
  */
 
 import { v4 as uuidv4 } from 'uuid';
 import { DbService, dbService as defaultDbService } from '../db/db.service.js';
-import { Session, SessionState } from './session.types.js';
+import { Session, SessionState, CompactionResult, SessionStats } from './session.types.js';
+import { Message } from '../memory/memory.types.js';
 
 export class SessionService {
   private db: DbService;
   
-  /** 当前会话状态 */
   private state: SessionState = {
     currentSessionId: null,
     sessions: [],
@@ -86,12 +88,6 @@ export class SessionService {
     this.db.run('UPDATE sessions SET updated_at = CURRENT_TIMESTAMP WHERE id = ?', [id]);
   }
 
-  /**
-   * 切换当前会话
-   * 
-   * @param id - 会话 ID
-   * @returns 切换后的会话，失败返回 undefined
-   */
   switchTo(id: string): Session | undefined {
     const session = this.get(id);
     if (!session) return undefined;
@@ -101,26 +97,15 @@ export class SessionService {
     return session;
   }
 
-  /**
-   * 获取当前会话
-   */
   getCurrent(): Session | undefined {
     if (!this.state.currentSessionId) return undefined;
     return this.get(this.state.currentSessionId);
   }
 
-  /**
-   * 获取当前会话 ID
-   */
   getCurrentId(): string | null {
     return this.state.currentSessionId;
   }
 
-  /**
-   * 获取最近的会话
-   * 
-   * @param limit - 返回数量限制
-   */
   getRecent(limit: number = 10): Session[] {
     const rows = this.db.all<any>(
       'SELECT * FROM sessions ORDER BY updated_at DESC LIMIT ?',
@@ -129,11 +114,6 @@ export class SessionService {
     return rows.map(this.rowToSession);
   }
 
-  /**
-   * 搜索会话
-   * 
-   * @param query - 搜索关键词
-   */
   search(query: string): Session[] {
     const rows = this.db.all<any>(
       "SELECT * FROM sessions WHERE title LIKE ? OR project_path LIKE ? ORDER BY updated_at DESC",
@@ -142,23 +122,14 @@ export class SessionService {
     return rows.map(this.rowToSession);
   }
 
-  /**
-   * 清除当前会话
-   */
   clearCurrent(): void {
     this.state.currentSessionId = null;
   }
 
-  /**
-   * 获取会话状态
-   */
   getState(): SessionState {
     return { ...this.state };
   }
 
-  /**
-   * 根据项目路径获取或创建会话
-   */
   getOrCreateByPath(projectPath: string, title?: string): Session {
     const existing = this.db.get<any>(
       'SELECT * FROM sessions WHERE project_path = ? ORDER BY updated_at DESC LIMIT 1',
@@ -172,11 +143,79 @@ export class SessionService {
     return this.create(title || `Session for ${projectPath}`, projectPath);
   }
 
+  updateTokenUsage(
+    sessionId: string,
+    promptTokens: number,
+    completionTokens: number,
+    cost: number = 0
+  ): void {
+    this.db.run(
+      `UPDATE sessions 
+       SET prompt_tokens = prompt_tokens + ?,
+           completion_tokens = completion_tokens + ?,
+           cost = cost + ?,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = ?`,
+      [promptTokens, completionTokens, cost, sessionId]
+    );
+  }
+
+  updateSummary(sessionId: string, summaryMessageId: number): void {
+    this.db.run(
+      `UPDATE sessions 
+       SET summary_message_id = ?,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = ?`,
+      [summaryMessageId, sessionId]
+    );
+  }
+
+  resetTokens(sessionId: string): void {
+    this.db.run(
+      `UPDATE sessions 
+       SET prompt_tokens = 0,
+           completion_tokens = 0,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = ?`,
+      [sessionId]
+    );
+  }
+
+  getStats(sessionId: string, threshold: number): SessionStats {
+    const session = this.get(sessionId);
+    if (!session) {
+      return {
+        promptTokens: 0,
+        completionTokens: 0,
+        totalTokens: 0,
+        threshold,
+        percentUsed: 0,
+        willCompact: false,
+      };
+    }
+
+    const totalTokens = session.promptTokens + session.completionTokens;
+    const percentUsed = threshold > 0 ? Math.round((totalTokens / threshold) * 100) : 0;
+
+    return {
+      promptTokens: session.promptTokens,
+      completionTokens: session.completionTokens,
+      totalTokens,
+      threshold,
+      percentUsed,
+      willCompact: totalTokens >= threshold,
+    };
+  }
+
   private rowToSession(row: any): Session {
     return {
       id: row.id,
       title: row.title,
       projectPath: row.project_path,
+      summaryMessageId: row.summary_message_id ?? null,
+      promptTokens: row.prompt_tokens || 0,
+      completionTokens: row.completion_tokens || 0,
+      cost: row.cost || 0,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };

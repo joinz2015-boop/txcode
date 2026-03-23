@@ -8,7 +8,8 @@
  */
 
 import { DbService, dbService as defaultDbService } from '../db/db.service.js';
-import { Provider, Model } from './config.types.js';
+import { Provider, Model, ProviderInput, ModelInput } from './config.types.js';
+import { v4 as uuidv4 } from 'uuid';
 
 export class ConfigService {
   private db: DbService;
@@ -32,15 +33,16 @@ export class ConfigService {
     return row ? this.rowToProvider(row) : undefined;
   }
 
-  addProvider(provider: Provider): void {
+  addProvider(provider: ProviderInput): string {
     const count = this.db.get<{count: number}>('SELECT COUNT(*) as count FROM providers');
     const isFirst = (count?.count || 0) === 0;
+    const id = provider.id || uuidv4();
 
     this.db.run(
       `INSERT INTO providers (id, name, api_key, base_url, enabled, is_default)
        VALUES (?, ?, ?, ?, ?, ?)`,
       [
-        provider.id,
+        id,
         provider.name,
         provider.apiKey,
         provider.baseUrl || 'https://api.openai.com/v1',
@@ -48,6 +50,7 @@ export class ConfigService {
         (isFirst || provider.isDefault) ? 1 : 0,
       ]
     );
+    return id;
   }
 
   updateProvider(id: string, data: Partial<Provider>): void {
@@ -103,11 +106,23 @@ export class ConfigService {
     return rows.map(this.rowToModel);
   }
 
-  addModel(model: Model): void {
+  addModel(model: ModelInput): string {
+    const id = model.id || uuidv4();
     this.db.run(
-      'INSERT INTO models (id, provider_id, name, enabled) VALUES (?, ?, ?, ?)',
-      [model.id, model.providerId, model.name, model.enabled ? 1 : 0]
+      `INSERT INTO models (id, provider_id, name, context_window, max_output_tokens, supports_vision, supports_tools, enabled)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        id,
+        model.providerId,
+        model.name,
+        model.contextWindow || 4096,
+        model.maxOutputTokens || 4096,
+        model.supportsVision ? 1 : 0,
+        model.supportsTools !== false ? 1 : 0,
+        model.enabled ? 1 : 0,
+      ]
     );
+    return id;
   }
 
   updateModel(id: string, data: Partial<Model>): void {
@@ -169,6 +184,10 @@ export class ConfigService {
       id: row.id,
       providerId: row.provider_id,
       name: row.name,
+      contextWindow: row.context_window || 4096,
+      maxOutputTokens: row.max_output_tokens || 4096,
+      supportsVision: Boolean(row.supports_vision),
+      supportsTools: row.supports_tools !== 0,
       enabled: Boolean(row.enabled),
     };
   }

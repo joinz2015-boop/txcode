@@ -3,6 +3,7 @@ import { ChatMessage } from './ai.types.js';
 import { ToolService } from '../tools/tool.service.js';
 import { SkillsManager } from '../skill/skills.manager.js';
 import { MemoryService } from '../memory/memory.service.js';
+import { SessionService, sessionService as defaultSessionService } from '../session/session.service.js';
 import { reactParser } from './react/react.parser.js';
 import { buildReActPrompt } from './react/react.prompts.js';
 import { ReActStep, ReActResult, ToolDefinition, SkillInfo } from './react/react.types.js';
@@ -27,6 +28,7 @@ export class ReActAgent {
   private toolService: ToolService;
   private skillsManager?: SkillsManager;
   private memoryService?: MemoryService;
+  private sessionService: SessionService;
   private maxIterations: number;
   private projectPath?: string;
   private sessionId?: string;
@@ -36,6 +38,7 @@ export class ReActAgent {
     this.toolService = config.toolService;
     this.skillsManager = config.skillsManager;
     this.memoryService = config.memoryService;
+    this.sessionService = defaultSessionService;
     this.maxIterations = config.maxIterations || 50;
     this.projectPath = config.projectPath;
     this.sessionId = config.sessionId;
@@ -54,10 +57,11 @@ export class ReActAgent {
     
     messages.push({ role: 'system', content: systemPrompt });
 
-    const permanentMessages = this.getPermanentMessages();
-    for (const msg of permanentMessages) {
-      if (msg.role !== 'system') {
-        messages.push({ role: msg.role as 'user' | 'assistant' | 'system' | 'tool', content: msg.content });
+    if (options?.historyMessages && options.historyMessages.length > 0) {
+      for (const msg of options.historyMessages) {
+        if (msg.role !== 'system') {
+          messages.push(msg);
+        }
       }
     }
 
@@ -112,7 +116,7 @@ export class ReActAgent {
         options?.onStep?.(latestStep, iteration);
 
         const observationStr = reactParser.formatObservation(latestStep.observation);
-        const toolResultMessage = `工具执行结果：\n---\n${observationStr}\n---\n请继续思考下一步操作。`;
+        const toolResultMessage = `Tool Result:\n---\n${observationStr}\n---\nPlease continue.`;
 
         messages.push({ role: 'assistant', content: aiContent });
         messages.push({ role: 'user', content: toolResultMessage });
@@ -134,16 +138,12 @@ export class ReActAgent {
 
     const success = iteration < this.maxIterations && finalAnswer.length > 0;
 
-    if (this.sessionId && this.memoryService) {
-      this.memoryService.compressSession(this.sessionId, 5);
-    }
-
     return {
-      answer: finalAnswer || steps[steps.length - 1]?.observation?.error || '无法完成任务',
+      answer: finalAnswer || steps[steps.length - 1]?.observation?.error || 'Unable to complete task',
       steps,
       iterations: iteration,
       success,
-      error: iteration >= this.maxIterations ? '达到最大迭代次数' : undefined,
+      error: iteration >= this.maxIterations ? 'Max iterations reached' : undefined,
       usage: totalUsage,
     };
   }
@@ -196,16 +196,8 @@ export class ReActAgent {
     }));
   }
 
-  private getPermanentMessages(): Array<{ role: string; content: string }> {
-    if (!this.sessionId || !this.memoryService) return [];
-    const allMessages = this.memoryService.getPermanentMessages(this.sessionId);
-    return allMessages
-      .filter(m => m.role === 'user' || m.role === 'assistant' || m.role === 'system')
-      .map(m => ({ role: m.role, content: m.content }));
-  }
-
-  private addMessage(role: 'user' | 'assistant' | 'system', content: string, permanent: boolean): void {
+  private addMessage(role: 'user' | 'assistant' | 'system', content: string, keepContext: boolean): void {
     if (!this.sessionId || !this.memoryService) return;
-    this.memoryService.addMessage(this.sessionId, role, content, permanent);
+    this.memoryService.addMessage(this.sessionId, role, content, keepContext);
   }
 }

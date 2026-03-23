@@ -160,6 +160,7 @@ export class DbService {
 
     const migrations: Array<() => void> = [
       () => this.migration001Initial(),
+      () => this.migration002AddContextFields(),
     ];
 
     for (let i = 0; i < migrations.length; i++) {
@@ -189,6 +190,10 @@ export class DbService {
         id TEXT PRIMARY KEY,
         title TEXT NOT NULL,
         project_path TEXT,
+        summary_message_id INTEGER,
+        prompt_tokens INTEGER DEFAULT 0,
+        completion_tokens INTEGER DEFAULT 0,
+        cost REAL DEFAULT 0,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )
@@ -201,7 +206,7 @@ export class DbService {
         session_id TEXT NOT NULL,
         role TEXT NOT NULL CHECK (role IN ('user', 'assistant', 'system', 'tool')),
         content TEXT NOT NULL,
-        is_permanent INTEGER DEFAULT 0,
+        keep_context INTEGER DEFAULT 1,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
       )
@@ -254,6 +259,10 @@ export class DbService {
         id TEXT PRIMARY KEY,
         provider_id TEXT NOT NULL,
         name TEXT NOT NULL,
+        context_window INTEGER DEFAULT 4096,
+        max_output_tokens INTEGER DEFAULT 4096,
+        supports_vision INTEGER DEFAULT 0,
+        supports_tools INTEGER DEFAULT 1,
         enabled INTEGER DEFAULT 1,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -274,16 +283,104 @@ export class DbService {
     this.db.exec(`
       CREATE INDEX IF NOT EXISTS idx_messages_session_id ON messages(session_id);
       CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at);
-      CREATE INDEX IF NOT EXISTS idx_messages_permanent ON messages(session_id, is_permanent);
+      CREATE INDEX IF NOT EXISTS idx_messages_keep_context ON messages(session_id, keep_context);
       CREATE INDEX IF NOT EXISTS idx_project_knowledge_path ON project_knowledge(project_path);
       CREATE INDEX IF NOT EXISTS idx_code_snippets_session ON code_snippets(session_id);
       CREATE INDEX IF NOT EXISTS idx_models_provider ON models(provider_id);
+      CREATE INDEX IF NOT EXISTS idx_sessions_summary ON sessions(summary_message_id);
     `);
 
     // 初始化默认配置
     this.db.exec(`INSERT OR IGNORE INTO config (key, value) VALUES ('ai.maxToolIterations', '10')`);
     this.db.exec(`INSERT OR IGNORE INTO config (key, value) VALUES ('ai.maxSessionCompression', '5')`);
     this.db.exec(`INSERT OR IGNORE INTO config (key, value) VALUES ('web.port', '40000')`);
+    this.db.exec(`INSERT OR IGNORE INTO config (key, value) VALUES ('ai.context.mode', '"fixed"')`);
+    this.db.exec(`INSERT OR IGNORE INTO config (key, value) VALUES ('ai.context.maxTokens', '10000')`);
+    this.db.exec(`INSERT OR IGNORE INTO config (key, value) VALUES ('ai.context.percentage', '0.95')`);
+    this.db.exec(`INSERT OR IGNORE INTO config (key, value) VALUES ('ai.context.autoCompact', 'true')`);
+  }
+
+  /** 迁移002：添加上下文压缩相关字段 */
+  private migration002AddContextFields(): void {
+    if (!this.db) return;
+
+    // 检查 sessions 表是否需要添加新字段
+    const sessionsInfo = this.db.pragma('table_info(sessions)') as { name: string }[];
+    const sessionsColumns = sessionsInfo.map(col => col.name);
+
+    if (!sessionsColumns.includes('summary_message_id')) {
+      this.db.exec(`ALTER TABLE sessions ADD COLUMN summary_message_id INTEGER`);
+    }
+    if (!sessionsColumns.includes('prompt_tokens')) {
+      this.db.exec(`ALTER TABLE sessions ADD COLUMN prompt_tokens INTEGER DEFAULT 0`);
+    }
+    if (!sessionsColumns.includes('completion_tokens')) {
+      this.db.exec(`ALTER TABLE sessions ADD COLUMN completion_tokens INTEGER DEFAULT 0`);
+    }
+    if (!sessionsColumns.includes('cost')) {
+      this.db.exec(`ALTER TABLE sessions ADD COLUMN cost REAL DEFAULT 0`);
+    }
+
+    // 检查 messages 表是否需要迁移 is_permanent 到 keep_context
+    const messagesInfo = this.db.pragma('table_info(messages)') as { name: string }[];
+    const messagesColumns = messagesInfo.map(col => col.name);
+
+    // 如果有 is_permanent 但没有 keep_context，重命名
+    if (messagesColumns.includes('is_permanent') && !messagesColumns.includes('keep_context')) {
+      this.db.exec(`ALTER TABLE messages RENAME COLUMN is_permanent TO keep_context`);
+    } else if (!messagesColumns.includes('keep_context')) {
+      this.db.exec(`ALTER TABLE messages ADD COLUMN keep_context INTEGER DEFAULT 1`);
+    }
+
+    // 检查 models 表是否需要添加新字段
+    const modelsInfo = this.db.pragma('table_info(models)') as { name: string }[];
+    const modelsColumns = modelsInfo.map(col => col.name);
+
+    if (!modelsColumns.includes('context_window')) {
+      this.db.exec(`ALTER TABLE models ADD COLUMN context_window INTEGER DEFAULT 4096`);
+    }
+    if (!modelsColumns.includes('max_output_tokens')) {
+      this.db.exec(`ALTER TABLE models ADD COLUMN max_output_tokens INTEGER DEFAULT 4096`);
+    }
+    if (!modelsColumns.includes('supports_vision')) {
+      this.db.exec(`ALTER TABLE models ADD COLUMN supports_vision INTEGER DEFAULT 0`);
+    }
+    if (!modelsColumns.includes('supports_tools')) {
+      this.db.exec(`ALTER TABLE models ADD COLUMN supports_tools INTEGER DEFAULT 1`);
+    }
+
+    // 创建索引
+    this.db.exec(`CREATE INDEX IF NOT EXISTS idx_sessions_summary ON sessions(summary_message_id)`);
+    this.db.exec(`CREATE INDEX IF NOT EXISTS idx_messages_keep_context ON messages(session_id, keep_context)`);
+
+    // 初始化默认配置
+    this.db.exec(`INSERT OR IGNORE INTO config (key, value) VALUES ('ai.context.mode', '"fixed"')`);
+    this.db.exec(`INSERT OR IGNORE INTO config (key, value) VALUES ('ai.context.maxTokens', '10000')`);
+    this.db.exec(`INSERT OR IGNORE INTO config (key, value) VALUES ('ai.context.percentage', '0.95')`);
+    this.db.exec(`INSERT OR IGNORE INTO config (key, value) VALUES ('ai.context.autoCompact', 'true')`);
+
+    // 初始化常用模型的 context_window
+    const modelContextWindows: Record<string, number> = {
+      'gpt-4': 8192,
+      'gpt-4-turbo': 128000,
+      'gpt-4o': 128000,
+      'gpt-4o-mini': 128000,
+      'claude-3-opus': 200000,
+      'claude-3-sonnet': 200000,
+      'claude-3-haiku': 200000,
+      'claude-3.5-sonnet': 200000,
+      'claude-4-sonnet': 200000,
+      'claude-4-opus': 200000,
+      'deepseek-chat': 64000,
+      'deepseek-coder': 16000,
+    };
+
+    for (const [modelId, contextWindow] of Object.entries(modelContextWindows)) {
+      this.run(
+        `UPDATE models SET context_window = ? WHERE id = ?`,
+        [contextWindow, modelId]
+      );
+    }
   }
 }
 

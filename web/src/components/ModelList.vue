@@ -63,12 +63,8 @@
       @close="closeDialog"
     >
       <el-form :model="form" :rules="rules" ref="form" label-width="100px">
-        <el-form-item label="模型 ID" prop="id">
-          <el-input v-model="form.id" placeholder="例如: gpt-4" />
-        </el-form-item>
-
         <el-form-item label="所属提供商" prop="providerId">
-          <el-select v-model="form.providerId" placeholder="选择提供商" style="width: 100%">
+          <el-select v-model="form.providerId" placeholder="选择提供商" style="width: 100%" @change="onProviderChange">
             <el-option
               v-for="p in providers"
               :key="p.id"
@@ -123,14 +119,12 @@ export default {
       selectedProviderId: null,
       showAddDialog: false,
       form: {
-        id: '',
         providerId: '',
         name: '',
         enabled: true,
       },
       rules: {
-        id: [{ required: true, message: '请输入模型 ID', trigger: 'blur' }],
-        providerId: [{ required: true, message: '请选择提供商', trigger: 'change' }],
+        providerId: [{ required: true, message: '请选择提供商', trigger: 'blur' }],
         name: [{ required: true, message: '请输入模型名称', trigger: 'blur' }],
       },
     };
@@ -149,6 +143,9 @@ export default {
   },
 
   methods: {
+    onProviderChange() {
+      this.$refs.form?.validateField('providerId');
+    },
     /**
      * 获取提供商名称
      */
@@ -201,7 +198,6 @@ export default {
     closeDialog() {
       this.showAddDialog = false;
       this.form = {
-        id: '',
         providerId: '',
         name: '',
         enabled: true,

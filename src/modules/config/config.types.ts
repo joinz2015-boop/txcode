@@ -5,28 +5,57 @@
  * Model: 模型配置
  */
 
-export interface Provider {
-  /** 服务商 ID */
-  id: string;
-  /** 服务商名称 */
+export interface ProviderInput {
+  id?: string;
   name: string;
-  /** API Key */
   apiKey: string;
-  /** API 基础 URL */
+  baseUrl?: string;
+  enabled?: boolean;
+  isDefault?: boolean;
+}
+
+export interface Provider {
+  id: string;
+  name: string;
+  apiKey: string;
   baseUrl: string;
-  /** 是否启用 */
   enabled: boolean;
-  /** 是否为默认 */
   isDefault: boolean;
 }
 
-export interface Model {
-  /** 模型 ID */
-  id: string;
-  /** 所属服务商 ID */
+export interface ModelInput {
+  id?: string;
   providerId: string;
-  /** 模型名称 */
   name: string;
-  /** 是否启用 */
+  contextWindow?: number;
+  maxOutputTokens?: number;
+  supportsVision?: boolean;
+  supportsTools?: boolean;
+  enabled?: boolean;
+}
+
+export interface Model {
+  id: string;
+  providerId: string;
+  name: string;
+  contextWindow: number;
+  maxOutputTokens: number;
+  supportsVision: boolean;
+  supportsTools: boolean;
   enabled: boolean;
 }
+
+export const PREDEFINED_MODELS: Partial<Model>[] = [
+  { id: 'gpt-4o', contextWindow: 128000, maxOutputTokens: 4096, supportsVision: true, supportsTools: true },
+  { id: 'gpt-4o-mini', contextWindow: 128000, maxOutputTokens: 4096, supportsVision: true, supportsTools: true },
+  { id: 'gpt-4-turbo', contextWindow: 128000, maxOutputTokens: 4096, supportsVision: true, supportsTools: true },
+  { id: 'gpt-4', contextWindow: 8192, maxOutputTokens: 4096, supportsVision: false, supportsTools: true },
+  { id: 'claude-3-opus', contextWindow: 200000, maxOutputTokens: 4096, supportsVision: true, supportsTools: true },
+  { id: 'claude-3-sonnet', contextWindow: 200000, maxOutputTokens: 4096, supportsVision: true, supportsTools: true },
+  { id: 'claude-3-haiku', contextWindow: 200000, maxOutputTokens: 4096, supportsVision: true, supportsTools: true },
+  { id: 'claude-3.5-sonnet', contextWindow: 200000, maxOutputTokens: 8192, supportsVision: true, supportsTools: true },
+  { id: 'claude-4-sonnet', contextWindow: 200000, maxOutputTokens: 8192, supportsVision: true, supportsTools: true },
+  { id: 'claude-4-opus', contextWindow: 200000, maxOutputTokens: 4096, supportsVision: true, supportsTools: true },
+  { id: 'deepseek-chat', contextWindow: 64000, maxOutputTokens: 4096, supportsVision: false, supportsTools: true },
+  { id: 'deepseek-coder', contextWindow: 16000, maxOutputTokens: 4096, supportsVision: false, supportsTools: true },
+];

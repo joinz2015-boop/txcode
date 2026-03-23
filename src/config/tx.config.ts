@@ -4,6 +4,13 @@
  * 主要用于控制应用程序的基本行为，如调试模式和日志记录
  */
 
+export interface ContextConfig {
+  mode: 'fixed' | 'percentage';
+  maxTokens: number;
+  percentage: number;
+  autoCompact: boolean;
+}
+
 export interface TxConfig {
   debug: boolean;
   
@@ -17,6 +24,7 @@ export interface TxConfig {
   
   ai: {
     maxContextTokens: number;
+    context: ContextConfig;
   };
 }
 
@@ -37,6 +45,12 @@ const config: TxConfig = {
   
   ai: {
     maxContextTokens: 100000,
+    context: {
+      mode: 'fixed',
+      maxTokens: 10000,
+      percentage: 0.95,
+      autoCompact: true,
+    },
   },
 };
 

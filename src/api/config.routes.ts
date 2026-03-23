@@ -36,10 +36,9 @@ configRouter.get('/providers', (req: Request, res: Response) => {
  * 添加提供商
  */
 configRouter.post('/providers', (req: Request, res: Response) => {
-  const { id, name, apiKey, baseUrl, enabled } = req.body as ProviderCreateRequest;
+  const { name, apiKey, baseUrl, enabled } = req.body as ProviderCreateRequest;
   
-  configService.addProvider({
-    id,
+  const id = configService.addProvider({
     name,
     apiKey,
     baseUrl: baseUrl || 'https://api.openai.com/v1',
@@ -47,7 +46,7 @@ configRouter.post('/providers', (req: Request, res: Response) => {
     isDefault: false,
   });
   
-  res.status(201).json({ success: true, message: 'Provider added' });
+  res.status(201).json({ success: true, data: { id } });
 });
 
 /**
@@ -108,16 +107,19 @@ configRouter.get('/models', (req: Request, res: Response) => {
  * 添加模型
  */
 configRouter.post('/models', (req: Request, res: Response) => {
-  const { id, providerId, name, enabled } = req.body;
+  const { providerId, name, enabled, contextWindow, maxOutputTokens, supportsVision, supportsTools } = req.body;
   
-  configService.addModel({
-    id,
+  const id = configService.addModel({
     providerId,
     name,
+    contextWindow: contextWindow || 4096,
+    maxOutputTokens: maxOutputTokens || 4096,
+    supportsVision: supportsVision || false,
+    supportsTools: supportsTools !== false,
     enabled: enabled !== false,
   });
   
-  res.status(201).json({ success: true, message: 'Model added' });
+  res.status(201).json({ success: true, data: { id } });
 });
 
 /**

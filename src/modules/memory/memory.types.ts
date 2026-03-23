@@ -7,6 +7,6 @@ export interface Message {
   sessionId: string;
   role: 'user' | 'assistant' | 'system' | 'tool';
   content: string;
-  isPermanent: boolean;
+  keepContext: boolean;
   createdAt: string;
 }

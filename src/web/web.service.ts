@@ -12,6 +12,7 @@ import express, { Express, Request, Response } from 'express';
 import cors from 'cors';
 import * as path from 'path';
 import * as fs from 'fs';
+import * as readline from 'readline';
 import { apiRouter } from '../api/index.js';
 import { dbService } from '../modules/db/db.service.js';
 
@@ -107,7 +108,7 @@ npm run dev
   async start(): Promise<void> {
     dbService.init();
 
-    return new Promise(() => {
+    return new Promise((resolve, reject) => {
       const server = this.app.listen(this.port, () => {
         console.log(`TXCode Web 服务已启动: http://localhost:${this.port}`);
         
@@ -119,20 +120,38 @@ npm run dev
         }
         
         console.log(`API 文档: http://localhost:${this.port}/api`);
-        console.log(`按 Ctrl+C 停止服务`);
+        console.log(`按 Ctrl+C 停止服务\n`);
+
+        const shutdown = () => {
+          console.log('\n正在关闭服务...');
+          server.close(() => {
+            dbService.close();
+            console.log('服务已关闭');
+            process.exit(0);
+          });
+          setTimeout(() => {
+            console.log('强制退出');
+            process.exit(1);
+          }, 3000);
+        };
+
+        process.on('SIGTERM', shutdown);
+        process.on('SIGINT', shutdown);
+
+        if (process.platform === 'win32') {
+          const rl = readline.createInterface({
+            input: process.stdin,
+            output: process.stdout,
+          });
+          rl.on('close', () => {
+            shutdown();
+          });
+        }
+
+        resolve();
       });
 
-      const shutdown = () => {
-        console.log('\n正在关闭服务...');
-        server.close(() => {
-          dbService.close();
-          console.log('服务已关闭');
-          process.exit(0);
-        });
-      };
-
-      process.on('SIGTERM', shutdown);
-      process.on('SIGINT', shutdown);
+      server.on('error', reject);
     });
   }
 

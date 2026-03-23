@@ -5,8 +5,10 @@ import { ChatMessage, ChatOptions, ChatResponse, ReActState } from './ai.types.j
 import { ToolService, toolService as defaultToolService } from '../tools/tool.service.js';
 import { MemoryService } from '../memory/memory.service.js';
 import { ContextService } from '../context/context.service.js';
+import { SessionService, sessionService as defaultSessionService } from '../session/session.service.js';
 import { SkillsManager } from '../skill/skills.manager.js';
 import { ReActResult } from './react/react.types.js';
+import { SummarizerService } from './summarizer/index.js';
 import txConfig from '../../config/tx.config.js';
 
 export interface AIServiceConfig {
@@ -19,6 +21,7 @@ export interface AIServiceConfig {
 export class AIService {
   private configService: ConfigService;
   private toolService: ToolService;
+  private sessionService: SessionService;
   private skillsManager?: SkillsManager;
   private provider: OpenAIProvider | null = null;
   private maxToolIterations: number;
@@ -26,6 +29,7 @@ export class AIService {
   constructor(config?: AIServiceConfig) {
     this.configService = config?.configService || defaultConfigService;
     this.toolService = config?.toolService || defaultToolService;
+    this.sessionService = defaultSessionService;
     this.skillsManager = config?.skillsManager;
     this.maxToolIterations = config?.maxToolIterations || txConfig.maxToolIterations;
   }
@@ -68,11 +72,14 @@ export class AIService {
     }
   ): Promise<ReActResult> {
     const provider = this.getProvider();
+    const sessionId = options?.sessionId;
 
     let historyMessages: ChatMessage[] = [];
-    if (options?.sessionId && options?.memoryService) {
-      const permanentMsgs = options.memoryService.getPermanentMessages(options.sessionId);
-      historyMessages = permanentMsgs.map(m => ({
+    if (sessionId && options?.memoryService) {
+      const session = this.sessionService.get(sessionId);
+      const summaryMessageId = session?.summaryMessageId || null;
+      const msgs = options.memoryService.getMessagesForAI(sessionId, summaryMessageId);
+      historyMessages = msgs.map(m => ({
         role: m.role as 'user' | 'assistant' | 'system' | 'tool',
         content: m.content,
       }));
@@ -85,13 +92,32 @@ export class AIService {
       memoryService: options?.memoryService,
       maxIterations: this.maxToolIterations,
       projectPath: options?.projectPath,
-      sessionId: options?.sessionId,
+      sessionId,
     });
 
     const result = await agent.run(userMessage, {
       onStep: options?.onStep,
       historyMessages,
     });
+
+    if (sessionId && result.usage) {
+      this.sessionService.updateTokenUsage(
+        sessionId,
+        result.usage.promptTokens,
+        result.usage.completionTokens
+      );
+
+      const summarizer = new SummarizerService(
+        this.sessionService,
+        options?.memoryService || new MemoryService(),
+        this.configService
+      );
+      const check = summarizer.checkNeedsCompact(sessionId);
+      if (check.needed) {
+        console.log(`[AutoCompact] ${check.reason}, triggering compaction...`);
+        await summarizer.compact({ sessionId });
+      }
+    }
 
     return result;
   }

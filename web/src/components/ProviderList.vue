@@ -61,10 +61,6 @@
       @close="closeDialog"
     >
       <el-form :model="form" :rules="rules" ref="form" label-width="100px">
-        <el-form-item label="ID" prop="id" v-if="!editingProvider">
-          <el-input v-model="form.id" placeholder="唯一标识符" />
-        </el-form-item>
-
         <el-form-item label="名称" prop="name">
           <el-input v-model="form.name" placeholder="例如: OpenAI" />
         </el-form-item>
@@ -122,13 +118,11 @@ export default {
       showAddDialog: false,
       editingProvider: null,
       form: {
-        id: '',
         name: '',
         apiKey: '',
         baseUrl: 'https://api.openai.com/v1',
       },
       rules: {
-        id: [{ required: true, message: '请输入 ID', trigger: 'blur' }],
         name: [{ required: true, message: '请输入名称', trigger: 'blur' }],
         apiKey: [{ required: true, message: '请输入 API Key', trigger: 'blur' }],
       },
@@ -142,9 +136,8 @@ export default {
     editProvider(provider) {
       this.editingProvider = provider;
       this.form = {
-        id: provider.id,
         name: provider.name,
-        apiKey: '', // API Key 不回显
+        apiKey: '',
         baseUrl: provider.baseUrl || 'https://api.openai.com/v1',
       };
       this.showAddDialog = true;
@@ -209,7 +202,6 @@ export default {
       this.showAddDialog = false;
       this.editingProvider = null;
       this.form = {
-        id: '',
         name: '',
         apiKey: '',
         baseUrl: 'https://api.openai.com/v1',

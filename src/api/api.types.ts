@@ -96,14 +96,14 @@ export interface SessionCreateRequest {
  * 
  * 用于添加或配置 AI 服务提供商（如 OpenAI、Claude 等）
  * 
- * @property id - 提供商唯一标识符
+ * @property id - 提供商唯一标识符（可选，不提供时自动生成）
  * @property name - 提供商显示名称
  * @property apiKey - API 密钥
  * @property baseUrl - 自定义 API 基础URL（可选）
  * @property enabled - 是否启用该提供商（可选）
  */
 export interface ProviderCreateRequest {
-  id: string;
+  id?: string;
   name: string;
   apiKey: string;
   baseUrl?: string;
@@ -250,7 +250,7 @@ export interface ModelInfo {
  * 
  * 用于添加新的 AI 模型
  * 
- * @property id - 模型唯一标识符
+ * @property id - 模型唯一标识符（可选，不提供时自动生成）
  * @property providerId - 所属提供商ID
  * @property name - 模型显示名称
  * @property enabled - 是否启用该模型（可选）
@@ -258,7 +258,7 @@ export interface ModelInfo {
  * @property maxTokens - 最大输出token数（可选）
  */
 export interface ModelCreateRequest {
-  id: string;
+  id?: string;
   providerId: string;
   name: string;
   enabled?: boolean;
