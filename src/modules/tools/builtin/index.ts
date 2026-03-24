@@ -10,6 +10,7 @@ import { bashTool } from './bash.tool.js';
 import { globTool } from './glob.tool.js';
 import { grepTool } from './grep.tool.js';
 import { skillTool } from './skill.tool.js';
+import { lspTool } from '../../../tool/lsp.js';
 
 export const builtinTools: Tool[] = [
   readFileTool,
@@ -19,4 +20,5 @@ export const builtinTools: Tool[] = [
   globTool,
   grepTool,
   skillTool,
+  lspTool,
 ];

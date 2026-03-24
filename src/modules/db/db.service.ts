@@ -161,6 +161,7 @@ export class DbService {
     const migrations: Array<() => void> = [
       () => this.migration001Initial(),
       () => this.migration002AddContextFields(),
+      () => this.migration003AddLspServers(),
     ];
 
     for (let i = 0; i < migrations.length; i++) {
@@ -380,6 +381,35 @@ export class DbService {
         `UPDATE models SET context_window = ? WHERE id = ?`,
         [contextWindow, modelId]
       );
+    }
+  }
+
+  /** 迁移003：添加 LSP 服务器表 */
+  private migration003AddLspServers(): void {
+    if (!this.db) return;
+
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS lsp_server (
+        id TEXT PRIMARY KEY,
+        enabled INTEGER NOT NULL DEFAULT 0,
+        auto_start INTEGER NOT NULL DEFAULT 1,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      )
+    `);
+
+    const now = Date.now();
+    const defaultServers = [
+      { id: "typescript", enabled: 1, auto_start: 1 },
+      { id: "python", enabled: 1, auto_start: 1 },
+      { id: "java", enabled: 1, auto_start: 1 },
+      { id: "cpp", enabled: 0, auto_start: 0 },
+    ];
+
+    for (const server of defaultServers) {
+      this.db!.prepare(
+        "INSERT OR IGNORE INTO lsp_server (id, enabled, auto_start, created_at, updated_at) VALUES (?, ?, ?, ?, ?)"
+      ).run(server.id, server.enabled, server.auto_start, now, now);
     }
   }
 }
