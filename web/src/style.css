@@ -1,0 +1,23 @@
+@import "tailwindcss";
+
+@theme {
+  --color-accent: #409EFF;
+  --color-sidebar: #2d2d2d;
+  --color-activityBar: #333333;
+  --color-active: rgba(64, 158, 255, 0.125);
+  --color-border: #404040;
+  --color-textMain: #cccccc;
+  --color-textMuted: #858585;
+  --color-primary: #409EFF;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', Arial, sans-serif;
+}
+
+#app {
+  height: 100%;
+}

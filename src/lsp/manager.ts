@@ -9,7 +9,8 @@ import { dbService } from "../modules/db/index.js";
 import { servers, getServer } from "./server.js";
 import { LSPClient } from "./client.js";
 import { LSPDownloader } from "./downloader.js";
-import { LSPServerStatus, ServerStatus, LSPConfig, JavaVersionCheck } from "./types.js";
+import { LSPServerStatus } from "./types.js";
+import type { ServerStatus, LSPConfig, JavaVersionCheck } from "./types.js";
 import { lspServerTable, insertLSPServerSQL, defaultLSPServers } from "./sql.js";
 
 const TXCODE_BIN_DIR = path.join(

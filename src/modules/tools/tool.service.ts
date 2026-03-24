@@ -20,7 +20,7 @@
  * - loadSkill: 加载技能
  */
 
-import { Tool } from './tool.types.js';
+import { Tool, ToolContext } from './tool.types.js';
 import { builtinTools } from './builtin/index.js';
 
 /**
@@ -149,16 +149,19 @@ export class ToolService {
    * const result = await toolService.execute('execute_bash', { command: 'ls -la' });
    */
   async execute(name: string, params: any): Promise<string> {
-    // 从 Map 中获取工具
     const tool = this.tools.get(name);
     
-    // 检查工具是否存在
     if (!tool) {
       throw new Error(`Tool not found: ${name}`);
     }
     
-    // 调用工具的 execute 方法并返回结果
-    return tool.execute(params);
+    const context: ToolContext = {
+      sessionId: '',
+      workDir: process.cwd(),
+    };
+    
+    const result = await tool.execute(params, context);
+    return result.output;
   }
 
   /**

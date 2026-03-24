@@ -6,7 +6,8 @@ import { LSPManager } from "./manager.js";
 import { LSPClient } from "./client.js";
 import { LSPDownloader } from "./downloader.js";
 import { servers, getServer, getAllServers, getServersByExtension } from "./server.js";
-import { LSPServerInfo, LSPServerStatus, ServerStatus, LSPConfig, JavaVersionCheck } from "./types.js";
+import { LSPServerStatus } from "./types.js";
+import type { LSPServerInfo, ServerStatus, LSPConfig, JavaVersionCheck } from "./types.js";
 
 export {
   LSPManager,

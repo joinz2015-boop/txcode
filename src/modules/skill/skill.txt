@@ -1,0 +1,18 @@
+加载一个专门的 Skill（技能），该技能提供特定领域的指令和工作流程。
+
+**功能**：
+- 当你识别到任务匹配以下列出的可用技能时，使用此工具加载完整的技能说明
+- Skill 会将详细的指令、工作流程和访问绑定资源（脚本、参考、模板）注入对话上下文
+- 工具输出包含一个 `<skill_content name="...">` 块，其中包含加载的内容
+
+**使用说明**：
+- 当你识别到任务匹配某个可用 Skill 时，使用此工具加载该技能的完整说明
+- 技能会注入详细的指令、工作流程，以及对捆绑资源（脚本、参考、模板）的访问
+- 工具输出包含一个 `<skill_content name="...">` 块，其中包含加载的内容
+- 该技能的相对路径（如 scripts/、reference/）是相对于技能的基础目录
+
+**当前可用的 Skills**：
+Invoke this tool to load a skill when a task matches one of the available skills listed above.
+
+**参数说明**：
+- `name`: Skill 的名称（必需）

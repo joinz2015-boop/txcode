@@ -31,7 +31,7 @@ async function request(method, path, data = null) {
   const res = await fetch(`${API_BASE}${path}`, options);
   const json = await res.json();
 
-  if (!json.success) {
+  if (json.success === false) {
     throw new Error(json.error || json.message || '请求失败');
   }
 
@@ -228,5 +228,102 @@ export const api = {
    */
   setConfig(key, value) {
     return request('PUT', `/config/${key}`, { value });
+  },
+
+  // ==================== 文件管理 ====================
+
+  /**
+   * 获取文件树
+   * @param {string} basePath - 基础路径
+   */
+  getFileTree(basePath = "/") {
+    return request('GET', `/files/tree?base_path=${encodeURIComponent(basePath)}`);
+  },
+
+  /**
+   * 读取文件内容
+   * @param {string} path - 文件路径
+   */
+  getFileContent(path) {
+    return request('GET', `/files/content?path=${encodeURIComponent(path)}`);
+  },
+
+  /**
+   * 写入文件
+   * @param {string} path - 文件路径
+   * @param {string} content - 文件内容
+   */
+  writeFile(path, content) {
+    return request('POST', `/files/write?path=${encodeURIComponent(path)}`, content);
+  },
+
+  /**
+   * 编辑文件
+   * @param {string} path - 文件路径
+   * @param {string} oldString - 旧字符串
+   * @param {string} newString - 新字符串
+   */
+  editFile(path, oldString, newString) {
+    return request('POST', `/files/edit?path=${encodeURIComponent(path)}&old_string=${encodeURIComponent(oldString)}&new_string=${encodeURIComponent(newString)}`);
+  },
+
+  /**
+   * 删除文件
+   * @param {string} path - 文件路径
+   */
+  deleteFile(path) {
+    return request('POST', `/files/delete?path=${encodeURIComponent(path)}`);
+  },
+
+  /**
+   * 浏览文件系统
+   * @param {string} path - 路径
+   */
+  browseFilesystem(path = "") {
+    return request('GET', `/filesystem/browse?path=${encodeURIComponent(path)}`);
+  },
+
+  // ==================== 数据库管理 ====================
+
+  /**
+   * 获取数据库表列表
+   */
+  getDbTables() {
+    return request('GET', '/db/tables');
+  },
+
+  /**
+   * 获取表结构信息
+   * @param {string} tableName - 表名
+   */
+  getTableInfo(tableName) {
+    return request('GET', `/db/tables/${encodeURIComponent(tableName)}`);
+  },
+
+  /**
+   * 获取表数据
+   * @param {string} tableName - 表名
+   * @param {number} page - 页码
+   * @param {number} pageSize - 每页数量
+   */
+  getTableData(tableName, page = 1, pageSize = 50) {
+    return request('GET', `/db/tables/${encodeURIComponent(tableName)}/data?page=${page}&page_size=${pageSize}`);
+  },
+
+  /**
+   * 获取表数据（简单版本）
+   * @param {string} tableName - 表名
+   * @param {number} limit - 限制数量
+   */
+  getTableDataRaw(tableName, limit = 100) {
+    return request('GET', `/db/tables/${encodeURIComponent(tableName)}/data/raw?limit=${limit}`);
+  },
+
+  /**
+   * 执行SQL语句
+   * @param {string} query - SQL语句
+   */
+  executeSql(query) {
+    return request('POST', '/db/execute', { query });
   },
 };

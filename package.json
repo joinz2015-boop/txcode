@@ -9,7 +9,8 @@
     "txcode": "dist/index.js"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && npm run copy-txt",
+    "copy-txt": "node -e \"const fs=require('fs');const path=require('path');const src='src/modules/tools/builtin';const dst='dist/modules/tools/builtin';fs.readdirSync(src).filter(f=>f.endsWith('.txt')).forEach(f=>fs.copyFileSync(path.join(src,f),path.join(dst,f)));const skillSrc='src/modules/skill';const skillDst='dist/modules/skill';fs.mkdirSync(skillDst,{recursive:true});fs.copyFileSync(path.join(skillSrc,'skill.txt'),path.join(skillDst,'skill.txt'));console.log('Copied .txt files to dist')\"",
     "dev": "tsx src/index.ts",
     "start": "node dist/index.js",
     "start:web": "node dist/index.js web",

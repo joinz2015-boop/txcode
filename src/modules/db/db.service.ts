@@ -162,6 +162,7 @@ export class DbService {
       () => this.migration001Initial(),
       () => this.migration002AddContextFields(),
       () => this.migration003AddLspServers(),
+      () => this.migration004AddProjects(),
     ];
 
     for (let i = 0; i < migrations.length; i++) {
@@ -411,6 +412,26 @@ export class DbService {
         "INSERT OR IGNORE INTO lsp_server (id, enabled, auto_start, created_at, updated_at) VALUES (?, ?, ?, ?, ?)"
       ).run(server.id, server.enabled, server.auto_start, now, now);
     }
+  }
+
+  /** 迁移004：添加项目表 */
+  private migration004AddProjects(): void {
+    if (!this.db) return;
+
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS projects (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        path TEXT NOT NULL UNIQUE,
+        description TEXT DEFAULT '',
+        is_active INTEGER DEFAULT 0,
+        is_favorite INTEGER DEFAULT 0,
+        last_opened_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    this.db.exec(`CREATE INDEX IF NOT EXISTS idx_projects_path ON projects(path)`);
+    this.db.exec(`CREATE INDEX IF NOT EXISTS idx_projects_active ON projects(is_active)`);
   }
 }
 

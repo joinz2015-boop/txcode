@@ -1,0 +1,10 @@
+对文件执行精确的字符串替换。
+
+**使用说明**：
+- 在编辑前，**必须**至少使用过一次 Read 工具。未读取文件就编辑会报错
+- 从 Read 工具输出编辑文本时，确保保留精确的缩进（空格/制表符）。行号前缀格式是：行号 + 冒号 + 空格（如 `1: `）。`oldString` 和 `newString` 中**禁止**包含行号前缀的任何部分
+- **优先**编辑现有文件，**禁止**创建新文件除非明确需要
+- 只有用户明确要求时才使用表情符号
+- 如果 `oldString` 在文件中找不到会**失败**，报错 "oldString not found in content"
+- 如果 `oldString` 在文件中出现多次会**失败**，报错 "Found multiple matches for oldString. Provide more surrounding lines in oldString to identify the correct match."。可以提供更多上下文使其唯一，或使用 `replaceAll` 替换所有匹配项
+- `replaceAll` 用于在整个文件中替换和重命名字符串
