@@ -32,7 +32,7 @@
     <div class="flex-1 flex overflow-hidden">
       <nav class="w-12 bg-activityBar flex flex-col items-center py-2 shrink-0 border-r border-black z-10 justify-between">
         <div class="flex flex-col items-center w-full">
-          <router-link to="/chat" class="w-10 h-10 mb-2 rounded flex items-center justify-center relative" :class="$route.name === 'chat' || $route.name === 'chat-session' ? 'text-white border-l-2 border-accent bg-sidebar' : 'text-textMuted hover:text-white border-l-2 border-transparent'" title="工作台">
+          <router-link to="/codeView" class="w-10 h-10 mb-2 rounded flex items-center justify-center relative" :class="$route.name === 'codeView' || $route.name === 'codeView-session' ? 'text-white border-l-2 border-accent bg-sidebar' : 'text-textMuted hover:text-white border-l-2 border-transparent'" title="工作台">
             <i class="fa-regular fa-comments text-xl"></i>
           </router-link>
           <router-link to="/files" class="w-10 h-10 mb-2 rounded flex items-center justify-center" :class="$route.name === 'files' ? 'text-white border-l-2 border-accent bg-sidebar' : 'text-textMuted hover:text-white border-l-2 border-transparent'" title="文件">

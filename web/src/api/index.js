@@ -3,19 +3,19 @@
  * 
  * 提供与后端 API 交互的所有方法
  * 包括：会话管理、消息管理、提供商配置、模型配置、AI 聊天
+ * 支持：HTTP REST API、SSE 流式响应、WebSocket 实时通信
  */
 
-// API 基础路径（开发环境通过 vite proxy 代理，生产环境直接访问）
 const API_BASE = '/api';
 
-/**
- * 通用请求方法
- * 
- * @param {string} method - HTTP 方法 (GET, POST, PUT, DELETE)
- * @param {string} path - API 路径
- * @param {object} data - 请求数据
- * @returns {Promise<object>} 响应数据
- */
+let wsInstance = null;
+let wsListeners = new Map();
+
+function getWsUrl() {
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  return `${protocol}//${window.location.host}/ws`;
+}
+
 async function request(method, path, data = null) {
   const options = {
     method,
@@ -325,5 +325,105 @@ export const api = {
    */
   executeSql(query) {
     return request('POST', '/db/execute', { query });
+  },
+
+  // ==================== WebSocket 通信 ====================
+
+  wsConnect(onMessage, onOpen, onClose, onError) {
+    if (wsInstance && wsInstance.readyState === WebSocket.OPEN) {
+      return wsInstance;
+    }
+
+    const wsUrl = getWsUrl();
+    wsInstance = new WebSocket(wsUrl);
+
+    wsInstance.onopen = () => {
+      console.log('WebSocket connected');
+      if (onOpen) onOpen();
+    };
+
+    wsInstance.onmessage = (e) => {
+      try {
+        const msg = JSON.parse(e.data);
+        if (onMessage) onMessage(msg);
+        
+        const listeners = wsListeners.get(msg.type) || [];
+        listeners.forEach(cb => cb(msg.data));
+      } catch (err) {
+        console.error('WebSocket parse error:', err);
+      }
+    };
+
+    wsInstance.onclose = () => {
+      console.log('WebSocket closed');
+      wsInstance = null;
+      if (onClose) onClose();
+    };
+
+    wsInstance.onerror = (err) => {
+      console.error('WebSocket error:', err);
+      if (onError) onError(err);
+    };
+
+    return wsInstance;
+  },
+
+  wsDisconnect() {
+    if (wsInstance) {
+      wsInstance.close();
+      wsInstance = null;
+    }
+    wsListeners.clear();
+  },
+
+  wsOn(type, callback) {
+    if (!wsListeners.has(type)) {
+      wsListeners.set(type, []);
+    }
+    wsListeners.get(type).push(callback);
+    
+    return () => {
+      const listeners = wsListeners.get(type) || [];
+      const idx = listeners.indexOf(callback);
+      if (idx > -1) listeners.splice(idx, 1);
+    };
+  },
+
+  wsSend(type, data) {
+    if (wsInstance && wsInstance.readyState === WebSocket.OPEN) {
+      wsInstance.send(JSON.stringify({ type, data }));
+      return true;
+    }
+    return false;
+  },
+
+  wsIsConnected() {
+    return wsInstance && wsInstance.readyState === WebSocket.OPEN;
+  },
+
+  wsChat(data, callbacks) {
+    const { onSession, onStep, onDone, onError } = callbacks || {};
+
+    const unsubSession = this.wsOn('session', (data) => {
+      if (onSession) onSession(data);
+    });
+
+    const unsubStep = this.wsOn('step', (data) => {
+      if (onStep) onStep(data);
+    });
+
+    const unsubDone = this.wsOn('done', (data) => {
+      unsubSession();
+      unsubStep();
+      unsubDone();
+      unsubError();
+      if (onDone) onDone(data);
+    });
+
+    const unsubError = this.wsOn('error', (err) => {
+      if (onError) onError(err);
+    });
+
+    this.wsSend('chat', data);
   },
 };

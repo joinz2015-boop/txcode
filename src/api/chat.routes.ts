@@ -249,15 +249,41 @@ chatRouter.post('/stream', async (req: Request, res: Response) => {
  *   - success: 请求是否成功
  *   - data: Message[] - 消息数组，包含所有历史消息
  */
+import { reactParser } from '../modules/ai/react/react.parser.js';
+
 chatRouter.get('/history/:sessionId', (req: Request, res: Response) => {
-  // 从 URL 参数获取会话 ID
   const sessionId = String(req.params.sessionId);
 
   try {
-    // ========== 获取并返回历史消息 ==========
-    // 从记忆服务获取指定会话的所有消息
     const messages = memoryService.getAllMessages(sessionId);
-    res.json({ success: true, data: messages });
+    
+    const result: any[] = [];
+    let foundUser = false;
+
+    for (const msg of messages) {
+      if (msg.role === 'user' && (msg as any).isOriginal) {
+        if (!foundUser) {
+          result.push({ type: 'chat', content: msg.content });
+          foundUser = true;
+        }
+        continue;
+      }
+
+      if (msg.role === 'assistant') {
+        const parsed = reactParser.parse(msg.content);
+        for (const step of parsed.steps) {
+          result.push({ 
+            type: 'step', 
+            thought: step.thought || '',
+            action: step.action || '',
+            input: step.actionInput ? (typeof step.actionInput === 'string' ? step.actionInput : JSON.stringify(step.actionInput)) : '',
+            success: true 
+          });
+        }
+      }
+    }
+
+    res.json({ success: true, data: result });
   } catch (error) {
     res.status(500).json({
       success: false,

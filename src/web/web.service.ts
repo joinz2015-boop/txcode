@@ -20,8 +20,13 @@ import cors from 'cors';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as readline from 'readline';
+import * as http from 'http';
+import { WebSocketServer, WebSocket } from 'ws';
 import { apiRouter } from '../api/index.js';
 import { dbService } from '../modules/db/db.service.js';
+import { aiService } from '../modules/ai/index.js';
+import { sessionService } from '../modules/session/index.js';
+import { memoryService } from '../modules/memory/index.js';
 
 /**
  * WebService 类
@@ -33,10 +38,11 @@ import { dbService } from '../modules/db/db.service.js';
  *   await webService.start();
  */
 export class WebService {
-  /** Express 应用实例 */
   private app: Express;
-  /** 服务监听端口 */
   private port: number;
+  private server: http.Server | null = null;
+  private wss: WebSocketServer | null = null;
+  private wsClients: Set<WebSocket> = new Set();
 
   /**
    * 构造函数
@@ -243,14 +249,32 @@ npm run dev
    * @throws {Error} 如果端口已被占用或其他网络错误
    */
   async start(): Promise<void> {
-    // ========== 步骤 1: 初始化数据库 ==========
-    // 在启动服务前初始化数据库连接
-    // 创建必要的表 (sessions, messages 等)
     dbService.init();
 
-    // ========== 步骤 2: 启动 HTTP 服务器 ==========
     return new Promise((resolve, reject) => {
-      const server = this.app.listen(this.port, () => {
+      this.server = http.createServer(this.app);
+      
+      this.wss = new WebSocketServer({ server: this.server });
+      
+      this.wss.on('connection', (ws: WebSocket) => {
+        this.wsClients.add(ws);
+        ws.send(JSON.stringify({ type: 'connected', message: 'WebSocket connected' }));
+        
+        ws.on('message', async (data: Buffer) => {
+          try {
+            const msg = JSON.parse(data.toString());
+            await this.handleWsMessage(ws, msg);
+          } catch (e) {
+            ws.send(JSON.stringify({ type: 'error', error: 'Invalid message format' }));
+          }
+        });
+        
+        ws.on('close', () => {
+          this.wsClients.delete(ws);
+        });
+      });
+
+      this.server.listen(this.port, () => {
         // ========== 步骤 3: 打印服务信息 ==========
         console.log(`TXCode Web 服务已启动: http://localhost:${this.port}`);
         
@@ -280,12 +304,12 @@ npm run dev
          */
         const shutdown = () => {
           console.log('\n正在关闭服务...');
-          server.close(() => {
-            dbService.close();  // 关闭数据库连接
+          this.wss?.close();
+          this.server?.close(() => {
+            dbService.close();
             console.log('服务已关闭');
             process.exit(0);
           });
-          // 3秒超时强制退出
           setTimeout(() => {
             console.log('强制退出');
             process.exit(1);
@@ -310,21 +334,89 @@ npm run dev
           });
         }
 
-        resolve();
+resolve();
       });
-
-      // 监听服务器错误
-      server.on('error', reject);
     });
   }
 
-  /**
-   * 获取 Express 应用实例
-   * 
-   * 用于测试或其他需要直接访问 Express 应用场景
-   * 
-   * @returns {Express} Express 应用实例
-   */
+  private async handleWsMessage(ws: WebSocket, msg: any): Promise<void> {
+    const { type, data } = msg;
+
+    switch (type) {
+      case 'chat':
+        await this.handleChat(ws, data);
+        break;
+      case 'ping':
+        ws.send(JSON.stringify({ type: 'pong' }));
+        break;
+      default:
+        ws.send(JSON.stringify({ type: 'error', error: 'Unknown message type' }));
+    }
+  }
+
+  private async handleChat(ws: WebSocket, data: any): Promise<void> {
+    const { message, sessionId, projectPath } = data;
+
+    try {
+      let session = sessionId ? sessionService.get(sessionId) : null;
+      if (!session) {
+        session = sessionService.create('New Chat', projectPath);
+      }
+      sessionService.switchTo(session.id);
+
+      ws.send(JSON.stringify({ type: 'session', data: { sessionId: session.id } }));
+
+      const reactSteps: any[] = [];
+
+      console.log('[WebSocket] Chat message:', message);
+
+      console.log('[handleChat] calling chatWithReAct, sessionId:', session.id, 'message:', message.substring(0, 20));
+
+      const result = await aiService.chatWithReAct(message, {
+        sessionId: session.id,
+        projectPath: session.projectPath || undefined,
+        memoryService,
+        onStep: (step, iteration) => {
+          const stepData = {
+            iteration,
+            thought: step.thought,
+            action: step.action,
+            input: typeof step.actionInput === 'string' 
+              ? step.actionInput 
+              : JSON.stringify(step.actionInput),
+            success: step.observation && !step.observation.error,
+          };
+          
+          ws.send(JSON.stringify({ type: 'step', data: stepData }));
+        },
+      });
+
+      ws.send(JSON.stringify({
+        type: 'done',
+        data: {
+          sessionId: session.id,
+          response: result.answer || result.steps[result.steps.length - 1]?.thought,
+          iterations: result.iterations,
+          success: result.success,
+        }
+      }));
+    } catch (error) {
+      ws.send(JSON.stringify({
+        type: 'error',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      }));
+    }
+  }
+
+  public broadcast(message: any): void {
+    const data = JSON.stringify(message);
+    this.wsClients.forEach(client => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(data);
+      }
+    });
+  }
+
   getApp(): Express {
     return this.app;
   }

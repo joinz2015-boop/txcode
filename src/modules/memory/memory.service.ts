@@ -72,14 +72,14 @@ export class MemoryService {
     sessionId: string,
     role: 'user' | 'assistant' | 'system' | 'tool',
     content: string,
-    keepContext: boolean = true
+    keepContext: boolean = true,
+    isOriginal: boolean = false
   ): number {
-    // 执行 INSERT 语句
+    console.log('[MemoryService.addMessage] role:', role, 'isOriginal:', isOriginal, 'content:', content.substring(0, 50));
     const result = this.db.run(
-      'INSERT INTO messages (session_id, role, content, keep_context) VALUES (?, ?, ?, ?)',
-      [sessionId, role, content, keepContext ? 1 : 0]  // keepContext 转换为 0/1
+      'INSERT INTO messages (session_id, role, content, keep_context, is_original) VALUES (?, ?, ?, ?, ?)',
+      [sessionId, role, content, keepContext ? 1 : 0, isOriginal ? 1 : 0]
     );
-    // 返回插入行的 ID
     return Number(result.lastInsertRowid);
   }
 
@@ -326,7 +326,8 @@ export class MemoryService {
       sessionId: row.session_id,
       role: row.role,
       content: row.content,
-      keepContext: Boolean(row.keep_context),  // 转换 0/1 为 true/false
+      keepContext: Boolean(row.keep_context),
+      isOriginal: Boolean(row.is_original),
       createdAt: row.created_at,
     };
   }

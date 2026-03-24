@@ -48,7 +48,7 @@ export class SummarizerService {
 
   private getContextConfig(): ContextConfig {
     const mode = this.configService.get<string>('ai.context.mode') || 'fixed';
-    const maxTokens = this.configService.get<number>('ai.context.maxTokens') || 10000;
+    const maxTokens = this.configService.get<number>('ai.context.maxTokens') || 100000;
     const percentage = this.configService.get<number>('ai.context.percentage') || 0.95;
     const autoCompact = this.configService.get<boolean>('ai.context.autoCompact') ?? true;
 

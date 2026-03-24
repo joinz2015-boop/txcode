@@ -209,6 +209,7 @@ export class DbService {
         role TEXT NOT NULL CHECK (role IN ('user', 'assistant', 'system', 'tool')),
         content TEXT NOT NULL,
         keep_context INTEGER DEFAULT 1,
+        is_original INTEGER DEFAULT 0,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
       )

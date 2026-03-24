@@ -8,5 +8,6 @@ export interface Message {
   role: 'user' | 'assistant' | 'system' | 'tool';
   content: string;
   keepContext: boolean;
+  isOriginal: boolean;
   createdAt: string;
 }

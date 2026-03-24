@@ -12,7 +12,7 @@
 
 import Vue from 'vue';
 import VueRouter from 'vue-router';
-import Chat from '../views/Chat.vue';
+import CodeView from '../views/codeView.vue';
 import Settings from '../views/Settings.vue';
 import Files from '../views/Files.vue';
 import Skills from '../views/Skills.vue';
@@ -24,17 +24,17 @@ const routes = [
   {
     path: '/',
     component: () => import('../views/Layout.vue'),
-    redirect: '/chat',
+    redirect: '/codeView',
     children: [
       {
-        path: 'chat',
-        name: 'chat',
-        component: Chat,
+        path: 'codeView',
+        name: 'codeView',
+        component: CodeView,
       },
       {
-        path: 'chat/:id',
-        name: 'chat-session',
-        component: Chat,
+        path: 'codeView/:id',
+        name: 'codeView-session',
+        component: CodeView,
       },
       {
         path: 'files',

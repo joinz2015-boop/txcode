@@ -305,10 +305,15 @@ export function App() {
             'write_file': '创建文件',
             'edit_file': '编辑文件',
             'execute_bash': '执行命令',
+            'bash': '执行命令',
             'find_files': '搜索文件',
             'grep': '搜索内容',
             'glob': '文件匹配',
             'loadSkill': '加载技能',
+            'todowrite': '任务列表',
+            'task': '任务代理',
+            'webfetch': '网页获取',
+            'question': '提问',
           };
           const actionName = actionNames[state.action] || state.action;
           
@@ -327,7 +332,7 @@ export function App() {
                 stepInfo += `: ${inputObj.file_path}`;
               } else if (state.action === 'write_file') {
                 stepInfo += `: ${inputObj.file_path}`;
-              } else if (state.action === 'execute_bash') {
+              } else if (state.action === 'execute_bash' || state.action === 'bash') {
                 stepInfo += `: ${inputObj.command?.slice(0, 50)}`;
               } else if (state.action === 'find_files' || state.action === 'glob') {
                 stepInfo += `: ${inputObj.pattern}`;
@@ -335,6 +340,25 @@ export function App() {
                 stepInfo += `: ${inputObj.pattern}`;
               } else if (state.action === 'loadSkill') {
                 stepInfo += `: ${inputObj.skillPath}`;
+              } else if (state.action === 'webfetch') {
+                stepInfo += `: ${inputObj.url?.slice(0, 50)}`;
+              } else if (state.action === 'todowrite') {
+                if (inputObj.todos && Array.isArray(inputObj.todos)) {
+                  stepInfo += `: ${inputObj.todos.length} 个任务`;
+                }
+              } else if (state.action === 'question') {
+                stepInfo += `: ${inputObj.questions?.length || 0} 个问题`;
+              } else {
+                const keys = Object.keys(inputObj);
+                if (keys.length > 0) {
+                  const firstKey = keys[0];
+                  const val = inputObj[firstKey];
+                  if (typeof val === 'string') {
+                    stepInfo += `: ${val.slice(0, 50)}`;
+                  } else if (typeof val === 'number') {
+                    stepInfo += `: ${val}`;
+                  }
+                }
               }
             } catch {}
           }
@@ -534,102 +558,170 @@ export function App() {
 
   // ========== UI 渲染 ==========
   
-  // 状态栏文本
-  const statusText = status === 'thinking' ? '思考中...' : '就绪';
-  const sessionText = currentSession ? `会话: ${currentSession.slice(0, 8)}` : '无会话';
+  const sessionText = currentSession ? `${currentSession.slice(0, 8)}` : '无会话';
+
+  const isToolCall = (content: string) => {
+    return content.startsWith('🔧') || 
+           content.startsWith('✓') ||
+           content.startsWith('* ');
+  };
+
+  const isThought = (content: string) => {
+    return content.startsWith('💭') || content.startsWith('~ ');
+  };
+
+  const formatToolCall = (content: string) => {
+    if (content.startsWith('🔧 ')) {
+      return content.replace('🔧 ', '* ').replace(' ✓', '').replace(' ❌', '');
+    }
+    return content;
+  };
+
+  const formatThought = (content: string) => {
+    if (content.startsWith('💭 ')) {
+      return content.replace('💭 ', '~ ');
+    }
+    return content;
+  };
 
   return (
-    <>
-      {/* ========== 静态消息区域 ========== */}
-      {/* Static 组件用于渲染不受后续状态更新影响的元素 */}
-      <Static items={messages}>
-        {(msg: MessageItem) => (
-          <Box key={msg.id} marginBottom={1}>
-            <Text bold color={msg.role === 'user' ? 'green' : msg.role === 'assistant' ? 'blue' : 'gray'}>
-              [{msg.role}]
-            </Text>
-            <Text> {msg.content.slice(0, 2000)}{msg.content.length > 2000 ? '...' : ''}</Text>
-          </Box>
-        )}
-      </Static>
-      
-      {/* ========== 动态区域 ========== */}
-      <Box flexDirection="column" padding={1}>
+    <Box flexDirection="column" padding={1}>
+      {/* ========== 日志输出区 ========== */}
+      <Box flexDirection="column">
+        <Static items={messages}>
+          {(msg: MessageItem) => {
+            const isError = msg.role === 'system' && msg.content.startsWith('错误:');
+            const isTool = msg.role === 'system' && isToolCall(msg.content);
+            const isThoughtMsg = msg.role === 'system' && isThought(msg.content);
+            
+            if (msg.role === 'user') {
+              return (
+                <Box 
+                  key={msg.id} 
+                  backgroundColor="#121212"
+                  paddingX={2}
+                  paddingY={1}
+                  borderLeft="2"
+                  borderColor="#27272a"
+                  marginBottom={1}
+                >
+                  <Text bold color="#f4f4f5"># {msg.content}</Text>
+                </Box>
+              );
+            }
+            
+            if (msg.role === 'assistant') {
+              return (
+                <Box key={msg.id} marginBottom={1} paddingLeft={2}>
+                  <Text color="#d4d4d8">{msg.content}</Text>
+                </Box>
+              );
+            }
+            
+            if (isThoughtMsg) {
+              return (
+                <Box key={msg.id} marginBottom={1} paddingLeft={2}>
+                  <Text bold color="cyan">{formatThought(msg.content)}</Text>
+                </Box>
+              );
+            }
+            
+            if (isTool) {
+              return (
+                <Box key={msg.id} marginBottom={1} paddingLeft={2}>
+                  <Text dimColor>{formatToolCall(msg.content)}</Text>
+                </Box>
+              );
+            }
+            
+            if (isError) {
+              return (
+                <Box key={msg.id} marginBottom={1} paddingLeft={2}>
+                  <Text color="red">{msg.content}</Text>
+                </Box>
+              );
+            }
+            
+            return null;
+          }}
+        </Static>
+
         {/* ========== 思考状态 ========== */}
         {status === 'thinking' && (
-          <Box marginY={1}>
-            <Text dimColor>AI 正在思考...</Text>
-          </Box>
-        )}
-
-        {/* ========== 输入框 ========== */}
-        <Box borderStyle="single" borderColor="gray" paddingX={1}>
-          <Text dimColor>{'> '}</Text>
-          <Text>{input.slice(0, cursorPosition)}</Text>
-          <Text color="cyan">▋</Text>
-          <Text>{input.slice(cursorPosition)}</Text>
-        </Box>
-
-        {/* ========== 文件选择列表 ========== */}
-        {fileSelectMode && (
-          <Box flexDirection="column" marginTop={1} paddingX={1}>
-            <Text dimColor>{currentDir || '/'} (↑↓ 选择, Enter 确认, ESC 取消)</Text>
-            {fileList.slice(0, 15).map((file, index) => (
-              <Box key={file.path}>
-                <Text>
-                  {index === selectedIndex ? (
-                    <Text bold color="green">{`▶ ${file.name}${file.isDirectory ? '/' : ''}`}</Text>
-                  ) : (
-                    <Text dimColor>{`  ${file.name}${file.isDirectory ? '/' : ''}`}</Text>
-                  )}
-                </Text>
-              </Box>
-            ))}
-            {fileList.length === 0 && (
-              <Text dimColor>空目录...</Text>
-            )}
-          </Box>
-        )}
-
-        {/* ========== 模型选择列表 ========== */}
-        {modelSelectMode && (
-          <Box flexDirection="column" marginTop={1} paddingX={1}>
-            <Text dimColor>选择模型 (↑↓ 选择, Enter 确认, ESC 取消):</Text>
-            {modelList.map((model, index) => (
-              <Box key={model.id}>
-                <Text>
-                  {index === modelSelectedIndex ? (
-                    <Text bold color="green">{`▶ ${model.name}`}</Text>
-                  ) : (
-                    <Text dimColor>{`  ${model.name}`}</Text>
-                  )}
-                </Text>
-              </Box>
-            ))}
-            {modelList.length === 0 && (
-              <Text dimColor>未找到模型...</Text>
-            )}
-          </Box>
-        )}
-
-        {/* ========== 底部状态栏 ========== */}
-        <Box marginTop={1}>
-          <Text dimColor>
-            {statusText} | 模型: {currentModelName}
-            {tokenStats.totalTokens > 0 && ` | Token: ${tokenStats.totalTokens}`}
-            {compressionPercent > 0 && ` | 压缩: ${compressionPercent}%`}
-            {' | '}{sessionText}
-            {' | /help 帮助 | ESC 退出'}
-          </Text>
-        </Box>
-
-        {/* ========== 错误提示 ========== */}
-        {error && (
-          <Box marginTop={1}>
-            <Text color="red">错误: {error}</Text>
+          <Box marginBottom={1} paddingLeft={2}>
+            <Text bold color="cyan">▣ Build</Text>
+            <Text dimColor> · {currentModelName}</Text>
           </Box>
         )}
       </Box>
-    </>
+
+      {/* ========== 输入框 ========== */}
+      <Box borderStyle="single" borderColor="gray" paddingX={1} marginBottom={1}>
+        <Text dimColor>{'> '}</Text>
+        <Text>{input.slice(0, cursorPosition)}</Text>
+        <Text color="cyan">▋</Text>
+        <Text>{input.slice(cursorPosition)}</Text>
+      </Box>
+
+      {/* ========== 文件选择列表 ========== */}
+      {fileSelectMode && (
+        <Box flexDirection="column" marginBottom={1} paddingX={1}>
+          <Text dimColor>{currentDir || '/'} (↑↓ 选择, Enter 确认, ESC 取消)</Text>
+          {fileList.slice(0, 15).map((file, index) => (
+            <Box key={file.path}>
+              <Text>
+                {index === selectedIndex ? (
+                  <Text bold color="green">{`▶ ${file.name}${file.isDirectory ? '/' : ''}`}</Text>
+                ) : (
+                  <Text dimColor>{`  ${file.name}${file.isDirectory ? '/' : ''}`}</Text>
+                )}
+              </Text>
+            </Box>
+          ))}
+          {fileList.length === 0 && (
+            <Text dimColor>空目录...</Text>
+          )}
+        </Box>
+      )}
+
+      {/* ========== 模型选择列表 ========== */}
+      {modelSelectMode && (
+        <Box flexDirection="column" marginBottom={1} paddingX={1}>
+          <Text dimColor>选择模型 (↑↓ 选择, Enter 确认, ESC 取消):</Text>
+          {modelList.map((model, index) => (
+            <Box key={model.id}>
+              <Text>
+                {index === modelSelectedIndex ? (
+                  <Text bold color="green">{`▶ ${model.name}`}</Text>
+                ) : (
+                  <Text dimColor>{`  ${model.name}`}</Text>
+                )}
+              </Text>
+            </Box>
+          ))}
+          {modelList.length === 0 && (
+            <Text dimColor>未找到模型...</Text>
+          )}
+        </Box>
+      )}
+
+      {/* ========== 底部状态栏 ========== */}
+      <Box paddingX={2}>
+        <Text dimColor>
+          就绪 | 模型: {currentModelName}
+          {tokenStats.totalTokens > 0 && ` | Token: ${tokenStats.totalTokens}`}
+          {compressionPercent > 0 && ` | 压缩: ${compressionPercent}%`}
+          {` | 会话: ${sessionText}`}
+          {' | /help 帮助 | ESC 退出'}
+        </Text>
+      </Box>
+
+      {/* ========== 错误提示 ========== */}
+      {error && (
+        <Box marginTop={1}>
+          <Text color="red">错误: {error}</Text>
+        </Box>
+      )}
+    </Box>
   );
 }

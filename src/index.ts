@@ -26,29 +26,31 @@ import { parseArgs } from './cli/args.js';
  * @returns {Promise<void>} 程序异步执行完成
  */
 async function main() {
-  // ========== 步骤 1: 解析命令行参数 ==========
-  // process.argv 包含 Node.js 运行时和脚本路径后的所有参数
-  // 例如：['node', 'index.ts', 'web', '--port', '40001']
   const args = parseArgs(process.argv);
   
-  // ========== 步骤 2: 根据参数决定启动模式 ==========
   if (args.command === 'web') {
-    /**
-     * Web 模式：启动 Express Web 服务
-     * 
-     * 执行内容：
-     * 1. 动态导入 WebService 类 (延迟加载，减少 CLI 模式的内存占用)
-     * 2. 创建 WebService 实例，传入端口号
-     * 3. 调用 start() 启动服务
-     * 
-     * Web 服务功能：
-     * - /health 健康检查端点
-     * - /api/* API 路由 (聊天、会话、配置、技能)
-     * - 静态文件服务 (Vue 前端构建产物)
-     * - SPA 路由 fallback
-     */
+    const net = await import('net');
+    
+    async function findAvailablePort(port: number): Promise<number> {
+      return new Promise((resolve) => {
+        const server = net.createServer();
+        server.listen(port, () => {
+          server.close(() => resolve(port));
+        });
+        server.on('error', async () => {
+          const nextPort = await findAvailablePort(port + 1);
+          resolve(nextPort);
+        });
+      });
+    }
+
+    const availablePort = await findAvailablePort(args.port);
+    if (availablePort !== args.port) {
+      console.log(`端口 ${args.port} 被占用，使用端口 ${availablePort}`);
+    }
+    
     const { WebService } = await import('./web/web.service.js');
-    const webService = new WebService(args.port);
+    const webService = new WebService(availablePort);
     await webService.start();
   } else {
     /**

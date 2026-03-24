@@ -67,7 +67,7 @@ export class ReActAgent {
 
     messages.push({ role: 'user', content: userMessage });
 
-    this.addMessage('user', userMessage, true);
+    this.addMessage('user', userMessage, true, true);
 
     let iteration = 0;
     let finalAnswer = '';
@@ -84,21 +84,13 @@ export class ReActAgent {
         totalUsage.totalTokens += response.usage.totalTokens;
       }
 
-      const aiContent = response.content || '';
+const aiContent = response.content || '';
 
       const parsed = reactParser.parse(aiContent);
       
-      console.log('[DEBUG] AI raw content length:', aiContent.length);
-      console.log('[DEBUG] Parsed steps count:', parsed.steps.length);
       if (parsed.steps.length === 0) {
-        console.log('[DEBUG] No steps parsed! AI content preview:', aiContent.substring(0, 500));
         finalAnswer = aiContent;
         break;
-      }
-      
-      if (parsed.steps.length > 0) {
-        console.log('[DEBUG] First step action:', parsed.steps[0].action);
-        console.log('[DEBUG] First step has final_answer:', !!parsed.steps[0].final_answer);
       }
 
       const latestStep = parsed.steps[parsed.steps.length - 1];
@@ -204,8 +196,8 @@ export class ReActAgent {
     }));
   }
 
-  private addMessage(role: 'user' | 'assistant' | 'system', content: string, keepContext: boolean): void {
+  private addMessage(role: 'user' | 'assistant' | 'system', content: string, keepContext: boolean, isOriginal: boolean = false): void {
     if (!this.sessionId || !this.memoryService) return;
-    this.memoryService.addMessage(this.sessionId, role, content, keepContext);
+    this.memoryService.addMessage(this.sessionId, role, content, keepContext, isOriginal);
   }
 }
