@@ -328,7 +328,6 @@ export default {
       this.input = ''
       this.disabled = true
       this.userQuestion = content
-      this.logItems = []
       this.logItems.push({ type: 'chat', content: content })
 
       if (api.wsIsConnected()) {

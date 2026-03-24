@@ -90,6 +90,7 @@ const aiContent = response.content || '';
       
       if (parsed.steps.length === 0) {
         finalAnswer = aiContent;
+        this.addMessage('assistant', finalAnswer, true);
         break;
       }
 

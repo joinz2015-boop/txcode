@@ -271,14 +271,25 @@ chatRouter.get('/history/:sessionId', (req: Request, res: Response) => {
 
       if (msg.role === 'assistant') {
         const parsed = reactParser.parse(msg.content);
-        for (const step of parsed.steps) {
-          result.push({ 
-            type: 'step', 
-            thought: step.thought || '',
-            action: step.action || '',
-            input: step.actionInput ? (typeof step.actionInput === 'string' ? step.actionInput : JSON.stringify(step.actionInput)) : '',
-            success: true 
+        
+        if (parsed.steps.length === 0) {
+          result.push({
+            type: 'step',
+            thought: msg.content,
+            action: '',
+            input: '',
+            success: true
           });
+        } else {
+          for (const step of parsed.steps) {
+            result.push({ 
+              type: 'step', 
+              thought: step.thought || '',
+              action: step.action || '',
+              input: step.actionInput ? (typeof step.actionInput === 'string' ? step.actionInput : JSON.stringify(step.actionInput)) : '',
+              success: true 
+            });
+          }
         }
       }
     }
