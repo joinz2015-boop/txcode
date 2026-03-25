@@ -25,6 +25,7 @@
 
 import { v4 as uuidv4 } from 'uuid';
 import { DbService, dbService as defaultDbService } from '../db/db.service.js';
+import { memoryService } from '../memory/index.js';
 import { Session, SessionState, CompactionResult, SessionStats } from './session.types.js';
 import { Message } from '../memory/memory.types.js';
 
@@ -187,6 +188,8 @@ export class SessionService {
    * @param id - 会话 ID
    */
   delete(id: string): void {
+    // 删除会话的所有消息
+    this.db.run('DELETE FROM messages WHERE session_id = ?', [id]);
     // 删除数据库记录
     this.db.run('DELETE FROM sessions WHERE id = ?', [id]);
     

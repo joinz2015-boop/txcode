@@ -15,8 +15,19 @@
           class="session-item"
           :class="currentSession?.id === session.id ? 'active' : ''"
         >
-          <span class="session-time">{{ formatTime(session.createdAt) }}</span>
-          <span class="session-title truncate">{{ session.title || '新会话' }}</span>
+          <div class="session-row">
+            <span class="session-title truncate">{{ session.title || '新会话' }}</span>
+            <span class="session-time">{{ formatTime(session.createdAt) }}</span>
+            <div class="session-actions" @click.stop>
+              <el-dropdown trigger="click" @command="(cmd) => handleSessionCommand(cmd, session)">
+                <span class="action-btn">⋮</span>
+                <el-dropdown-menu slot="dropdown">
+                  <el-dropdown-item command="rename">重命名</el-dropdown-item>
+                  <el-dropdown-item command="delete" divided>删除</el-dropdown-item>
+                </el-dropdown-menu>
+              </el-dropdown>
+            </div>
+          </div>
         </div>
         <div v-if="hasMore" class="load-more" @click="loadMore">
           <el-button size="small" :loading="loadingMore">加载更多</el-button>
@@ -330,6 +341,24 @@ export default {
       this.userQuestion = content
       this.logItems.push({ type: 'chat', content: content })
 
+      const updateSessionTitle = async (sessionId) => {
+        if (sessionId) {
+          const session = this.sessions.find(s => s.id === sessionId)
+          if (session && (!session.title || session.title === '新会话')) {
+            const title = content.length > 20 ? content.substring(0, 20) + '...' : content
+            try {
+              await api.updateSession(sessionId, { title })
+              session.title = title
+              if (this.currentSession?.id === sessionId) {
+                this.currentSession.title = title
+              }
+            } catch (e) {
+              console.error('更新会话名称失败:', e)
+            }
+          }
+        }
+      }
+
       if (api.wsIsConnected()) {
         api.wsChat(
           {
@@ -342,7 +371,12 @@ export default {
                 this.currentSession = { id: data.sessionId }
               }
             },
-            onDone: (data) => this.handleDone(data),
+            onDone: async (data) => {
+              if (data?.sessionId) {
+                await updateSessionTitle(data.sessionId)
+              }
+              this.handleDone(data)
+            },
             onError: (err) => {
               this.$message.error(err.error || '发送失败')
               this.disabled = false
@@ -373,6 +407,7 @@ export default {
           
           if (res.data?.sessionId) {
             this.currentSession = { id: res.data.sessionId }
+            await updateSessionTitle(res.data.sessionId)
             this.loadSessions()
           }
         } catch (e) {
@@ -380,6 +415,54 @@ export default {
         } finally {
           this.disabled = false
         }
+      }
+    },
+
+    async handleSessionCommand(cmd, session) {
+      if (cmd === 'rename') {
+        this.$prompt('请输入新名称', '重命名会话', {
+          confirmButtonText: '确定',
+          cancelButtonText: '取消',
+          inputValue: session.title || '新会话',
+          inputPattern: /.+/,
+          inputErrorMessage: '名称不能为空'
+        }).then(async ({ value }) => {
+          try {
+            await api.updateSession(session.id, { title: value })
+            session.title = value
+            if (this.currentSession?.id === session.id) {
+              this.currentSession.title = value
+            }
+            this.$message.success('重命名成功')
+          } catch (e) {
+            this.$message.error('重命名失败: ' + e.message)
+          }
+        }).catch(() => {})
+      } else if (cmd === 'delete') {
+        this.$confirm('确定要删除该会话吗？此操作会同时删除会话中的所有消息。', '提示', {
+          confirmButtonText: '确定',
+          cancelButtonText: '取消',
+          type: 'warning'
+        }).then(async () => {
+          try {
+            await api.deleteSession(session.id)
+            const idx = this.sessions.findIndex(s => s.id === session.id)
+            if (idx > -1) this.sessions.splice(idx, 1)
+            const displayIdx = this.displayedSessions.findIndex(s => s.id === session.id)
+            if (displayIdx > -1) this.displayedSessions.splice(displayIdx, 1)
+            if (this.currentSession?.id === session.id) {
+              if (this.displayedSessions.length > 0) {
+                this.selectSession(this.displayedSessions[0])
+              } else {
+                this.currentSession = null
+                this.logItems = []
+              }
+            }
+            this.$message.success('删除成功')
+          } catch (e) {
+            this.$message.error('删除失败: ' + e.message)
+          }
+        }).catch(() => {})
       }
     },
 
@@ -547,6 +630,7 @@ export default {
   color: #84848a;
   transition: all 0.2s;
   border-left: 2px solid transparent;
+  position: relative;
 }
 
 .session-item:hover {
@@ -554,15 +638,53 @@ export default {
   color: #d4d4d8;
 }
 
+.session-item:hover .session-actions {
+  opacity: 1;
+}
+
+.session-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.session-title {
+  order: 1;
+}
+
+.session-time {
+  order: 2;
+  font-size: 11px;
+  color: #545459;
+}
+
+.session-actions {
+  order: 3;
+  opacity: 0;
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  transition: opacity 0.2s;
+}
+
+.action-btn {
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 14px;
+  color: #84848a;
+}
+
+.action-btn:hover {
+  background-color: #3f3f46;
+  color: #d4d4d8;
+}
+
 .session-item.active {
   background-color: #18191b;
   border-left-color: #3b82f6;
   color: #f4f4f5;
-}
-
-.session-time {
-  font-size: 11px;
-  color: #545459;
 }
 
 .session-item.active .session-time { color: #60a5fa; }

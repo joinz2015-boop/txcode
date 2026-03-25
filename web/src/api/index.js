@@ -71,6 +71,15 @@ export const api = {
   },
 
   /**
+   * 更新会话
+   * @param {string} id - 会话 ID
+   * @param {object} data - 更新数据 { title }
+   */
+  updateSession(id, data) {
+    return request('PUT', `/sessions/${id}`, data);
+  },
+
+  /**
    * 删除会话
    * @param {string} id - 会话 ID
    */
