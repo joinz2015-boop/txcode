@@ -7,5 +7,5 @@
  */
 
 export { ToolService, toolService } from './tool.service.js';
-export type { Tool, ToolResult } from './tool.types.js';
+export type { Tool, ToolResult, ToolCall, ToolCallResult } from './tool.types.js';
 export { builtinTools } from './builtin/index.js';

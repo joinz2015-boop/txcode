@@ -22,24 +22,23 @@
 import { ToolDefinition, SkillInfo } from './react.types.js';
 import { buildAvailableSkillsPrompt } from '../../skill/skill.tool.js';
 import os from 'os';
+import fs from 'fs/promises';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-/**
- * ReAct 系统提示词模板
- * 
- * 这是一个多行字符串模板，包含占位符：
- * - {platform} - 操作系统
- * - {workdir} - 工作目录
- * - {builtinTools} - 内置工具定义
- * - {skills} - 可用技能列表
- * 
- * AI 需要按照此模板的格式输出 JSON 响应
- */
-export const REACT_SYSTEM_PROMPT = `你是一个专业的 Coding Agent，帮助用户完成代码编写、调试、重构等任务。
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-## 运行环境
+async function loadRoleTemplate(): Promise<string> {
+  try {
+    return await fs.readFile(path.join(__dirname, 'prompt', 'role.txt'), 'utf-8');
+  } catch {
+    return '你是 txcode，一个帮助用户完成软件工程任务的交互式命令行工具。';
+  }
+}
 
-- 操作系统: {platform}
-- 工作目录: {workdir}
+function getReActPromptTemplate(roleTemplate: string): string {
+  return `${roleTemplate}
 
 你必须按照 ReAct (Reasoning + Acting) 模式工作：
 
@@ -161,6 +160,7 @@ skill 参数：
 - 谨慎设置 keep_context=true，只对需要传递给下一轮的重要结果设置
 - 最大迭代次数: {maxIterations}
 `;
+}
 
 export async function buildReActPrompt(
   builtinTools: ToolDefinition[],
@@ -184,8 +184,10 @@ export async function buildReActPrompt(
   }).join('\n');
 
   const skillsPrompt = await buildAvailableSkillsPrompt();
+  const roleTemplate = await loadRoleTemplate();
+  const template = getReActPromptTemplate(roleTemplate);
 
-  return REACT_SYSTEM_PROMPT
+  return template
     .replace('{platform}', platformName)
     .replace('{workdir}', workdir)
     .replace('{builtinTools}', builtinToolsDesc || '（无）')

@@ -15,12 +15,15 @@ import { lspTool } from './lsp.js'
 import { webSearchTool } from './web_search.js'
 import { webFetchTool } from './web_fetch.js'
 import { codeSearchTool } from './code_search.js'
+import { memoryTool } from './memory.js'
 import { skillTool } from '../../skill/skill.tool.js'
 
 import fs from 'fs/promises'
 import path from 'path'
+import { fileURLToPath } from 'url'
 
-const DESCRIPTIONS_DIR = import.meta.dirname
+const __filename = fileURLToPath(import.meta.url)
+const DESCRIPTIONS_DIR = path.dirname(__filename)
 
 async function loadDescription(filename: string, baseDir?: string): Promise<string> {
   try {
@@ -32,7 +35,7 @@ async function loadDescription(filename: string, baseDir?: string): Promise<stri
 }
 
 export async function getBuiltinTools(): Promise<Tool[]> {
-  const [bashDesc, readFileDesc, writeFileDesc, editFileDesc, globDesc, grepDesc, todoReadDesc, todoWriteDesc, lspDesc, webSearchDesc, webFetchDesc, codeSearchDesc] = await Promise.all([
+  const [bashDesc, readFileDesc, writeFileDesc, editFileDesc, globDesc, grepDesc, todoReadDesc, todoWriteDesc, lspDesc, webSearchDesc, webFetchDesc, codeSearchDesc, memoryDesc] = await Promise.all([
     loadDescription('bash.txt'),
     loadDescription('read_file.txt'),
     loadDescription('write_file.txt'),
@@ -45,9 +48,10 @@ export async function getBuiltinTools(): Promise<Tool[]> {
     loadDescription('web_search.txt'),
     loadDescription('web_fetch.txt'),
     loadDescription('code_search.txt'),
+    loadDescription('memory.txt'),
   ])
 
-  const skillDesc = await loadDescription('skill.txt', path.join(import.meta.dirname, '..', '..', 'skill'))
+  const skillDesc = await loadDescription('skill.txt', path.join(DESCRIPTIONS_DIR, '..', '..', 'skill'))
 
   bashTool.description = bashDesc
   readFileTool.description = readFileDesc
@@ -61,6 +65,7 @@ export async function getBuiltinTools(): Promise<Tool[]> {
   webSearchTool.description = webSearchDesc
   webFetchTool.description = webFetchDesc
   codeSearchTool.description = codeSearchDesc
+  memoryTool.description = memoryDesc
   skillTool.description = skillDesc
 
   return [
@@ -76,8 +81,18 @@ export async function getBuiltinTools(): Promise<Tool[]> {
     webSearchTool,
     webFetchTool,
     codeSearchTool,
+    memoryTool,
     skillTool,
   ]
 }
 
-export const builtinTools: Tool[] = await getBuiltinTools()
+let _builtinTools: Tool[] | null = null
+
+export async function getBuiltinToolsInstance(): Promise<Tool[]> {
+  if (!_builtinTools) {
+    _builtinTools = await getBuiltinTools()
+  }
+  return _builtinTools
+}
+
+export const builtinTools: Tool[] = [] // 占位符，实际通过getBuiltinToolsInstance获取

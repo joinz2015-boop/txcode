@@ -11,9 +11,11 @@
         <div
           v-for="session in displayedSessions"
           :key="session.id"
-          @click="selectSession(session)"
           class="session-item"
           :class="currentSession?.id === session.id ? 'active' : ''"
+          draggable="true"
+          @dragstart="onDragStart($event, session)"
+          @click="selectSession(session)"
         >
           <div class="session-row">
             <span class="session-title truncate">{{ session.title || '新会话' }}</span>
@@ -35,57 +37,76 @@
       </div>
     </aside>
 
-    <div class="terminal-container">
-      <div class="header-block">
-        <span class="title"># {{ userQuestion }}</span>
-        <span class="stats"></span>
-      </div>
+    <div class="terminal-container" :class="'layout-' + layoutMode">
+      <div
+        v-for="(panel, index) in activeSessions"
+        :key="index"
+        class="session-panel"
+        :class="{ 'panel-active': focusedPanelIndex === index }"
+        @click="focusedPanelIndex = index"
+        @dragover.prevent
+        @drop="onDropPanel($event, index)"
+      >
+        <div class="panel-header">
+          <span class="title"># {{ panel.session?.id ? (panel.userQuestion || '新会话') : '选择会话' }}</span>
+        </div>
+        <div class="log-area">
+          <template v-if="panel.session?.id">
+            <template v-for="(item, idx) in panel.logItems" :key="idx">
+              <p v-if="item.type === 'chat' || item.type === 'think'" class="user-question" v-html="renderMarkdown(item.content)"></p>
+              <template v-else-if="item.type === 'step'">
+                <p v-if="item.thought" v-html="renderMarkdown(item.thought)"></p>
+                <div v-if="item.action" class="log-mute">
+                  <span :class="item.success !== false ? 'tool-success' : 'tool-fail'">
+                    {{ item.success !== false ? '✓' : '✗' }}
+                  </span>
+                  {{ item.action }}
+                  <span v-if="item.input" class="tool-input">{{ formatInput(item.action, item.input) }}</span>
+                </div>
+              </template>
+            </template>
 
-      <div class="log-area" ref="logArea">
-        <template v-for="(item, index) in logItems" :key="index">
-          <p v-if="item.type === 'chat' || item.type === 'think'" class="user-question" v-html="renderMarkdown(item.content)"></p>
-          <template v-else-if="item.type === 'step'">
-            <p v-if="item.thought" v-html="renderMarkdown(item.thought)"></p>
-            <div v-if="item.action" class="log-mute">
-              <span :class="item.success !== false ? 'tool-success' : 'tool-fail'">
-                {{ item.success !== false ? '✓' : '✗' }}
-              </span>
-              {{ item.action }}
-              <span v-if="item.input" class="tool-input">{{ formatInput(item.action, item.input) }}</span>
+            <div v-if="panel.logItems.length === 0" class="empty-state">
+              <span>开始对话吧！输入您的问题...</span>
+            </div>
+
+            <div class="build-info" v-if="panel.modelName">
+              <span class="icon">▣</span> Build · {{ panel.modelName }}
             </div>
           </template>
-        </template>
-
-        <div v-if="logItems.length === 0" class="empty-state">
-          <span>开始对话吧！输入您的问题...</span>
+          <div v-else class="empty-state">
+            <span>拖拽会话到此处或点击选择</span>
+          </div>
         </div>
-
-        <div class="build-info" v-if="modelName">
-          <span class="icon">▣</span> Build · {{ modelName }}
+        <div class="input-block">
+          <el-input
+            v-model="panel.input"
+            type="textarea"
+            :rows="2"
+            placeholder="输入消息... (Enter 发送)"
+            :disabled="panel.disabled || !panel.session?.id"
+            class="input-area"
+            @keydown.enter.native="handleKeydown($event, panel)"
+          />
+          <el-button type="primary" :loading="panel.disabled" @click.stop="sendToPanel(panel)" class="send-btn">
+            发送
+          </el-button>
         </div>
-      </div>
-
-      <div class="input-block">
-        <el-input
-          v-model="input"
-          type="textarea"
-          :rows="2"
-          placeholder="输入消息... (Enter 发送)"
-          @keydown.enter.native="handleKeydown"
-          :disabled="disabled"
-          class="input-area"
-        />
-        <el-button type="primary" :loading="disabled" @click="send" class="send-btn">
-          发送
-        </el-button>
-      </div>
-
-      <div class="footer">
-        <div class="footer-left">
-          <span :class="wsConnected ? 'ws-connected' : 'ws-disconnected'">●</span>
-          {{ wsConnected ? 'WebSocket' : 'HTTP' }} | 模型: {{ modelName || 'deepseek' }} | Token: {{ tokenCount }} | 会话: {{ sessionIdShort }}
+        <div class="footer">
+          <div class="footer-left">
+            <span :class="wsConnected ? 'ws-connected' : 'ws-disconnected'">●</span>
+            {{ wsConnected ? 'WebSocket' : 'HTTP' }} | 会话: {{ panel.session?.id ? panel.session.id.slice(0, 8) : '--------' }}
+          </div>
         </div>
       </div>
+    </div>
+
+    <div class="layout-switcher">
+      <el-button-group>
+        <el-button :type="layoutMode === 1 ? 'primary' : ''" @click="setLayout(1)">1</el-button>
+        <el-button :type="layoutMode === 2 ? 'primary' : ''" @click="setLayout(2)">2</el-button>
+        <el-button :type="layoutMode === 4 ? 'primary' : ''" @click="setLayout(4)">4</el-button>
+      </el-button-group>
     </div>
   </div>
 </template>
@@ -103,26 +124,18 @@ export default {
 
   data() {
     return {
+      layoutMode: 1,
+      focusedPanelIndex: 0,
       sessions: [],
       displayedSessions: [],
       currentSession: null,
-      logItems: [],
-      userQuestion: 'New Session',
+      activeSessions: [],
       page: 1,
       pageSize: 10,
       hasMore: false,
       loadingMore: false,
-      modelName: '',
-      tokenCount: 0,
-      input: '',
-      disabled: false,
+      draggedSession: null,
       wsConnected: false,
-    }
-  },
-
-  computed: {
-    sessionIdShort() {
-      return this.currentSession?.id?.slice(0, 8) || '--------'
     }
   },
 
@@ -134,7 +147,7 @@ export default {
           const session = this.sessions.find(s => s.id === id)
           if (session) {
             this.currentSession = session
-            this.loadMessages(session.id)
+            this.updateActiveSessions()
           }
         }
       }
@@ -143,11 +156,14 @@ export default {
 
   created() {
     this.loadSessions()
-    this.initWebSocket()
   },
 
   beforeDestroy() {
-    api.wsDisconnect()
+    this.activeSessions.forEach(panel => {
+      if (panel.session?.id) {
+        api.sessionWsDisconnect(panel.session.id)
+      }
+    })
   },
 
   methods: {
@@ -193,72 +209,144 @@ export default {
       return marked(text)
     },
 
-    initWebSocket() {
-      api.wsConnect(
+    initPanelWs(panel) {
+      if (!panel.session?.id) return
+      if (panel.wsConnected) return
+
+      api.sessionWsConnect(
+        panel.session.id,
         (msg) => {
-          this.handleWsMessage(msg)
+          this.handlePanelWsMessage(panel, msg)
         },
         () => {
-          this.wsConnected = true
-          console.log('WebSocket 已连接')
+          panel.wsConnected = true
+          console.log(`WebSocket [${panel.session.id}] 已连接`)
         },
         () => {
-          this.wsConnected = false
-          console.log('WebSocket 已断开')
+          panel.wsConnected = false
+          console.log(`WebSocket [${panel.session.id}] 已断开`)
           setTimeout(() => {
-            if (!api.wsIsConnected()) {
-              this.initWebSocket()
+            if (!api.sessionWsIsConnected(panel.session.id)) {
+              this.initPanelWs(panel)
             }
           }, 3000)
         },
         (err) => {
-          this.wsConnected = false
-          console.error('WebSocket 错误:', err)
+          panel.wsConnected = false
+          console.error(`WebSocket [${panel.session.id}] 错误:`, err)
         }
       )
     },
 
-    handleWsMessage(msg) {
+    handlePanelWsMessage(panel, msg) {
       const { type, data, error } = msg
-
+      
       switch (type) {
         case 'session':
-          if (data?.sessionId && !this.currentSession) {
-            this.currentSession = { id: data.sessionId }
+          if (data?.sessionId && !panel.session.id) {
+            panel.session.id = data.sessionId
           }
           break
         case 'step':
           if (data) {
-            this.logItems.push({ 
+            panel.logItems.push({ 
               type: 'step', 
               thought: data.thought, 
               action: data.action,
               input: data.input,
               success: data.success
             })
-            this.tokenCount += 50
-            this.$nextTick(() => this.scrollToBottom())
           }
           break
         case 'done':
-          this.handleDone(data)
+          panel.disabled = false
+          if (data?.response) {
+            panel.logItems.push({ type: 'think', content: data.response })
+          }
+          if (data?.sessionId) {
+            this.loadSessions()
+          }
           break
         case 'error':
           this.$message.error(error || '发生错误')
-          this.disabled = false
+          panel.disabled = false
           break
       }
     },
 
-    handleDone(data) {
-      this.disabled = false
-      if (data?.response) {
-        this.logItems.push({ type: 'think', content: data.response })
+    setLayout(mode) {
+      this.layoutMode = mode
+      this.updateActiveSessions()
+    },
+
+    updateActiveSessions() {
+      const count = this.layoutMode
+      const newActive = []
+      
+      for (let i = 0; i < count; i++) {
+        if (this.activeSessions[i]) {
+          newActive.push(this.activeSessions[i])
+        } else {
+          newActive.push({
+            session: null,
+            logItems: [],
+            userQuestion: '',
+            modelName: '',
+            input: '',
+            disabled: false,
+            wsConnected: false,
+          })
+        }
       }
-      if (data?.sessionId) {
-        this.loadSessions()
+      
+      this.activeSessions = newActive
+    },
+
+    onDragStart(event, session) {
+      this.draggedSession = session
+      event.dataTransfer.effectAllowed = 'move'
+    },
+
+    onDropPanel(event, index) {
+      if (this.draggedSession) {
+        const panel = this.activeSessions[index]
+        panel.session = this.draggedSession
+        panel.logItems = []
+        panel.userQuestion = ''
+        panel.wsConnected = false
+        this.loadMessagesForPanel(panel, this.draggedSession.id)
+        this.initPanelWs(panel)
+        this.draggedSession = null
       }
-      this.$nextTick(() => this.scrollToBottom())
+    },
+
+    bindSessionToPanel(session, panelIndex = null) {
+      const idx = panelIndex !== null ? panelIndex : this.focusedPanelIndex
+      if (idx >= 0 && idx < this.activeSessions.length) {
+        const panel = this.activeSessions[idx]
+        panel.session = session
+        panel.logItems = []
+        panel.userQuestion = ''
+        panel.wsConnected = false
+        this.loadMessagesForPanel(panel, session.id)
+        this.initPanelWs(panel)
+      }
+    },
+
+    async loadMessagesForPanel(panel, sessionId) {
+      try {
+        const res = await api.getMessages(sessionId)
+        panel.logItems = res.data || []
+        if (panel.logItems.length > 0) {
+          const userItem = panel.logItems.find(item => item.type === 'chat' || item.type === 'think')
+          if (userItem) {
+            panel.userQuestion = userItem.content
+          }
+        }
+      } catch (e) {
+        console.error('加载消息失败:', e)
+        panel.logItems = []
+      }
     },
 
     async loadSessions() {
@@ -268,16 +356,16 @@ export default {
         this.page = 1
         this.displayedSessions = this.sessions.slice(0, this.pageSize)
         this.hasMore = this.sessions.length > this.pageSize
-        if (this.displayedSessions.length > 0 && !this.currentSession) {
-          const sessionId = this.$route.params.id
-          this.currentSession = sessionId 
-            ? this.displayedSessions.find(s => s.id === sessionId) || this.displayedSessions[0]
-            : this.displayedSessions[0]
-          this.loadMessages(this.currentSession.id)
-        }
+        this.updateActiveSessions()
       } catch (e) {
         console.error('加载会话失败:', e)
       }
+    },
+
+    handleKeydown(e, panel) {
+      if (e.shiftKey) return
+      e.preventDefault()
+      this.sendToPanel(panel)
     },
 
     loadMore() {
@@ -296,7 +384,7 @@ export default {
         this.page = 1
         this.displayedSessions = this.sessions.slice(0, this.pageSize)
         this.hasMore = this.sessions.length > this.pageSize
-        this.selectSession(res.data)
+        this.bindSessionToPanel(res.data)
       } catch (e) {
         this.$message.error('创建会话失败: ' + e.message)
       }
@@ -307,114 +395,33 @@ export default {
       if (this.$route.params.id !== session.id) {
         this.$router.push({ name: 'codeView-session', params: { id: session.id } }).catch(() => {})
       }
-      this.loadMessages(session.id)
+      this.bindSessionToPanel(session)
     },
 
-    async loadMessages(sessionId) {
-      try {
-        const res = await api.getMessages(sessionId)
-        this.logItems = res.data || []
-        if (this.logItems.length > 0) {
-          const userItem = this.logItems.find(item => item.type === 'chat' || item.type === 'think')
-          if (userItem) {
-            this.userQuestion = userItem.content
-          }
-        }
-      } catch (e) {
-        console.error('加载消息失败:', e)
-        this.logItems = []
-      }
-    },
+    async sendToPanel(panel) {
+      const content = panel.input.trim()
+      if (!content || panel.disabled) return
 
-    handleKeydown(e) {
-      if (e.shiftKey) return
-      e.preventDefault()
-      this.send()
-    },
+      panel.input = ''
+      panel.disabled = true
+      panel.userQuestion = content
+      panel.logItems.push({ type: 'chat', content: content })
 
-    async send() {
-      const content = this.input.trim()
-      if (!content || this.disabled) return
-
-      this.input = ''
-      this.disabled = true
-      this.userQuestion = content
-      this.logItems.push({ type: 'chat', content: content })
-
-      const updateSessionTitle = async (sessionId) => {
-        if (sessionId) {
-          const session = this.sessions.find(s => s.id === sessionId)
-          if (session && (!session.title || session.title === '新会话')) {
-            const title = content.length > 20 ? content.substring(0, 20) + '...' : content
-            try {
-              await api.updateSession(sessionId, { title })
-              session.title = title
-              if (this.currentSession?.id === sessionId) {
-                this.currentSession.title = title
-              }
-            } catch (e) {
-              console.error('更新会话名称失败:', e)
-            }
-          }
-        }
-      }
-
-      if (api.wsIsConnected()) {
-        api.wsChat(
-          {
-            message: content,
-            sessionId: this.currentSession?.id,
-          },
-          {
-            onSession: (data) => {
-              if (!this.currentSession) {
-                this.currentSession = { id: data.sessionId }
-              }
-            },
-            onDone: async (data) => {
-              if (data?.sessionId) {
-                await updateSessionTitle(data.sessionId)
-              }
-              this.handleDone(data)
-            },
-            onError: (err) => {
-              this.$message.error(err.error || '发送失败')
-              this.disabled = false
-            }
-          }
-        )
+      if (api.sessionWsIsConnected(panel.session.id)) {
+        api.sessionWsSend(panel.session.id, 'chat', {
+          message: content,
+          sessionId: panel.session?.id,
+        })
       } else {
-        try {
-          const res = await api.chat({
-            sessionId: this.currentSession?.id,
-            message: content,
-          })
-          
-          if (res.data?.reactSteps) {
-            res.data.reactSteps.forEach(step => {
-              if (step.thought) {
-                this.logItems.push({ type: 'think', content: step.thought })
-              }
-              if (step.action) {
-                this.logItems.push({ type: 'tool', name: step.action, input: step.actionInput, success: true })
-              }
+        this.initPanelWs(panel)
+        setTimeout(() => {
+          if (api.sessionWsIsConnected(panel.session.id)) {
+            api.sessionWsSend(panel.session.id, 'chat', {
+              message: content,
+              sessionId: panel.session?.id,
             })
           }
-          
-          if (res.data?.response) {
-            this.logItems.push({ type: 'think', content: res.data.response })
-          }
-          
-          if (res.data?.sessionId) {
-            this.currentSession = { id: res.data.sessionId }
-            await updateSessionTitle(res.data.sessionId)
-            this.loadSessions()
-          }
-        } catch (e) {
-          this.$message.error('发送失败: ' + e.message)
-        } finally {
-          this.disabled = false
-        }
+        }, 500)
       }
     },
 
@@ -455,7 +462,6 @@ export default {
                 this.selectSession(this.displayedSessions[0])
               } else {
                 this.currentSession = null
-                this.logItems = []
               }
             }
             this.$message.success('删除成功')
@@ -463,13 +469,6 @@ export default {
             this.$message.error('删除失败: ' + e.message)
           }
         }).catch(() => {})
-      }
-    },
-
-    scrollToBottom() {
-      const log = this.$refs.logArea
-      if (log) {
-        log.scrollTop = log.scrollHeight
       }
     },
   },
@@ -492,31 +491,51 @@ export default {
 
 .terminal-container {
   flex: 1;
-  display: flex;
-  flex-direction: column;
-  max-width: 900px;
-  margin: 0 auto;
-  background-color: #0a0a09;
-  border: 1px solid #1e1e1e;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  display: grid;
+  gap: 12px;
+  padding: 12px;
   overflow: hidden;
 }
 
-.header-block {
+.terminal-container.layout-1 { grid-template-columns: 1fr; }
+.terminal-container.layout-2 { grid-template-columns: 1fr 1fr; }
+.terminal-container.layout-4 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+
+.session-panel {
+  display: flex;
+  flex-direction: column;
+  background-color: #0a0a09;
+  border: 1px solid #1e1e1e;
+  overflow: hidden;
+  min-height: 0;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.session-panel:hover {
+  border-color: #3b82f6;
+}
+
+.session-panel.panel-active {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 1px #3b82f6;
+}
+
+.panel-header {
   display: flex;
   justify-content: space-between;
   background-color: #121212;
-  padding: 16px 20px;
-  border-left: 2px solid #27272a;
+  padding: 12px 16px;
+  border-bottom: 1px solid #27272a;
   font-weight: bold;
+  flex-shrink: 0;
 }
 
-.header-block .title { color: #f4f4f5; }
-.header-block .stats { color: #84848a; font-weight: normal; }
+.panel-header .title { color: #f4f4f5; }
 
 .log-area {
   flex: 1;
-  padding: 0 20px 24px;
+  padding: 0 16px 16px;
   overflow-y: auto;
   font-size: 14px;
   line-height: 1.6;
@@ -542,14 +561,6 @@ export default {
 .tool-fail { color: #ef4444; }
 .tool-input { color: #60a5fa; margin-left: 8px; }
 
-.empty-state {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  color: #84848a;
-}
-
 .build-info {
   color: #84848a;
   display: flex;
@@ -560,23 +571,26 @@ export default {
 
 .build-info .icon { color: #60a5fa; font-size: 12px; }
 
+.empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #84848a;
+}
+
 .input-block {
   background-color: #18191b;
-  padding: 16px 20px;
-  border-left: 2px solid #3b82f6;
-  margin-bottom: 12px;
+  padding: 12px 16px;
+  border-top: 1px solid #27272a;
   display: flex;
   gap: 12px;
   align-items: flex-end;
+  flex-shrink: 0;
 }
 
-.input-area {
-  flex: 1;
-}
-
-.send-btn {
-  height: auto;
-}
+.input-area { flex: 1; }
+.send-btn { height: auto; }
 
 .ws-connected { color: #22c55e; }
 .ws-disconnected { color: #ef4444; }
@@ -584,11 +598,20 @@ export default {
 .footer {
   display: flex;
   justify-content: space-between;
-  padding: 10px 20px;
-  font-size: 13px;
+  padding: 8px 16px;
+  font-size: 12px;
+  border-top: 1px solid #27272a;
+  flex-shrink: 0;
 }
 
 .footer-left { display: flex; gap: 16px; align-items: center; color: #84848a; }
+
+.layout-switcher {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 100;
+}
 
 .sidebar {
   width: 260px;
@@ -613,11 +636,7 @@ export default {
   font-weight: bold;
 }
 
-.new-btn {
-  font-size: 12px;
-  padding: 4px 8px;
-}
-
+.new-btn { font-size: 12px; padding: 4px 8px; }
 .sidebar-content { flex: 1; overflow-y: auto; }
 
 .session-item {
@@ -638,9 +657,7 @@ export default {
   color: #d4d4d8;
 }
 
-.session-item:hover .session-actions {
-  opacity: 1;
-}
+.session-item:hover .session-actions { opacity: 1; }
 
 .session-row {
   display: flex;
@@ -648,15 +665,8 @@ export default {
   gap: 2px;
 }
 
-.session-title {
-  order: 1;
-}
-
-.session-time {
-  order: 2;
-  font-size: 11px;
-  color: #545459;
-}
+.session-title { order: 1; }
+.session-time { order: 2; font-size: 11px; color: #545459; }
 
 .session-actions {
   order: 3;

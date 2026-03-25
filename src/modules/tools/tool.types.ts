@@ -26,3 +26,18 @@ export interface ToolResult {
   error?: string
   metadata?: Record<string, any>
 }
+
+export interface ToolCall {
+  name: string
+  params: Record<string, any>
+}
+
+export interface ToolCallResult {
+  name: string
+  params: Record<string, any>
+  success: boolean
+  output: string
+  error?: string
+  metadata?: Record<string, any>
+  duration?: number
+}

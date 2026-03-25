@@ -10,9 +10,13 @@ const API_BASE = '/api';
 
 let wsInstance = null;
 let wsListeners = new Map();
+let sessionWsInstances = new Map();
 
-function getWsUrl() {
+function getWsUrl(sessionId = null) {
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  if (sessionId) {
+    return `${protocol}//${window.location.host}/ws/${sessionId}`;
+  }
   return `${protocol}//${window.location.host}/ws`;
 }
 
@@ -408,6 +412,68 @@ export const api = {
 
   wsIsConnected() {
     return wsInstance && wsInstance.readyState === WebSocket.OPEN;
+  },
+
+  sessionWsConnect(sessionId, onMessage, onOpen, onClose, onError) {
+    if (sessionWsInstances.has(sessionId)) {
+      const existing = sessionWsInstances.get(sessionId);
+      if (existing.readyState === WebSocket.OPEN) {
+        return existing;
+      }
+    }
+
+    const wsUrl = getWsUrl(sessionId);
+    const ws = new WebSocket(wsUrl);
+
+    ws.onopen = () => {
+      console.log(`WebSocket [${sessionId}] connected`);
+      if (onOpen) onOpen();
+    };
+
+    ws.onmessage = (e) => {
+      try {
+        const msg = JSON.parse(e.data);
+        if (onMessage) onMessage(msg);
+      } catch (err) {
+        console.error('WebSocket parse error:', err);
+      }
+    };
+
+    ws.onclose = () => {
+      console.log(`WebSocket [${sessionId}] closed`);
+      sessionWsInstances.delete(sessionId);
+      if (onClose) onClose();
+    };
+
+    ws.onerror = (err) => {
+      console.error(`WebSocket [${sessionId}] error:`, err);
+      if (onError) onError(err);
+    };
+
+    sessionWsInstances.set(sessionId, ws);
+    return ws;
+  },
+
+  sessionWsDisconnect(sessionId) {
+    const ws = sessionWsInstances.get(sessionId);
+    if (ws) {
+      ws.close();
+      sessionWsInstances.delete(sessionId);
+    }
+  },
+
+  sessionWsSend(sessionId, type, data) {
+    const ws = sessionWsInstances.get(sessionId);
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type, data }));
+      return true;
+    }
+    return false;
+  },
+
+  sessionWsIsConnected(sessionId) {
+    const ws = sessionWsInstances.get(sessionId);
+    return ws && ws.readyState === WebSocket.OPEN;
   },
 
   wsChat(data, callbacks) {

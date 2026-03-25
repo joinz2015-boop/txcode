@@ -13,7 +13,7 @@ describe('Memory 模块', () => {
   let sessionId: string;
 
   beforeEach(() => {
-    dbService = new DbService(`:memory:${Date.now()}:${Math.random()}`);
+    dbService = new DbService(':memory:');
     dbService.init();
     sessionService = new SessionService(dbService);
     memoryService = new MemoryService(dbService);

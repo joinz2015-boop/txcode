@@ -10,7 +10,7 @@ describe('Session 模块', () => {
   let sessionService: SessionService;
 
   beforeEach(() => {
-    dbService = new DbService(`:memory:${Date.now()}:${Math.random()}`);
+    dbService = new DbService(':memory:');
     dbService.init();
     sessionService = new SessionService(dbService);
   });

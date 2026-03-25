@@ -49,23 +49,21 @@ export class ReActAgent {
     options?: ReActRunOptions
   ): Promise<ReActResult> {
     const steps: ReActStep[] = [];
-    const messages: ChatMessage[] = [];
+    const baseMessages: ChatMessage[] = [];
 
     const skills = await this.getAvailableSkills();
-    const builtinTools = this.getBuiltinTools();
+    const builtinTools = await this.getBuiltinTools();
     const systemPrompt = await buildReActPrompt(builtinTools, skills, this.maxIterations);
-    
-    messages.push({ role: 'system', content: systemPrompt });
 
     if (options?.historyMessages && options.historyMessages.length > 0) {
       for (const msg of options.historyMessages) {
         if (msg.role !== 'system') {
-          messages.push(msg);
+          baseMessages.push(msg);
         }
       }
     }
 
-    messages.push({ role: 'user', content: userMessage });
+    baseMessages.push({ role: 'user', content: userMessage });
 
     this.addMessage('user', userMessage, true, true);
 
@@ -75,6 +73,11 @@ export class ReActAgent {
 
     while (iteration < this.maxIterations) {
       iteration++;
+
+      const messages: ChatMessage[] = [
+        { role: 'system', content: systemPrompt },
+        ...baseMessages
+      ];
 
       const response = await this.provider.chat(messages);
       
@@ -119,8 +122,8 @@ const aiContent = response.content || '';
         const observationStr = reactParser.formatObservation(latestStep.observation);
         const toolResultMessage = `Tool Result:\n---\n${observationStr}\n---\nPlease continue.`;
 
-        messages.push({ role: 'assistant', content: aiContent });
-        messages.push({ role: 'user', content: toolResultMessage });
+        baseMessages.push({ role: 'assistant', content: aiContent });
+        baseMessages.push({ role: 'user', content: toolResultMessage });
 
         if (latestStep.keepContext) {
           this.addMessage('assistant', aiContent, true);
@@ -164,8 +167,8 @@ const aiContent = response.content || '';
     }
   }
 
-  private getBuiltinTools(): ToolDefinition[] {
-    const tools = this.toolService.getAll();
+  private async getBuiltinTools(): Promise<ToolDefinition[]> {
+    const tools = await this.toolService.getAll();
     return tools.map(t => {
       const params = t.parameters as {
         type: string;

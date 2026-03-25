@@ -20,8 +20,8 @@
  * - loadSkill: 加载技能
  */
 
-import { Tool, ToolContext } from './tool.types.js';
-import { builtinTools } from './builtin/index.js';
+import { Tool, ToolContext, ToolCall, ToolCallResult } from './tool.types.js';
+import { getBuiltinToolsInstance } from './builtin/index.js';
 
 /**
  * ToolService 类
@@ -46,6 +46,8 @@ import { builtinTools } from './builtin/index.js';
 export class ToolService {
   /** 工具注册表，使用 Map 存储，key 为工具名称 */
   private tools: Map<string, Tool> = new Map();
+  private initialized: boolean = false;
+  private initPromise: Promise<void> | null = null;
 
   /**
    * 构造函数
@@ -54,7 +56,18 @@ export class ToolService {
    * 这样应用启动后立即可以使用所有内置工具
    */
   constructor() {
-    this.registerBuiltinTools();
+    this.initPromise = this.registerBuiltinTools();
+  }
+
+  /**
+   * 等待工具服务初始化完成
+   */
+  async waitForInit(): Promise<void> {
+    if (this.initialized) return;
+    if (this.initPromise) {
+      await this.initPromise;
+      this.initialized = true;
+    }
   }
 
   /**
@@ -64,12 +77,13 @@ export class ToolService {
    * 内置工具包括文件操作、命令执行、搜索等功能
    * 
    * 注册流程：
-   * 1. 遍历 builtinTools 数组
-   * 2. 将每个工具的名称作为 key，工具对象作为 value 存入 Map
+   * 1. 调用 getBuiltinToolsInstance() 获取内置工具
+   * 2. 遍历工具数组
+   * 3. 将每个工具的名称作为 key，工具对象作为 value 存入 Map
    */
-  private registerBuiltinTools(): void {
+  private async registerBuiltinTools(): Promise<void> {
+    const builtinTools = await getBuiltinToolsInstance();
     for (const tool of builtinTools) {
-      // Map.set(key, value) - 添加或更新一个元素
       this.tools.set(tool.name, tool);
     }
   }
@@ -108,7 +122,8 @@ export class ToolService {
    * @param name - 工具名称
    * @returns {Tool | undefined} 工具对象，如果不存在则返回 undefined
    */
-  get(name: string): Tool | undefined {
+  async get(name: string): Promise<Tool | undefined> {
+    await this.waitForInit();
     return this.tools.get(name);
   }
 
@@ -119,9 +134,8 @@ export class ToolService {
    * 
    * @returns {Tool[]} 工具数组
    */
-  getAll(): Tool[] {
-    // Map.values() 返回 Map 中所有值组成的迭代器
-    // Array.from() 将迭代器转换为数组
+  async getAll(): Promise<Tool[]> {
+    await this.waitForInit();
     return Array.from(this.tools.values());
   }
 
@@ -149,6 +163,7 @@ export class ToolService {
    * const result = await toolService.execute('execute_bash', { command: 'ls -la' });
    */
   async execute(name: string, params: any): Promise<string> {
+    await this.waitForInit();
     const tool = this.tools.get(name);
     
     if (!tool) {
@@ -162,6 +177,88 @@ export class ToolService {
     
     const result = await tool.execute(params, context);
     return result.output;
+  }
+
+  async executeParallel(calls: ToolCall[]): Promise<ToolCallResult[]> {
+    await this.waitForInit();
+    
+    const context: ToolContext = {
+      sessionId: '',
+      workDir: process.cwd(),
+    };
+
+    const executeCall = async (call: ToolCall): Promise<ToolCallResult> => {
+      const startTime = Date.now();
+      try {
+        const tool = this.tools.get(call.name);
+        if (!tool) {
+          throw new Error(`Tool not found: ${call.name}`);
+        }
+        const result = await tool.execute(call.params, context);
+        return {
+          name: call.name,
+          params: call.params,
+          success: result.success,
+          output: result.output,
+          error: result.error,
+          metadata: result.metadata,
+          duration: Date.now() - startTime,
+        };
+      } catch (error) {
+        return {
+          name: call.name,
+          params: call.params,
+          success: false,
+          output: '',
+          error: error instanceof Error ? error.message : String(error),
+          duration: Date.now() - startTime,
+        };
+      }
+    };
+
+    return Promise.all(calls.map(executeCall));
+  }
+
+  async executeSequential(calls: ToolCall[]): Promise<ToolCallResult[]> {
+    await this.waitForInit();
+    
+    const context: ToolContext = {
+      sessionId: '',
+      workDir: process.cwd(),
+    };
+
+    const results: ToolCallResult[] = [];
+
+    for (const call of calls) {
+      const startTime = Date.now();
+      try {
+        const tool = this.tools.get(call.name);
+        if (!tool) {
+          throw new Error(`Tool not found: ${call.name}`);
+        }
+        const result = await tool.execute(call.params, context);
+        results.push({
+          name: call.name,
+          params: call.params,
+          success: result.success,
+          output: result.output,
+          error: result.error,
+          metadata: result.metadata,
+          duration: Date.now() - startTime,
+        });
+      } catch (error) {
+        results.push({
+          name: call.name,
+          params: call.params,
+          success: false,
+          output: '',
+          error: error instanceof Error ? error.message : String(error),
+          duration: Date.now() - startTime,
+        });
+      }
+    }
+
+    return results;
   }
 
   /**
@@ -186,15 +283,16 @@ export class ToolService {
    *   }
    * ]
    */
-  getToolDefinitions(): Array<{
+  async getToolDefinitions(): Promise<Array<{
     type: 'function';
     function: {
       name: string;
       description: string;
       parameters: Record<string, any>;
     };
-  }> {
-    return this.getAll().map((tool) => ({
+  }>> {
+    const tools = await this.getAll();
+    return tools.map((tool) => ({
       type: 'function' as const,
       function: {
         name: tool.name,
@@ -210,7 +308,8 @@ export class ToolService {
    * @param name - 工具名称
    * @returns {boolean} 如果工具存在返回 true，否则返回 false
    */
-  has(name: string): boolean {
+  async has(name: string): Promise<boolean> {
+    await this.waitForInit();
     return this.tools.has(name);
   }
 
@@ -222,7 +321,8 @@ export class ToolService {
    * @param name - 工具名称
    * @returns {boolean} 如果成功删除返回 true，工具不存在返回 false
    */
-  remove(name: string): boolean {
+  async remove(name: string): Promise<boolean> {
+    await this.waitForInit();
     return this.tools.delete(name);
   }
 
@@ -235,13 +335,11 @@ export class ToolService {
    * - 切换项目时重置工具配置
    * - 清除临时添加的工具
    */
-  clearCustom(): void {
-    // 获取所有内置工具名称，存入 Set
+  async clearCustom(): Promise<void> {
+    const builtinTools = await getBuiltinToolsInstance();
     const builtinNames = new Set(builtinTools.map(t => t.name));
     
-    // 遍历所有已注册的工具
     for (const name of this.tools.keys()) {
-      // 如果不是内置工具，则删除
       if (!builtinNames.has(name)) {
         this.tools.delete(name);
       }
