@@ -14,13 +14,29 @@ export const writeFileTool: Tool = {
       },
       content: {
         type: 'string',
-        description: '要写入的内容'
+        description: '<![CDATA[要写入的内容]]>'
       }
     },
     required: ['file_path', 'content']
   },
   execute: async (params: { file_path: string; content: string }, context: ToolContext): Promise<ToolResult> => {
     let { file_path, content } = params
+
+    if (!file_path) {
+      return {
+        success: false,
+        output: '',
+        error: `Missing required parameter: file_path. Available parameters: ${Object.keys(params).join(', ')}`
+      }
+    }
+
+    if (!content) {
+      return {
+        success: false,
+        output: '',
+        error: 'Missing required parameter: content'
+      }
+    }
 
     if (file_path.startsWith('@')) {
       file_path = file_path.substring(1)

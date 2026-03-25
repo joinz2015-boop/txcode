@@ -30,6 +30,14 @@ export const readFileTool: Tool = {
   execute: async (params: { file_path: string; offset?: number; limit?: number }, context: ToolContext): Promise<ToolResult> => {
     let { file_path, offset = 1, limit = DEFAULT_LIMIT } = params
 
+    if (!file_path) {
+      return {
+        success: false,
+        output: '',
+        error: `Missing required parameter: file_path. Available parameters: ${Object.keys(params).join(', ')}`
+      }
+    }
+
     if (file_path.startsWith('@')) {
       file_path = file_path.substring(1)
     }
@@ -60,7 +68,7 @@ export const readFileTool: Tool = {
 
       return {
         success: true,
-        output: `<path>${file_path}</path>\n<type>directory</type>\n<entries>\n${sliced.map(e => e.name).join('\n')}\n</entries>\n${truncated ? `\n(Showing ${sliced.length} of ${sorted.length} entries. Use offset=${end + 1} to continue.)` : `\n(${sorted.length} entries)`}`,
+        output: `<file_path>${file_path}</file_path>\n<type>directory</type>\n<entries>\n${sliced.map(e => e.name).join('\n')}\n</entries>\n${truncated ? `\n(Showing ${sliced.length} of ${sorted.length} entries. Use offset=${end + 1} to continue.)` : `\n(${sorted.length} entries)`}`,
         metadata: { truncated, total: sorted.length }
       }
     }
@@ -83,7 +91,7 @@ export const readFileTool: Tool = {
     const selected = lines.slice(start, end)
     const truncated = end < lines.length
 
-    let result = `<path>${file_path}</path>\n<type>file</type>\n<content>\n`
+    let result = `<file_path>${file_path}</file_path>\n<type>file</type>\n<content>\n`
     for (let i = 0; i < selected.length; i++) {
       const line = selected[i]
       const lineNum = start + i + 1

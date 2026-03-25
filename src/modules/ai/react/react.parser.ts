@@ -20,7 +20,7 @@
  *   <thought>我需要读取文件</thought>
  *   <action>readFile</action>
  *   <action_input>
- *     <path>/path/to/file</path>
+ *     <file_path>/path/to/file</file_path>
  *   </action_input>
  *   <keep_context>true</keep_context>
  * </react>
@@ -29,7 +29,7 @@
  *   <thought>需要创建一个组件</thought>
  *   <action>write_file</action>
  *   <action_input>
- *     <path>src/Hello.tsx</path>
+ *     <file_path>src/Hello.tsx</file_path>
  *     <content><![CDATA[import React from 'react';]]></content>
  *   </action_input>
  * </react>

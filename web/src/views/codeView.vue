@@ -89,10 +89,13 @@
             v-model="panel.input"
             type="textarea"
             :rows="2"
-            placeholder="输入消息... (Enter 发送)"
+            placeholder="输入消息... (Enter 发送, @ 选择文件)"
             :disabled="panel.disabled || !panel.session?.id"
             class="input-area"
-            @keydown.enter.native="handleKeydown($event, panel)"
+            @input="onInputChange($event, panel)"
+            @keydown.native="fileSelectVisible ? onFileSelectKeydown($event, panel) : null"
+            @keydown.enter.native="fileSelectVisible ? confirmFileSelect(panel) : handleKeydown($event, panel)"
+            @keydown.esc.native="fileSelectVisible ? cancelFileSelect() : null"
           />
           <el-button type="primary" :loading="panel.disabled" @click.stop="sendToPanel(panel)" class="send-btn">
             发送
@@ -114,6 +117,33 @@
         <el-button :type="layoutMode === 4 ? 'primary' : ''" @click="setLayout(4)">4</el-button>
       </el-button-group>
     </div>
+
+    <el-dialog
+      :visible.sync="fileSelectVisible"
+      title="选择文件"
+      width="500px"
+      :close-on-click-modal="false"
+      @close="cancelFileSelect"
+    >
+      <div class="file-select-content">
+        <div class="file-select-path">{{ fileSelectPath || '/' }}</div>
+        <div class="file-list">
+          <div
+            v-for="(file, index) in fileList"
+            :key="file.path"
+            class="file-item"
+            :class="{ active: index === fileSelectedIndex }"
+            @click="fileSelectedIndex = index; confirmFileSelect(currentPanel)"
+            @dblclick="fileSelectedIndex = index; confirmFileSelect(currentPanel)"
+          >
+            <span class="file-icon">{{ file.isDirectory ? '📁' : '📄' }}</span>
+            <span class="file-name">{{ file.name }}</span>
+          </div>
+          <div v-if="fileList.length === 0" class="empty-files">加载中...</div>
+        </div>
+        <div class="file-select-hint">↑↓ 选择 | Enter 确认 | ESC 取消</div>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -142,6 +172,11 @@ export default {
       loadingMore: false,
       draggedSession: null,
       wsConnected: false,
+      fileSelectVisible: false,
+      fileSelectPath: '',
+      fileList: [],
+      fileSelectedIndex: 0,
+      currentPanel: null,
     }
   },
 
@@ -173,6 +208,64 @@ export default {
   },
 
   methods: {
+    async loadFileList(dirPath = '') {
+      try {
+        const res = await api.browseFilesystem(dirPath)
+        this.fileList = res.data?.items || []
+      } catch (e) {
+        this.fileList = []
+      }
+    },
+
+    onInputChange(value, panel) {
+      const atIndex = value.lastIndexOf('@')
+      if (atIndex !== -1) {
+        const afterAt = value.slice(atIndex + 1)
+        if (!afterAt.includes(' ') && !this.fileSelectVisible) {
+          this.currentPanel = panel
+          this.fileSelectPath = ''
+          this.fileSelectedIndex = 0
+          this.fileSelectVisible = true
+          this.loadFileList('')
+        }
+      }
+    },
+
+    onFileSelectKeydown(e, panel) {
+      if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        this.fileSelectedIndex = Math.max(0, this.fileSelectedIndex - 1)
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        this.fileSelectedIndex = Math.min(this.fileList.length - 1, this.fileSelectedIndex + 1)
+      } else if (e.key === 'Enter') {
+        e.preventDefault()
+        this.confirmFileSelect(panel)
+      } else if (e.key === 'Escape') {
+        e.preventDefault()
+        this.cancelFileSelect()
+      }
+    },
+
+    confirmFileSelect(panel) {
+      const file = this.fileList[this.fileSelectedIndex]
+      if (file) {
+        const atIndex = panel.input.lastIndexOf('@')
+        let path = file.path
+        if (file.isDirectory) {
+          path += '/'
+        }
+        panel.input = panel.input.slice(0, atIndex) + path + ' '
+      }
+      this.fileSelectVisible = false
+      this.currentPanel = null
+    },
+
+    cancelFileSelect() {
+      this.fileSelectVisible = false
+      this.currentPanel = null
+    },
+
     getTodoStatusIcon(status) {
       const icons = {
         completed: '✅',
@@ -759,4 +852,16 @@ handlePanelWsMessage(panel, msg) {
 
 .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .load-more { padding: 12px; text-align: center; border-top: 1px solid #27272a; }
+
+.file-select-content { height: 400px; display: flex; flex-direction: column; }
+.file-select-path { padding: 8px 12px; background: #27272a; color: #a1a1aa; font-size: 13px; border-radius: 4px; margin-bottom: 12px; }
+.file-list { flex: 1; overflow-y: auto; border: 1px solid #3f3f46; border-radius: 4px; }
+.file-item { display: flex; align-items: center; gap: 8px; padding: 8px 12px; cursor: pointer; transition: background 0.2s; }
+.file-item:hover { background: #27272a; }
+.file-item.active { background: #3b82f6; }
+.file-icon { font-size: 16px; }
+.file-name { color: #d4d4d8; font-size: 14px; }
+.file-item.active .file-name { color: #fff; }
+.empty-files { padding: 20px; text-align: center; color: #71717a; }
+.file-select-hint { margin-top: 12px; padding: 8px; background: #27272a; color: #a1a1aa; font-size: 12px; border-radius: 4px; text-align: center; }
 </style>

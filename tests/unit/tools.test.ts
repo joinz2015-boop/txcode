@@ -96,6 +96,60 @@ describe('Tools Module', () => {
       expect(result).toContain('success');
       expect(fs.readFileSync(filePath, 'utf-8')).toBe('Hello TypeScript');
     });
+
+    test('should fail when old_string not found', async () => {
+      const filePath = path.join(testDir, 'edit2.txt');
+      fs.writeFileSync(filePath, 'Hello World');
+
+      const result = await toolService.execute('edit_file', {
+        file_path: filePath,
+        old_string: 'NotExists',
+        new_string: 'TypeScript',
+      });
+
+      expect(result).toContain('old_string not found');
+    });
+
+    test('should fail when old_string has extra spaces', async () => {
+      const filePath = path.join(testDir, 'edit3.txt');
+      fs.writeFileSync(filePath, 'Hello World');
+
+      const result = await toolService.execute('edit_file', {
+        file_path: filePath,
+        old_string: 'World ',  // 多了一个空格
+        new_string: 'TypeScript',
+      });
+
+      expect(result).toContain('old_string not found');
+    });
+
+    test('should replace_all work', async () => {
+      const filePath = path.join(testDir, 'edit4.txt');
+      fs.writeFileSync(filePath, 'foo bar foo baz');
+
+      const result = await toolService.execute('edit_file', {
+        file_path: filePath,
+        old_string: 'foo',
+        new_string: 'baz',
+        replace_all: true,
+      });
+
+      expect(result).toContain('success');
+      expect(fs.readFileSync(filePath, 'utf-8')).toBe('baz bar baz baz');
+    });
+
+    test('should fail on multiple matches without replace_all', async () => {
+      const filePath = path.join(testDir, 'edit5.txt');
+      fs.writeFileSync(filePath, 'foo foo bar');
+
+      const result = await toolService.execute('edit_file', {
+        file_path: filePath,
+        old_string: 'foo',
+        new_string: 'baz',
+      });
+
+      expect(result).toContain('multiple matches');
+    });
   });
 
   describe('find_files tool', () => {

@@ -8,6 +8,9 @@ import { reactParser } from './react/react.parser.js';
 import { buildReActPrompt } from './react/react.prompts.js';
 import { ReActStep, ReActResult, ToolDefinition, SkillInfo } from './react/react.types.js';
 
+/**
+ * ReAct Agent 配置文件
+ */
 export interface ReActAgentConfig {
   provider: OpenAIProvider;
   toolService: ToolService;
@@ -18,11 +21,18 @@ export interface ReActAgentConfig {
   sessionId?: string;
 }
 
+/**
+ * ReAct Agent 运行选项
+ */
 export interface ReActRunOptions {
   onStep?: (step: ReActStep, iteration: number, usage?: { promptTokens: number; completionTokens: number; totalTokens: number }) => void;
   historyMessages?: ChatMessage[];
 }
 
+/**
+ * ReAct Agent - 基于 ReAct (Reasoning + Acting) 模式的 AI Agent
+ * 通过循环推理和执行工具来完成复杂任务
+ */
 export class ReActAgent {
   private provider: OpenAIProvider;
   private toolService: ToolService;
@@ -33,6 +43,10 @@ export class ReActAgent {
   private projectPath?: string;
   private sessionId?: string;
 
+  /**
+   * 构造函数
+   * @param config ReAct Agent 配置
+   */
   constructor(config: ReActAgentConfig) {
     this.provider = config.provider;
     this.toolService = config.toolService;
@@ -44,6 +58,12 @@ export class ReActAgent {
     this.sessionId = config.sessionId;
   }
 
+  /**
+   * 运行 ReAct Agent
+   * @param userMessage 用户消息
+   * @param options 运行选项
+   * @returns ReAct 执行结果
+   */
   async run(
     userMessage: string,
     options?: ReActRunOptions
@@ -51,10 +71,12 @@ export class ReActAgent {
     const steps: ReActStep[] = [];
     const baseMessages: ChatMessage[] = [];
 
+    // 获取可用的技能和工具，构建系统提示词
     const skills = await this.getAvailableSkills();
     const builtinTools = await this.getBuiltinTools();
     const systemPrompt = await buildReActPrompt(builtinTools, skills, this.maxIterations);
 
+    // 添加历史消息（排除系统消息）
     if (options?.historyMessages && options.historyMessages.length > 0) {
       for (const msg of options.historyMessages) {
         if (msg.role !== 'system') {
@@ -65,12 +87,14 @@ export class ReActAgent {
 
     baseMessages.push({ role: 'user', content: userMessage });
 
+    // 添加用户消息到内存
     this.addMessage('user', userMessage, true, true);
 
     let iteration = 0;
     let finalAnswer = '';
     let totalUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
 
+    // ReAct 循环：推理 -> 行动 -> 观察
     while (iteration < this.maxIterations) {
       iteration++;
 
@@ -79,18 +103,22 @@ export class ReActAgent {
         ...baseMessages
       ];
 
+      // 调用 AI 模型获取响应
       const response = await this.provider.chat(messages);
       
+      // 累加 token 使用量
       if (response.usage) {
         totalUsage.promptTokens += response.usage.promptTokens;
         totalUsage.completionTokens += response.usage.completionTokens;
         totalUsage.totalTokens += response.usage.totalTokens;
       }
 
-const aiContent = response.content || '';
+      const aiContent = response.content || '';
 
+      // 解析 AI 响应
       const parsed = reactParser.parse(aiContent);
       
+      // 无解析结果，直接返回内容
       if (parsed.steps.length === 0) {
         finalAnswer = aiContent;
         this.addMessage('assistant', finalAnswer, true);
@@ -99,6 +127,7 @@ const aiContent = response.content || '';
 
       const latestStep = parsed.steps[parsed.steps.length - 1];
 
+      // 检查是否是最终答案
       if (latestStep.final_answer) {
         finalAnswer = latestStep.final_answer;
         steps.push(latestStep);
@@ -106,12 +135,14 @@ const aiContent = response.content || '';
         break;
       }
 
+      // 执行工具调用
       if (latestStep.action && latestStep.action !== 'final_answer') {
         const toolResult = await this.executeTool(
           latestStep.action,
           latestStep.actionInput
         );
 
+        // 记录观察结果
         latestStep.observation = toolResult.success 
           ? toolResult.data 
           : { error: toolResult.error };
@@ -119,22 +150,26 @@ const aiContent = response.content || '';
         steps.push(latestStep);
         options?.onStep?.(latestStep, iteration, totalUsage);
 
+        // 格式化工具结果并添加到消息列表
         const observationStr = reactParser.formatObservation(latestStep.observation);
         const toolResultMessage = `Tool Result:\n---\n${observationStr}\n---\nPlease continue.`;
 
         baseMessages.push({ role: 'assistant', content: aiContent });
         baseMessages.push({ role: 'user', content: toolResultMessage });
 
+        // 根据 keepContext 决定是否保留上下文
         if (latestStep.keepContext) {
           this.addMessage('assistant', aiContent, true);
           this.addMessage('user', toolResultMessage, true);
         }
 
+        // 加载技能
         if (latestStep.action === 'loadSkill' && this.skillsManager) {
           await this.skillsManager.loadAll();
         }
       }
 
+      // 检查是否已有最终答案
       if (reactParser.hasFinalAnswer(steps)) {
         break;
       }
@@ -152,6 +187,12 @@ const aiContent = response.content || '';
     };
   }
 
+  /**
+   * 执行工具
+   * @param name 工具名称
+   * @param args 工具参数
+   * @returns 执行结果
+   */
   private async executeTool(
     name: string,
     args: Record<string, any>
@@ -167,6 +208,10 @@ const aiContent = response.content || '';
     }
   }
 
+  /**
+   * 获取所有内置工具定义
+   * @returns 工具定义列表
+   */
   private async getBuiltinTools(): Promise<ToolDefinition[]> {
     const tools = await this.toolService.getAll();
     return tools.map(t => {
@@ -188,6 +233,10 @@ const aiContent = response.content || '';
     });
   }
 
+  /**
+   * 获取所有可用的技能
+   * @returns 技能信息列表
+   */
   private async getAvailableSkills(): Promise<SkillInfo[]> {
     if (!this.skillsManager) return [];
 
@@ -200,6 +249,13 @@ const aiContent = response.content || '';
     }));
   }
 
+  /**
+   * 添加消息到内存服务
+   * @param role 消息角色
+   * @param content 消息内容
+   * @param keepContext 是否保留上下文
+   * @param isOriginal 是否是原始消息
+   */
   private addMessage(role: 'user' | 'assistant' | 'system', content: string, keepContext: boolean, isOriginal: boolean = false): void {
     if (!this.sessionId || !this.memoryService) return;
     this.memoryService.addMessage(this.sessionId, role, content, keepContext, isOriginal);

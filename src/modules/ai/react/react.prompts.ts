@@ -80,22 +80,6 @@ function getReActPromptTemplate(roleTemplate: string): string {
 </react>
 \`\`\`
 
-**需要写入/编辑文件时，内容使用 CDATA 包裹：**
-\`\`\`xml
-<react>
-  <thought>需要创建一个组件</thought>
-  <action>write_file</action>
-  <action_input>
-    <path>src/components/Hello.tsx</path>
-    <content><![CDATA[import React from 'react';
-export const Hello = () => {
-  return <div>Hello World</div>;
-};]]></content>
-  </action_input>
-  <keep_context>true</keep_context>
-</react>
-\`\`\`
-
 **返回最终答案时：**
 \`\`\`xml
 <react>

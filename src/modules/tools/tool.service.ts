@@ -176,6 +176,11 @@ export class ToolService {
     };
     
     const result = await tool.execute(params, context);
+    
+    if (!result.success) {
+      throw new Error(result.error || 'Tool execution failed');
+    }
+    
     return result.output;
   }
 

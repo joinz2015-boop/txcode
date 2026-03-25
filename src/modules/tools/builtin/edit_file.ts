@@ -14,11 +14,11 @@ export const editFileTool: Tool = {
       },
       old_string: {
         type: 'string',
-        description: '要被替换的内容（必须精确匹配）'
+        description: '<![CDATA[要被替换的内容（必须精确匹配）]]>'
       },
       new_string: {
         type: 'string',
-        description: '替换后的新内容'
+        description: '<![CDATA[替换后的新内容]]>'
       },
       replace_all: {
         type: 'boolean',
@@ -28,7 +28,39 @@ export const editFileTool: Tool = {
     required: ['file_path', 'old_string', 'new_string']
   },
   execute: async (params: { file_path: string; old_string: string; new_string: string; replace_all?: boolean }, context: ToolContext): Promise<ToolResult> => {
+    const extractCDATA = (str: string): string => {
+      const cdataMatch = str.match(/^<!\[CDATA\[([\s\S]*?)\]\]>$/)
+      return cdataMatch ? cdataMatch[1] : str
+    }
+
     let { file_path, old_string, new_string, replace_all = false } = params
+
+    old_string = extractCDATA(old_string)
+    new_string = extractCDATA(new_string)
+
+    if (!file_path) {
+      return {
+        success: false,
+        output: '',
+        error: `Missing required parameter: file_path. Available parameters: ${Object.keys(params).join(', ')}`
+      }
+    }
+
+    if (!old_string) {
+      return {
+        success: false,
+        output: '',
+        error: 'Missing required parameter: old_string'
+      }
+    }
+
+    if (!new_string) {
+      return {
+        success: false,
+        output: '',
+        error: 'Missing required parameter: new_string'
+      }
+    }
 
     if (file_path.startsWith('@')) {
       file_path = file_path.substring(1)

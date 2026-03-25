@@ -238,7 +238,6 @@ export class AIService {
           options.onStep?.(step, iteration);
           
           if (sessionId && usage && usage.totalTokens > 0) {
-            this.sessionService.updateTokenUsage(sessionId, usage.promptTokens, usage.completionTokens);
             const check = summarizer.checkNeedsCompact(sessionId);
             if (check.needed) {
               console.log(`[AutoCompact] ${check.reason}, triggering compaction during iteration ${iteration}...`);
