@@ -51,7 +51,7 @@ export const todoWriteTool: Tool = {
     return {
       success: true,
       output: `已更新 ${params.todos.length} 个任务`,
-      metadata: { total: params.todos.length }
+      metadata: { total: params.todos.length, todos: params.todos }
     }
   }
 }

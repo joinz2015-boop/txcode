@@ -53,7 +53,13 @@
         <div class="log-area">
           <template v-if="panel.session?.id">
             <template v-for="(item, idx) in panel.logItems" :key="idx">
-              <p v-if="item.type === 'chat' || item.type === 'think'" class="user-question" v-html="renderMarkdown(item.content)"></p>
+              <div v-if="item.type === 'todos'" class="todos-list">
+                <div v-for="(todo, tIdx) in item.todos" :key="tIdx" class="todo-item">
+                  <span class="todo-status">{{ getTodoStatusIcon(todo.status) }}</span>
+                  <span class="todo-name">{{ todo.name }}</span>
+                </div>
+              </div>
+              <p v-else-if="item.type === 'chat' || item.type === 'think'" class="user-question" v-html="renderMarkdown(item.content)"></p>
               <template v-else-if="item.type === 'step'">
                 <p v-if="item.thought" v-html="renderMarkdown(item.thought)"></p>
                 <div v-if="item.action" class="log-mute">
@@ -167,6 +173,16 @@ export default {
   },
 
   methods: {
+    getTodoStatusIcon(status) {
+      const icons = {
+        completed: '✅',
+        in_progress: '🔄',
+        pending: '⬜',
+        cancelled: '❌'
+      }
+      return icons[status] || '⬜'
+    },
+
     formatTime(dateStr) {
       if (!dateStr) return ''
       const date = new Date(dateStr)
@@ -238,10 +254,18 @@ export default {
       )
     },
 
-    handlePanelWsMessage(panel, msg) {
-      const { type, data, error } = msg
+handlePanelWsMessage(panel, msg) {
+      const { type, data, error } = msg;
       
       switch (type) {
+        case 'todos':
+          if (data?.todos) {
+            panel.logItems.push({
+              type: 'todos',
+              todos: data.todos
+            })
+          }
+          break
         case 'session':
           if (data?.sessionId && !panel.session.id) {
             panel.session.id = data.sessionId
@@ -272,6 +296,20 @@ export default {
           panel.disabled = false
           break
       }
+      
+      this.$nextTick(() => {
+        const panelIdx = this.activeSessions.indexOf(panel)
+        if (panelIdx > -1) {
+          const panels = this.$el?.querySelectorAll('.session-panel')
+          const el = panels?.[panelIdx]
+          if (el) {
+            const logArea = el.querySelector('.log-area')
+            if (logArea) {
+              logArea.scrollTop = logArea.scrollHeight
+            }
+          }
+        }
+      })
     },
 
     setLayout(mode) {
@@ -549,6 +587,26 @@ export default {
 .user-question {
   color: #60a5fa;
   font-weight: bold;
+}
+
+.todos-list {
+  margin-bottom: 16px;
+  color: #d4d4d8;
+}
+
+.todo-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0;
+}
+
+.todo-status {
+  font-size: 14px;
+}
+
+.todo-name {
+  font-size: 14px;
 }
 
 .log-mute {

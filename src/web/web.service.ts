@@ -388,6 +388,15 @@ resolve();
           };
           
           ws.send(JSON.stringify({ type: 'step', data: stepData }));
+
+          if (step.action === 'todowrite' && step.observation?.metadata?.todos) {
+            const todos = step.observation.metadata.todos;
+            const formattedTodos = todos.map((t: any) => ({
+              name: t.content || t.name || '',
+              status: t.status || 'pending'
+            }));
+            ws.send(JSON.stringify({ type: 'todos', data: { todos: formattedTodos } }));
+          }
         },
       });
 

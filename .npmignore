@@ -1,0 +1,62 @@
+# Source files - we only publish compiled files
+src/
+tests/
+web/src/
+
+# Development files
+.gitignore
+.npmignore
+.git/
+.txcode/
+
+# Build files (but keep dist/ - that's what we publish)
+# Note: dist/ is built by prepublishOnly and should be included
+# web/dist/ is also built by prepublishOnly and should be included
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+log/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Test coverage
+coverage/
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Temporary files
+*.tmp
+temp/
+.cluade
+nul
+opencode
+
+# Config files (but keep package.json, README, LICENSE)
+jest.config.mjs
+tsconfig.json
+postcss.config.js
+tailwind.config.js
+vite.config.js
+
+# Documentation (but keep README.md)
+*.md
+!README.md
+
+# Lock files (npm will handle dependencies)
+package-lock.json
+web/package-lock.json

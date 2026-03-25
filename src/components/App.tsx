@@ -346,6 +346,20 @@ export function App() {
                 if (inputObj.todos && Array.isArray(inputObj.todos)) {
                   stepInfo += `: ${inputObj.todos.length} 个任务`;
                 }
+                if (state.observation && typeof state.observation === 'object' && (state.observation as any).metadata?.todos) {
+                  const todos = (state.observation as any).metadata.todos;
+                  const statusIcons: Record<string, string> = {
+                    completed: '✅',
+                    in_progress: '🔄',
+                    pending: '⬜',
+                    cancelled: '❌'
+                  };
+                  for (const todo of todos) {
+                    const icon = statusIcons[todo.status] || '⬜';
+                    const name = todo.content || todo.name || '';
+                    addMessage('system', `  ${icon} ${name}`);
+                  }
+                }
               } else if (state.action === 'question') {
                 stepInfo += `: ${inputObj.questions?.length || 0} 个问题`;
               } else {

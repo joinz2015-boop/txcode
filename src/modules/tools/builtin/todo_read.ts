@@ -17,13 +17,13 @@ export const todoReadTool: Tool = {
     const todos = todoStore.get(context.sessionId) || []
 
     if (todos.length === 0) {
-      return { success: true, output: '[]', metadata: { total: 0 } }
+      return { success: true, output: '[]', metadata: { total: 0, todos: [] } }
     }
 
     return {
       success: true,
       output: JSON.stringify(todos, null, 2),
-      metadata: { total: todos.length }
+      metadata: { total: todos.length, todos }
     }
   }
 }
