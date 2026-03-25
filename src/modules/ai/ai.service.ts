@@ -22,7 +22,7 @@ import { MemoryService } from '../memory/memory.service.js';
 import { ContextService } from '../context/context.service.js';
 import { SessionService, sessionService as defaultSessionService } from '../session/session.service.js';
 import { SkillsManager } from '../skill/skills.manager.js';
-import { ReActResult } from './react/react.types.js';
+import { ReActResult, ReActStep } from './react/react.types.js';
 import { SummarizerService } from './summarizer/index.js';
 import txConfig from '../../config/tx.config.js';
 
@@ -234,8 +234,8 @@ export class AIService {
     );
 
     const wrappedOnStep = options?.onStep 
-      ? (step: any, iteration: number, usage?: { promptTokens: number; completionTokens: number; totalTokens: number }) => {
-          options.onStep?.(step, iteration);
+      ? (step: ReActStep, iteration: number, usage?: { promptTokens: number; completionTokens: number; totalTokens: number }) => {
+          options.onStep?.(step as any, iteration);
           
           if (sessionId && usage && usage.totalTokens > 0) {
             const check = summarizer.checkNeedsCompact(sessionId);

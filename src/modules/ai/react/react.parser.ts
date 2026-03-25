@@ -117,6 +117,13 @@ export class ReActParser {
         continue;
       }
 
+      // XML 解析失败，尝试用正则表达式提取
+      const regexResult = this.parseByRegex(trimmed);
+      if (regexResult) {
+        blocks.push(regexResult);
+        continue;
+      }
+
       // 尝试解析 JSON 格式
       try {
         const json = JSON.parse(trimmed);
@@ -208,6 +215,55 @@ export class ReActParser {
       console.error('XML parse error:', e);
       return null;
     }
+  }
+
+  /**
+   * 用正则表达式解析 XML 格式的块（后备解析器）
+   */
+  private parseByRegex(content: string): ParsedBlock | null {
+    const data: Record<string, any> = {};
+    const actions: { actionName: string; actionInput: Record<string, any> }[] = [];
+
+    const thoughtMatch = content.match(/<thought>\s*([^<]*?)\s*<\/thought>/);
+    if (thoughtMatch) {
+      data.thought = thoughtMatch[1].trim();
+    }
+
+    const finalAnswerMatch = content.match(/<final_answer>\s*([^<]*?)\s*<\/final_answer>/);
+    if (finalAnswerMatch) {
+      data.final_answer = finalAnswerMatch[1].trim();
+      return { type: 'step', data };
+    }
+
+    const keepContextMatch = content.match(/<keep_context>\s*([^<]*?)\s*<\/keep_context>/);
+    if (keepContextMatch) {
+      data.keep_context = keepContextMatch[1].toLowerCase() === 'true';
+    }
+
+    const actionRegex = /<action>\s*<action_name>\s*([^<]*?)\s*<\/action_name>\s*<action_input>\s*([^]*?)\s*<\/action_input>\s*<\/action>/gi;
+    let actionMatch;
+    while ((actionMatch = actionRegex.exec(content)) !== null) {
+      const actionName = actionMatch[1].trim();
+      const actionInputContent = actionMatch[2];
+      const actionInput: Record<string, any> = {};
+
+      const paramRegex = /<(\w+)>\s*([^<]*?)\s*<\/\1>/gi;
+      let paramMatch;
+      while ((paramMatch = paramRegex.exec(actionInputContent)) !== null) {
+        actionInput[paramMatch[1]] = paramMatch[2].trim();
+      }
+
+      if (actionName) {
+        actions.push({ actionName, actionInput });
+      }
+    }
+
+    if (actions.length === 0 && !data.thought && !data.final_answer) {
+      return null;
+    }
+
+    data.actions = actions;
+    return { type: 'step', data };
   }
 
   private extractValue(value: any): string {

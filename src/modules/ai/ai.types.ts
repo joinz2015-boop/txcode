@@ -44,8 +44,7 @@ export interface ChatResponse {
 
 export interface ReActState {
   thought: string;
-  action: string;
-  actionInput: string;
+  actions: { actionName: string; actionInput: any }[];
   observation?: string;
   answer?: string;
   keepContext?: boolean;

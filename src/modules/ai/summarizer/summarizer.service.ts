@@ -13,7 +13,7 @@ import { buildSummarizerMessages } from './summarizer.prompts.js';
 import { SummarizerResult, SummarizerOptions, CompactionCheckResult } from './summarizer.types.js';
 import { SessionService } from '../../session/session.service.js';
 import { MemoryService } from '../../memory/memory.service.js';
-import { ContextConfig } from '../../../config/tx.config.js';
+import txConfig from '../../../config/tx.config.js';
 
 export class SummarizerService {
   private configService: ConfigService;
@@ -46,18 +46,8 @@ export class SummarizerService {
     });
   }
 
-  private getContextConfig(): ContextConfig {
-    const mode = this.configService.get<string>('ai.context.mode') || 'fixed';
-    const maxTokens = this.configService.get<number>('ai.context.maxTokens') || 100000;
-    const percentage = this.configService.get<number>('ai.context.percentage') || 0.95;
-    const autoCompact = this.configService.get<boolean>('ai.context.autoCompact') ?? true;
-
-    return {
-      mode: mode as 'fixed' | 'percentage',
-      maxTokens,
-      percentage,
-      autoCompact,
-    };
+  private getContextConfig() {
+    return txConfig.ai.context;
   }
 
   private getCurrentModel() {

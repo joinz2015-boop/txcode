@@ -298,7 +298,7 @@ export class DbService {
     this.db.exec(`INSERT OR IGNORE INTO config (key, value) VALUES ('ai.maxSessionCompression', '5')`);
     this.db.exec(`INSERT OR IGNORE INTO config (key, value) VALUES ('web.port', '40000')`);
     this.db.exec(`INSERT OR IGNORE INTO config (key, value) VALUES ('ai.context.mode', '"fixed"')`);
-    this.db.exec(`INSERT OR IGNORE INTO config (key, value) VALUES ('ai.context.maxTokens', '10000')`);
+    this.db.exec(`INSERT OR IGNORE INTO config (key, value) VALUES ('ai.context.maxTokens', '100000')`);
     this.db.exec(`INSERT OR IGNORE INTO config (key, value) VALUES ('ai.context.percentage', '0.95')`);
     this.db.exec(`INSERT OR IGNORE INTO config (key, value) VALUES ('ai.context.autoCompact', 'true')`);
   }

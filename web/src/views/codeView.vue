@@ -62,12 +62,12 @@
               <p v-else-if="item.type === 'chat' || item.type === 'think'" class="user-question" v-html="renderMarkdown(item.content)"></p>
               <template v-else-if="item.type === 'step'">
                 <p v-if="item.thought" v-html="renderMarkdown(item.thought)"></p>
-                <div v-if="item.action" class="log-mute">
+                <div v-for="(action, aIdx) in item.actions" :key="aIdx" class="log-mute">
                   <span :class="item.success !== false ? 'tool-success' : 'tool-fail'">
                     {{ item.success !== false ? '✓' : '✗' }}
                   </span>
-                  {{ item.action }}
-                  <span v-if="item.input" class="tool-input">{{ formatInput(item.action, item.input) }}</span>
+                  {{ action.actionName }}
+                  <span v-if="action.input" class="tool-input">{{ formatInput(action.actionName, action.input) }}</span>
                 </div>
               </template>
             </template>
@@ -369,8 +369,7 @@ handlePanelWsMessage(panel, msg) {
             panel.logItems.push({ 
               type: 'step', 
               thought: data.thought, 
-              action: data.action,
-              input: data.input,
+              actions: data.actions,
               success: data.success
             })
           }

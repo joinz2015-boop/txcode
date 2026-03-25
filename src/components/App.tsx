@@ -315,69 +315,76 @@ export function App() {
             'webfetch': '网页获取',
             'question': '提问',
           };
-          const actionName = actionNames[state.action] || state.action;
-          
-          let stepInfo = `🔧 ${actionName}`;
-          
-          if (state.actionInput) {
-            try {
-              const inputObj = typeof state.actionInput === 'string' 
-                ? JSON.parse(state.actionInput) 
-                : state.actionInput;
-              if (state.action === 'read_file') {
-                const offset = inputObj.offset ?? 1;
-                const limit = inputObj.limit ?? 300;
-                stepInfo += `: ${inputObj.file_path} (行${offset}-${offset + limit - 1})`;
-              } else if (state.action === 'edit_file') {
-                stepInfo += `: ${inputObj.file_path}`;
-              } else if (state.action === 'write_file') {
-                stepInfo += `: ${inputObj.file_path}`;
-              } else if (state.action === 'execute_bash' || state.action === 'bash') {
-                stepInfo += `: ${inputObj.command?.slice(0, 50)}`;
-              } else if (state.action === 'find_files' || state.action === 'glob') {
-                stepInfo += `: ${inputObj.pattern}`;
-              } else if (state.action === 'grep') {
-                stepInfo += `: ${inputObj.pattern}`;
-              } else if (state.action === 'loadSkill') {
-                stepInfo += `: ${inputObj.skillPath}`;
-              } else if (state.action === 'webfetch') {
-                stepInfo += `: ${inputObj.url?.slice(0, 50)}`;
-              } else if (state.action === 'todowrite') {
-                if (inputObj.todos && Array.isArray(inputObj.todos)) {
-                  stepInfo += `: ${inputObj.todos.length} 个任务`;
-                }
-                if (state.observation && typeof state.observation === 'object' && (state.observation as any).metadata?.todos) {
-                  const todos = (state.observation as any).metadata.todos;
-                  const statusIcons: Record<string, string> = {
-                    completed: '✅',
-                    in_progress: '🔄',
-                    pending: '⬜',
-                    cancelled: '❌'
-                  };
-                  for (const todo of todos) {
-                    const icon = statusIcons[todo.status] || '⬜';
-                    const name = todo.content || todo.name || '';
-                    addMessage('system', `  ${icon} ${name}`);
+
+          const actions = state.actions || [];
+          for (const action of actions) {
+            const actionName = actionNames[action.actionName] || action.actionName;
+            
+            let stepInfo = `🔧 ${actionName}`;
+            
+            if (action.actionInput) {
+              try {
+                const inputObj = typeof action.actionInput === 'string' 
+                  ? JSON.parse(action.actionInput) 
+                  : action.actionInput;
+                if (action.actionName === 'read_file') {
+                  const offset = inputObj.offset ?? 1;
+                  const limit = inputObj.limit ?? 300;
+                  stepInfo += `: ${inputObj.file_path} (行${offset}-${offset + limit - 1})`;
+                } else if (action.actionName === 'edit_file') {
+                  stepInfo += `: ${inputObj.file_path}`;
+                } else if (action.actionName === 'write_file') {
+                  stepInfo += `: ${inputObj.file_path}`;
+                } else if (action.actionName === 'execute_bash' || action.actionName === 'bash') {
+                  stepInfo += `: ${inputObj.command?.slice(0, 50)}`;
+                } else if (action.actionName === 'find_files' || action.actionName === 'glob') {
+                  stepInfo += `: ${inputObj.pattern}`;
+                } else if (action.actionName === 'grep') {
+                  stepInfo += `: ${inputObj.pattern}`;
+                } else if (action.actionName === 'loadSkill') {
+                  stepInfo += `: ${inputObj.skillPath}`;
+                } else if (action.actionName === 'webfetch') {
+                  stepInfo += `: ${inputObj.url?.slice(0, 50)}`;
+                } else if (action.actionName === 'todowrite') {
+                  if (inputObj.todos && Array.isArray(inputObj.todos)) {
+                    stepInfo += `: ${inputObj.todos.length} 个任务`;
+                  }
+                } else if (action.actionName === 'question') {
+                  stepInfo += `: ${inputObj.questions?.length || 0} 个问题`;
+                } else {
+                  const keys = Object.keys(inputObj);
+                  if (keys.length > 0) {
+                    const firstKey = keys[0];
+                    const val = inputObj[firstKey];
+                    if (typeof val === 'string') {
+                      stepInfo += `: ${val.slice(0, 50)}`;
+                    } else if (typeof val === 'number') {
+                      stepInfo += `: ${val}`;
+                    }
                   }
                 }
-              } else if (state.action === 'question') {
-                stepInfo += `: ${inputObj.questions?.length || 0} 个问题`;
+              } catch {}
+            }
+            
+            if (state.observation) {
+              const obsStr = typeof state.observation === 'string' 
+                ? state.observation 
+                : JSON.stringify(state.observation);
+              const isFailed = obsStr.startsWith('错误:') || 
+                              obsStr.startsWith('Error:') ||
+                              obsStr.includes('未找到') ||
+                              obsStr.includes('不存在');
+              if (isFailed) {
+                addMessage('system', `${stepInfo} ❌`);
               } else {
-                const keys = Object.keys(inputObj);
-                if (keys.length > 0) {
-                  const firstKey = keys[0];
-                  const val = inputObj[firstKey];
-                  if (typeof val === 'string') {
-                    stepInfo += `: ${val.slice(0, 50)}`;
-                  } else if (typeof val === 'number') {
-                    stepInfo += `: ${val}`;
-                  }
-                }
+                addMessage('system', `${stepInfo} ✓`);
               }
-            } catch {}
+            } else {
+              addMessage('system', stepInfo);
+            }
           }
           
-          if (state.observation) {
+          if (actions.length === 0 && state.observation) {
             const obsStr = typeof state.observation === 'string' 
               ? state.observation 
               : JSON.stringify(state.observation);
@@ -386,12 +393,10 @@ export function App() {
                             obsStr.includes('未找到') ||
                             obsStr.includes('不存在');
             if (isFailed) {
-              addMessage('system', `${stepInfo} ❌`);
+              addMessage('system', `🔧 工具执行 ❌`);
             } else {
-              addMessage('system', `${stepInfo} ✓`);
+              addMessage('system', `🔧 工具执行 ✓`);
             }
-          } else {
-            addMessage('system', stepInfo);
           }
         },
       });
