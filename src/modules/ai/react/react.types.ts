@@ -15,10 +15,14 @@ export interface ToolDefinition {
   parameters: ToolParameters;
 }
 
+export interface ActionCall {
+  actionName: string;
+  actionInput: Record<string, any>;
+}
+
 export interface ReActStep {
   thought: string;
-  action: string;
-  actionInput: Record<string, any>;
+  actions: ActionCall[];
   observation?: any;
   error?: string;
   keepContext?: boolean;

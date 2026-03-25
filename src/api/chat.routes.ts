@@ -123,13 +123,17 @@ chatRouter.post('/', async (req: Request, res: Response) => {
       // onStep 回调：在 ReAct 循环的每一步执行后调用
       // 收集 Thought、Action、ActionInput、Observation 等信息
       onStep: (step, iteration) => {
+        const actions = (step.actions || []).map((a: { actionName: string; actionInput: any }) => ({
+          actionName: a.actionName,
+          actionInput: typeof a.actionInput === 'string'
+            ? a.actionInput
+            : JSON.stringify(a.actionInput),
+        }));
+        
         reactSteps.push({
           iteration,                             // 当前迭代次数
           thought: step.thought,                 // AI 的思考过程
-          action: step.action,                   // 要执行的工具名称
-          actionInput: typeof step.actionInput === 'string' 
-            ? step.actionInput                   // 如果是字符串直接使用
-            : JSON.stringify(step.actionInput), // 如果是对象序列化为字符串
+          actions,                               // 要执行的工具列表
           observation: step.observation,         // 工具执行结果
           keepContext: step.keepContext,         // 是否保留到长期记忆
         });
@@ -282,11 +286,14 @@ chatRouter.get('/history/:sessionId', async (req: Request, res: Response) => {
           });
         } else {
           for (const step of parsed.steps) {
+            const actions = (step.actions || []).map((a: { actionName: string; actionInput: any }) => ({
+              actionName: a.actionName,
+              actionInput: a.actionInput ? (typeof a.actionInput === 'string' ? a.actionInput : JSON.stringify(a.actionInput)) : '',
+            }));
             result.push({ 
               type: 'step', 
               thought: step.thought || '',
-              action: step.action || '',
-              input: step.actionInput ? (typeof step.actionInput === 'string' ? step.actionInput : JSON.stringify(step.actionInput)) : '',
+              actions,
               success: true 
             });
           }

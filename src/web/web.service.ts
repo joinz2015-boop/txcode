@@ -386,19 +386,23 @@ resolve();
         projectPath: session.projectPath || undefined,
         memoryService,
         onStep: (step, iteration) => {
+          const actions = (step.actions || []).map((a: { actionName: string; actionInput: any }) => ({
+            actionName: a.actionName,
+            input: typeof a.actionInput === 'string' 
+              ? a.actionInput 
+              : JSON.stringify(a.actionInput),
+          }));
+          
           const stepData = {
             iteration,
             thought: step.thought,
-            action: step.action,
-            input: typeof step.actionInput === 'string' 
-              ? step.actionInput 
-              : JSON.stringify(step.actionInput),
+            actions,
             success: step.observation && !step.observation.error,
           };
           
           ws.send(JSON.stringify({ type: 'step', data: stepData }));
 
-          if (step.action === 'todowrite' && step.observation?.metadata?.todos) {
+          if (actions.some((a: any) => a.actionName === 'todowrite') && step.observation?.metadata?.todos) {
             const todos = step.observation.metadata.todos;
             const formattedTodos = todos.map((t: any) => ({
               name: t.content || t.name || '',

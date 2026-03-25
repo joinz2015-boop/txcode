@@ -41,7 +41,7 @@
  * ```
  */
 
-import { ReActStep, ParsedBlock } from './react.types.js';
+import { ReActStep, ParsedBlock, ActionCall } from './react.types.js';
 import { parseStringPromise } from 'xml2js';
 
 /**
@@ -61,21 +61,23 @@ export class ReActParser {
         contentMap.set(block.contentKey!, block.content || '');
       } else if (block.type === 'step') {
         const data = block.data;
-        const replacedInput = this.replacePlaceholders(data.action_input, contentMap);
         
         if (data.final_answer) {
           finalAnswer = data.final_answer;
           steps.push({
             thought: data.thought || '',
-            action: '',
-            actionInput: {},
+            actions: [],
             final_answer: data.final_answer,
           });
         } else {
+          const actions: ActionCall[] = (data.actions || []).map((a: any) => ({
+            actionName: a.actionName || '',
+            actionInput: this.replacePlaceholders(a.actionInput || {}, contentMap),
+          }));
+          
           steps.push({
             thought: data.thought || '',
-            action: data.action || '',
-            actionInput: replacedInput,
+            actions,
             keepContext: data.keep_context || false,
           });
         }
@@ -152,7 +154,7 @@ export class ReActParser {
       const wrappedXml = `<root>${content}</root>`;
       const parsed = await parseStringPromise(wrappedXml, {
         trim: false,
-        explicitArray: false,
+        explicitArray: true,
         mergeAttrs: true,
       });
 
@@ -172,17 +174,33 @@ export class ReActParser {
         return { type: 'step', data };
       }
 
-      if (react.action) {
-        data.action = this.extractValue(react.action);
-      }
-
       if (react.keep_context) {
         const keepCtx = this.extractValue(react.keep_context);
         data.keep_context = keepCtx?.toLowerCase() === 'true';
       }
 
-      if (react.action_input) {
-        data.action_input = await this.parseXMLParams(react.action_input);
+      data.actions = [];
+      const actionList = Array.isArray(react.action) ? react.action : (react.action ? [react.action] : []);
+      
+      for (const actionItem of actionList) {
+        if (actionItem && typeof actionItem === 'object') {
+          const actionName = this.extractValue(actionItem.action_name || actionItem.actionName);
+          const actionInput = actionItem.action_input 
+            ? await this.parseXMLParams(actionItem.action_input)
+            : {};
+          if (actionName) {
+            data.actions.push({ actionName, actionInput });
+          }
+        } else if (actionItem && typeof actionItem === 'string') {
+          const actionName = this.extractValue(actionItem);
+          if (actionName) {
+            data.actions.push({ actionName, actionInput: {} });
+          }
+        }
+      }
+
+      if (data.actions.length === 0 && !data.final_answer) {
+        return null;
       }
 
       return { type: 'step', data };

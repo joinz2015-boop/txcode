@@ -136,16 +136,32 @@ export class ReActAgent {
       }
 
       // 执行工具调用
-      if (latestStep.action && latestStep.action !== 'final_answer') {
-        const toolResult = await this.executeTool(
-          latestStep.action,
-          latestStep.actionInput
-        );
+      if (latestStep.actions && latestStep.actions.length > 0) {
+        const toolResults: { actionName: string; result: any }[] = [];
+        
+        for (const action of latestStep.actions) {
+          const toolResult = await this.executeTool(
+            action.actionName,
+            action.actionInput
+          );
+          
+          toolResults.push({
+            actionName: action.actionName,
+            result: toolResult.success 
+              ? toolResult.data 
+              : { error: toolResult.error },
+          });
+
+          // 加载技能
+          if (action.actionName === 'loadSkill' && this.skillsManager) {
+            await this.skillsManager.loadAll();
+          }
+        }
 
         // 记录观察结果
-        latestStep.observation = toolResult.success 
-          ? toolResult.data 
-          : { error: toolResult.error };
+        latestStep.observation = toolResults.length === 1 
+          ? toolResults[0].result 
+          : toolResults;
         
         steps.push(latestStep);
         options?.onStep?.(latestStep, iteration, totalUsage);
@@ -161,11 +177,6 @@ export class ReActAgent {
         if (latestStep.keepContext) {
           this.addMessage('assistant', aiContent, true);
           this.addMessage('user', toolResultMessage, true);
-        }
-
-        // 加载技能
-        if (latestStep.action === 'loadSkill' && this.skillsManager) {
-          await this.skillsManager.loadAll();
         }
       }
 

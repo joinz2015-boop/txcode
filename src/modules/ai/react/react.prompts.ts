@@ -72,13 +72,22 @@ function getReActPromptTemplate(roleTemplate: string): string {
 \`\`\`xml
 <react>
   <thought>你的思考过程</thought>
-  <action>工具名称</action>
-  <action_input>
-    <参数名>参数值</参数名>
-  </action_input>
+  <action>
+    <action_name>工具名称</action_name>
+    <action_input>
+      <参数名>参数值</参数名>
+    </action_input>
+  </action>
+  <action>
+    <action_name>另一个工具</action_name>
+    <action_input>
+      <参数名>参数值</参数名>
+    </action_input>
+  </action>
   <keep_context>true</keep_context>
 </react>
 \`\`\`
+如果有多个工具一起调用，重复 <action> 块即可
 
 **返回最终答案时：**
 \`\`\`xml
@@ -91,13 +100,13 @@ function getReActPromptTemplate(roleTemplate: string): string {
 ## 字段说明
 
 | 字段 | 类型 | 说明 |
-|------|------|------|
+|------|------|
 | \`thought\` | string | 你的思考过程 |
-| \`action\` | string | 要执行的工具名称 |
+| \`action\` | array | 要执行的工具列表，可包含多个 action |
+| \`action_name\` | string | 工具名称 |
 | \`action_input\` | object | 工具参数 |
 | \`keep_context\` | boolean | 是否将此结果永久记忆并传递给下一轮（默认 false） |
 | \`final_answer\` | string | 最终回答（仅在任务完成时使用），使用 CDATA 包裹 |
-| \`content\` | string | write_file/edit_file 的文件内容，使用 CDATA 包裹 |
 
 ## 内置工具
 
@@ -112,10 +121,12 @@ function getReActPromptTemplate(roleTemplate: string): string {
 \`\`\`xml
 <react>
   <thought>用户要求创建发布版本，我需要先查看 git-release Skill</thought>
-  <action>skill</action>
-  <action_input>
-    <name>git-release</name>
-  </action_input>
+  <action>
+    <action_name>skill</action_name>
+    <action_input>
+      <name>git-release</name>
+    </action_input>
+  </action>
 </react>
 \`\`\`
 
