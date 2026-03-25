@@ -19,7 +19,7 @@ export interface ReActAgentConfig {
 }
 
 export interface ReActRunOptions {
-  onStep?: (step: ReActStep, iteration: number) => void;
+  onStep?: (step: ReActStep, iteration: number, usage?: { promptTokens: number; completionTokens: number; totalTokens: number }) => void;
   historyMessages?: ChatMessage[];
 }
 
@@ -117,7 +117,7 @@ const aiContent = response.content || '';
           : { error: toolResult.error };
         
         steps.push(latestStep);
-        options?.onStep?.(latestStep, iteration);
+        options?.onStep?.(latestStep, iteration, totalUsage);
 
         const observationStr = reactParser.formatObservation(latestStep.observation);
         const toolResultMessage = `Tool Result:\n---\n${observationStr}\n---\nPlease continue.`;

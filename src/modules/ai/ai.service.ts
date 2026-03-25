@@ -177,6 +177,7 @@ export class AIService {
       memoryService?: MemoryService;
       contextService?: ContextService;
       onStep?: (step: any, iteration: number) => void;
+      onCompact?: (info: { beforeTokens: number; afterTokens: number }) => void;
     }
   ): Promise<ReActResult> {
     // ========== 步骤 1: 获取 AI Provider ==========
@@ -225,8 +226,32 @@ export class AIService {
     });
 
     // ========== 步骤 4: 执行 ReAct 循环 ==========
+    const memoryService = options?.memoryService || new MemoryService();
+    const summarizer = new SummarizerService(
+      this.sessionService,
+      memoryService,
+      this.configService
+    );
+
+    const wrappedOnStep = options?.onStep 
+      ? (step: any, iteration: number, usage?: { promptTokens: number; completionTokens: number; totalTokens: number }) => {
+          options.onStep?.(step, iteration);
+          
+          if (sessionId && usage && usage.totalTokens > 0) {
+            this.sessionService.updateTokenUsage(sessionId, usage.promptTokens, usage.completionTokens);
+            const check = summarizer.checkNeedsCompact(sessionId);
+            if (check.needed) {
+              console.log(`[AutoCompact] ${check.reason}, triggering compaction during iteration ${iteration}...`);
+              summarizer.compact({ sessionId }).then(() => {
+                options?.onCompact?.({ beforeTokens: check.totalTokens, afterTokens: 0 });
+              });
+            }
+          }
+        }
+      : undefined;
+
     const result = await agent.run(userMessage, {
-      onStep: options?.onStep,
+      onStep: wrappedOnStep,
       historyMessages,
     });
 
