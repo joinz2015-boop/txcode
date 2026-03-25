@@ -23,6 +23,11 @@ import * as readline from 'readline';
 import * as http from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
 import { apiRouter } from '../api/index.js';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const packageRoot = path.resolve(__dirname, '..', '..');
 import { dbService } from '../modules/db/db.service.js';
 import { aiService } from '../modules/ai/index.js';
 import { sessionService } from '../modules/session/index.js';
@@ -153,7 +158,9 @@ export class WebService {
      * - 这样前端可以处理 /chat、/settings 等前端路由
      * - 跳过以 /api 开头的请求，返回 404
      */
-    const webDistPath = path.join(process.cwd(), 'web', 'dist');
+    const devWebDistPath = path.join(process.cwd(), 'web', 'dist');
+    const prodWebDistPath = path.join(packageRoot, 'web', 'dist');
+    const webDistPath = fs.existsSync(devWebDistPath) ? devWebDistPath : prodWebDistPath;
     
     if (fs.existsSync(webDistPath)) {
       // ========== 静态文件服务模式 ==========
@@ -278,8 +285,10 @@ npm run dev
         // ========== 步骤 3: 打印服务信息 ==========
         console.log(`TXCode Web 服务已启动: http://localhost:${this.port}`);
         
-        const webDistPath = path.join(process.cwd(), 'web', 'dist');
-        if (fs.existsSync(webDistPath)) {
+        const devWebDistPath = path.join(process.cwd(), 'web', 'dist');
+        const prodWebDistPath = path.join(packageRoot, 'web', 'dist');
+        const webDistPathForLog = fs.existsSync(devWebDistPath) ? devWebDistPath : prodWebDistPath;
+        if (fs.existsSync(webDistPathForLog)) {
           console.log(`Web 界面: http://localhost:${this.port}`);
         } else {
           console.log(`提示: 前端未构建，请 cd web && npm install && npm run build`);

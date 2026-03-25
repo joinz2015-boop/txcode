@@ -60,3 +60,6 @@ vite.config.js
 # Lock files (npm will handle dependencies)
 package-lock.json
 web/package-lock.json
+
+# Node modules - we don't publish these
+web/node_modules/
