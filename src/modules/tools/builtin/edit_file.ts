@@ -27,10 +27,15 @@ export const editFileTool: Tool = {
     },
     required: ['file_path', 'old_string', 'new_string']
   },
-  execute: async (params: { file_path: string; old_string: string; new_string: string; replace_all?: boolean }, context: ToolContext): Promise<ToolResult> => {
-    const extractCDATA = (str: string): string => {
+  execute: async (params: { file_path: string; old_string?: string; new_string?: string; replace_all?: boolean }, context: ToolContext): Promise<ToolResult> => {
+    const extractCDATA = (str: string | undefined): string => {
+      if (!str) return ''
       const cdataMatch = str.match(/^<!\[CDATA\[([\s\S]*?)\]\]>$/)
       return cdataMatch ? cdataMatch[1] : str
+    }
+
+    const normalizeLineEndings = (str: string): string => {
+      return str.replace(/\r\n/g, '\n')
     }
 
     let { file_path, old_string, new_string, replace_all = false } = params
@@ -76,17 +81,20 @@ export const editFileTool: Tool = {
     }
 
     const content = await fs.promises.readFile(file_path, 'utf-8')
+    const normalizedContent = normalizeLineEndings(content)
+    const normalizedOldString = normalizeLineEndings(old_string)
+    const normalizedNewString = normalizeLineEndings(new_string)
 
-    if (!content.includes(old_string)) {
+    if (!normalizedContent.includes(normalizedOldString)) {
       return { success: false, output: '', error: 'old_string not found in content' }
     }
 
     let newContent: string
     if (replace_all) {
-      newContent = content.split(old_string).join(new_string)
+      newContent = normalizedContent.split(normalizedOldString).join(normalizedNewString)
     } else {
-      const firstIndex = content.indexOf(old_string)
-      const secondIndex = content.indexOf(old_string, firstIndex + old_string.length)
+      const firstIndex = normalizedContent.indexOf(normalizedOldString)
+      const secondIndex = normalizedContent.indexOf(normalizedOldString, firstIndex + normalizedOldString.length)
       if (secondIndex !== -1) {
         return {
           success: false,
@@ -94,12 +102,12 @@ export const editFileTool: Tool = {
           error: 'Found multiple matches. Use replace_all=true or provide more context to make old_string unique.'
         }
       }
-      newContent = content.replace(old_string, new_string)
+      newContent = normalizedContent.replace(normalizedOldString, normalizedNewString)
     }
 
     await fs.promises.writeFile(file_path, newContent, 'utf-8')
 
-    const count = replace_all ? (content.split(old_string).length - 1) : 1
+    const count = replace_all ? (normalizedContent.split(normalizedOldString).length - 1) : 1
     return {
       success: true,
       output: `成功: 文件已更新 ${file_path}${count > 1 ? ` (${count} 处替换)` : ''}`,

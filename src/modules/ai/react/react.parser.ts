@@ -42,6 +42,7 @@
  */
 
 import { ReActStep, ParsedBlock } from './react.types.js';
+import { parseStringPromise } from 'xml2js';
 
 /**
  * ReActParser 类
@@ -49,8 +50,8 @@ import { ReActStep, ParsedBlock } from './react.types.js';
  * 将 AI 返回的文本解析为结构化的 ReActStep 数组
  */
 export class ReActParser {
-  parse(content: string): { steps: ReActStep[]; finalAnswer: string } {
-    const blocks = this.splitBlocks(content);
+  async parse(content: string): Promise<{ steps: ReActStep[]; finalAnswer: string }> {
+    const blocks = await this.splitBlocks(content);
     const steps: ReActStep[] = [];
     const contentMap = new Map<string, string>();
     let finalAnswer = '';
@@ -89,7 +90,7 @@ export class ReActParser {
     return { steps, finalAnswer };
   }
 
-  private splitBlocks(content: string): ParsedBlock[] {
+  private async splitBlocks(content: string): Promise<ParsedBlock[]> {
     const blocks: ParsedBlock[] = [];
     const parts = content.split(/\n---\n/);
 
@@ -108,7 +109,7 @@ export class ReActParser {
       }
 
       // 尝试解析 XML 格式
-      const xmlResult = this.parseXMLBlock(trimmed);
+      const xmlResult = await this.parseXMLBlock(trimmed);
       if (xmlResult) {
         blocks.push(xmlResult);
         continue;
@@ -146,64 +147,74 @@ export class ReActParser {
   /**
    * 解析 XML 格式的块
    */
-  private parseXMLBlock(content: string): ParsedBlock | null {
-    // 匹配 <react>...</react> 块
-    const reactMatch = content.match(/<react>([\s\S]*?)<\/react>/i);
-    if (!reactMatch) return null;
+  private async parseXMLBlock(content: string): Promise<ParsedBlock | null> {
+    try {
+      const wrappedXml = `<root>${content}</root>`;
+      const parsed = await parseStringPromise(wrappedXml, {
+        trim: false,
+        explicitArray: false,
+        mergeAttrs: true,
+      });
 
-    const inner = reactMatch[1];
-    const data: Record<string, any> = {};
+      if (!parsed?.root?.react) {
+        return null;
+      }
 
-    // 解析 thought
-    const thoughtMatch = inner.match(/<thought>([\s\S]*?)<\/thought>/i);
-    if (thoughtMatch) {
-      data.thought = thoughtMatch[1].trim();
-    }
+      const react = parsed.root.react;
+      const data: Record<string, any> = {};
 
-    // 解析 final_answer（可能包含 CDATA）
-    const finalAnswerMatch = inner.match(/<final_answer>([\s\S]*?)<\/final_answer>/i);
-    if (finalAnswerMatch) {
-      data.final_answer = this.extractCDATAOrText(finalAnswerMatch[1]);
+      if (react.thought) {
+        data.thought = this.extractValue(react.thought);
+      }
+
+      if (react.final_answer) {
+        data.final_answer = this.extractValue(react.final_answer);
+        return { type: 'step', data };
+      }
+
+      if (react.action) {
+        data.action = this.extractValue(react.action);
+      }
+
+      if (react.keep_context) {
+        const keepCtx = this.extractValue(react.keep_context);
+        data.keep_context = keepCtx?.toLowerCase() === 'true';
+      }
+
+      if (react.action_input) {
+        data.action_input = await this.parseXMLParams(react.action_input);
+      }
+
       return { type: 'step', data };
+    } catch (e) {
+      console.error('XML parse error:', e);
+      return null;
     }
+  }
 
-    // 解析 action
-    const actionMatch = inner.match(/<action>([\s\S]*?)<\/action>/i);
-    if (actionMatch) {
-      data.action = actionMatch[1].trim();
+  private extractValue(value: any): string {
+    if (!value) return '';
+    if (typeof value === 'string') return value.trim();
+    if (typeof value === 'object' && '_' in value) {
+      return this.extractCDATAOrText(String(value._));
     }
-
-    // 解析 keep_context
-    const keepContextMatch = inner.match(/<keep_context>([\s\S]*?)<\/keep_context>/i);
-    if (keepContextMatch) {
-      data.keep_context = keepContextMatch[1].trim().toLowerCase() === 'true';
-    }
-
-    // 解析 action_input 内的所有参数
-    const actionInputMatch = inner.match(/<action_input>([\s\S]*?)<\/action_input>/i);
-    if (actionInputMatch) {
-      data.action_input = this.parseXMLParams(actionInputMatch[1]);
-    }
-
-    return { type: 'step', data };
+    return String(value);
   }
 
   /**
-   * 解析 XML 参数节点
+   * 解析 action_input 参数节点
    */
-  private parseXMLParams(xml: string): Record<string, any> {
+  private async parseXMLParams(actionInput: any): Promise<Record<string, any>> {
     const params: Record<string, any> = {};
-    
-    // 匹配所有 <param_name>...</param_name> 或 <param_name/>
-    const paramRegex = /<(\w+)>([\s\S]*?)<\/\1>/gi;
-    let match;
-    
-    while ((match = paramRegex.exec(xml)) !== null) {
-      const paramName = match[1];
-      const paramValue = match[2];
-      params[paramName] = this.extractCDATAOrText(paramValue);
+
+    if (!actionInput || typeof actionInput !== 'object') {
+      return params;
     }
-    
+
+    for (const [key, value] of Object.entries(actionInput)) {
+      params[key] = this.extractValue(value);
+    }
+
     return params;
   }
 

@@ -78,7 +78,7 @@ export const readFileTool: Tool = {
       return { success: false, output: '', error: `Cannot read binary file: ${file_path}` }
     }
 
-    const content = buffer.toString('utf-8')
+    const content = buffer.toString('utf-8').replace(/\r\n/g, '\n')
     const lines = content.split('\n')
 
     if (offset < 1) offset = 1

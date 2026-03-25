@@ -116,7 +116,7 @@ export class ReActAgent {
       const aiContent = response.content || '';
 
       // 解析 AI 响应
-      const parsed = reactParser.parse(aiContent);
+      const parsed = await reactParser.parse(aiContent);
       
       // 无解析结果，直接返回内容
       if (parsed.steps.length === 0) {

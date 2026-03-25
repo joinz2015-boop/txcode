@@ -251,7 +251,7 @@ chatRouter.post('/stream', async (req: Request, res: Response) => {
  */
 import { reactParser } from '../modules/ai/react/react.parser.js';
 
-chatRouter.get('/history/:sessionId', (req: Request, res: Response) => {
+chatRouter.get('/history/:sessionId', async (req: Request, res: Response) => {
   const sessionId = String(req.params.sessionId);
 
   try {
@@ -270,7 +270,7 @@ chatRouter.get('/history/:sessionId', (req: Request, res: Response) => {
       }
 
       if (msg.role === 'assistant') {
-        const parsed = reactParser.parse(msg.content);
+        const parsed = await reactParser.parse(msg.content);
         
         if (parsed.steps.length === 0) {
           result.push({
