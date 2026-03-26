@@ -92,60 +92,87 @@ export class ReActParser {
     return { steps, finalAnswer };
   }
 
+  /**
+   * 从混合内容（文本+XML）中提取 XML 内容
+   * 处理 AI 返回的文本中既包含解释性文字又包含 XML 代码块的情况
+   */
+  private extractXMLFromMixedContent(content: string): string {
+    // 优先匹配 ```xml ... ``` 代码块中的 XML
+    const codeBlockMatch = content.match(/```xml\s*([\s\S]*?)```/i);
+    if (codeBlockMatch && codeBlockMatch[1]) {
+      return codeBlockMatch[1].trim();
+    }
+
+    // 其次匹配 ``` ... ``` 任意代码块
+    const anyCodeBlockMatch = content.match(/```\s*([\s\S]*?)```/i);
+    if (anyCodeBlockMatch && anyCodeBlockMatch[1]) {
+      const inner = anyCodeBlockMatch[1].trim();
+      if (inner.includes('<react>') || inner.includes('<action>')) {
+        return inner;
+      }
+    }
+
+    // 如果没有代码块，尝试直接匹配 <react>...</react> 或 <action>...</action>
+    const reactMatch = content.match(/<react>[\s\S]*?<\/react>/i);
+    if (reactMatch) {
+      return reactMatch[0];
+    }
+
+    // 返回原始内容，让后续解析器尝试处理
+    return content;
+  }
+
   private async splitBlocks(content: string): Promise<ParsedBlock[]> {
+    content = this.extractXMLFromMixedContent(content);
+    
     const blocks: ParsedBlock[] = [];
-    const parts = content.split(/\n---\n/);
 
-    for (const part of parts) {
-      const trimmed = part.trim();
-      if (!trimmed) continue;
+    const contentMatch = content.match(/^\$(\S+)\n([\s\S]*)$/);
+    if (contentMatch) {
+      blocks.push({
+        type: 'content',
+        contentKey: contentMatch[1],
+        content: contentMatch[2],
+      });
+      return blocks;
+    }
+    console.log('Content after XML extraction:', content);
+    // 尝试解析 XML 格式
+    const xmlResult = await this.parseXMLBlock(content);
+    console.log('XML parse result:', xmlResult);
+    if (xmlResult) {
+      blocks.push(xmlResult);
+      return blocks;
+    }
 
-      const contentMatch = trimmed.match(/^\$(\S+)\n([\s\S]*)$/);
-      if (contentMatch) {
-        blocks.push({
-          type: 'content',
-          contentKey: contentMatch[1],
-          content: contentMatch[2],
-        });
-        continue;
+    // XML 解析失败，尝试用正则表达式提取
+    const regexResult = this.parseByRegex(content);
+    if (regexResult) {
+      blocks.push(regexResult);
+      return blocks;
+    }
+
+    // 尝试解析 JSON 格式
+    try {
+      const json = JSON.parse(content);
+      if (json.observation !== undefined) {
+        blocks.push({ type: 'observation', data: json.observation });
+      } else {
+        blocks.push({ type: 'step', data: json });
       }
-
-      // 尝试解析 XML 格式
-      const xmlResult = await this.parseXMLBlock(trimmed);
-      if (xmlResult) {
-        blocks.push(xmlResult);
-        continue;
-      }
-
-      // XML 解析失败，尝试用正则表达式提取
-      const regexResult = this.parseByRegex(trimmed);
-      if (regexResult) {
-        blocks.push(regexResult);
-        continue;
-      }
-
-      // 尝试解析 JSON 格式
-      try {
-        const json = JSON.parse(trimmed);
-        if (json.observation !== undefined) {
-          blocks.push({ type: 'observation', data: json.observation });
-        } else {
-          blocks.push({ type: 'step', data: json });
-        }
-      } catch {
-        // 尝试提取 JSON 代码块
-        const jsonBlockMatch = trimmed.match(/```json\s*([\s\S]*?)```/);
-        if (jsonBlockMatch) {
-          try {
-            const json = JSON.parse(jsonBlockMatch[1].trim());
-            if (json.observation !== undefined) {
-              blocks.push({ type: 'observation', data: json.observation });
-            } else {
-              blocks.push({ type: 'step', data: json });
-            }
-          } catch {
-            // 忽略解析失败
+    } catch {
+      // 尝试提取 JSON 代码块
+      const jsonBlockMatch = content.match(/```json\s*([\s\S]*?)```/);
+      if (jsonBlockMatch) {
+        try {
+          const json = JSON.parse(jsonBlockMatch[1].trim());
+          if (json.observation !== undefined) {
+            blocks.push({ type: 'observation', data: json.observation });
+          } else {
+            blocks.push({ type: 'step', data: json });
           }
+        } catch {
+          // 忽略解析失败
         }
       }
     }
@@ -156,7 +183,7 @@ export class ReActParser {
   /**
    * 解析 XML 格式的块
    */
-  private async parseXMLBlock(content: string): Promise<ParsedBlock | null> {
+  public async parseXMLBlock(content: string): Promise<ParsedBlock | null> {
     try {
       const wrappedXml = `<root>${content}</root>`;
       const parsed = await parseStringPromise(wrappedXml, {
@@ -165,11 +192,13 @@ export class ReActParser {
         mergeAttrs: true,
       });
 
-      if (!parsed?.root?.react) {
-        return null;
-      }
+       if (!parsed?.root?.react?.[0]) {
+         console.log('DEBUG: parsed.root.react[0] not found');
+         console.log('DEBUG parsed:', JSON.stringify(parsed, null, 2));
+         return null;
+       }
 
-      const react = parsed.root.react;
+       const react = parsed.root.react[0];
       const data: Record<string, any> = {};
 
       if (react.thought) {
@@ -207,6 +236,7 @@ export class ReActParser {
       }
 
       if (data.actions.length === 0 && !data.final_answer) {
+         console.log('data.actions is empty and no final_answer, returning null');
         return null;
       }
 
@@ -224,18 +254,18 @@ export class ReActParser {
     const data: Record<string, any> = {};
     const actions: { actionName: string; actionInput: Record<string, any> }[] = [];
 
-    const thoughtMatch = content.match(/<thought>\s*([^<]*?)\s*<\/thought>/);
+    const thoughtMatch = content.match(/<thought>\s*([\s\S]*?)\s*<\/thought>/);
     if (thoughtMatch) {
       data.thought = thoughtMatch[1].trim();
     }
 
-    const finalAnswerMatch = content.match(/<final_answer>\s*([^<]*?)\s*<\/final_answer>/);
+    const finalAnswerMatch = content.match(/<final_answer>\s*([\s\S]*?)\s*<\/final_answer>/);
     if (finalAnswerMatch) {
       data.final_answer = finalAnswerMatch[1].trim();
       return { type: 'step', data };
     }
 
-    const keepContextMatch = content.match(/<keep_context>\s*([^<]*?)\s*<\/keep_context>/);
+    const keepContextMatch = content.match(/<keep_context>\s*([\s\S]*?)\s*<\/keep_context>/);
     if (keepContextMatch) {
       data.keep_context = keepContextMatch[1].toLowerCase() === 'true';
     }
@@ -247,7 +277,7 @@ export class ReActParser {
       const actionInputContent = actionMatch[2];
       const actionInput: Record<string, any> = {};
 
-      const paramRegex = /<(\w+)>\s*([^<]*?)\s*<\/\1>/gi;
+      const paramRegex = /<(\w+)>\s*([\s\S]*?)\s*<\/\1>/gi;
       let paramMatch;
       while ((paramMatch = paramRegex.exec(actionInputContent)) !== null) {
         actionInput[paramMatch[1]] = paramMatch[2].trim();
@@ -285,8 +315,20 @@ export class ReActParser {
       return params;
     }
 
-    for (const [key, value] of Object.entries(actionInput)) {
-      params[key] = this.extractValue(value);
+    const isArray = Array.isArray(actionInput) || Object.keys(actionInput).every(k => /^\d+$/.test(k));
+    
+    if (isArray) {
+      for (const item of actionInput) {
+        if (item && typeof item === 'object') {
+          for (const [key, value] of Object.entries(item)) {
+            params[key] = this.extractValue(value);
+          }
+        }
+      }
+    } else {
+      for (const [key, value] of Object.entries(actionInput)) {
+        params[key] = this.extractValue(value);
+      }
     }
 
     return params;
