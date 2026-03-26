@@ -10,7 +10,8 @@
 - 只有用户明确要求时才使用表情符号
 - 父目录不存在时会自动创建。避免写入表情符号除非被要求
 
-举例：
+**举例**：
+正确例子
 ```xml
 <react>
   <thought>创建一个新的工具文件</thought>
@@ -22,18 +23,27 @@
 
 export const myTool: Tool = {
   name: 'my_tool',
-  description: '我的自定义工具',
-  parameters: {
-    type: 'object',
-    properties: {
-      input: { type: 'string', description: '输入参数' }
-    },
-    required: ['input']
-  },
-  execute: async (params, context) => {
-    return { success: true, output: `处理: ${params.input}` }
-  }
+  description: '我的自定义工具'
 }]]></content>
+    </action_input>
+  </action>
+  <keep_context>true</keep_context>
+</react>
+```
+错误例子（错误的方式，content没有用<![CDATA[ ]]> 包裹）
+```xml
+<react>
+  <thought>创建一个新的工具文件</thought>
+  <action>
+    <action_name>write_file</action_name>
+    <action_input>
+      <file_path>E:\ai\txcode\src\modules\tools\builtin\my_tool.ts</file_path>
+      <content>import { Tool, ToolContext, ToolResult } from '../tool.types.js'
+
+export const myTool: Tool = {
+  name: 'my_tool',
+  description: '我的自定义工具'
+}</content>
     </action_input>
   </action>
   <keep_context>true</keep_context>

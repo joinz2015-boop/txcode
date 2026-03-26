@@ -12,7 +12,8 @@
 
 **注意**：old_string 和 new_string 中内容必须用 <![CDATA[ ]]> 包裹。
 
-举例：
+**举例**：
+正确例子
 ```xml
 <react>
   <thought>在 App.tsx 中添加调试日志</thought>
@@ -25,6 +26,25 @@
       <new_string><![CDATA[if (trimmedInput.startsWith('/')) {
       console.log('[DEBUG] executeCommand input:', trimmedInput);
       const result = await executeCommand(trimmedInput);]]></new_string>
+    </action_input>
+  </action>
+  <keep_context>true</keep_context>
+</react>
+```
+
+错误例子（错误的方式，old_string和new_string 没有用<![CDATA[ ]]> 包裹）：
+```xml
+<react>
+  <thought>在 App.tsx 中添加调试日志</thought>
+  <action>
+    <action_name>edit_file</action_name>
+    <action_input>
+      <file_path>E:\ai\txcode\src\components\App.tsx</file_path>
+      <old_string>if (trimmedInput.startsWith('/')) {
+      const result = await executeCommand(trimmedInput);</old_string>
+      <new_string>if (trimmedInput.startsWith('/')) {
+      console.log('[DEBUG] executeCommand input:', trimmedInput);
+      const result = await executeCommand(trimmedInput);</new_string>
     </action_input>
   </action>
   <keep_context>true</keep_context>

@@ -20,6 +20,11 @@ export class OpenAIProvider {
     this.client = new OpenAI({
       apiKey: config.apiKey,
       baseURL: config.baseUrl || 'https://api.openai.com/v1',
+      defaultHeaders: {
+        'HTTP-Referer': 'https://www.npmjs.com/package/tianxincode',
+        'X-Title': 'txcode',
+        'X-OpenRouter-Title': 'txcode',
+      },
     });
     this.defaultModel = config.defaultModel || 'gpt-4';
   }
@@ -81,7 +86,7 @@ export class OpenAIProvider {
     logger.logRequest(url, requestBody);
 
     const response = await this.client.chat.completions.create(requestBody as any) as any;
-    
+
     if (!response.body) {
       throw new Error('No response body');
     }
@@ -107,7 +112,7 @@ export class OpenAIProvider {
             const parsed = JSON.parse(data);
             const content = parsed.choices?.[0]?.delta?.content;
             if (content) yield content;
-          } catch {}
+          } catch { }
         }
       }
     }
