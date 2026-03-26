@@ -4,15 +4,15 @@ import { ReActParser } from './react.parser';
 function testValidator(name: string, content: string) {
   console.log(`\n========== ${name} ==========`);
   const result = contentValidator.validate(content);
-  console.log('Valid:', result.valid);
+  console.log('Valid:', result.valid, '| isFaultTolerance:', result.isFaultTolerance);
   if (!result.valid) {
     console.log('Error:', result.error);
   } else {
-    console.log('Cleaned content:', result.cleanedContent?.substring(0, 100) + '...');
+    console.log('Cleaned content:', result.cleanedContent);
   }
 }
 
-testValidator('Valid XML in code block', `找到关键代码了。
+testValidator('1. Valid XML in code block', `找到关键代码了。
 \`\`\`xml
 <react>
   <thought>我需要读取文件</thought>
@@ -26,18 +26,12 @@ testValidator('Valid XML in code block', `找到关键代码了。
 \`\`\`
 `);
 
-testValidator('Invalid - no react structure', `这是一些文本内容，但没有XML结构。
-只是想看看验证器是否能正确拒绝。`);
-
-testValidator('Valid - direct XML', `<react>
-  <thought>我需要修改代码</thought>
-  <action>
-    <action_name>edit_file</action_name>
-    <action_input>
-      <file_path>E:\\ai\\txcode\\src\\App.tsx</file_path>
-    </action_input>
-  </action>
+testValidator('2. Invalid - partial XML (has <react> but no <thought>)', `这是一些文本内容。
+<react>
+  <action>edit_file</action>
 </react>`);
+
+testValidator('3. Fault Tolerance - no XML at all', `我已经完成了所有任务。文件已经保存。`);
 
 async function testParser() {
   console.log('\n========== Full Parser Test ==========');
@@ -61,11 +55,13 @@ async function testParser() {
     console.log('Parse error:', e.message);
   }
 
-  console.log('\n========== Parser Error Test ==========');
+  console.log('\n========== Fault Tolerance Test ==========');
   try {
-    await parser.parse('这不是有效的 XML 结构');
+    const result = await parser.parse('我已经完成了所有任务。文件已经保存。');
+    console.log('Fault tolerance parse success:', JSON.stringify(result.steps, null, 2));
+    console.log('Final answer:', result.finalAnswer);
   } catch (e: any) {
-    console.log('Expected error caught:', e.message);
+    console.log('Fault tolerance error:', e.message);
   }
 }
 
