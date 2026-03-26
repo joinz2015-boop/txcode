@@ -12,21 +12,20 @@ npm install -g tianxincode
 
 安装完成后，您可以在任何目录下使用 `txcode` 命令。
 
-### 使用 npx（无需安装）
-
-```bash
-npx tianxincode
-```
 
 ## 快速开始
 
 安装完成后，直接在终端中运行：
 
 ```bash
-txcode
+txcode web
 ```
 
-工具会自动启动交互式命令行界面，您可以开始与 AI 助手对话。
+访问http://localhost:4000 页面设置里配置模型提供商和模型，然后可以web端交互，也可以ctrl+c 关闭后启动命令行方式
+
+```bash
+txcode
+```
 
 ## 基本用法
 
