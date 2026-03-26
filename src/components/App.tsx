@@ -249,10 +249,19 @@ export function App() {
    * 2. 如果是命令 (/开头)，执行命令
    * 3. 否则调用 AI 服务处理
    * 4. 更新 UI 和状态
+   * 
+   * 🔍 排查 /help 命令无反应的思路：
+   * - 确认 handleSubmit 是否被调用 (检查 useInput 中 key.return 分支)
+   * - 确认 trimmedInput.startsWith('/') 返回 true
+   * - 确认 executeCommand 返回了正确的 result
+   * - 确认 addMessage 被调用并成功添加了消息
    */
   const handleSubmit = useCallback(async () => {
     // 验证输入：不能为空，且当前不在思考中
-    if (!input.trim() || status === 'thinking') return;
+    if (!input.trim() || status === 'thinking') {
+      // 🔍 如果在这里 return，说明 input 为空或正在思考中
+      return;
+    }
 
     // ========== 准备输入 ==========
     const trimmedInput = input.trim();
@@ -263,11 +272,27 @@ export function App() {
     // ========== 命令处理 ==========
     // 以 / 开头的输入作为命令处理
     if (trimmedInput.startsWith('/')) {
-      // console.log('[DEBUG] executeCommand input:', trimmedInput);
-      const result = await executeCommand(trimmedInput);
-      // console.log('[DEBUG] executeCommand result:', JSON.stringify(result));
+      // 🔍 断点1: 确认 trimmedInput 是 '/help' 或 '/help xxx'
+      // const result = await executeCommand(trimmedInput);
+      
+      let result;
+      try {
+        result = await executeCommand(trimmedInput);
+      } catch (err) {
+        // 🔍 断点2: 如果 executeCommand 抛出异常，会在这里捕获
+        console.error('[DEBUG] executeCommand 异常:', err);
+        addMessage('system', `命令执行异常: ${err instanceof Error ? err.message : String(err)}`);
+        return;
+      }
+      
+      // 🔍 断点3: 检查 result 对象的内容
+      // if (!result) {
+      //   console.error('[DEBUG] executeCommand 返回 null/undefined');
+      //   return;
+      // }
+      
       if (result.message) {
-        // console.log('[DEBUG] addMessage system:', result.message);
+        // 🔍 断点4: 确认消息被添加到 messages 数组
         addMessage('system', result.message);
       }
       if (result.data?.exit) {
@@ -534,7 +559,11 @@ export function App() {
       return;
     }
 
+    // 🔍 排查 /help 无反应：确认回车键是否触发 handleSubmit
     if (key.return) {
+      // 🔍 断点0: 检查 input 的值
+      // console.log('[DEBUG] key.return, input:', JSON.stringify(input));
+      
       if (input === '/model') {
         setModelSelectMode(true);
         loadModels();
@@ -544,6 +573,8 @@ export function App() {
         setInputHistory(prev => [...prev, input]);
         setHistoryIndex(-1);
       }
+      // 🔍 断点1: 确认 handleSubmit 被调用
+      // console.log('[DEBUG] 调用 handleSubmit, input:', JSON.stringify(input));
       handleSubmit();
     } else if (key.backspace || key.delete) {
       if (cursorPosition > 0) {

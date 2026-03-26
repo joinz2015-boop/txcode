@@ -43,6 +43,7 @@
 
 import { ReActStep, ParsedBlock, ActionCall } from './react.types.js';
 import { parseStringPromise } from 'xml2js';
+import { contentValidator, ValidationResult } from './react.validator.js';
 
 /**
  * ReActParser 类
@@ -51,7 +52,13 @@ import { parseStringPromise } from 'xml2js';
  */
 export class ReActParser {
   async parse(content: string): Promise<{ steps: ReActStep[]; finalAnswer: string }> {
-    const blocks = await this.splitBlocks(content);
+    const validation: ValidationResult = contentValidator.validate(content);
+    if (!validation.valid) {
+      throw new Error(validation.error);
+    }
+
+    const cleanedContent = validation.cleanedContent!;
+    const blocks = await this.splitBlocks(cleanedContent);
     const steps: ReActStep[] = [];
     const contentMap = new Map<string, string>();
     let finalAnswer = '';
@@ -92,39 +99,7 @@ export class ReActParser {
     return { steps, finalAnswer };
   }
 
-  /**
-   * 从混合内容（文本+XML）中提取 XML 内容
-   * 处理 AI 返回的文本中既包含解释性文字又包含 XML 代码块的情况
-   */
-  private extractXMLFromMixedContent(content: string): string {
-    // 优先匹配 ```xml ... ``` 代码块中的 XML
-    const codeBlockMatch = content.match(/```xml\s*([\s\S]*?)```/i);
-    if (codeBlockMatch && codeBlockMatch[1]) {
-      return codeBlockMatch[1].trim();
-    }
-
-    // 其次匹配 ``` ... ``` 任意代码块
-    const anyCodeBlockMatch = content.match(/```\s*([\s\S]*?)```/i);
-    if (anyCodeBlockMatch && anyCodeBlockMatch[1]) {
-      const inner = anyCodeBlockMatch[1].trim();
-      if (inner.includes('<react>') || inner.includes('<action>')) {
-        return inner;
-      }
-    }
-
-    // 如果没有代码块，尝试直接匹配 <react>...</react> 或 <action>...</action>
-    const reactMatch = content.match(/<react>[\s\S]*?<\/react>/i);
-    if (reactMatch) {
-      return reactMatch[0];
-    }
-
-    // 返回原始内容，让后续解析器尝试处理
-    return content;
-  }
-
   private async splitBlocks(content: string): Promise<ParsedBlock[]> {
-    content = this.extractXMLFromMixedContent(content);
-    
     const blocks: ParsedBlock[] = [];
 
     const contentMatch = content.match(/^\$(\S+)\n([\s\S]*)$/);
@@ -136,10 +111,9 @@ export class ReActParser {
       });
       return blocks;
     }
-    console.log('Content after XML extraction:', content);
+
     // 尝试解析 XML 格式
     const xmlResult = await this.parseXMLBlock(content);
-    console.log('XML parse result:', xmlResult);
     if (xmlResult) {
       blocks.push(xmlResult);
       return blocks;
@@ -193,8 +167,6 @@ export class ReActParser {
       });
 
        if (!parsed?.root?.react?.[0]) {
-         console.log('DEBUG: parsed.root.react[0] not found');
-         console.log('DEBUG parsed:', JSON.stringify(parsed, null, 2));
          return null;
        }
 

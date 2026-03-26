@@ -115,8 +115,23 @@ export class ReActAgent {
 
       const aiContent = response.content || '';
 
-      // 解析 AI 响应
-      const parsed = await reactParser.parse(aiContent);
+      let parsed: Awaited<ReturnType<typeof reactParser.parse>>;
+      
+      try {
+        // 解析 AI 响应
+        parsed = await reactParser.parse(aiContent);
+      } catch (parseError: any) {
+        // 解析失败，返回错误信息给 AI
+        const errorMessage = `Tool Result:\n---\n${parseError.message}\n---\nPlease return a valid XML response in the correct format.`;
+        
+        this.addMessage('assistant', aiContent, true);
+        this.addMessage('user', errorMessage, false);
+        
+        baseMessages.push({ role: 'assistant', content: aiContent });
+        baseMessages.push({ role: 'user', content: errorMessage });
+        
+        continue;
+      }
       
       // 无解析结果，直接返回内容
       if (parsed.steps.length === 0) {
