@@ -695,6 +695,15 @@ export function App() {
               );
             }
             
+            // 显示其他 system 消息（如命令结果）
+            if (msg.role === 'system') {
+              return (
+                <Box key={msg.id} marginBottom={1} paddingLeft={2}>
+                  <Text dimColor>{msg.content}</Text>
+                </Box>
+              );
+            }
+            
             return null;
           }}
         </Static>

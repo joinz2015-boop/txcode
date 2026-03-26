@@ -179,7 +179,7 @@ export class ReActAgent {
           : toolResults;
         
         steps.push(latestStep);
-        options?.onStep?.(latestStep, iteration, totalUsage);
+        options?.onStep?.(latestStep, iteration, response.usage);
 
         // 格式化工具结果并添加到消息列表
         const observationStr = reactParser.formatObservation(latestStep.observation);

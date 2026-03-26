@@ -262,28 +262,9 @@ export class AIService {
         result.usage.promptTokens,
         result.usage.completionTokens
       );
-
-      // ========== 步骤 6: 检查是否需要压缩会话 ==========
-      /**
-       * 自动压缩机制：
-       * - 当会话 Token 达到阈值时触发
-       * - 使用 SummarizerService 将旧消息压缩为摘要
-       * - 减少发送给 AI 的上下文大小
-       * - 降低 API 调用成本
-       */
-      const summarizer = new SummarizerService(
-        this.sessionService,
-        options?.memoryService || new MemoryService(),
-        this.configService
-      );
-      const check = summarizer.checkNeedsCompact(sessionId, result.usage.promptTokens);
-      if (check.needed) {
-        console.log(`[AutoCompact] ${check.reason}, triggering compaction...`);
-        await summarizer.compact({ sessionId });
-      }
     }
 
-    // ========== 步骤 7: 返回结果 ==========
+    // ========== 步骤 6: 返回结果 ==========
     return result;
   }
 
