@@ -11,6 +11,7 @@ import {
   ProviderToolResult,
   ProviderTokenUsage,
 } from '../base.js';
+import type { MemoryService } from '../../../memory/memory.service.js';
 
 export interface OpenAIAgentConfig {
   provider: OpenAIProvider;
@@ -18,6 +19,7 @@ export interface OpenAIAgentConfig {
   maxIterations?: number;
   projectPath?: string;
   sessionId?: string;
+  memoryService?: MemoryService;
 }
 
 export class OpenAIAgent implements AIProvider {
@@ -28,6 +30,7 @@ export class OpenAIAgent implements AIProvider {
   private maxIterations: number;
   private projectPath?: string;
   private sessionId?: string;
+  private memoryService?: MemoryService;
 
   constructor(config: OpenAIAgentConfig) {
     this.provider = config.provider;
@@ -35,6 +38,7 @@ export class OpenAIAgent implements AIProvider {
     this.maxIterations = config.maxIterations || 50;
     this.projectPath = config.projectPath;
     this.sessionId = config.sessionId;
+    this.memoryService = config.memoryService;
   }
 
   async run(
@@ -58,6 +62,7 @@ export class OpenAIAgent implements AIProvider {
     }
 
     baseMessages.push({ role: 'user', content: userMessage });
+    this.addMessage('user', userMessage, true, true, undefined, undefined, options?.sessionId);
 
     let iteration = 0;
     let finalAnswer = '';
@@ -118,24 +123,28 @@ export class OpenAIAgent implements AIProvider {
           const toolCall = toolCalls[i];
           const result = results[i];
 
-          baseMessages.push({
-            role: 'assistant',
+          const assistantMsg = {
+            role: 'assistant' as const,
             content: null as any,
             toolCalls: [{
               id: toolCall.id,
-              type: 'function',
+              type: 'function' as const,
               function: {
                 name: toolCall.name,
                 arguments: JSON.stringify(toolCall.arguments),
               },
             }],
-          });
+          };
+          baseMessages.push(assistantMsg);
+          this.addMessage('assistant', '', true, false, assistantMsg.toolCalls, undefined, options?.sessionId);
 
-          baseMessages.push({
-            role: 'tool',
+          const toolMsg = {
+            role: 'tool' as const,
             content: result.success ? result.output || '' : `Error: ${result.error}`,
             toolCallId: toolCall.id,
-          });
+          };
+          baseMessages.push(toolMsg);
+          this.addMessage('tool', toolMsg.content, true, false, undefined, toolCall.id, options?.sessionId);
         }
 
         continue;
@@ -182,5 +191,26 @@ export class OpenAIAgent implements AIProvider {
 
   private getBuiltinTools(): any[] {
     return openaiTools;
+  }
+
+  private addMessage(
+    role: 'user' | 'assistant' | 'system' | 'tool',
+    content: string,
+    keepContext: boolean,
+    isOriginal: boolean = false,
+    toolCalls?: any[],
+    toolCallId?: string,
+    sessionId?: string
+  ): void {
+    if (!sessionId || !this.memoryService) return;
+
+    let savedContent = content;
+    if (role === 'assistant' && toolCalls && toolCalls.length > 0) {
+      savedContent = JSON.stringify({ type: 'assistant_with_tools', toolCalls });
+    } else if (role === 'tool' && toolCallId) {
+      savedContent = JSON.stringify({ type: 'tool_result', toolCallId, output: content });
+    }
+
+    this.memoryService.addMessage(sessionId, role, savedContent, keepContext, isOriginal);
   }
 }

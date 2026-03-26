@@ -75,7 +75,6 @@ export class MemoryService {
     keepContext: boolean = true,
     isOriginal: boolean = false
   ): number {
-    //console.log('[MemoryService.addMessage] role:', role, 'isOriginal:', isOriginal, 'content:', content.substring(0, 50));
     const result = this.db.run(
       'INSERT INTO messages (session_id, role, content, keep_context, is_original) VALUES (?, ?, ?, ?, ?)',
       [sessionId, role, content, keepContext ? 1 : 0, isOriginal ? 1 : 0]

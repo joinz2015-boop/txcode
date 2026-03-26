@@ -21,6 +21,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import * as readline from 'readline';
 import * as http from 'http';
+import { exec } from 'child_process';
 import { WebSocketServer, WebSocket } from 'ws';
 import { apiRouter } from '../api/index.js';
 import { fileURLToPath } from 'url';
@@ -296,6 +297,15 @@ npm run dev
         
         console.log(`API 文档: http://localhost:${this.port}/api`);
         console.log(`按 Ctrl+C 停止服务\n`);
+
+        const url = `http://localhost:${this.port}`;
+        if (process.platform === 'win32') {
+          exec(`start ${url}`);
+        } else if (process.platform === 'darwin') {
+          exec(`open ${url}`);
+        } else {
+          exec(`xdg-open ${url}`);
+        }
 
         /**
          * 优雅关闭处理器

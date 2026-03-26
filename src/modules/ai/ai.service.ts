@@ -191,10 +191,25 @@ export class AIService {
       const session = this.sessionService.get(sessionId);
       const summaryMessageId = session?.summaryMessageId || null;
       const msgs = options.memoryService.getMessagesForAI(sessionId, summaryMessageId);
-      historyMessages = msgs.map(m => ({
-        role: m.role as 'user' | 'assistant' | 'system' | 'tool',
-        content: m.content,
-      }));
+      historyMessages = msgs.map(m => {
+        const chatMsg: ChatMessage = {
+          role: m.role as 'user' | 'assistant' | 'system' | 'tool',
+          content: m.content,
+        };
+
+        try {
+          const parsed = JSON.parse(m.content);
+          if (parsed.type === 'assistant_with_tools' && parsed.toolCalls) {
+            chatMsg.content = '';
+            chatMsg.toolCalls = parsed.toolCalls;
+          } else if (parsed.type === 'tool_result') {
+            chatMsg.content = parsed.output || '';
+            chatMsg.toolCallId = parsed.toolCallId;
+          }
+        } catch { }
+
+        return chatMsg;
+      });
     }
 
     const memoryService = options?.memoryService || new MemoryService();
@@ -211,6 +226,7 @@ export class AIService {
         maxIterations: this.maxToolIterations,
         projectPath: options?.projectPath,
         sessionId,
+        memoryService,
       });
 
       const wrappedOnStep = options?.onStep
@@ -240,6 +256,8 @@ export class AIService {
       const result = await agent.run(userMessage, {
         onStep: wrappedOnStep,
         historyMessages,
+        sessionId,
+        memoryService,
       });
 
       if (sessionId && result.usage) {

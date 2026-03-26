@@ -1,4 +1,5 @@
 import { ChatMessage, ToolDefinition } from '../ai.types.js';
+import type { MemoryService } from '../../memory/memory.service.js';
 
 export interface ProviderResponse {
   content?: string;
@@ -23,6 +24,8 @@ export interface ProviderTokenUsage {
 export interface ProviderRunOptions {
   onStep?: (step: ProviderStep, iteration: number, usage?: ProviderTokenUsage) => void;
   historyMessages?: ChatMessage[];
+  memoryService?: MemoryService;
+  sessionId?: string;
 }
 
 export interface ProviderStep {
