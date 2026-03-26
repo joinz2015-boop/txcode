@@ -263,8 +263,11 @@ export function App() {
     // ========== 命令处理 ==========
     // 以 / 开头的输入作为命令处理
     if (trimmedInput.startsWith('/')) {
+      // console.log('[DEBUG] executeCommand input:', trimmedInput);
       const result = await executeCommand(trimmedInput);
+      // console.log('[DEBUG] executeCommand result:', JSON.stringify(result));
       if (result.message) {
+        // console.log('[DEBUG] addMessage system:', result.message);
         addMessage('system', result.message);
       }
       if (result.data?.exit) {
