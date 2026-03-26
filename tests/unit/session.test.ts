@@ -9,9 +9,9 @@ describe('Session 模块', () => {
   let dbService: DbService;
   let sessionService: SessionService;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     dbService = new DbService(':memory:');
-    dbService.init();
+    await dbService.init();
     sessionService = new SessionService(dbService);
   });
 

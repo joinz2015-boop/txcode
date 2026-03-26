@@ -257,7 +257,7 @@ npm run dev
    * @throws {Error} 如果端口已被占用或其他网络错误
    */
   async start(): Promise<void> {
-    dbService.init();
+    await dbService.init();
 
     return new Promise((resolve, reject) => {
       this.server = http.createServer(this.app);

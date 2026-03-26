@@ -9,9 +9,9 @@ describe('Config 模块', () => {
   let dbService: DbService;
   let configService: ConfigService;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     dbService = new DbService(':memory:');
-    dbService.init();
+    await dbService.init();
     configService = new ConfigService(dbService);
   });
 

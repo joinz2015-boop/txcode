@@ -76,6 +76,8 @@ async function main() {
     const { render } = await import('ink');
     const React = await import('react');
     const { App } = await import('./components/App.js');
+    const { dbService } = await import('./modules/db/index.js');
+    await dbService.init();
     render(React.createElement(App));
   }
 }

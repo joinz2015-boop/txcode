@@ -1,9 +1,9 @@
 /**
  * 数据库类型定义
  * 
- * Database: better-sqlite3 的数据库实例类型
+ * Database: sql.js 的数据库实例类型
  */
 
-import Database from 'better-sqlite3';
+import { Database as SqlJsDatabase } from 'sql.js';
 
-export type { Database };
+export type { SqlJsDatabase as Database };

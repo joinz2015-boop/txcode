@@ -22,10 +22,10 @@ describe('集成测试', () => {
   let skillsManager: SkillsManager;
   let dbPath: string;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     dbPath = path.join(__dirname, 'test-int.db');
     dbService = new DbService(dbPath);
-    dbService.init();
+    await dbService.init();
 
     sessionService = new SessionService(dbService);
     memoryService = new MemoryService(dbService);

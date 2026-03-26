@@ -9,21 +9,19 @@
  * 使用方式：
  * ```typescript
  * import { dbService } from './db.js';
- * dbService.init();
+ * await dbService.init();
  * const result = dbService.run('SELECT * FROM users');
  * ```
  */
 
-import Database from 'better-sqlite3';
+import initSqlJs, { Database as SqlJsDatabase } from 'sql.js';
 import * as path from 'path';
 import * as fs from 'fs';
 
 export class DbService {
-  /** 数据库实例，延迟初始化 */
-  private db: Database.Database | null = null;
-  
-  /** 数据库文件路径 */
+  private db: SqlJsDatabase | null = null;
   private dbPath: string;
+  private saveTimer: NodeJS.Timeout | null = null;
 
   constructor(dbPath?: string) {
     const home = process.env.HOME || process.env.USERPROFILE || '.';
@@ -36,28 +34,25 @@ export class DbService {
     this.dbPath = dbPath || path.join(txcodeDir, 'data.db');
   }
 
-  /**
-   * 初始化数据库
-   * 
-   * 执行操作：
-   * 1. 创建数据库连接
-   * 2. 设置 WAL 模式
-   * 3. 启用外键约束
-   * 4. 执行迁移
-   */
-  init(): void {
+  async init(): Promise<void> {
     if (this.db) {
       this.db.close();
     }
-    this.db = new Database(this.dbPath);
-    this.db.pragma('journal_mode = WAL');
-    this.db.pragma('foreign_keys = ON');
+
+    const SQL = await initSqlJs();
+
+    if (fs.existsSync(this.dbPath)) {
+      const fileBuffer = fs.readFileSync(this.dbPath);
+      this.db = new SQL.Database(fileBuffer);
+    } else {
+      this.db = new SQL.Database();
+    }
+
+    this.db.run('PRAGMA foreign_keys = ON');
     this.runMigrations();
+    this.save();
   }
 
-  /**
-   * 重置数据库（仅用于测试）
-   */
   reset(): void {
     if (this.db) {
       this.db.close();
@@ -66,91 +61,121 @@ export class DbService {
     this.init();
   }
 
-  /**
-   * 获取数据库实例
-   * 
-   * @returns 数据库实例
-   * @throws 如果未初始化则抛出错误
-   */
-  getDb(): Database.Database {
+  getDb(): SqlJsDatabase {
     if (!this.db) {
-      this.init();
+      throw new Error('Database not initialized. Call init() first.');
     }
-    return this.db!;
+    return this.db;
   }
 
-  /**
-   * 执行 SQL 语句
-   * 
-   * @param sql - SQL 语句
-   * @param params - 参数数组
-   * @returns 执行结果
-   */
-  run(sql: string, params?: unknown[]): Database.RunResult {
+  run(sql: string, params?: unknown[]): { changes: number; lastInsertRowid: number } {
+    const db = this.getDb();
     if (params && params.length > 0) {
-      return this.getDb().prepare(sql).run(...params);
+      db.run(sql, params as (string | number | null | Uint8Array)[]);
+    } else {
+      db.run(sql);
     }
-    return this.getDb().prepare(sql).run();
+    const changes = db.getRowsModified();
+    const result = db.exec('SELECT last_insert_rowid() as lastId');
+    const lastId = result.length > 0 && result[0].values.length > 0 ? Number(result[0].values[0][0]) : 0;
+    this.saveLater();
+    return { changes, lastInsertRowid: lastId };
   }
 
-  /**
-   * 查询单条记录
-   * 
-   * @param sql - SQL 语句
-   * @param params - 参数数组
-   * @returns 查询结果，未找到返回 undefined
-   */
   get<T>(sql: string, params?: unknown[]): T | undefined {
+    const db = this.getDb();
+    let stmt;
     if (params && params.length > 0) {
-      return this.getDb().prepare(sql).get(...params) as T | undefined;
+      stmt = db.prepare(sql);
+      stmt.bind(params as (string | number | null | Uint8Array)[]);
+    } else {
+      stmt = db.prepare(sql);
     }
-    return this.getDb().prepare(sql).get() as T | undefined;
+    
+    if (stmt.step()) {
+      const columns = stmt.getColumnNames();
+      const values = stmt.get();
+      stmt.free();
+      const row: Record<string, unknown> = {};
+      columns.forEach((col, i) => {
+        row[col] = values[i];
+      });
+      return row as T;
+    }
+    stmt.free();
+    return undefined;
   }
 
-  /**
-   * 查询多条记录
-   * 
-   * @param sql - SQL 语句
-   * @param params - 参数数组
-   * @returns 查询结果数组
-   */
   all<T>(sql: string, params?: unknown[]): T[] {
+    const db = this.getDb();
+    let stmt;
     if (params && params.length > 0) {
-      return this.getDb().prepare(sql).all(...params) as T[];
+      stmt = db.prepare(sql);
+      stmt.bind(params as (string | number | null | Uint8Array)[]);
+    } else {
+      stmt = db.prepare(sql);
     }
-    return this.getDb().prepare(sql).all() as T[];
+
+    const results: T[] = [];
+    const columns = stmt.getColumnNames();
+    
+    while (stmt.step()) {
+      const values = stmt.get();
+      const row: Record<string, unknown> = {};
+      columns.forEach((col, i) => {
+        row[col] = values[i];
+      });
+      results.push(row as T);
+    }
+    stmt.free();
+    return results;
   }
 
-  /**
-   * 执行事务
-   * 
-   * @param fn - 事务函数
-   * @returns 事务返回值
-   */
   transaction<T>(fn: () => T): T {
-    return this.getDb().transaction(fn)();
+    const db = this.getDb();
+    db.run('BEGIN TRANSACTION');
+    try {
+      const result = fn();
+      db.run('COMMIT');
+      this.saveLater();
+      return result;
+    } catch (error) {
+      db.run('ROLLBACK');
+      throw error;
+    }
   }
 
-  /**
-   * 关闭数据库连接
-   */
   close(): void {
+    if (this.saveTimer) {
+      clearTimeout(this.saveTimer);
+      this.saveTimer = null;
+    }
     if (this.db) {
+      this.save();
       this.db.close();
       this.db = null;
     }
   }
 
-  /**
-   * 执行数据库迁移
-   * 
-   * 迁移表结构：
-   * - migrations: 记录已执行的迁移
-   */
+  private save(): void {
+    if (!this.db || this.dbPath === ':memory:') return;
+    const data = this.db.export();
+    const buffer = Buffer.from(data);
+    fs.writeFileSync(this.dbPath, buffer);
+  }
+
+  private saveLater(): void {
+    if (this.saveTimer) return;
+    this.saveTimer = setTimeout(() => {
+      this.save();
+      this.saveTimer = null;
+    }, 100);
+  }
+
   private runMigrations(): void {
     if (!this.db) throw new Error('Database not initialized');
 
-    this.db.exec(`
+    this.db.run(`
       CREATE TABLE IF NOT EXISTS migrations (
         id INTEGER PRIMARY KEY,
         name TEXT NOT NULL,
@@ -169,25 +194,25 @@ export class DbService {
       const migration = migrations[i];
       const migrationId = i + 1;
       
-      const applied = this.db.prepare(
-        'SELECT 1 FROM migrations WHERE id = ?'
-      ).get(migrationId);
+      const applied = this.get<{ 1: number }>(
+        'SELECT 1 FROM migrations WHERE id = ?',
+        [migrationId]
+      );
 
       if (!applied) {
         migration();
-        this.db.prepare(
-          'INSERT INTO migrations (id, name) VALUES (?, ?)'
-        ).run(migrationId, migration.name);
+        this.run(
+          'INSERT INTO migrations (id, name) VALUES (?, ?)',
+          [migrationId, `migration${String(migrationId).padStart(3, '0')}`]
+        );
       }
     }
   }
 
-  /** 初始迁移：创建所有基础表 */
   private migration001Initial(): void {
     if (!this.db) return;
 
-    // 会话表
-    this.db.exec(`
+    this.db.run(`
       CREATE TABLE IF NOT EXISTS sessions (
         id TEXT PRIMARY KEY,
         title TEXT NOT NULL,
@@ -201,8 +226,7 @@ export class DbService {
       )
     `);
 
-    // 消息表（包含永久/临时记忆标记）
-    this.db.exec(`
+    this.db.run(`
       CREATE TABLE IF NOT EXISTS messages (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         session_id TEXT NOT NULL,
@@ -215,8 +239,7 @@ export class DbService {
       )
     `);
 
-    // 项目知识表
-    this.db.exec(`
+    this.db.run(`
       CREATE TABLE IF NOT EXISTS project_knowledge (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         project_path TEXT NOT NULL,
@@ -228,8 +251,7 @@ export class DbService {
       )
     `);
 
-    // 代码片段表
-    this.db.exec(`
+    this.db.run(`
       CREATE TABLE IF NOT EXISTS code_snippets (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         session_id TEXT,
@@ -242,8 +264,7 @@ export class DbService {
       )
     `);
 
-    // 服务商表
-    this.db.exec(`
+    this.db.run(`
       CREATE TABLE IF NOT EXISTS providers (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
@@ -256,8 +277,7 @@ export class DbService {
       )
     `);
 
-    // 模型表
-    this.db.exec(`
+    this.db.run(`
       CREATE TABLE IF NOT EXISTS models (
         id TEXT PRIMARY KEY,
         provider_id TEXT NOT NULL,
@@ -273,8 +293,7 @@ export class DbService {
       )
     `);
 
-    // 配置表
-    this.db.exec(`
+    this.db.run(`
       CREATE TABLE IF NOT EXISTS config (
         key TEXT PRIMARY KEY,
         value TEXT NOT NULL,
@@ -282,87 +301,72 @@ export class DbService {
       )
     `);
 
-    // 创建索引
-    this.db.exec(`
-      CREATE INDEX IF NOT EXISTS idx_messages_session_id ON messages(session_id);
-      CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at);
-      CREATE INDEX IF NOT EXISTS idx_messages_keep_context ON messages(session_id, keep_context);
-      CREATE INDEX IF NOT EXISTS idx_project_knowledge_path ON project_knowledge(project_path);
-      CREATE INDEX IF NOT EXISTS idx_code_snippets_session ON code_snippets(session_id);
-      CREATE INDEX IF NOT EXISTS idx_models_provider ON models(provider_id);
-      CREATE INDEX IF NOT EXISTS idx_sessions_summary ON sessions(summary_message_id);
-    `);
+    this.db.run(`CREATE INDEX IF NOT EXISTS idx_messages_session_id ON messages(session_id)`);
+    this.db.run(`CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at)`);
+    this.db.run(`CREATE INDEX IF NOT EXISTS idx_messages_keep_context ON messages(session_id, keep_context)`);
+    this.db.run(`CREATE INDEX IF NOT EXISTS idx_project_knowledge_path ON project_knowledge(project_path)`);
+    this.db.run(`CREATE INDEX IF NOT EXISTS idx_code_snippets_session ON code_snippets(session_id)`);
+    this.db.run(`CREATE INDEX IF NOT EXISTS idx_models_provider ON models(provider_id)`);
+    this.db.run(`CREATE INDEX IF NOT EXISTS idx_sessions_summary ON sessions(summary_message_id)`);
 
-    // 初始化默认配置
-    this.db.exec(`INSERT OR IGNORE INTO config (key, value) VALUES ('ai.maxToolIterations', '10')`);
-    this.db.exec(`INSERT OR IGNORE INTO config (key, value) VALUES ('ai.maxSessionCompression', '5')`);
-    this.db.exec(`INSERT OR IGNORE INTO config (key, value) VALUES ('web.port', '40000')`);
-    this.db.exec(`INSERT OR IGNORE INTO config (key, value) VALUES ('ai.context.mode', '"fixed"')`);
-    this.db.exec(`INSERT OR IGNORE INTO config (key, value) VALUES ('ai.context.maxTokens', '100000')`);
-    this.db.exec(`INSERT OR IGNORE INTO config (key, value) VALUES ('ai.context.percentage', '0.95')`);
-    this.db.exec(`INSERT OR IGNORE INTO config (key, value) VALUES ('ai.context.autoCompact', 'true')`);
+    this.db.run(`INSERT OR IGNORE INTO config (key, value) VALUES ('ai.maxToolIterations', '10')`);
+    this.db.run(`INSERT OR IGNORE INTO config (key, value) VALUES ('ai.maxSessionCompression', '5')`);
+    this.db.run(`INSERT OR IGNORE INTO config (key, value) VALUES ('web.port', '40000')`);
+    this.db.run(`INSERT OR IGNORE INTO config (key, value) VALUES ('ai.context.mode', '"fixed"')`);
+    this.db.run(`INSERT OR IGNORE INTO config (key, value) VALUES ('ai.context.maxTokens', '100000')`);
+    this.db.run(`INSERT OR IGNORE INTO config (key, value) VALUES ('ai.context.percentage', '0.95')`);
+    this.db.run(`INSERT OR IGNORE INTO config (key, value) VALUES ('ai.context.autoCompact', 'true')`);
   }
 
-  /** 迁移002：添加上下文压缩相关字段 */
   private migration002AddContextFields(): void {
     if (!this.db) return;
 
-    // 检查 sessions 表是否需要添加新字段
-    const sessionsInfo = this.db.pragma('table_info(sessions)') as { name: string }[];
-    const sessionsColumns = sessionsInfo.map(col => col.name);
+    const sessionsColumns = this.getTableColumns('sessions');
 
     if (!sessionsColumns.includes('summary_message_id')) {
-      this.db.exec(`ALTER TABLE sessions ADD COLUMN summary_message_id INTEGER`);
+      this.db.run(`ALTER TABLE sessions ADD COLUMN summary_message_id INTEGER`);
     }
     if (!sessionsColumns.includes('prompt_tokens')) {
-      this.db.exec(`ALTER TABLE sessions ADD COLUMN prompt_tokens INTEGER DEFAULT 0`);
+      this.db.run(`ALTER TABLE sessions ADD COLUMN prompt_tokens INTEGER DEFAULT 0`);
     }
     if (!sessionsColumns.includes('completion_tokens')) {
-      this.db.exec(`ALTER TABLE sessions ADD COLUMN completion_tokens INTEGER DEFAULT 0`);
+      this.db.run(`ALTER TABLE sessions ADD COLUMN completion_tokens INTEGER DEFAULT 0`);
     }
     if (!sessionsColumns.includes('cost')) {
-      this.db.exec(`ALTER TABLE sessions ADD COLUMN cost REAL DEFAULT 0`);
+      this.db.run(`ALTER TABLE sessions ADD COLUMN cost REAL DEFAULT 0`);
     }
 
-    // 检查 messages 表是否需要迁移 is_permanent 到 keep_context
-    const messagesInfo = this.db.pragma('table_info(messages)') as { name: string }[];
-    const messagesColumns = messagesInfo.map(col => col.name);
+    const messagesColumns = this.getTableColumns('messages');
 
-    // 如果有 is_permanent 但没有 keep_context，重命名
     if (messagesColumns.includes('is_permanent') && !messagesColumns.includes('keep_context')) {
-      this.db.exec(`ALTER TABLE messages RENAME COLUMN is_permanent TO keep_context`);
+      this.db.run(`ALTER TABLE messages RENAME COLUMN is_permanent TO keep_context`);
     } else if (!messagesColumns.includes('keep_context')) {
-      this.db.exec(`ALTER TABLE messages ADD COLUMN keep_context INTEGER DEFAULT 1`);
+      this.db.run(`ALTER TABLE messages ADD COLUMN keep_context INTEGER DEFAULT 1`);
     }
 
-    // 检查 models 表是否需要添加新字段
-    const modelsInfo = this.db.pragma('table_info(models)') as { name: string }[];
-    const modelsColumns = modelsInfo.map(col => col.name);
+    const modelsColumns = this.getTableColumns('models');
 
     if (!modelsColumns.includes('context_window')) {
-      this.db.exec(`ALTER TABLE models ADD COLUMN context_window INTEGER DEFAULT 4096`);
+      this.db.run(`ALTER TABLE models ADD COLUMN context_window INTEGER DEFAULT 4096`);
     }
     if (!modelsColumns.includes('max_output_tokens')) {
-      this.db.exec(`ALTER TABLE models ADD COLUMN max_output_tokens INTEGER DEFAULT 4096`);
+      this.db.run(`ALTER TABLE models ADD COLUMN max_output_tokens INTEGER DEFAULT 4096`);
     }
     if (!modelsColumns.includes('supports_vision')) {
-      this.db.exec(`ALTER TABLE models ADD COLUMN supports_vision INTEGER DEFAULT 0`);
+      this.db.run(`ALTER TABLE models ADD COLUMN supports_vision INTEGER DEFAULT 0`);
     }
     if (!modelsColumns.includes('supports_tools')) {
-      this.db.exec(`ALTER TABLE models ADD COLUMN supports_tools INTEGER DEFAULT 1`);
+      this.db.run(`ALTER TABLE models ADD COLUMN supports_tools INTEGER DEFAULT 1`);
     }
 
-    // 创建索引
-    this.db.exec(`CREATE INDEX IF NOT EXISTS idx_sessions_summary ON sessions(summary_message_id)`);
-    this.db.exec(`CREATE INDEX IF NOT EXISTS idx_messages_keep_context ON messages(session_id, keep_context)`);
+    this.db.run(`CREATE INDEX IF NOT EXISTS idx_sessions_summary ON sessions(summary_message_id)`);
+    this.db.run(`CREATE INDEX IF NOT EXISTS idx_messages_keep_context ON messages(session_id, keep_context)`);
 
-    // 初始化默认配置
-    this.db.exec(`INSERT OR IGNORE INTO config (key, value) VALUES ('ai.context.mode', '"fixed"')`);
-    this.db.exec(`INSERT OR IGNORE INTO config (key, value) VALUES ('ai.context.maxTokens', '10000')`);
-    this.db.exec(`INSERT OR IGNORE INTO config (key, value) VALUES ('ai.context.percentage', '0.95')`);
-    this.db.exec(`INSERT OR IGNORE INTO config (key, value) VALUES ('ai.context.autoCompact', 'true')`);
+    this.db.run(`INSERT OR IGNORE INTO config (key, value) VALUES ('ai.context.mode', '"fixed"')`);
+    this.db.run(`INSERT OR IGNORE INTO config (key, value) VALUES ('ai.context.maxTokens', '10000')`);
+    this.db.run(`INSERT OR IGNORE INTO config (key, value) VALUES ('ai.context.percentage', '0.95')`);
+    this.db.run(`INSERT OR IGNORE INTO config (key, value) VALUES ('ai.context.autoCompact', 'true')`);
 
-    // 初始化常用模型的 context_window
     const modelContextWindows: Record<string, number> = {
       'gpt-4': 8192,
       'gpt-4-turbo': 128000,
@@ -386,11 +390,10 @@ export class DbService {
     }
   }
 
-  /** 迁移003：添加 LSP 服务器表 */
   private migration003AddLspServers(): void {
     if (!this.db) return;
 
-    this.db.exec(`
+    this.db.run(`
       CREATE TABLE IF NOT EXISTS lsp_server (
         id TEXT PRIMARY KEY,
         enabled INTEGER NOT NULL DEFAULT 0,
@@ -409,17 +412,17 @@ export class DbService {
     ];
 
     for (const server of defaultServers) {
-      this.db!.prepare(
-        "INSERT OR IGNORE INTO lsp_server (id, enabled, auto_start, created_at, updated_at) VALUES (?, ?, ?, ?, ?)"
-      ).run(server.id, server.enabled, server.auto_start, now, now);
+      this.db.run(
+        "INSERT OR IGNORE INTO lsp_server (id, enabled, auto_start, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+        [server.id, server.enabled, server.auto_start, now, now]
+      );
     }
   }
 
-  /** 迁移004：添加项目表 */
   private migration004AddProjects(): void {
     if (!this.db) return;
 
-    this.db.exec(`
+    this.db.run(`
       CREATE TABLE IF NOT EXISTS projects (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
@@ -431,10 +434,14 @@ export class DbService {
       )
     `);
 
-    this.db.exec(`CREATE INDEX IF NOT EXISTS idx_projects_path ON projects(path)`);
-    this.db.exec(`CREATE INDEX IF NOT EXISTS idx_projects_active ON projects(is_active)`);
+    this.db.run(`CREATE INDEX IF NOT EXISTS idx_projects_path ON projects(path)`);
+    this.db.run(`CREATE INDEX IF NOT EXISTS idx_projects_active ON projects(is_active)`);
+  }
+
+  private getTableColumns(tableName: string): string[] {
+    const result = this.all<{ name: string }>(`PRAGMA table_info("${tableName}")`);
+    return result.map(row => row.name);
   }
 }
 
-/** 单例导出 */
 export const dbService = new DbService();

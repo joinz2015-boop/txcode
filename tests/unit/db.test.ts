@@ -7,7 +7,7 @@
  * 3. 事务执行
  */
 
-import Database from 'better-sqlite3';
+import type { Database } from 'sql.js';
 import * as fs from 'fs';
 import * as path from 'path';
 import { DbService } from '../../src/modules/db/db.service';
@@ -16,12 +16,12 @@ describe('DB 模块', () => {
   let dbService: DbService;
   const testDbPath = path.join(__dirname, `test-${Date.now()}.db`);
 
-  beforeEach(() => {
+  beforeEach(async () => {
     dbService = new DbService(testDbPath);
-    dbService.init();
+    await dbService.init();
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     dbService.close();
     if (fs.existsSync(testDbPath)) {
       fs.unlinkSync(testDbPath);
@@ -30,10 +30,10 @@ describe('DB 模块', () => {
 
   describe('init()', () => {
     test('应该成功初始化数据库', () => {
-      expect(dbService.getDb()).toBeInstanceOf(Database);
+      expect(dbService.getDb()).toBeTruthy();
     });
 
-    test('应该创建迁移表', () => {
+    test('应该创建迁移表', async () => {
       const result = dbService.get<{name: string}>(
         "SELECT name FROM sqlite_master WHERE type='table' AND name='migrations'"
       );

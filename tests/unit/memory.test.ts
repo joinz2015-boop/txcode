@@ -12,9 +12,9 @@ describe('Memory 模块', () => {
   let memoryService: MemoryService;
   let sessionId: string;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     dbService = new DbService(':memory:');
-    dbService.init();
+    await dbService.init();
     sessionService = new SessionService(dbService);
     memoryService = new MemoryService(dbService);
     const session = sessionService.create('test-session');
