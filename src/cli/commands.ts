@@ -229,7 +229,7 @@ registerCommand('token', () => {
   const stats = memoryService.getSessionStats(current);
   const compressPercent = stats.totalMessages > 0 ? Math.round((stats.compressedCount / stats.totalMessages) * 100) : 0;
   
-  const checkResult = summarizerService.checkNeedsCompact(current);
+  const checkResult = summarizerService.checkNeedsCompact(current, session?.promptTokens || 0);
   const thresholdInfo = checkResult.needed 
     ? `\n  Threshold: ${checkResult.threshold} (EXCEEDED)` 
     : `\n  Threshold: ${checkResult.threshold}`;

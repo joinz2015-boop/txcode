@@ -237,12 +237,12 @@ export class AIService {
       ? (step: ReActStep, iteration: number, usage?: { promptTokens: number; completionTokens: number; totalTokens: number }) => {
           options.onStep?.(step as any, iteration);
           
-          if (sessionId && usage && usage.totalTokens > 0) {
-            const check = summarizer.checkNeedsCompact(sessionId);
+          if (sessionId && usage && usage.promptTokens > 0) {
+            const check = summarizer.checkNeedsCompact(sessionId, usage.promptTokens);
             if (check.needed) {
               console.log(`[AutoCompact] ${check.reason}, triggering compaction during iteration ${iteration}...`);
               summarizer.compact({ sessionId }).then(() => {
-                options?.onCompact?.({ beforeTokens: check.totalTokens, afterTokens: 0 });
+                options?.onCompact?.({ beforeTokens: check.promptTokens, afterTokens: 0 });
               });
             }
           }
@@ -276,7 +276,7 @@ export class AIService {
         options?.memoryService || new MemoryService(),
         this.configService
       );
-      const check = summarizer.checkNeedsCompact(sessionId);
+      const check = summarizer.checkNeedsCompact(sessionId, result.usage.promptTokens);
       if (check.needed) {
         console.log(`[AutoCompact] ${check.reason}, triggering compaction...`);
         await summarizer.compact({ sessionId });

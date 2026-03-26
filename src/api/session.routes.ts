@@ -207,7 +207,7 @@ sessionRouter.get('/:id/stats', (req: Request, res: Response) => {
     return res.status(404).json({ success: false, error: 'Session not found' });
   }
   
-  const check = summarizerService.checkNeedsCompact(id);
+  const check = summarizerService.checkNeedsCompact(id, session.promptTokens);
   const stats = sessionService.getStats(id, check.threshold);
   const msgStats = memoryService.getSessionStats(id);
   

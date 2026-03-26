@@ -18,6 +18,6 @@ export interface SummarizerOptions {
 export interface CompactionCheckResult {
   needed: boolean;
   reason: string;
-  totalTokens: number;
+  promptTokens: number;
   threshold: number;
 }

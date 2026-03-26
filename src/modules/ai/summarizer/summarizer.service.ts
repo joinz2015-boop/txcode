@@ -145,12 +145,7 @@ export class SummarizerService {
     }
   }
 
-  checkNeedsCompact(sessionId: string): CompactionCheckResult {
-    const session = this.sessionService.get(sessionId);
-    if (!session) {
-      return { needed: false, reason: 'Session not found', totalTokens: 0, threshold: 0 };
-    }
-
+  checkNeedsCompact(sessionId: string, promptTokens: number = 0): CompactionCheckResult {
     const config = this.getContextConfig();
     const model = this.getCurrentModel();
 
@@ -161,25 +156,23 @@ export class SummarizerService {
       threshold = config.maxTokens;
     }
 
-    const totalTokens = session.promptTokens + session.completionTokens;
-
     if (!config.autoCompact) {
-      return { needed: false, reason: 'Auto compact disabled', totalTokens, threshold };
+      return { needed: false, reason: 'Auto compact disabled', promptTokens, threshold };
     }
 
-    if (totalTokens < threshold) {
+    if (promptTokens < threshold) {
       return {
         needed: false,
-        reason: `Tokens (${totalTokens}) below threshold (${threshold})`,
-        totalTokens,
+        reason: `Prompt tokens (${promptTokens}) below threshold (${threshold})`,
+        promptTokens,
         threshold,
       };
     }
 
     return {
       needed: true,
-      reason: `Tokens (${totalTokens}) exceeded threshold (${threshold})`,
-      totalTokens,
+      reason: `Prompt tokens (${promptTokens}) exceeded threshold (${threshold})`,
+      promptTokens,
       threshold,
     };
   }
