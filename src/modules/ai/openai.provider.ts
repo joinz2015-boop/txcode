@@ -21,7 +21,7 @@ export class OpenAIProvider {
       apiKey: config.apiKey,
       baseURL: config.baseUrl || 'https://api.openai.com/v1',
       defaultHeaders: {
-        'HTTP-Referer': 'https://www.npmjs.com/package/tianxincode',
+        'HTTP-Referer': 'https://www.homecommunity.cn',
         'X-Title': 'txcode',
         'X-OpenRouter-Title': 'txcode',
       },
