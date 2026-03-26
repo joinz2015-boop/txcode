@@ -1,7 +1,8 @@
+### 工具read_file
 从本地文件系统读取文件或目录内容。如果路径不存在，返回错误。
 
-**使用说明**：
-- `filePath` 参数应为绝对路径
+**功能**：
+- `file_path` 参数应为绝对路径
 - 默认返回文件开头最多 2000 行
 - `offset` 参数是从哪一行开始（从 1 开始）
 - 要读取后面的部分，用更大的 offset 再次调用
@@ -13,3 +14,25 @@
 - 可以并行调用此工具读取多个文件
 - 避免频繁小量读取（30 行片段），需要更多上下文时读取更大范围
 - 此工具可以读取图片和 PDF 并作为附件返回
+
+举例：
+```xml
+<react>
+  <thought>读取 App.tsx 文件查看组件结构</thought>
+  <action>
+    <action_name>read_file</action_name>
+    <action_input>
+      <file_path>E:\ai\txcode\src\components\App.tsx</file_path>
+    </action_input>
+  </action>
+  <keep_context>true</keep_context>
+</react>
+```
+
+参数说明：
+
+| 字段 | 类型 | 说明 |
+|------|------|
+| `file_path` | string | 文件或目录绝对路径 |
+| `offset` | number | 起始行号，从1开始（可选，默认 1） |
+| `limit` | number | 最大读取行数（可选，默认 2000） |

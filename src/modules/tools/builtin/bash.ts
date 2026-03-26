@@ -26,7 +26,8 @@ function getShell(): string {
 
 export const bashTool: Tool = {
   name: 'bash',
-  description: '', // 从 description.txt 加载
+  description: '',
+  descriptionFile: 'bash.txt',
   parameters: {
     type: 'object',
     properties: {

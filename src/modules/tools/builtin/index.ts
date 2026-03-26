@@ -25,50 +25,37 @@ import { fileURLToPath } from 'url'
 const __filename = fileURLToPath(import.meta.url)
 const DESCRIPTIONS_DIR = path.dirname(__filename)
 
-async function loadDescription(filename: string, baseDir?: string): Promise<string> {
+async function loadDescription(filePath: string): Promise<string> {
   try {
-    const dir = baseDir || DESCRIPTIONS_DIR
-    return await fs.readFile(path.join(dir, filename), 'utf-8')
+    return await fs.readFile(filePath, 'utf-8')
   } catch {
     return ''
   }
 }
 
+async function withDescriptions(tools: Tool[]): Promise<Tool[]> {
+  const results: Tool[] = []
+  for (const tool of tools) {
+    if (tool.descriptionFile) {
+      let descPath: string
+      if (tool.name === 'skill') {
+        descPath = path.join(DESCRIPTIONS_DIR, '..', '..', 'skill', 'skill.txt')
+      } else {
+        descPath = path.isAbsolute(tool.descriptionFile)
+          ? tool.descriptionFile
+          : path.join(DESCRIPTIONS_DIR, tool.descriptionFile)
+      }
+      const desc = await loadDescription(descPath)
+      results.push({ ...tool, description: desc })
+    } else {
+      results.push(tool)
+    }
+  }
+  return results
+}
+
 export async function getBuiltinTools(): Promise<Tool[]> {
-  const [bashDesc, readFileDesc, writeFileDesc, editFileDesc, globDesc, grepDesc, todoReadDesc, todoWriteDesc, lspDesc, webSearchDesc, webFetchDesc, codeSearchDesc, memoryDesc] = await Promise.all([
-    loadDescription('bash.txt'),
-    loadDescription('read_file.txt'),
-    loadDescription('write_file.txt'),
-    loadDescription('edit_file.txt'),
-    loadDescription('glob.txt'),
-    loadDescription('grep.txt'),
-    loadDescription('todo_read.txt'),
-    loadDescription('todo_write.txt'),
-    loadDescription('lsp.txt'),
-    loadDescription('web_search.txt'),
-    loadDescription('web_fetch.txt'),
-    loadDescription('code_search.txt'),
-    loadDescription('memory.txt'),
-  ])
-
-  const skillDesc = await loadDescription('skill.txt', path.join(DESCRIPTIONS_DIR, '..', '..', 'skill'))
-
-  bashTool.description = bashDesc
-  readFileTool.description = readFileDesc
-  writeFileTool.description = writeFileDesc
-  editFileTool.description = editFileDesc
-  globTool.description = globDesc
-  grepTool.description = grepDesc
-  todoReadTool.description = todoReadDesc
-  todoWriteTool.description = todoWriteDesc
-  lspTool.description = lspDesc
-  webSearchTool.description = webSearchDesc
-  webFetchTool.description = webFetchDesc
-  codeSearchTool.description = codeSearchDesc
-  memoryTool.description = memoryDesc
-  skillTool.description = skillDesc
-
-  return [
+  const tools = [
     bashTool,
     readFileTool,
     writeFileTool,
@@ -84,6 +71,7 @@ export async function getBuiltinTools(): Promise<Tool[]> {
     memoryTool,
     skillTool,
   ]
+  return withDescriptions(tools)
 }
 
 let _builtinTools: Tool[] | null = null
@@ -95,4 +83,4 @@ export async function getBuiltinToolsInstance(): Promise<Tool[]> {
   return _builtinTools
 }
 
-export const builtinTools: Tool[] = [] // 占位符，实际通过getBuiltinToolsInstance获取
+export const builtinTools: Tool[] = []

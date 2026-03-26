@@ -110,9 +110,7 @@ function getReActPromptTemplate(roleTemplate: string): string {
 
 ## 内置工具
 
-<builtin_tools>
 {builtinTools}
-</builtin_tools>
 
 ## skill 工具
 
@@ -171,12 +169,7 @@ export async function buildReActPrompt(
     : platform === 'linux' ? 'Linux' 
     : platform;
 
-  const builtinToolsDesc = builtinTools.map(t => {
-    const params = Object.entries(t.parameters.properties).map(([name, prop]) =>
-      `    <${name} type="${prop.type}">${prop.description}</${name}>`
-    ).join('\n');
-    return `<tool>\n  <name>${t.name}</name>\n  <description>${t.description}</description>\n  <parameters>\n${params}\n  </parameters>\n</tool>`;
-  }).join('\n');
+  const builtinToolsDesc = builtinTools.map(t => t.description).join('\n\n')
 
   const skillsPrompt = await buildAvailableSkillsPrompt();
   const roleTemplate = await loadRoleTemplate();

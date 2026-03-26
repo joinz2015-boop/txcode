@@ -35,6 +35,7 @@ interface McpCodeResponse {
 export const codeSearchTool: Tool = {
   name: 'code_search',
   description: '',
+  descriptionFile: 'code_search.txt',
   parameters: {
     type: 'object',
     properties: {

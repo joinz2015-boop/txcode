@@ -38,6 +38,7 @@ function parseMemoryFile(filePath: string, fileName: string): MemoryInfo | null 
 export const memoryTool: Tool = {
   name: 'memory',
   description: '',
+  descriptionFile: 'memory.txt',
   parameters: {
     type: 'object',
     properties: {},

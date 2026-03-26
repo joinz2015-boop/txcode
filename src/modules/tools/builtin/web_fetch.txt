@@ -1,3 +1,4 @@
+### 工具web_fetch
 从指定 URL 获取内容。
 
 **功能**：
@@ -13,3 +14,25 @@
 - 格式选项："markdown"（默认）、"text" 或 "html"
 - 此工具是只读的，不会修改任何文件
 - 内容非常大时可能会被摘要
+
+举例：
+```xml
+<react>
+  <thought>获取 TypeScript 官方文档页面</thought>
+  <action>
+    <action_name>web_fetch</action_name>
+    <action_input>
+      <url>https://www.typescriptlang.org/docs/handbook/2/basic-types.html</url>
+      <format>markdown</format>
+    </action_input>
+  </action>
+  <keep_context>true</keep_context>
+</react>
+```
+
+参数说明：
+
+| 字段 | 类型 | 说明 |
+|------|------|
+| `url` | string | 要获取的 URL（必须是完整格式） |
+| `format` | string | 输出格式（可选，默认 markdown）：markdown, text, html |

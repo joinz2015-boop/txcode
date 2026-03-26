@@ -9,6 +9,7 @@ const MAX_LINE_LENGTH = 2000
 export const readFileTool: Tool = {
   name: 'read_file',
   description: '',
+  descriptionFile: 'read_file.txt',
   parameters: {
     type: 'object',
     properties: {

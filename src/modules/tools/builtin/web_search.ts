@@ -38,6 +38,7 @@ interface McpSearchResponse {
 export const webSearchTool: Tool = {
   name: 'web_search',
   description: '',
+  descriptionFile: 'web_search.txt',
   parameters: {
     type: 'object',
     properties: {

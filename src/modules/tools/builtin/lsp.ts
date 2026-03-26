@@ -8,7 +8,8 @@ import { LSPManager, LSPClient, getServersByExtension } from "../../../lsp/index
 
 const lspTool: Tool = {
   name: "lsp",
-  description: '', // 从 lsp.txt 加载
+  description: '',
+  descriptionFile: 'lsp.txt',
 
   parameters: {
     type: "object",

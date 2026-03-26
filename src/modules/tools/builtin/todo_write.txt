@@ -1,3 +1,4 @@
+### 工具todowrite
 使用此工具创建和管理当前编码会话的结构化任务列表。这帮助你跟踪进度、组织复杂任务，并向用户展示完成情况。
 
 ## 何时使用
@@ -44,3 +45,23 @@
 - 使用清晰、描述性的任务名称
 
 如有疑问，使用此工具。积极主动的任务管理展示专注力，确保完成所有要求。
+
+举例：
+```xml
+<react>
+  <thought>创建任务列表来跟踪重构工作</thought>
+  <action>
+    <action_name>todowrite</action_name>
+    <action_input>
+      <todos>[{"content": "重构 ToolService 类", "status": "in_progress", "priority": "high"}, {"content": "添加单元测试", "status": "pending", "priority": "high"}, {"content": "更新文档", "status": "pending", "priority": "medium"}]</todos>
+    </action_input>
+  </action>
+  <keep_context>true</keep_context>
+</react>
+```
+
+参数说明：
+
+| 字段 | 类型 | 说明 |
+|------|------|
+| `todos` | array | 任务数组，每个任务包含 content(内容)、status(状态)、priority(优先级) |

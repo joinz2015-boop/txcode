@@ -5,6 +5,7 @@ import { Tool, ToolContext, ToolResult } from '../tool.types.js'
 export const writeFileTool: Tool = {
   name: 'write_file',
   description: '',
+  descriptionFile: 'write_file.txt',
   parameters: {
     type: 'object',
     properties: {

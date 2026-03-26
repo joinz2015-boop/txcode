@@ -1,3 +1,4 @@
+### 工具web_search
 使用 Exa AI 搜索网络——执行实时网络搜索，可以抓取特定 URL 的内容。
 
 **功能**：
@@ -12,5 +13,31 @@
 - 可配置上下文长度以优化 LLM 集成
 - 支持域名过滤和高级搜索选项
 
-**当前年份是 {{year}} 年**。搜索最近信息或时事时**必须**使用此年份：
+**当前年份是 2026 年**。搜索最近信息或时事时**必须**使用此年份：
 - 正确示例：当前年份是 2026，搜索 "AI 新闻 2026"，**不是** "AI 新闻 2025"
+
+举例：
+```xml
+<react>
+  <thought>搜索最新的 TypeScript 5.x 新特性</thought>
+  <action>
+    <action_name>web_search</action_name>
+    <action_input>
+      <query>TypeScript 5.x new features 2026</query>
+      <numResults>8</numResults>
+      <type>auto</type>
+    </action_input>
+  </action>
+  <keep_context>true</keep_context>
+</react>
+```
+
+参数说明：
+
+| 字段 | 类型 | 说明 |
+|------|------|
+| `query` | string | 搜索查询字符串（必需） |
+| `numResults` | number | 返回结果数量（可选，默认 8） |
+| `livecrawl` | string | 实时爬取模式 - fallback: 缓存不可用时备用; preferred: 优先实时爬取（默认: fallback） |
+| `type` | string | 搜索类型 - auto: 平衡搜索; fast: 快速结果; deep: 全面搜索（默认: auto） |
+| `contextMaxCharacters` | number | LLM 上下文最大字符数（可选，默认 10000） |

@@ -15,6 +15,7 @@ interface TodoItem {
 export const todoWriteTool: Tool = {
   name: 'todowrite',
   description: '',
+  descriptionFile: 'todo_write.txt',
   parameters: {
     type: 'object',
     properties: {

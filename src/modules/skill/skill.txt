@@ -1,3 +1,4 @@
+### 工具skill
 加载一个专门的 Skill（技能），该技能提供特定领域的指令和工作流程。
 
 **功能**：
@@ -14,5 +15,22 @@
 **当前可用的 Skills**：
 Invoke this tool to load a skill when a task matches one of the available skills listed above.
 
-**参数说明**：
-- `name`: Skill 的名称（必需）
+举例：
+```xml
+<react>
+  <thought>加载代码审查技能</thought>
+  <action>
+    <action_name>skill</action_name>
+    <action_input>
+      <name>code-review</name>
+    </action_input>
+  </action>
+  <keep_context>true</keep_context>
+</react>
+```
+
+参数说明：
+
+| 字段 | 类型 | 说明 |
+|------|------|
+| `name` | string | Skill 的名称（必需） |

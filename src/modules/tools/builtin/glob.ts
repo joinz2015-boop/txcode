@@ -56,6 +56,7 @@ function glob(pattern: string, dir: string): string[] {
 export const globTool: Tool = {
   name: 'glob',
   description: '',
+  descriptionFile: 'glob.txt',
   parameters: {
     type: 'object',
     properties: {

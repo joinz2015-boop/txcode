@@ -1,3 +1,4 @@
+### 工具code_search
 使用 Exa Code API 搜索编程相关的代码和上下文。
 
 **功能**：
@@ -16,3 +17,25 @@
 - 'React useState hook examples'
 - 'Python pandas dataframe filtering'
 - 'Express.js middleware'
+
+举例：
+```xml
+<react>
+  <thought>查找 React useEffect 的最佳实践示例</thought>
+  <action>
+    <action_name>code_search</action_name>
+    <action_input>
+      <query>React useEffect best practices cleanup</query>
+      <tokens>5000</tokens>
+    </action_input>
+  </action>
+  <keep_context>true</keep_context>
+</react>
+```
+
+参数说明：
+
+| 字段 | 类型 | 说明 |
+|------|------|
+| `query` | string | 搜索查询字符串，用于查找 APIs、库和 SDK 的相关上下文（必需） |
+| `tokens` | number | 返回的 token 数量（可选，1000-50000，默认 5000） |

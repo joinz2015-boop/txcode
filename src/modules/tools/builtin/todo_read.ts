@@ -9,6 +9,7 @@ const todoStore = new Map<string, { content: string; status: string; priority: s
 export const todoReadTool: Tool = {
   name: 'todoread',
   description: '',
+  descriptionFile: 'todo_read.txt',
   parameters: {
     type: 'object',
     properties: {}

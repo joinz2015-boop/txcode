@@ -1,3 +1,4 @@
+### 工具bash
 在持久化 shell 会话中执行 bash 命令，支持可选超时，确保正确的处理和安全措施。
 
 所有命令默认在 ${directory} 执行。如需在其他目录运行命令，使用 `workdir` 参数。**禁止使用 `cd <目录> && <命令>` 模式**，应该使用 `workdir` 参数代替。
@@ -21,7 +22,7 @@
 - `command` 参数是必需的
 - 可选超时时间（毫秒），默认 120000ms（2分钟）
 - 请用 5-10 个字写清楚命令作用的描述
-- 如果输出超过 ${maxLines} 行或 ${maxBytes} 字节，会被截断并保存到文件
+- 如果输出超过 2000 行或 51200 字节，会被截断并保存到文件
 - 可以用 Read 的 offset/limit 读取特定部分，或用 Grep 搜索全部内容
 - **禁止**使用 `head`、`tail` 等命令限制输出
 
@@ -79,3 +80,26 @@
 ## 其他常用操作
 
 - 查看 PR 评论：`gh api repos/foo/bar/pulls/123/comments`
+
+举例：
+```xml
+<react>
+  <thought>安装项目依赖</thought>
+  <action>
+    <action_name>bash</action_name>
+    <action_input>
+      <command>npm install</command>
+      <workdir>E:\ai\txcode</workdir>
+    </action_input>
+  </action>
+  <keep_context>true</keep_context>
+</react>
+```
+
+参数说明：
+
+| 字段 | 类型 | 说明 |
+|------|------|
+| `command` | string | 要执行的命令 |
+| `workdir` | string | 工作目录（可选，默认为当前目录） |
+| `timeout` | number | 超时时间，毫秒（可选，默认 120000 = 2分钟） |

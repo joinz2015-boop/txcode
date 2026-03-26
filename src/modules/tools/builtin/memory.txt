@@ -1,3 +1,4 @@
+### 工具memory
 获取项目的记忆列表。记忆用于记录项目的关键信息（架构、目录结构、核心模块、关键路径等），帮助 AI 快速了解项目并定位代码。
 
 **工作流顺序**：
@@ -20,12 +21,14 @@
 2. **新建记忆**: 使用 write_file 在 .txcode/memory/ 目录下创建文件
    - 命名格式: {序号}-{名称}.md，如 01-项目架构.md
    - 文件内容必须包含 YAML front matter:
+     ```
      ---
      id: 01
      name: 记忆名称
      description: 一句话描述这个记忆记录什么
      updated: 2024-01-01
      ---
+     ```
      然后是正文内容
 3. **修改记忆**: 使用 edit_file 编辑已有记忆文件，同时更新 updated 时间
 4. **删除记忆**: 使用 bash 执行 rm 命令删除文件
@@ -34,3 +37,22 @@
 - 最多 20 个记忆
 - 超过 20 个后只能修改已有记忆，不能新建
 - 删除记忆后需要重新整理序号，保持 01-20 连续
+
+举例：
+```xml
+<react>
+  <thought>查看项目中已有的记忆</thought>
+  <action>
+    <action_name>memory</action_name>
+    <action_input>
+    </action_input>
+  </action>
+  <keep_context>true</keep_context>
+</react>
+```
+
+参数说明：
+
+| 字段 | 类型 | 说明 |
+|------|------|
+| (无) | - | 此工具不需要参数 |

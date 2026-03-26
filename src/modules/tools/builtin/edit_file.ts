@@ -5,6 +5,7 @@ import { Tool, ToolContext, ToolResult } from '../tool.types.js'
 export const editFileTool: Tool = {
   name: 'edit_file',
   description: '',
+  descriptionFile: 'edit_file.txt',
   parameters: {
     type: 'object',
     properties: {

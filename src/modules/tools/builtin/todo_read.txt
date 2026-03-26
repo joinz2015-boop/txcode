@@ -1,3 +1,4 @@
+### 工具todoread
 使用此工具读取当前会话的任务列表。此工具应主动频繁使用，确保你了解当前任务列表的状态。应在以下情况使用：
 
 - 对话开始时查看待处理任务
@@ -12,3 +13,22 @@
 - 返回任务列表及其状态、优先级和内容
 - 用此信息跟踪进度和计划下一步
 - 如果还没有任务，返回空列表
+
+举例：
+```xml
+<react>
+  <thought>查看当前任务列表</thought>
+  <action>
+    <action_name>todoread</action_name>
+    <action_input>
+    </action_input>
+  </action>
+  <keep_context>true</keep_context>
+</react>
+```
+
+参数说明：
+
+| 字段 | 类型 | 说明 |
+|------|------|
+| (无) | - | 此工具不需要参数 |

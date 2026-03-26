@@ -14,6 +14,7 @@ function matchGlob(pattern: string, filePath: string): boolean {
 export const grepTool: Tool = {
   name: 'grep',
   description: '',
+  descriptionFile: 'grep.txt',
   parameters: {
     type: 'object',
     properties: {

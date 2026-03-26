@@ -11,6 +11,7 @@ import { Tool, ToolContext, ToolResult } from '../tools/tool.types.js'
 export const skillTool: Tool = {
   name: 'skill',
   description: '',
+  descriptionFile: 'skill.txt',
   parameters: {
     type: 'object',
     properties: {

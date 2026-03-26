@@ -3,6 +3,7 @@ import { Tool, ToolContext, ToolResult } from '../tool.types.js'
 export const webFetchTool: Tool = {
   name: 'web_fetch',
   description: '',
+  descriptionFile: 'web_fetch.txt',
   parameters: {
     type: 'object',
     properties: {

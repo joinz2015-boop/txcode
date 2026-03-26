@@ -5,6 +5,7 @@
 export interface Tool {
   name: string
   description: string
+  descriptionFile?: string
   parameters: {
     type: 'object'
     properties: Record<string, any>
