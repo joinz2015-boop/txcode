@@ -141,9 +141,11 @@ chatRouter.post('/', async (req: Request, res: Response) => {
     });
 
     // ========== 步骤 5: 返回响应 ==========
+    const lastStep = result.steps[result.steps.length - 1];
+    const lastThought = lastStep && 'thought' in lastStep ? (lastStep as any).thought : undefined;
     const responseData = {
       sessionId: session.id,
-      response: result.answer || result.steps[result.steps.length - 1]?.thought,
+      response: result.answer || lastThought,
       reactSteps: reactSteps.length > 0 ? reactSteps : undefined,
       iterations: result.iterations,
       success: result.success,

@@ -145,6 +145,10 @@ export class OpenAIProvider {
       } : undefined,
     };
 
+    if ((response as any).reasoning) {
+      responseData.reasoning = (response as any).reasoning;
+    }
+
     if (message.tool_calls && message.tool_calls.length > 0) {
       responseData.toolCalls = message.tool_calls.map((tc: any) => ({
         id: tc.id,

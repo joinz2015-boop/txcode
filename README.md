@@ -35,12 +35,6 @@ txcode
 txcode
 ```
 
-或者明确指定：
-
-```bash
-txcode chat
-```
-
 ### 启动 Web 界面
 
 ```bash

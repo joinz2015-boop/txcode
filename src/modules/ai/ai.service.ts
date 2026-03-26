@@ -16,7 +16,9 @@
 import { ConfigService, configService as defaultConfigService } from '../config/config.service.js';
 import { OpenAIProvider } from './openai.provider.js';
 import { ReActAgent } from './react.agent.js';
+import { OpenAIAgent } from './provider/openai/openai-agent.js';
 import { ChatMessage, ChatOptions, ChatResponse, ReActState } from './ai.types.js';
+import { ProviderRunResult } from './provider/base.js';
 import { ToolService, toolService as defaultToolService } from '../tools/tool.service.js';
 import { MemoryService } from '../memory/memory.service.js';
 import { ContextService } from '../context/context.service.js';
@@ -179,20 +181,11 @@ export class AIService {
       onStep?: (step: any, iteration: number) => void;
       onCompact?: (info: { beforeTokens: number; afterTokens: number }) => void;
     }
-  ): Promise<ReActResult> {
-    // ========== 步骤 1: 获取 AI Provider ==========
+  ): Promise<ReActResult | ProviderRunResult> {
     const provider = this.getProvider();
     const sessionId = options?.sessionId;
+    const aiMode = txConfig.ai.aiMode || 'react';
 
-    // ========== 步骤 2: 获取会话历史消息 ==========
-    /**
-     * 历史消息获取逻辑：
-     * 1. 如果有 sessionId 和 memoryService
-     * 2. 获取 session 的 summaryMessageId (摘要消息 ID)
-     * 3. 如果有摘要消息 ID，从该消息之后获取消息
-     * 4. 否则获取所有 keepContext=true 的消息
-     * 5. 转换为 ChatMessage 格式
-     */
     let historyMessages: ChatMessage[] = [];
     if (sessionId && options?.memoryService) {
       const session = this.sessionService.get(sessionId);
@@ -204,17 +197,62 @@ export class AIService {
       }));
     }
 
-    // ========== 步骤 3: 创建 ReAct Agent ==========
-    /**
-     * ReActAgent 初始化参数：
-     * - provider: AI Provider，用于调用 AI API
-     * - toolService: 工具服务，用于执行工具
-     * - skillsManager: 技能管理器，用于加载自定义技能
-     * - memoryService: 记忆服务，用于保存/获取消息
-     * - maxIterations: 最大迭代次数，防止无限循环
-     * - projectPath: 项目路径，提供项目上下文
-     * - sessionId: 会话 ID，关联会话
-     */
+    const memoryService = options?.memoryService || new MemoryService();
+    const summarizer = new SummarizerService(
+      this.sessionService,
+      memoryService,
+      this.configService
+    );
+
+    if (aiMode === 'provider') {
+      const agent = new OpenAIAgent({
+        provider,
+        toolService: this.toolService,
+        maxIterations: this.maxToolIterations,
+        projectPath: options?.projectPath,
+        sessionId,
+      });
+
+      const wrappedOnStep = options?.onStep
+        ? (step: any, iteration: number, usage?: any) => {
+            const reactFormatStep = {
+              thought: step.reasoning || '',
+              actions: (step.toolCalls || []).map((tc: any) => ({
+                actionName: tc.name,
+                actionInput: tc.arguments,
+              })),
+              observation: step.results?.[0]?.output || '',
+            };
+            options.onStep?.(reactFormatStep, iteration);
+
+            if (sessionId && usage && usage.promptTokens > 0) {
+              const check = summarizer.checkNeedsCompact(sessionId, usage.promptTokens);
+              if (check.needed) {
+                console.log(`[AutoCompact] ${check.reason}, triggering compaction during iteration ${iteration}...`);
+                summarizer.compact({ sessionId }).then(() => {
+                  options?.onCompact?.({ beforeTokens: check.promptTokens, afterTokens: 0 });
+                });
+              }
+            }
+          }
+        : undefined;
+
+      const result = await agent.run(userMessage, {
+        onStep: wrappedOnStep,
+        historyMessages,
+      });
+
+      if (sessionId && result.usage) {
+        this.sessionService.updateTokenUsage(
+          sessionId,
+          result.usage.promptTokens,
+          result.usage.completionTokens
+        );
+      }
+
+      return result;
+    }
+
     const agent = new ReActAgent({
       provider,
       toolService: this.toolService,
@@ -224,14 +262,6 @@ export class AIService {
       projectPath: options?.projectPath,
       sessionId,
     });
-
-    // ========== 步骤 4: 执行 ReAct 循环 ==========
-    const memoryService = options?.memoryService || new MemoryService();
-    const summarizer = new SummarizerService(
-      this.sessionService,
-      memoryService,
-      this.configService
-    );
 
     const wrappedOnStep = options?.onStep 
       ? (step: ReActStep, iteration: number, usage?: { promptTokens: number; completionTokens: number; totalTokens: number }) => {

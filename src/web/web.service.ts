@@ -413,11 +413,13 @@ resolve();
         },
       });
 
+      const lastStep = result.steps[result.steps.length - 1];
+      const lastThought = lastStep && 'thought' in lastStep ? (lastStep as any).thought : undefined;
       ws.send(JSON.stringify({
         type: 'done',
         data: {
           sessionId: session.id,
-          response: result.answer || result.steps[result.steps.length - 1]?.thought,
+          response: result.answer || lastThought,
           iterations: result.iterations,
           success: result.success,
         }

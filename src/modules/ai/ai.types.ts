@@ -33,6 +33,7 @@ export interface ToolDefinition {
 
 export interface ChatResponse {
   content: string;
+  reasoning?: string;
   finishReason: 'stop' | 'length' | 'tool_calls';
   toolCalls?: ToolCall[];
   usage?: {
