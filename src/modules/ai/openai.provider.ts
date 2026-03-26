@@ -145,7 +145,9 @@ export class OpenAIProvider {
       } : undefined,
     };
 
-    if ((response as any).reasoning) {
+    if ((message as any).reasoning) {
+      responseData.reasoning = (message as any).reasoning;
+    } else if ((response as any).reasoning) {
       responseData.reasoning = (response as any).reasoning;
     }
 

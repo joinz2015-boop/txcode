@@ -1,36 +1,59 @@
 # AGENT.md
 
-## 项目概述
+## Project Overview
 
-txcode 是一个 AI 编程助手命令行工具，支持交互式 CLI 和 Web 界面。
+- **Project Name**: tianxincode (txcode)
+- **Type**: AI Coding Assistant CLI Tool
+- **Core Functionality**: An interactive AI programming assistant that provides code analysis, file operations, Git integration, and multi-tool support through a command-line interface or web UI.
+- **Language**: TypeScript (Node.js)
 
-## 技术栈
-
-- TypeScript + Node.js
-- Express (Web 服务)
-- React + Ink (CLI UI)
-- better-sqlite3 (数据存储)
-- OpenAI API (AI 能力)
-
-## 开发命令
+## Development Commands
 
 ```bash
-npm run dev        # 开发模式运行 CLI
-npm run start      # 运行构建后的 CLI
-npm run start:web  # 启动 Web 服务
-npm run web:dev    # 开发 Web 前端
-npm run build      # 构建项目
-npm test           # 运行测试
+# Install dependencies
+npm install
+
+# Build project
+npm run build
+
+# Run in development mode
+npm run dev
+
+# Run tests
+npm test
 ```
 
-## 测试框架
+## Project Structure
 
-Jest (参见 jest.config.mjs)
+```
+src/
+├── index.ts           # Main entry point
+├── cli/               # CLI commands and arguments
+├── api/               # Express API routes
+├── config/            # Configuration management
+├── lsp/               # Language Server Protocol
+└── modules/           # Core functionality modules
+    ├── ai/            # AI service and providers
+    ├── config/        # Config service
+    ├── context/       # Context management
+    ├── db/            # SQLite database
+    ├── logger/        # Logging utility
+    ├── memory/        # Project memory
+    ├── session/       # Session management
+    └── skill/         # Skill tools
+```
 
-## 关键目录
+## Key Conventions
 
-- `src/` - 源代码
-- `dist/` - 构建输出
-- `tests/` - 测试文件
-- `web/` - Web 前端
-- `.txcode/` - 运行时数据（记忆、会话）
+- **TypeScript**: Full type safety required
+- **ES Modules**: Uses ESM (`"type": "module"`)
+- **Database**: SQLite with better-sqlite3
+- **Testing**: Jest with ts-jest
+- **Linting/Typecheck**: Run `npm run build` to check
+
+## Important Notes
+
+- The tool stores project memory in `.txcode` folder in workspace
+- Supports both CLI and Web UI modes
+- Configuration via web interface or environment variables
+- Built-in skills for common development tasks
