@@ -358,7 +358,7 @@ export function App() {
                 if (action.actionName === 'read_file') {
                   const offset = inputObj.offset ?? 1;
                   const limit = inputObj.limit ?? 300;
-                  stepInfo += `: ${inputObj.file_path} (行${offset}-${offset + limit - 1})`;
+                  stepInfo += `: ${inputObj.file_path} offset:${offset}  limit:${limit}`;
                 } else if (action.actionName === 'edit_file') {
                   stepInfo += `: ${inputObj.file_path}`;
                 } else if (action.actionName === 'write_file') {
