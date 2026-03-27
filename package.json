@@ -28,6 +28,7 @@
   "license": "ISC",
   "dependencies": {
     "cors": "^2.8.6",
+    "dingtalk-stream-sdk-nodejs": "^2.0.4",
     "express": "^5.2.1",
     "ink": "^5.1.1",
     "js-yaml": "^4.1.1",

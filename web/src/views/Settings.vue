@@ -65,6 +65,34 @@
             </el-form-item>
           </el-form>
         </div>
+
+        <div v-show="activeTab === 'gateway'">
+          <h3 class="text-xl text-white mb-4">网关配置</h3>
+          <el-form label-width="150px" class="gateway-form">
+            <el-form-item label="启用钉钉机器人">
+              <el-switch v-model="gateway.enabled" @change="saveGatewayConfig" />
+            </el-form-item>
+            <el-form-item label="Client ID">
+              <el-input v-model="gateway.clientId" placeholder="请输入Client ID" @blur="saveGatewayConfig" />
+            </el-form-item>
+            <el-form-item label="Client Secret">
+              <el-input v-model="gateway.clientSecret" type="password" placeholder="请输入Client Secret" @blur="saveGatewayConfig" />
+            </el-form-item>
+            <el-form-item label="运行状态">
+              <el-tag :type="gatewayStatus.running ? 'success' : 'info'">
+                {{ gatewayStatus.running ? '运行中' : '已停止' }}
+              </el-tag>
+              <span v-if="gatewayStatus.configured && !gatewayStatus.running" class="text-textMuted text-sm ml-2">
+                (配置已保存，可启动)
+              </span>
+            </el-form-item>
+            <el-form-item>
+              <el-button type="primary" @click="toggleGateway" :loading="gatewayLoading">
+                {{ gatewayStatus.running ? '停止' : '启动' }}
+              </el-button>
+            </el-form-item>
+          </el-form>
+        </div>
       </div>
     </main>
 
@@ -107,6 +135,7 @@ export default {
         { name: 'providers', label: 'AI 服务商', icon: 'fa-solid fa-server' },
         { name: 'skills', label: 'Skills', icon: 'fa-solid fa-shapes' },
         { name: 'advanced', label: '高级', icon: 'fa-solid fa-gear' },
+        { name: 'gateway', label: '网关', icon: 'fa-solid fa-plug' },
       ],
       providers: [],
       models: [],
@@ -117,6 +146,16 @@ export default {
         maxSessionCompression: 5,
         webPort: 40000,
       },
+      gateway: {
+        enabled: false,
+        clientId: '',
+        clientSecret: '',
+      },
+      gatewayStatus: {
+        running: false,
+        configured: false,
+      },
+      gatewayLoading: false,
       showProviderDialog: false,
       editingProvider: null,
       showModelDialog: false,
@@ -129,6 +168,24 @@ export default {
     this.loadModels()
     this.loadSkills()
     this.loadConfig()
+    this.loadGatewayConfig()
+    this.loadGatewayStatus()
+  },
+
+  activated() {
+    if (this.activeTab === 'gateway') {
+      this.loadGatewayConfig()
+      this.loadGatewayStatus()
+    }
+  },
+
+  watch: {
+    activeTab(newTab) {
+      if (newTab === 'gateway') {
+        this.loadGatewayConfig()
+        this.loadGatewayStatus()
+      }
+    }
   },
 
   methods: {
@@ -214,12 +271,80 @@ export default {
         this.$message.error('保存失败: ' + e.message)
       }
     },
+
+    async loadGatewayConfig() {
+      try {
+        const res = await this.$api.getDingtalkConfig()
+        if (res.data) {
+          this.gateway = {
+            enabled: res.data.enabled || false,
+            clientId: res.data.clientId || '',
+            clientSecret: res.data.clientSecret || '',
+          }
+        }
+      } catch (e) {
+        console.error('Failed to load gateway config:', e)
+      }
+    },
+
+    async loadGatewayStatus() {
+      try {
+        const res = await this.$api.getGatewayStatus()
+        if (res.data) {
+          this.gatewayStatus = {
+            running: res.data.running || false,
+            configured: res.data.configured || false,
+          }
+        }
+      } catch (e) {
+        console.error('Failed to load gateway status:', e)
+      }
+    },
+
+    async saveGatewayConfig() {
+      try {
+        await this.$api.updateDingtalkConfig(this.gateway)
+        this.$message.success('网关配置已保存')
+        this.loadGatewayStatus()
+      } catch (e) {
+        this.$message.error('保存失败: ' + e.message)
+      }
+    },
+
+    async toggleGateway() {
+      this.gatewayLoading = true
+      try {
+        if (this.gatewayStatus.running) {
+          await this.$api.stopDingtalk()
+          this.$message.success('网关已停止')
+        } else {
+          if (!this.gateway.clientId || !this.gateway.clientSecret) {
+            this.$message.error('请先配置 Client ID 和 Client Secret')
+            this.gatewayLoading = false
+            return
+          }
+          await this.$api.updateDingtalkConfig(this.gateway)
+          await this.$api.startDingtalk()
+          this.$message.success('网关已启动')
+        }
+        await this.loadGatewayStatus()
+      } catch (e) {
+        this.$message.error('操作失败: ' + e.message)
+      } finally {
+        this.gatewayLoading = false
+      }
+    },
   },
 }
 </script>
 
 <style scoped>
 .advanced-form {
+  max-width: 500px;
+  margin-top: 20px;
+}
+
+.gateway-form {
   max-width: 500px;
   margin-top: 20px;
 }

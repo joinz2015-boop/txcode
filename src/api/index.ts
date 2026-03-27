@@ -13,6 +13,7 @@ import { dbRouter } from './db.routes.js';
 import { filesRouter } from './files.routes.js';
 import { filesystemRouter } from './filesystem.routes.js';
 import { aiLogRouter } from './ai-log.routes.js';
+import { gatewayRouter } from './gateway.routes.js';
 
 export const apiRouter = Router();
 
@@ -26,5 +27,6 @@ apiRouter.use('/db', dbRouter);
 apiRouter.use('/files', filesRouter);
 apiRouter.use('/filesystem', filesystemRouter);
 apiRouter.use('/ai-logs', aiLogRouter);
+apiRouter.use('/gateway', gatewayRouter);
 
 export * from './api.types.js';

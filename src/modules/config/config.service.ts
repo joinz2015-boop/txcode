@@ -191,6 +191,47 @@ export class ConfigService {
       enabled: Boolean(row.enabled),
     };
   }
+
+  getDingdingConfig(): { enabled: boolean; clientId: string; clientSecret: string; botName: string } {
+    const row = this.db.get<any>('SELECT * FROM dingding_config WHERE id = 1');
+    if (!row) {
+      return { enabled: false, clientId: '', clientSecret: '', botName: '' };
+    }
+    return {
+      enabled: Boolean(row.enabled),
+      clientId: row.client_id || '',
+      clientSecret: row.client_secret || '',
+      botName: row.bot_name || '',
+    };
+  }
+
+  updateDingdingConfig(data: { enabled?: boolean; clientId?: string; clientSecret?: string; botName?: string }): void {
+    const updates: string[] = [];
+    const values: unknown[] = [];
+
+    if (data.enabled !== undefined) {
+      updates.push('enabled = ?');
+      values.push(data.enabled ? 1 : 0);
+    }
+    if (data.clientId !== undefined) {
+      updates.push('client_id = ?');
+      values.push(data.clientId);
+    }
+    if (data.clientSecret !== undefined) {
+      updates.push('client_secret = ?');
+      values.push(data.clientSecret);
+    }
+    if (data.botName !== undefined) {
+      updates.push('bot_name = ?');
+      values.push(data.botName);
+    }
+
+    if (updates.length > 0) {
+      updates.push('updated_at = CURRENT_TIMESTAMP');
+      values.push(1);
+      this.db.run(`UPDATE dingding_config SET ${updates.join(', ')} WHERE id = ?`, values);
+    }
+  }
 }
 
 export const configService = new ConfigService();

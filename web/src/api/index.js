@@ -527,4 +527,30 @@ export const api = {
 
     this.wsSend('chat', data);
   },
+
+  // ==================== 网关管理 ====================
+
+  getDingtalkConfig() {
+    return request('GET', '/gateway/dingtalk/config');
+  },
+
+  updateDingtalkConfig(config) {
+    return request('PUT', '/gateway/dingtalk/config', config);
+  },
+
+  startDingtalk() {
+    return request('POST', '/gateway/dingtalk/start');
+  },
+
+  stopDingtalk() {
+    return request('POST', '/gateway/dingtalk/stop');
+  },
+
+  getGatewayStatus() {
+    return request('GET', '/gateway/dingtalk/status');
+  },
+
+  getQueueStatus() {
+    return request('GET', '/gateway/queue/status');
+  },
 };

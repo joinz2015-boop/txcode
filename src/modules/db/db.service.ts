@@ -190,6 +190,7 @@ export class DbService {
       () => this.migration003AddLspServers(),
       () => this.migration004AddProjects(),
       () => this.migration005AddAiCallLogs(),
+      () => this.migration006AddDingdingConfig(),
     ];
 
     for (let i = 0; i < migrations.length; i++) {
@@ -302,6 +303,19 @@ export class DbService {
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )
     `);
+
+    this.db.run(`
+      CREATE TABLE IF NOT EXISTS dingding_config (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        enabled INTEGER DEFAULT 0,
+        client_id TEXT DEFAULT '',
+        client_secret TEXT DEFAULT '',
+        bot_name TEXT DEFAULT '',
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    this.db.run(`INSERT OR IGNORE INTO dingding_config (id) VALUES (1)`);
 
     this.db.run(`CREATE INDEX IF NOT EXISTS idx_messages_session_id ON messages(session_id)`);
     this.db.run(`CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at)`);
@@ -463,6 +477,23 @@ export class DbService {
     this.db.run(`CREATE INDEX IF NOT EXISTS idx_ai_logs_request_time ON ai_call_logs(request_time)`);
     this.db.run(`CREATE INDEX IF NOT EXISTS idx_ai_logs_session_id ON ai_call_logs(session_id)`);
     this.db.run(`CREATE INDEX IF NOT EXISTS idx_ai_logs_call_type ON ai_call_logs(call_type)`);
+  }
+
+  private migration006AddDingdingConfig(): void {
+    if (!this.db) return;
+
+    this.db.run(`
+      CREATE TABLE IF NOT EXISTS dingding_config (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        enabled INTEGER DEFAULT 0,
+        client_id TEXT DEFAULT '',
+        client_secret TEXT DEFAULT '',
+        bot_name TEXT DEFAULT '',
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    this.db.run(`INSERT OR IGNORE INTO dingding_config (id) VALUES (1)`);
   }
 
   private getTableColumns(tableName: string): string[] {
