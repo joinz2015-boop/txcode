@@ -21,6 +21,8 @@ export class GatewayService {
   };
   private userSessions: Map<string, string> = new Map();
   private configLoaded: boolean = false;
+  private accessToken: string | null = null;
+  private accessTokenExpiry: number = 0;
 
   async start(): Promise<void> {
     if (this.status.running) {
@@ -119,13 +121,58 @@ export class GatewayService {
     }
   }
 
+  private async getAccessToken(): Promise<string> {
+    if (this.accessToken && Date.now() < this.accessTokenExpiry) {
+      return this.accessToken;
+    }
+    
+    const GET_TOKEN_URL = 'https://api.dingtalk.com/gettoken';
+    const response = await fetch(`${GET_TOKEN_URL}?appkey=${this.config.clientId}&appsecret=${this.config.clientSecret}`);
+    const data = await response.json() as { access_token?: string; expire_in?: number };
+    
+    if (data.access_token) {
+      this.accessToken = data.access_token;
+      this.accessTokenExpiry = Date.now() + ((data.expire_in || 7200) - 300) * 1000;
+      return this.accessToken;
+    }
+    throw new Error('Failed to get DingTalk access token');
+  }
+
+  private async sendToDingTalk(webhook: string, content: string): Promise<void> {
+    try {
+      const accessToken = await this.getAccessToken();
+      
+      const response = await fetch(webhook, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-acs-dingtalk-access-token': accessToken,
+        },
+        body: JSON.stringify({
+          msgtype: 'text',
+          text: { content },
+        }),
+      });
+
+      const result = await response.json() as { errcode?: number; errmsg?: string };
+      if (result.errcode !== 0) {
+        console.error('[Gateway] sendToDingTalk error:', result);
+      } else {
+        console.log('[Gateway] sendToDingTalk success');
+      }
+    } catch (error) {
+      console.error('[Gateway] sendToDingTalk failed:', error);
+    }
+  }
+
   private async handleMessage(message: DingtalkMessage): Promise<void> {
     console.log('[Gateway] handleMessage called', { message });
     const userId = message.senderId || message.senderStaffId || 'unknown';
     const userName = message.senderNick || 'Unknown User';
     const content = message.text?.content?.trim() || '';
+    const webhook = message.sessionWebhook || '';
 
-    console.log('[Gateway] Parsed message:', { userId, userName, content });
+    console.log('[Gateway] Parsed message:', { userId, userName, content, webhook: webhook.substring(0, 50) });
 
     if (!content) {
       console.log('[Gateway] No content, skipping');
@@ -133,12 +180,12 @@ export class GatewayService {
     }
 
     if (content === '/help') {
-      await this.sendHelp(userName);
+      await this.sendHelp(userName, webhook);
       return;
     }
 
     if (content === '/new') {
-      this.createNewSession(userId, userName);
+      this.createNewSession(userId, userName, webhook);
       return;
     }
 
@@ -148,6 +195,7 @@ export class GatewayService {
       userName,
       content,
       sessionId: this.userSessions.get(userId),
+      webhook,
       messageId: message.msgId,
       timestamp: Date.now(),
     };
@@ -174,32 +222,33 @@ export class GatewayService {
     console.log('[Gateway] Starting AI processing for:', msg.content);
 
     try {
-      await this.sendThinking('正在处理...');
+      await this.sendThinking(msg.webhook, '正在处理...');
 
-      await aiService.chatWithTools(msg.content, {
+      const result = await aiService.chatWithTools(msg.content, {
         sessionId,
         projectPath: process.cwd(),
         onStep: (step: any) => {
           if (step.actions && step.actions.length > 0) {
             for (const action of step.actions) {
-              this.sendToolStart(action.actionName, action.actionInput);
+              this.sendToolStart(msg.webhook, action.actionName, action.actionInput);
             }
           }
           if (step.observation) {
             const observation = typeof step.observation === 'string' 
               ? step.observation 
               : JSON.stringify(step.observation);
-            this.sendToolResult(observation);
+            this.sendToolResult(msg.webhook, observation);
           }
         },
       });
 
-      this.sendFinalResponse('处理完成');
+      const answer = (result as any)?.answer || '处理完成';
+      this.sendFinalResponse(msg.webhook, answer);
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
       if (errorMsg !== 'ABORTED') {
-        this.sendToolError(errorMsg);
-        this.sendFinalResponse(`处理出错: ${errorMsg}`);
+        this.sendToolError(msg.webhook, errorMsg);
+        this.sendFinalResponse(msg.webhook, `处理出错: ${errorMsg}`);
       }
     } finally {
       gatewayQueue.clearProcessing(msg.userId);
@@ -222,21 +271,18 @@ export class GatewayService {
     if (existing) {
       return existing;
     }
-    return this.createNewSession(userId, userName);
+    return this.createNewSession(userId, userName, '');
   }
 
-  private createNewSession(userId: string, userName?: string): string {
+  private createNewSession(userId: string, userName?: string, webhook?: string): string {
     const session = sessionService.create(`DingTalk - ${userName || userId}`);
     this.userSessions.set(userId, session.id);
     
-    this.sendReply('已创建新会话，请开始提问。');
+    if (webhook) {
+      this.sendToDingTalk(webhook, '已创建新会话，请开始提问。');
+    }
     
     return session.id;
-  }
-
-  private sendReply(message: string): void {
-    console.log('[Gateway] sendReply:', message.substring(0, 100));
-    dingtalkAdapter.sendReply(message);
   }
 
   private formatToolStart(toolName: string, params: Record<string, any>): string {
@@ -249,29 +295,29 @@ export class GatewayService {
     return `[工具] ${toolName}\n[参数] ${paramsStr}`;
   }
 
-  private sendToolStart(toolName: string, params: Record<string, any>): void {
+  private sendToolStart(webhook: string, toolName: string, params: Record<string, any>): void {
     const log = this.formatToolStart(toolName, params);
-    this.sendReply(log);
+    this.sendToDingTalk(webhook, log);
   }
 
-  private sendToolResult(result: string): void {
+  private sendToolResult(webhook: string, result: string): void {
     const truncated = result.length > 500 ? result.substring(0, 500) + '...' : result;
-    this.sendReply(`[结果] ${truncated}`);
+    this.sendToDingTalk(webhook, `[结果] ${truncated}`);
   }
 
-  private sendToolError(error: string): void {
-    this.sendReply(`[错误] ${error}`);
+  private sendToolError(webhook: string, error: string): void {
+    this.sendToDingTalk(webhook, `[错误] ${error}`);
   }
 
-  private sendThinking(thinking: string): void {
-    this.sendReply(`[思考] ${thinking}`);
+  private sendThinking(webhook: string, thinking: string): void {
+    this.sendToDingTalk(webhook, `[思考] ${thinking}`);
   }
 
-  private sendFinalResponse(content: string): void {
-    this.sendReply(content);
+  private sendFinalResponse(webhook: string, content: string): void {
+    this.sendToDingTalk(webhook, content);
   }
 
-  private async sendHelp(userName: string): Promise<void> {
+  private async sendHelp(userName: string, webhook: string): Promise<void> {
     const tools = await toolService.getAll();
     const skillInfos = await skillsManager.loadAll().then(() => skillsManager.getAllSkills());
 
@@ -296,7 +342,7 @@ export class GatewayService {
 
     helpText += '\n---\n特殊命令：\n/help - 显示此帮助\n/new - 创建新会话';
 
-    this.sendReply(helpText);
+    this.sendToDingTalk(webhook, helpText);
   }
 }
 

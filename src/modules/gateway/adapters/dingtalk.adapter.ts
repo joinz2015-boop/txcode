@@ -1,10 +1,9 @@
-import { DingtalkMessage, MessageHandler, DingtalkAdapter, DingtalkAdapterConfig, DingtalkReplyData } from '../gateway.types.js';
+import { DingtalkMessage, MessageHandler, DingtalkAdapter, DingtalkAdapterConfig } from '../gateway.types.js';
 
 export class DingtalkStreamAdapter implements DingtalkAdapter {
   private client: any = null;
   private handler: MessageHandler | null = null;
   private running: boolean = false;
-  private currentMessageId: string | null = null;
 
   async start(config: DingtalkAdapterConfig): Promise<void> {
     if (this.running) {
@@ -23,8 +22,8 @@ export class DingtalkStreamAdapter implements DingtalkAdapter {
       this.client.registerCallbackListener(TOPIC_ROBOT, async (res: any) => {
         console.log('[DingTalk] 收到机器人消息:', res.data?.substring?.(0, 200) || res.data);
         
-        this.currentMessageId = res.headers?.messageId || null;
-        console.log('[DingTalk] messageId:', this.currentMessageId);
+        const messageId = res.headers?.messageId || null;
+        console.log('[DingTalk] messageId:', messageId);
 
         if (!this.handler) {
           return { status: EventAck.SUCCESS };
@@ -36,8 +35,25 @@ export class DingtalkStreamAdapter implements DingtalkAdapter {
           
           console.log('[DingTalk] 解析后的消息:', JSON.stringify(message));
           
-          if (message) {
-            await this.handler(message);
+          if (message && body.sessionWebhook) {
+            const sessionWebhook = body.sessionWebhook;
+            
+            setTimeout(async () => {
+              try {
+                await this.handler!(message);
+              } catch (e) {
+                console.error('[DingTalk] handler error:', e);
+              }
+            }, 0);
+
+            if (messageId) {
+              try {
+                console.log('[DingTalk] Sending immediate ack for messageId:', messageId);
+                this.client.send(messageId, { status: EventAck.SUCCESS });
+              } catch (e) {
+                console.error('[DingTalk] ack failed:', e);
+              }
+            }
           }
         } catch (e) {
           console.error('[DingTalk] 解析消息失败:', e);
@@ -75,23 +91,18 @@ export class DingtalkStreamAdapter implements DingtalkAdapter {
     this.handler = callback;
   }
 
-  sendReply(content: string): void {
-    if (!this.client || !this.currentMessageId) {
-      console.error('[DingTalk] sendReply failed: no client or messageId');
-      return;
-    }
+  async sendReply(content: string): Promise<void> {
+    // sendReply is no longer used - we send replies directly via sessionWebhook in handleMessage
+  }
 
-    try {
-      const replyData: DingtalkReplyData = {
-        msgType: 'text',
-        text: { content },
-      };
-      
-      console.log('[DingTalk] Sending reply via send, messageId:', this.currentMessageId);
-      this.client.send(this.currentMessageId, replyData);
-    } catch (error) {
-      console.error('[DingTalk] sendReply failed:', error);
+  private async getAccessToken(): Promise<string> {
+    const GET_TOKEN_URL = 'https://api.dingtalk.com/gettoken';
+    const response = await fetch(`${GET_TOKEN_URL}?appkey=${this.client.config.clientId}&appsecret=${this.client.config.clientSecret}`);
+    const data = await response.json() as { access_token?: string };
+    if (data.access_token) {
+      return data.access_token;
     }
+    throw new Error('Failed to get access token');
   }
 
   private parseMessage(body: any): DingtalkMessage | null {

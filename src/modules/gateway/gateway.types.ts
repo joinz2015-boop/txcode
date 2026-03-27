@@ -36,6 +36,7 @@ export interface QueuedMessage {
   userName?: string;
   content: string;
   sessionId?: string;
+  webhook: string;
   messageId?: string;
   timestamp: number;
 }
