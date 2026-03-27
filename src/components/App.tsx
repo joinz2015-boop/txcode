@@ -111,9 +111,28 @@ export function App() {
   /** 当前历史记录索引 */
   const [historyIndex, setHistoryIndex] = useState(-1);
 
+  // ========== 动画相关状态 ==========
+  /** 三点动画字符 */
+  const [dotAnimation, setDotAnimation] = useState('');
+
   // ========== AI 停止控制 ==========
   /** AbortController 用于停止 AI 调用 */
   const abortControllerRef = React.useRef<AbortController | null>(null);
+
+  // ========== 三点动画效果 ==========
+  useEffect(() => {
+    if (status === 'thinking') {
+      const dots = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧'];
+      let i = 0;
+      const interval = setInterval(() => {
+        setDotAnimation(dots[i % dots.length]);
+        i++;
+      }, 150);
+      return () => clearInterval(interval);
+    } else {
+      setDotAnimation('');
+    }
+  }, [status]);
 
   // ========== 辅助函数 ==========
 
@@ -323,7 +342,7 @@ export function App() {
     abortControllerRef.current = new AbortController();
 
     try {
-      const result = await aiService.chatWithReAct(trimmedInput, {
+      const result = await aiService.chatWithTools(trimmedInput, {
         sessionId: sessionId,
         memoryService,
         abortSignal: abortControllerRef.current.signal,
@@ -442,13 +461,13 @@ export function App() {
       }
       
       if (result.usage) {
-        setTokenStats(prev => ({
-          promptTokens: prev.promptTokens + result.usage!.promptTokens,
-          completionTokens: prev.completionTokens + result.usage!.completionTokens,
-          totalTokens: prev.totalTokens + result.usage!.totalTokens,
-        }));
+        setTokenStats({
+          promptTokens: result.usage.promptTokens,
+          completionTokens: result.usage.completionTokens,
+          totalTokens: result.usage.totalTokens,
+        });
       }
-      
+
       if (sessionId) {
         const stats = memoryService.getSessionStats(sessionId);
         if (stats.totalMessages > 0) {
@@ -795,11 +814,11 @@ export function App() {
       {/* ========== 底部状态栏 ========== */}
       <Box paddingX={2}>
         <Text dimColor>
-          就绪 | 模型: {currentModelName}
-          {tokenStats.totalTokens > 0 && ` | Token: ${tokenStats.totalTokens}`}
-          {compressionPercent > 0 && ` | 压缩: ${compressionPercent}%`}
-          {` | 会话: ${sessionText}`}
-          {' | /help 帮助 | ESC 退出'}
+          {status === 'thinking' ? `${dotAnimation} 思考中` : '✓ 就绪'}
+          {` | 模型：${currentModelName}`}
+          {` | 会话：${sessionText}`}
+          {` | token：(${tokenStats.promptTokens}${tokenStats.promptTokens > 50000 ? ' 会话太大推荐用/compact压缩会话' : ''})`}
+          {` | 帮助 /help | 退出 ctrl+c`}
         </Text>
       </Box>
 

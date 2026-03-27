@@ -111,7 +111,11 @@ export class ReActAgent {
       ];
 
       // 调用 AI 模型获取响应
-      const response = await this.provider.chat(messages, { abortSignal });
+      const response = await this.provider.chat(messages, { 
+        abortSignal,
+        sessionId: this.sessionId,
+        modelName: this.provider.getModel(),
+      });
       
       // 检查取消信号
       if (abortSignal?.aborted) {

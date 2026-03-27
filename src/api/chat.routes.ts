@@ -128,7 +128,7 @@ chatRouter.post('/', async (req: Request, res: Response) => {
      *   - memoryService: 记忆服务
      *   - onStep: 每一步执行完的回调 (用于收集步骤)
      */
-    const result = await aiService.chatWithReAct(message, {
+    const result = await aiService.chatWithTools(message, {
       sessionId: session.id,
       projectPath: session.projectPath || undefined,
       memoryService,
@@ -183,6 +183,11 @@ chatRouter.post('/', async (req: Request, res: Response) => {
       iterations: result.iterations,
       success: result.success,
       error: result.error,
+      usage: result.usage ? {
+        promptTokens: result.usage.promptTokens,
+        completionTokens: result.usage.completionTokens,
+        totalTokens: result.usage.totalTokens,
+      } : undefined,
     };
 
     // 记录响应日志

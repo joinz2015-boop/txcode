@@ -21,6 +21,8 @@ export interface ChatOptions {
   model?: string;
   tools?: ToolDefinition[];
   abortSignal?: AbortSignal;
+  sessionId?: string;
+  modelName?: string;
 }
 
 export interface ToolDefinition {

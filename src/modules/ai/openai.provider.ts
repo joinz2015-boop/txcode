@@ -6,6 +6,7 @@ import {
   ToolDefinition,
 } from './ai.types.js';
 import { logger } from '../logger/index.js';
+import { aiLogService } from './ai-log.service.js';
 
 export interface OpenAIConfig {
   apiKey: string;
@@ -30,6 +31,14 @@ export class OpenAIProvider {
   }
 
   private defaultModel: string;
+
+  getModel(): string {
+    return this.defaultModel;
+  }
+
+  getBaseUrl(): string {
+    return this.client.baseURL;
+  }
 
   async chat(
     messages: ChatMessage[],
@@ -57,10 +66,29 @@ export class OpenAIProvider {
 
     const url = `${this.client.baseURL}/chat/completions`;
     logger.logRequest(url, requestBody);
+    const requestStartTime = Date.now();
 
     const response = await this.client.chat.completions.create(requestBody as any, { signal: abortSignal });
 
     logger.logResponse(url, response);
+
+    const requestEndTime = Date.now();
+    const durationMs = requestEndTime - requestStartTime;
+
+    if (options.sessionId) {
+      aiLogService.logAiCall({
+        model_address: this.client.baseURL || '',
+        model_name: options.modelName || model,
+        request_time: new Date(requestStartTime),
+        response_time: new Date(requestEndTime),
+        duration_ms: durationMs,
+        input_tokens: response.usage?.prompt_tokens || 0,
+        output_tokens: response.usage?.completion_tokens || 0,
+        cost: ((response.usage?.prompt_tokens || 0) * 0.00015 + (response.usage?.completion_tokens || 0) * 0.0006) / 1000,
+        call_type: tools && tools.length > 0 ? 'tool_call' : 'normal',
+        session_id: options.sessionId,
+      });
+    }
 
     return this.parseResponse(response);
   }

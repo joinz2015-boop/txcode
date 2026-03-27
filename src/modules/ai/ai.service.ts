@@ -10,7 +10,7 @@
  * 
  * 使用方式：
  *   import { aiService } from '../modules/ai/index.js';
- *   const result = await aiService.chatWithReAct("帮我读取文件", { sessionId: "xxx" });
+ *   const result = await aiService.chatWithTools("帮我读取文件", { sessionId: "xxx" });
  */
 
 import { ConfigService, configService as defaultConfigService } from '../config/config.service.js';
@@ -26,6 +26,7 @@ import { SessionService, sessionService as defaultSessionService } from '../sess
 import { SkillsManager } from '../skill/skills.manager.js';
 import { ReActResult, ReActStep } from './react/react.types.js';
 import { SummarizerService } from './summarizer/index.js';
+import { aiLogService } from './ai-log.service.js';
 import txConfig from '../../config/tx.config.js';
 
 /**
@@ -48,11 +49,11 @@ export interface AIServiceConfig {
  * AI 服务的封装类，提供以下功能：
  * - chat(): 简单的 AI 对话
  * - chatStream(): 流式 AI 对话
- * - chatWithReAct(): 带工具调用的 AI 对话
+ * - chatWithTools(): 带工具调用的 AI 对话
  * 
  * 典型使用流程：
  * 1. 用户发送消息 -> API 路由接收
- * 2. API 调用 aiService.chatWithReAct()
+ * 2. API 调用 aiService.chatWithTools()
  * 3. AIService 获取会话历史，构建消息列表
  * 4. 创建 ReActAgent 并执行循环
  * 5. 返回结果给 API
@@ -131,7 +132,7 @@ export class AIService {
   /**
    * 简单的 AI 对话接口
    * 
-   * 与 chatWithReAct 的区别：
+   * 与 chatWithTools 的区别：
    * - 不执行 ReAct 循环
    * - 不支持工具调用
    * - 适用于简单的问答场景
@@ -171,7 +172,7 @@ export class AIService {
    *   - onStep: 每一步执行完的回调
    * @returns {Promise<ReActResult>} ReAct 执行结果
    */
-  async chatWithReAct(
+  async chatWithTools(
     userMessage: string,
     options?: {
       sessionId?: string;
@@ -187,6 +188,7 @@ export class AIService {
     const sessionId = options?.sessionId;
     const aiMode = txConfig.ai.aiMode || 'react';
     const externalAbort = options?.abortSignal;
+    const requestStartTime = Date.now();
 
     let historyMessages: ChatMessage[] = [];
     if (sessionId && options?.memoryService) {
@@ -278,6 +280,24 @@ export class AIService {
           );
         }
 
+        const requestEndTime = Date.now();
+        const providerConfig = this.configService.getDefaultProvider();
+        const models = providerConfig ? this.configService.getModels(providerConfig.id) : [];
+        const defaultModel = models.find(m => m.enabled) || { name: 'gpt-4' };
+
+        aiLogService.logAiCall({
+          model_address: providerConfig?.baseUrl || '',
+          model_name: defaultModel?.name || '',
+          request_time: new Date(requestStartTime),
+          response_time: new Date(requestEndTime),
+          duration_ms: requestEndTime - requestStartTime,
+          input_tokens: result.usage?.promptTokens || 0,
+          output_tokens: result.usage?.completionTokens || 0,
+          cost: ((result.usage?.promptTokens || 0) * 0.00015 + (result.usage?.completionTokens || 0) * 0.0006) / 1000,
+          call_type: 'tool_call',
+          session_id: sessionId || undefined,
+        });
+
         return result;
       } finally {
         if (externalAbort) {
@@ -334,6 +354,24 @@ export class AIService {
           result.usage.completionTokens
         );
       }
+
+      const requestEndTime = Date.now();
+      const providerConfig = this.configService.getDefaultProvider();
+      const models = providerConfig ? this.configService.getModels(providerConfig.id) : [];
+      const defaultModel = models.find(m => m.enabled) || { name: 'gpt-4' };
+
+      aiLogService.logAiCall({
+        model_address: providerConfig?.baseUrl || '',
+        model_name: defaultModel?.name || '',
+        request_time: new Date(requestStartTime),
+        response_time: new Date(requestEndTime),
+        duration_ms: requestEndTime - requestStartTime,
+        input_tokens: result.usage?.promptTokens || 0,
+        output_tokens: result.usage?.completionTokens || 0,
+        cost: ((result.usage?.promptTokens || 0) * 0.00015 + (result.usage?.completionTokens || 0) * 0.0006) / 1000,
+        call_type: 'tool_call',
+        session_id: sessionId || undefined,
+      });
 
       // ========== 步骤 6: 返回结果 ==========
       return result;
@@ -408,6 +446,6 @@ export class AIService {
  * 在整个应用中共享同一个 AIService 实例
  * 使用方式：
  *   import { aiService } from '../modules/ai/index.js';
- *   const result = await aiService.chatWithReAct("问题", { sessionId: "xxx" });
+ *   const result = await aiService.chatWithTools("问题", { sessionId: "xxx" });
  */
 export const aiService = new AIService();

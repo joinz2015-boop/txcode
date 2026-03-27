@@ -91,7 +91,12 @@ export class OpenAIAgent implements AIProvider {
         ...baseMessages,
       ];
 
-      const response = await this.provider.chat(messages, { tools: builtinTools, abortSignal });
+      const response = await this.provider.chat(messages, { 
+        tools: builtinTools, 
+        abortSignal,
+        sessionId: this.sessionId,
+        modelName: this.provider.getModel(),
+      });
 
       // 检查取消信号
       if (abortSignal?.aborted) {

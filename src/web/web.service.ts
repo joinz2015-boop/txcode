@@ -33,6 +33,8 @@ import { dbService } from '../modules/db/db.service.js';
 import { aiService } from '../modules/ai/index.js';
 import { sessionService } from '../modules/session/index.js';
 import { memoryService } from '../modules/memory/index.js';
+import { configService } from '../modules/config/config.service.js';
+import { logger } from '../modules/logger/logger.js';
 
 /**
  * WebService 类
@@ -412,13 +414,11 @@ resolve();
 
       ws.send(JSON.stringify({ type: 'session', data: { sessionId: session.id } }));
 
-      const reactSteps: any[] = [];
-
       console.log('[WebSocket] Chat message:', message);
 
-      console.log('[handleChat] calling chatWithReAct, sessionId:', session.id, 'message:', message.substring(0, 20));
+      console.log('[handleChat] calling chatWithTools, sessionId:', session.id, 'message:', message.substring(0, 20));
 
-      const result = await aiService.chatWithReAct(message, {
+      const result = await aiService.chatWithTools(message, {
         sessionId: session.id,
         projectPath: session.projectPath || undefined,
         memoryService,
@@ -453,6 +453,10 @@ resolve();
 
       const lastStep = result.steps[result.steps.length - 1];
       const lastThought = lastStep && 'thought' in lastStep ? (lastStep as any).thought : undefined;
+      const providerConfig = configService.getDefaultProvider();
+      const models = providerConfig ? configService.getModels(providerConfig.id) : [];
+      const defaultModel = models.find(m => m.enabled) || { name: 'gpt-4' };
+
       ws.send(JSON.stringify({
         type: 'done',
         data: {
@@ -460,6 +464,12 @@ resolve();
           response: result.answer || lastThought,
           iterations: result.iterations,
           success: result.success,
+          modelName: defaultModel?.name || providerConfig?.name || 'unknown',
+          usage: result.usage ? {
+            promptTokens: result.usage.promptTokens,
+            completionTokens: result.usage.completionTokens,
+            totalTokens: result.usage.totalTokens,
+          } : undefined,
         }
       }));
     } catch (error) {

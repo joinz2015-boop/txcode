@@ -107,11 +107,20 @@
             发送
           </el-button>
         </div>
-        <div class="footer">
-          <div class="footer-left">
-            <span :class="wsConnected ? 'ws-connected' : 'ws-disconnected'">●</span>
-            {{ wsConnected ? 'WebSocket' : 'HTTP' }} | 会话: {{ panel.session?.id ? panel.session.id.slice(0, 8) : '--------' }}
-          </div>
+        <div class="status-bar">
+          <span :class="panel.disabled && !panel.stopping ? 'status-thinking' : 'status-ready'">
+            {{ panel.disabled && !panel.stopping ? panel.dotAnimation + ' 思考中' : '✓ 就绪' }}
+          </span>
+          <span class="separator">|</span>
+          <span>模型：{{ panel.modelName || '-' }}</span>
+          <span class="separator">|</span>
+          <span>会话：{{ panel.session?.id ? panel.session.id.slice(0, 8) : '--------' }}</span>
+          <span class="separator">|</span>
+          <span>token：(<span :class="panel.promptTokens > 50000 ? 'token-warning' : ''">{{ panel.promptTokens || 0 }}{{ panel.promptTokens > 50000 ? ' 会话太大推荐用/compact压缩会话' : '' }}</span>)</span>
+          <span class="separator">|</span>
+          <span>帮助 /help</span>
+          <span class="separator">|</span>
+          <span>退出 ctrl+c</span>
         </div>
       </div>
     </div>
@@ -183,6 +192,7 @@ export default {
       fileList: [],
       fileSelectedIndex: 0,
       currentPanel: null,
+      dots: ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧'],
     }
   },
 
@@ -383,6 +393,17 @@ handlePanelWsMessage(panel, msg) {
         case 'done':
           panel.disabled = false
           panel.stopping = false
+          panel.dotAnimation = ''
+          if (panel.dotInterval) {
+            clearInterval(panel.dotInterval)
+            panel.dotInterval = null
+          }
+          if (data?.modelName) {
+            panel.modelName = data.modelName
+          }
+          if (data?.usage?.promptTokens) {
+            panel.promptTokens = data.usage.promptTokens
+          }
           if (data?.response) {
             panel.logItems.push({ type: 'think', content: data.response })
           }
@@ -393,12 +414,22 @@ handlePanelWsMessage(panel, msg) {
         case 'stopped':
           panel.disabled = false
           panel.stopping = false
+          panel.dotAnimation = ''
+          if (panel.dotInterval) {
+            clearInterval(panel.dotInterval)
+            panel.dotInterval = null
+          }
           panel.logItems.push({ type: 'think', content: '【已停止】' })
           break
         case 'error':
           this.$message.error(error || '发生错误')
           panel.disabled = false
           panel.stopping = false
+          panel.dotAnimation = ''
+          if (panel.dotInterval) {
+            clearInterval(panel.dotInterval)
+            panel.dotInterval = null
+          }
           break
       }
       
@@ -439,6 +470,9 @@ handlePanelWsMessage(panel, msg) {
             disabled: false,
             stopping: false,
             wsConnected: false,
+            promptTokens: 0,
+            dotAnimation: '',
+            dotInterval: null,
           })
         }
       }
@@ -460,6 +494,12 @@ handlePanelWsMessage(panel, msg) {
         panel.disabled = false
         panel.stopping = false
         panel.wsConnected = false
+        panel.promptTokens = 0
+        panel.dotAnimation = ''
+        if (panel.dotInterval) {
+          clearInterval(panel.dotInterval)
+          panel.dotInterval = null
+        }
         this.loadMessagesForPanel(panel, this.draggedSession.id)
         this.initPanelWs(panel)
         this.draggedSession = null
@@ -476,6 +516,12 @@ handlePanelWsMessage(panel, msg) {
         panel.disabled = false
         panel.stopping = false
         panel.wsConnected = false
+        panel.promptTokens = 0
+        panel.dotAnimation = ''
+        if (panel.dotInterval) {
+          clearInterval(panel.dotInterval)
+          panel.dotInterval = null
+        }
         this.loadMessagesForPanel(panel, session.id)
         this.initPanelWs(panel)
       }
@@ -555,6 +601,13 @@ handlePanelWsMessage(panel, msg) {
       panel.stopping = false
       panel.userQuestion = content
       panel.logItems.push({ type: 'chat', content: content })
+
+      let dotIdx = 0
+      panel.dotAnimation = this.dots[dotIdx]
+      panel.dotInterval = setInterval(() => {
+        dotIdx = (dotIdx + 1) % this.dots.length
+        panel.dotAnimation = this.dots[dotIdx]
+      }, 150)
 
       if (api.sessionWsIsConnected(panel.session.id)) {
         api.sessionWsSend(panel.session.id, 'chat', {
@@ -783,6 +836,22 @@ handlePanelWsMessage(panel, msg) {
 }
 
 .footer-left { display: flex; gap: 16px; align-items: center; color: #84848a; }
+
+.status-bar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 6px 16px;
+  font-size: 12px;
+  color: #84848a;
+  border-top: 1px solid #27272a;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+.status-bar .separator { color: #3f3f46; }
+.status-ready { color: #22c55e; }
+.status-thinking { color: #60a5fa; }
+.token-warning { color: #ef4444; }
 
 .layout-switcher {
   position: fixed;
