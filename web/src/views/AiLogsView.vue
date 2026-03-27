@@ -219,6 +219,11 @@ export default {
       if (!time) return '-'
       return new Date(time).toLocaleString('zh-CN')
     },
+    getSessionTitle(sessionId) {
+      if (!sessionId) return '-'
+      const s = this.sessions.find(s => s.id === sessionId)
+      return s ? s.title : sessionId.substring(0, 8)
+    },
     formatDuration(ms) {
       if (!ms) return '0ms'
       if (ms < 1000) return `${ms}ms`
