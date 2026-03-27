@@ -1,7 +1,7 @@
 import { OpenAIProvider } from '../../openai.provider.js';
 import { ChatMessage } from '../../ai.types.js';
 import { buildProviderPrompt } from './prompts.js';
-import { openaiTools } from '../../../tools/provider/openai/tools.js';
+import { getOpenAITools } from '../../../tools/provider/tools.js';
 import {
   AIProvider,
   ProviderRunOptions,
@@ -48,8 +48,8 @@ export class OpenAIAgent implements AIProvider {
     const steps: ProviderStep[] = [];
     const baseMessages: ChatMessage[] = [];
 
-    const builtinTools = this.getBuiltinTools();
-    const systemPrompt = await buildProviderPrompt(builtinTools, [], this.maxIterations, {
+    const builtinTools = await this.getBuiltinTools();
+    const systemPrompt = await buildProviderPrompt(await this.getBuiltinTools(), [], this.maxIterations, {
       workdir: this.projectPath || process.cwd(),
     });
 
@@ -189,8 +189,8 @@ export class OpenAIAgent implements AIProvider {
     }
   }
 
-  private getBuiltinTools(): any[] {
-    return openaiTools;
+  private async getBuiltinTools(): Promise<any[]> {
+    return await getOpenAITools();
   }
 
   private addMessage(

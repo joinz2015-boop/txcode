@@ -1,0 +1,20 @@
+### 工具code_search
+使用 Exa Code API 搜索编程相关的代码和上下文。
+
+**功能**：
+- 为任何编程任务提供最高质量和最新鲜的上下文
+- 提供库、SDK 和 API 的全面代码示例、文档和 API 参考
+- 用于任何编程相关问题
+- 优化用于查找特定编程模式和解决方案
+
+**使用说明**：
+- 可调整的 token 数量（1000-50000）用于聚焦或全面的结果
+- 默认 5000 tokens 为大多数查询提供平衡的上下文
+- 特定问题用较低值，全面文档用较高值
+- 支持关于框架、库、API 和编程概念的查询
+
+**示例**：
+- 'React useState hook examples'
+- 'Python pandas dataframe filtering'
+- 'Express.js middleware'
+

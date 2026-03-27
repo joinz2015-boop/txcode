@@ -1,4 +1,4 @@
-import { openaiTools } from '../../../tools/provider/openai/tools.js';
+import { openaiTools } from '../../../tools/provider/tools.js';
 import { buildAvailableSkillsPrompt } from '../../../skill/skill.tool.js';
 
 function getProviderPromptTemplate(roleTemplate: string): string {
