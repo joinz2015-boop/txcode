@@ -2,8 +2,8 @@ import { spawn } from 'child_process'
 import { Tool, ToolContext, ToolResult } from '../tool.types.js'
 import fs from 'fs'
 import path from 'path'
-import os from 'os'
 import { fileURLToPath } from 'url'
+import which from 'which'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const bash_description = fs.readFileSync(path.join(__dirname, 'bash.txt'), 'utf-8')
@@ -12,20 +12,31 @@ const DEFAULT_TIMEOUT = 120000
 const MAX_BYTES = 50 * 1024
 const MAX_LINES = 2000
 
-function getShell(): string {
-  if (process.platform === 'win32') {
-    const gitPath = spawn('where', ['git'], { shell: true }).stdout.toString().trim()
-    if (gitPath) {
-      const bashPath = path.join(path.dirname(gitPath), '..', 'bin', 'bash.exe')
-      try {
-        if (fs.statSync(bashPath).isFile()) {
-          return bashPath
-        }
-      } catch {}
+function getGitBashPath(): string | null {
+  if (process.platform !== 'win32') return null
+
+  const gitPath = which.sync('git', { nothrow: true })
+  if (!gitPath) return null
+
+  const bashPath = path.resolve(path.dirname(gitPath), '..',  'bin', 'bash.exe')
+
+  try {
+    if (fs.statSync(bashPath).isFile()) {
+      return bashPath
     }
-    return process.env.COMSPEC || 'cmd.exe'
+  } catch {}
+  return null
+}
+
+function getShellConfig(): { shell: string; args: string[]; useBash: boolean } {
+  if (process.platform === 'win32') {
+    const gitBash = getGitBashPath()
+    if (gitBash) {
+      return { shell: gitBash, args: ['-c'], useBash: true }
+    }
+    return { shell: process.env.COMSPEC || 'cmd.exe', args: [], useBash: false }
   }
-  return process.env.SHELL || '/bin/sh'
+  return { shell: process.env.SHELL || '/bin/sh', args: ['-c'], useBash: false }
 }
 
 export const bashTool: Tool = {
@@ -56,15 +67,13 @@ export const bashTool: Tool = {
     let output = ''
     let exited = false
 
-    const shell = getShell()
-    const isWindows = process.platform === 'win32'
-    const shellArg = isWindows && shell.endsWith('bash.exe') ? shell : undefined
+    const { shell, args, useBash } = getShellConfig()
 
-    const proc = spawn(command, {
-      shell: shellArg || shell,
+    const proc = spawn(useBash ? shell : command, useBash ? [...args, command] : [], {
+      shell: useBash ? undefined : (shell || true),
       cwd,
       stdio: ['ignore', 'pipe', 'pipe'],
-      windowsHide: isWindows
+      windowsHide: true
     })
 
     const killTree = () => {

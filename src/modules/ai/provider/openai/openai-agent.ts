@@ -1,7 +1,8 @@
 import { OpenAIProvider } from '../../openai.provider.js';
 import { ChatMessage } from '../../ai.types.js';
 import { buildProviderPrompt } from './prompts.js';
-import { getOpenAITools } from '../../../tools/provider/tools.js';
+import { getOpenAITools, openaiTools } from '../../../tools/provider/tools.js';
+import { getProviderTools } from '../../../tools/provider/index.js';
 import {
   AIProvider,
   ProviderRunOptions,
@@ -31,6 +32,8 @@ export class OpenAIAgent implements AIProvider {
   private projectPath?: string;
   private sessionId?: string;
   private memoryService?: MemoryService;
+  private providerTools: any[] = [];
+  private providerToolsMap: Map<string, any> = new Map();
 
   constructor(config: OpenAIAgentConfig) {
     this.provider = config.provider;
@@ -45,6 +48,12 @@ export class OpenAIAgent implements AIProvider {
     userMessage: string,
     options?: ProviderRunOptions
   ): Promise<ProviderRunResult> {
+    this.providerTools = await getProviderTools();
+    this.providerToolsMap.clear();
+    for (const t of this.providerTools) {
+      this.providerToolsMap.set(t.name, t);
+    }
+
     const steps: ProviderStep[] = [];
     const baseMessages: ChatMessage[] = [];
 
@@ -179,8 +188,16 @@ export class OpenAIAgent implements AIProvider {
     args: Record<string, any>
   ): Promise<{ success: boolean; data?: any; error?: string }> {
     try {
-      const result = await this.toolService.execute(name, args);
-      return { success: true, data: result };
+      const tool = this.providerToolsMap.get(name);
+      if (!tool) {
+        throw new Error(`Tool not found: ${name}`);
+      }
+      const context = {
+        sessionId: this.sessionId || '',
+        workDir: this.projectPath || process.cwd(),
+      };
+      const result = await tool.execute(args, context);
+      return { success: result.success, data: result.output, error: result.error };
     } catch (error) {
       return {
         success: false,
@@ -190,6 +207,13 @@ export class OpenAIAgent implements AIProvider {
   }
 
   private async getBuiltinTools(): Promise<any[]> {
+    if (this.providerTools.length === 0) {
+      this.providerTools = await getProviderTools();
+      this.providerToolsMap.clear();
+      for (const t of this.providerTools) {
+        this.providerToolsMap.set(t.name, t);
+      }
+    }
     return await getOpenAITools();
   }
 

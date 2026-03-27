@@ -2,7 +2,7 @@ import { spawn } from 'child_process'
 import { Tool, ToolContext, ToolResult } from '../tool.types.js'
 import fs from 'fs'
 import path from 'path'
-import os from 'os'
+import which from 'which'
 
 const DEFAULT_TIMEOUT = 120000
 const MAX_BYTES = 50 * 1024
@@ -10,9 +10,9 @@ const MAX_LINES = 2000
 
 function getShell(): string {
   if (process.platform === 'win32') {
-    const gitPath = spawn('where', ['git'], { shell: true }).stdout.toString().trim()
+    const gitPath = which.sync('git', { nothrow: true })
     if (gitPath) {
-      const bashPath = path.join(path.dirname(gitPath), '..', 'bin', 'bash.exe')
+      const bashPath = path.resolve(path.dirname(gitPath), '..', '..', 'bin', 'bash.exe')
       try {
         if (fs.statSync(bashPath).isFile()) {
           return bashPath
