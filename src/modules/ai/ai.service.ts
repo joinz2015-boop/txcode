@@ -26,7 +26,6 @@ import { SessionService, sessionService as defaultSessionService } from '../sess
 import { SkillsManager } from '../skill/skills.manager.js';
 import { ReActResult, ReActStep } from './react/react.types.js';
 import { SummarizerService } from './summarizer/index.js';
-import { aiLogService } from './ai-log.service.js';
 import txConfig from '../../config/tx.config.js';
 
 /**
@@ -280,24 +279,6 @@ export class AIService {
           );
         }
 
-        const requestEndTime = Date.now();
-        const providerConfig = this.configService.getDefaultProvider();
-        const models = providerConfig ? this.configService.getModels(providerConfig.id) : [];
-        const defaultModel = models.find(m => m.enabled) || { name: 'gpt-4' };
-
-        aiLogService.logAiCall({
-          model_address: providerConfig?.baseUrl || '',
-          model_name: defaultModel?.name || '',
-          request_time: new Date(requestStartTime),
-          response_time: new Date(requestEndTime),
-          duration_ms: requestEndTime - requestStartTime,
-          input_tokens: result.usage?.promptTokens || 0,
-          output_tokens: result.usage?.completionTokens || 0,
-          cost: ((result.usage?.promptTokens || 0) * 0.00015 + (result.usage?.completionTokens || 0) * 0.0006) / 1000,
-          call_type: 'tool_call',
-          session_id: sessionId || undefined,
-        });
-
         return result;
       } finally {
         if (externalAbort) {
@@ -354,24 +335,6 @@ export class AIService {
           result.usage.completionTokens
         );
       }
-
-      const requestEndTime = Date.now();
-      const providerConfig = this.configService.getDefaultProvider();
-      const models = providerConfig ? this.configService.getModels(providerConfig.id) : [];
-      const defaultModel = models.find(m => m.enabled) || { name: 'gpt-4' };
-
-      aiLogService.logAiCall({
-        model_address: providerConfig?.baseUrl || '',
-        model_name: defaultModel?.name || '',
-        request_time: new Date(requestStartTime),
-        response_time: new Date(requestEndTime),
-        duration_ms: requestEndTime - requestStartTime,
-        input_tokens: result.usage?.promptTokens || 0,
-        output_tokens: result.usage?.completionTokens || 0,
-        cost: ((result.usage?.promptTokens || 0) * 0.00015 + (result.usage?.completionTokens || 0) * 0.0006) / 1000,
-        call_type: 'tool_call',
-        session_id: sessionId || undefined,
-      });
 
       // ========== 步骤 6: 返回结果 ==========
       return result;

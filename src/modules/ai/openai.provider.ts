@@ -74,7 +74,6 @@ export class OpenAIProvider {
 
     const requestEndTime = Date.now();
     const durationMs = requestEndTime - requestStartTime;
-
     if (options.sessionId) {
       aiLogService.logAiCall({
         model_address: this.client.baseURL || '',

@@ -22,6 +22,7 @@ import { executeCommand } from '../cli/commands.js';
 import { sessionService } from '../modules/session/index.js';
 import { memoryService } from '../modules/memory/index.js';
 import { aiService } from '../modules/ai/index.js';
+import { dbService } from '../modules/db/index.js';
 import { ReActState } from '../modules/ai/ai.types.js';
 import { MessageItem } from '../cli/cli.types.js';
 
@@ -118,6 +119,19 @@ export function App() {
   // ========== AI 停止控制 ==========
   /** AbortController 用于停止 AI 调用 */
   const abortControllerRef = React.useRef<AbortController | null>(null);
+
+  // ========== 程序退出时保存数据库 ==========
+  useEffect(() => {
+    const handleExit = () => {
+      dbService.close();
+    };
+    process.on('exit', handleExit);
+    process.on('SIGINT', handleExit);
+    return () => {
+      process.off('exit', handleExit);
+      process.off('SIGINT', handleExit);
+    };
+  }, []);
 
   // ========== 三点动画效果 ==========
   useEffect(() => {
@@ -319,6 +333,7 @@ export function App() {
         addMessage('system', result.message);
       }
       if (result.data?.exit) {
+        dbService.close();
         exit();
       }
       if (result.data?.id && result.success) {
@@ -627,6 +642,7 @@ export function App() {
         setStatus('stopping');
         abortControllerRef.current.abort();
       } else if (status === 'idle') {
+        dbService.close();
         exit();
       }
     } else if (char && !key.ctrl && !key.meta) {

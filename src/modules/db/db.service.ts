@@ -70,6 +70,7 @@ export class DbService {
 
   run(sql: string, params?: unknown[]): { changes: number; lastInsertRowid: number } {
     const db = this.getDb();
+
     if (params && params.length > 0) {
       db.run(sql, params as (string | number | null | Uint8Array)[]);
     } else {
