@@ -148,8 +148,8 @@
             :key="file.path"
             class="file-item"
             :class="{ active: index === fileSelectedIndex }"
-            @click="fileSelectedIndex = index; confirmFileSelect(currentPanel)"
-            @dblclick="fileSelectedIndex = index; confirmFileSelect(currentPanel)"
+            @click="onFileItemClick(file, index)"
+            @dblclick="onFileItemDblClick(file)"
           >
             <span class="file-icon">{{ file.isDirectory ? '📁' : '📄' }}</span>
             <span class="file-name">{{ file.name }}</span>
@@ -227,7 +227,16 @@ export default {
     async loadFileList(dirPath = '') {
       try {
         const res = await api.browseFilesystem(dirPath)
-        this.fileList = res.data?.items || []
+        const items = res.data?.items || []
+        items.sort((a, b) => {
+          if (a.is_directory === b.is_directory) {
+            return a.name.localeCompare(b.name)
+          }
+          return a.is_directory ? -1 : 1
+        })
+        this.fileList = items
+        this.fileSelectPath = res.data?.current_path || dirPath
+        this.fileSelectedIndex = 0
       } catch (e) {
         this.fileList = []
       }
@@ -247,6 +256,18 @@ export default {
       }
     },
 
+    onFileItemClick(file, index) {
+      this.fileSelectedIndex = index
+    },
+
+    onFileItemDblClick(file) {
+      if (file.isDirectory) {
+        this.loadFileList(file.path)
+      } else {
+        this.confirmFileSelectByPath(file.path)
+      }
+    },
+
     onFileSelectKeydown(e, panel) {
       if (e.key === 'ArrowUp') {
         e.preventDefault()
@@ -256,7 +277,14 @@ export default {
         this.fileSelectedIndex = Math.min(this.fileList.length - 1, this.fileSelectedIndex + 1)
       } else if (e.key === 'Enter') {
         e.preventDefault()
-        this.confirmFileSelect(panel)
+        const file = this.fileList[this.fileSelectedIndex]
+        if (file) {
+          if (file.isDirectory) {
+            this.loadFileList(file.path)
+          } else {
+            this.confirmFileSelect(panel)
+          }
+        }
       } else if (e.key === 'Escape') {
         e.preventDefault()
         this.cancelFileSelect()
@@ -266,13 +294,17 @@ export default {
     confirmFileSelect(panel) {
       const file = this.fileList[this.fileSelectedIndex]
       if (file) {
-        const atIndex = panel.input.lastIndexOf('@')
-        let path = file.path
-        if (file.isDirectory) {
-          path += '/'
-        }
-        panel.input = panel.input.slice(0, atIndex) + path + ' '
+        this.confirmFileSelectByPath(file.path)
       }
+      this.fileSelectVisible = false
+      this.currentPanel = null
+    },
+
+    confirmFileSelectByPath(filePath) {
+      const panel = this.currentPanel
+      if (!panel) return
+      const atIndex = panel.input.lastIndexOf('@')
+      panel.input = panel.input.slice(0, atIndex) + filePath + ' '
       this.fileSelectVisible = false
       this.currentPanel = null
     },

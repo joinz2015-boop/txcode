@@ -123,9 +123,12 @@ filesystemRouter.get('/browse', (req: Request, res: Response) => {
     }
     
     return res.json({
-      current_path: dirPath,
-      parent_path: parentPath,
-      items,
+      success: true,
+      data: {
+        current_path: dirPath,
+        parent_path: parentPath,
+        items,
+      }
     });
   }
 });
@@ -139,17 +142,23 @@ filesystemRouter.get('/drives', (req: Request, res: Response) => {
   
   if (!isWindows) {
     return res.json({
-      current_path: '/',
-      parent_path: null,
-      items: [{ name: '/', path: '/', is_directory: true, is_drive: false }],
+      success: true,
+      data: {
+        current_path: '/',
+        parent_path: null,
+        items: [{ name: '/', path: '/', is_directory: true, is_drive: false }],
+      }
     });
   }
   
   const drives = getWindowsDrives();
   return res.json({
-    current_path: '',
-    parent_path: null,
-    items: drives,
+    success: true,
+    data: {
+      current_path: '',
+      parent_path: null,
+      items: drives,
+    }
   });
 });
 
