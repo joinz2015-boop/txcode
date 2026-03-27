@@ -18,34 +18,24 @@
 
     <main class="flex-1 overflow-y-auto p-6">
       <div class="max-w-3xl mx-auto">
-        <!-- AI 服务商 -->
         <div v-show="activeTab === 'providers'">
-          <h3 class="text-xl text-white mb-4">AI 服务商</h3>
           <ProviderList
             :providers="providers"
-            :default-provider-id="defaultProviderId"
-            @refresh="loadProviders"
-            @set-default="setDefaultProvider"
-          />
-        </div>
-
-        <!-- 模型 -->
-        <div v-show="activeTab === 'models'">
-          <h3 class="text-xl text-white mb-4">模型配置</h3>
-          <ModelList
             :models="models"
-            :providers="providers"
-            @refresh="loadModels"
+            @add-provider="openProviderDialog(null)"
+            @edit-provider="openProviderDialog($event)"
+            @delete-provider="deleteProvider"
+            @add-model="openModelDialog($event, null)"
+            @edit-model="openModelDialog($event.providerId, $event)"
+            @delete-model="deleteModel"
           />
         </div>
 
-        <!-- Skills -->
         <div v-show="activeTab === 'skills'">
           <h3 class="text-xl text-white mb-4">Skills</h3>
           <SkillsList :skills="skills" />
         </div>
 
-        <!-- 高级 -->
         <div v-show="activeTab === 'advanced'">
           <h3 class="text-xl text-white mb-4">高级设置</h3>
           <el-form label-width="150px" class="advanced-form">
@@ -57,7 +47,6 @@
                 @change="saveConfig('maxToolIterations', $event)"
               />
             </el-form-item>
-
             <el-form-item label="会话压缩阈值">
               <el-input-number
                 v-model="config.maxSessionCompression"
@@ -66,7 +55,6 @@
                 @change="saveConfig('maxSessionCompression', $event)"
               />
             </el-form-item>
-
             <el-form-item label="Web 服务端口">
               <el-input-number
                 v-model="config.webPort"
@@ -79,12 +67,27 @@
         </div>
       </div>
     </main>
+
+    <ProviderDialog
+      :visible.sync="showProviderDialog"
+      :editing-provider="editingProvider"
+      @success="loadProviders"
+    />
+
+    <ModelDialog
+      :visible.sync="showModelDialog"
+      :editing-model="editingModel"
+      :providers="providers"
+      :default-provider-id="defaultProviderId"
+      @success="loadModels"
+    />
   </div>
 </template>
 
 <script>
 import ProviderList from '../components/ProviderList.vue'
-import ModelList from '../components/ModelList.vue'
+import ProviderDialog from '../components/ProviderDialog.vue'
+import ModelDialog from '../components/ModelDialog.vue'
 import SkillsList from '../components/SkillsList.vue'
 
 export default {
@@ -92,7 +95,8 @@ export default {
 
   components: {
     ProviderList,
-    ModelList,
+    ProviderDialog,
+    ModelDialog,
     SkillsList,
   },
 
@@ -101,7 +105,6 @@ export default {
       activeTab: 'providers',
       tabs: [
         { name: 'providers', label: 'AI 服务商', icon: 'fa-solid fa-server' },
-        { name: 'models', label: '模型', icon: 'fa-solid fa-brain' },
         { name: 'skills', label: 'Skills', icon: 'fa-solid fa-shapes' },
         { name: 'advanced', label: '高级', icon: 'fa-solid fa-gear' },
       ],
@@ -114,6 +117,10 @@ export default {
         maxSessionCompression: 5,
         webPort: 40000,
       },
+      showProviderDialog: false,
+      editingProvider: null,
+      showModelDialog: false,
+      editingModel: null,
     }
   },
 
@@ -125,6 +132,16 @@ export default {
   },
 
   methods: {
+    openProviderDialog(provider) {
+      this.editingProvider = provider
+      this.showProviderDialog = true
+    },
+
+    openModelDialog(providerId, model) {
+      this.editingModel = model
+      this.showModelDialog = true
+    },
+
     async loadProviders() {
       try {
         const res = await this.$api.getProviders()
@@ -150,7 +167,6 @@ export default {
         const res = await this.$api.getSkills()
         this.skills = res.data || []
       } catch (e) {
-        console.error('加载技能失败:', e)
         this.skills = []
       }
     },
@@ -161,18 +177,32 @@ export default {
         if (res.data?.value) {
           this.config.maxToolIterations = parseInt(res.data.value)
         }
+      } catch (e) {}
+    },
+
+    async deleteProvider(id) {
+      try {
+        await this.$confirm('确定要删除该服务商吗？', '提示', { type: 'warning' })
+        await this.$api.deleteProvider(id)
+        this.$message.success('删除成功')
+        await this.loadProviders()
       } catch (e) {
+        if (e !== 'cancel') {
+          this.$message.error('删除失败: ' + e.message)
+        }
       }
     },
 
-    async setDefaultProvider(id) {
+    async deleteModel(id) {
       try {
-        await this.$api.setDefaultProvider(id)
-        this.defaultProviderId = id
-        this.$message.success('已设置为默认提供商')
-        await this.loadProviders()
+        await this.$confirm('确定要删除该模型吗？', '提示', { type: 'warning' })
+        await this.$api.deleteModel(id)
+        this.$message.success('删除成功')
+        await this.loadModels()
       } catch (e) {
-        this.$message.error('设置失败: ' + e.message)
+        if (e !== 'cancel') {
+          this.$message.error('删除失败: ' + e.message)
+        }
       }
     },
 

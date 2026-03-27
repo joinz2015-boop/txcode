@@ -109,6 +109,14 @@ export const api = {
   },
 
   /**
+   * 获取单个提供商（包含 API Key）
+   * @param {string} id - 提供商 ID
+   */
+  getProvider(id) {
+    return request('GET', `/config/providers/${id}`);
+  },
+
+  /**
    * 添加提供商
    * @param {object} provider - 提供商信息
    */
@@ -164,6 +172,15 @@ export const api = {
    */
   addModel(model) {
     return request('POST', '/config/models', model);
+  },
+
+  /**
+   * 更新模型
+   * @param {string} id - 模型 ID
+   * @param {object} data - 更新数据
+   */
+  updateModel(id, data) {
+    return request('PUT', `/config/models/${id}`, data);
   },
 
   /**

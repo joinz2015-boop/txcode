@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI 服务商 & 模型配置</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f5f5f5; padding: 20px; }
+    .container { max-width: 900px; margin: 0 auto; }
+    h1 { font-size: 20px; font-weight: 600; margin-bottom: 20px; color: #333; }
+    
+    .card { background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 16px; }
+    .card-header { padding: 16px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+    .card-header h2 { font-size: 16px; font-weight: 600; }
+    .card-body { padding: 16px; }
+    
+    .provider-item { border: 1px solid #e5e5e5; border-radius: 6px; margin-bottom: 12px; overflow: hidden; }
+    .provider-main { display: flex; align-items: center; padding: 12px; cursor: pointer; transition: background 0.2s; }
+    .provider-main:hover { background: #fafafa; }
+    .provider-main.active { background: #f0f7ff; border-bottom: 1px solid #e5e5e5; }
+    .expand-icon { width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; transition: transform 0.2s; margin-right: 8px; }
+    .expand-icon.expanded { transform: rotate(90deg); }
+    .provider-logo { width: 40px; height: 40px; background: #eee; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px; margin-right: 12px; }
+    .provider-info { flex: 1; }
+    .provider-name { font-weight: 600; font-size: 14px; }
+    .provider-desc { font-size: 12px; color: #999; margin-top: 2px; }
+    .provider-actions { display: flex; gap: 8px; }
+    
+    .models-panel { display: none; padding: 16px; background: #fafafa; }
+    .models-panel.expanded { display: block; }
+    .models-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .models-header h3 { font-size: 14px; color: #666; }
+    
+    .model-item { display: flex; align-items: center; padding: 10px 12px; background: #fff; border: 1px solid #e5e5e5; border-radius: 6px; margin-bottom: 8px; }
+    .model-item:hover { border-color: #1890ff; }
+    .model-name { flex: 1; font-size: 14px; }
+    .model-status { font-size: 12px; color: #52c41a; margin-right: 12px; }
+    .model-actions { display: flex; gap: 6px; }
+    
+    .btn { padding: 6px 12px; border-radius: 4px; font-size: 12px; cursor: pointer; border: 1px solid #d9d9d9; background: #fff; transition: all 0.2s; }
+    .btn:hover { border-color: #1890ff; color: #1890ff; }
+    .btn-primary { background: #1890ff; color: #fff; border: none; }
+    .btn-primary:hover { background: #40a9ff; }
+    .btn-danger { color: #ff4d4f; border-color: #ff4d4f; }
+    .btn-danger:hover { background: #fff1f0; }
+    .btn-sm { padding: 4px 8px; font-size: 11px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>AI 服务商 & 模型配置</h1>
+    
+    <div class="card">
+      <div class="card-header">
+        <h2>服务商列表</h2>
+        <button class="btn btn-primary">+ 添加服务商</button>
+      </div>
+      <div class="card-body">
+        
+        <div class="provider-item">
+          <div class="provider-main" onclick="toggleModels(this)">
+            <span class="expand-icon">▶</span>
+            <div class="provider-logo" style="background:#412dea;color:#fff;">O</div>
+            <div class="provider-info">
+              <div class="provider-name">OpenAI</div>
+              <div class="provider-desc">GPT-4、GPT-3.5 等模型</div>
+            </div>
+            <div class="provider-actions">
+              <button class="btn btn-sm">修改</button>
+              <button class="btn btn-sm btn-danger">删除</button>
+            </div>
+          </div>
+          <div class="models-panel">
+            <div class="models-header">
+              <h3>模型列表</h3>
+              <button class="btn btn-sm btn-primary">+ 添加模型</button>
+            </div>
+            <div class="model-item">
+              <div class="model-name">gpt-4o</div>
+              <span class="model-status">● 默认</span>
+              <div class="model-actions">
+                <button class="btn btn-sm">修改</button>
+                <button class="btn btn-sm btn-danger">删除</button>
+              </div>
+            </div>
+            <div class="model-item">
+              <div class="model-name">gpt-4-turbo</div>
+              <div class="model-actions">
+                <button class="btn btn-sm">修改</button>
+                <button class="btn btn-sm btn-danger">删除</button>
+              </div>
+            </div>
+            <div class="model-item">
+              <div class="model-name">gpt-4</div>
+              <div class="model-actions">
+                <button class="btn btn-sm">修改</button>
+                <button class="btn btn-sm btn-danger">删除</button>
+              </div>
+            </div>
+            <div class="model-item">
+              <div class="model-name">gpt-3.5-turbo</div>
+              <div class="model-actions">
+                <button class="btn btn-sm">修改</button>
+                <button class="btn btn-sm btn-danger">删除</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="provider-item">
+          <div class="provider-main" onclick="toggleModels(this)">
+            <span class="expand-icon">▶</span>
+            <div class="provider-logo" style="background:#25b864;color:#fff;">A</div>
+            <div class="provider-info">
+              <div class="provider-name">Anthropic Claude</div>
+              <div class="provider-desc">Claude 3.5、Claude 3 等模型</div>
+            </div>
+            <div class="provider-actions">
+              <button class="btn btn-sm">修改</button>
+              <button class="btn btn-sm btn-danger">删除</button>
+            </div>
+          </div>
+          <div class="models-panel">
+            <div class="models-header">
+              <h3>模型列表</h3>
+              <button class="btn btn-sm btn-primary">+ 添加模型</button>
+            </div>
+            <div class="model-item">
+              <div class="model-name">claude-3-5-sonnet-20241022</div>
+              <span class="model-status">● 默认</span>
+              <div class="model-actions">
+                <button class="btn btn-sm">修改</button>
+                <button class="btn btn-sm btn-danger">删除</button>
+              </div>
+            </div>
+            <div class="model-item">
+              <div class="model-name">claude-3-opus-20240229</div>
+              <div class="model-actions">
+                <button class="btn btn-sm">修改</button>
+                <button class="btn btn-sm btn-danger">删除</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="provider-item">
+          <div class="provider-main" onclick="toggleModels(this)">
+            <span class="expand-icon">▶</span>
+            <div class="provider-logo" style="background:#1abcab;color:#fff;">G</div>
+            <div class="provider-info">
+              <div class="provider-name">Google Gemini</div>
+              <div class="provider-desc">Gemini Pro、Flash 等模型</div>
+            </div>
+            <div class="provider-actions">
+              <button class="btn btn-sm">修改</button>
+              <button class="btn btn-sm btn-danger">删除</button>
+            </div>
+          </div>
+          <div class="models-panel">
+            <div class="models-header">
+              <h3>模型列表</h3>
+              <button class="btn btn-sm btn-primary">+ 添加模型</button>
+            </div>
+            <div class="model-item">
+              <div class="model-name">gemini-2.0-flash-exp</div>
+              <span class="model-status">● 默认</span>
+              <div class="model-actions">
+                <button class="btn btn-sm">修改</button>
+                <button class="btn btn-sm btn-danger">删除</button>
+              </div>
+            </div>
+            <div class="model-item">
+              <div class="model-name">gemini-1.5-pro</div>
+              <div class="model-actions">
+                <button class="btn btn-sm">修改</button>
+                <button class="btn btn-sm btn-danger">删除</button>
+              </div>
+            </div>
+            <div class="model-item">
+              <div class="model-name">gemini-1.5-flash</div>
+              <div class="model-actions">
+                <button class="btn btn-sm">修改</button>
+                <button class="btn btn-sm btn-danger">删除</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="provider-item">
+          <div class="provider-main" onclick="toggleModels(this)">
+            <span class="expand-icon">▶</span>
+            <div class="provider-logo" style="background:#fe7a1e;color:#fff;">D</div>
+            <div class="provider-info">
+              <div class="provider-name">DeepSeek</div>
+              <div class="provider-desc">DeepSeek V3、DeepSeek Coder</div>
+            </div>
+            <div class="provider-actions">
+              <button class="btn btn-sm">修改</button>
+              <button class="btn btn-sm btn-danger">删除</button>
+            </div>
+          </div>
+          <div class="models-panel">
+            <div class="models-header">
+              <h3>模型列表</h3>
+              <button class="btn btn-sm btn-primary">+ 添加模型</button>
+            </div>
+            <div class="model-item">
+              <div class="model-name">deepseek-chat</div>
+              <span class="model-status">● 默认</span>
+              <div class="model-actions">
+                <button class="btn btn-sm">修改</button>
+                <button class="btn btn-sm btn-danger">删除</button>
+              </div>
+            </div>
+            <div class="model-item">
+              <div class="model-name">deepseek-coder</div>
+              <div class="model-actions">
+                <button class="btn btn-sm">修改</button>
+                <button class="btn btn-sm btn-danger">删除</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+      </div>
+    </div>
+    
+  </div>
+  
+  <script>
+    function toggleModels(el) {
+      const panel = el.nextElementSibling;
+      const icon = el.querySelector('.expand-icon');
+      panel.classList.toggle('expanded');
+      icon.classList.toggle('expanded');
+      el.classList.toggle('active');
+    }
+  </script>
+</body>
+</html>

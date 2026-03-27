@@ -33,6 +33,28 @@ configRouter.get('/providers', (req: Request, res: Response) => {
 });
 
 /**
+ * 获取单个提供商（包含 API Key）
+ */
+configRouter.get('/providers/:id', (req: Request, res: Response) => {
+  const id = String(req.params.id);
+  const provider = configService.getProvider(id);
+  if (!provider) {
+    return res.status(404).json({ success: false, error: 'Provider not found' });
+  }
+  res.json({
+    success: true,
+    data: {
+      id: provider.id,
+      name: provider.name,
+      apiKey: provider.apiKey,
+      baseUrl: provider.baseUrl,
+      enabled: provider.enabled,
+      isDefault: provider.isDefault,
+    },
+  });
+});
+
+/**
  * 添加提供商
  */
 configRouter.post('/providers', (req: Request, res: Response) => {
