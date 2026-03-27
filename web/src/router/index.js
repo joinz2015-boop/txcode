@@ -52,6 +52,11 @@ const routes = [
         component: DbView,
       },
       {
+        path: 'aiLogs',
+        name: 'aiLogs',
+        component: () => import('../views/AiLogsView.vue'),
+      },
+      {
         path: 'settings',
         name: 'settings',
         component: Settings,

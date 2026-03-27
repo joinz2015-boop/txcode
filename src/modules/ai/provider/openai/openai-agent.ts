@@ -56,6 +56,7 @@ export class OpenAIAgent implements AIProvider {
 
     const steps: ProviderStep[] = [];
     const baseMessages: ChatMessage[] = [];
+    const abortSignal = options?.abortSignal;
 
     const builtinTools = await this.getBuiltinTools();
     const systemPrompt = await buildProviderPrompt(await this.getBuiltinTools(), [], this.maxIterations, {
@@ -78,6 +79,11 @@ export class OpenAIAgent implements AIProvider {
     let totalUsage: ProviderTokenUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
 
     while (iteration < this.maxIterations) {
+      // 检查取消信号
+      if (abortSignal?.aborted) {
+        throw new Error('ABORTED');
+      }
+
       iteration++;
 
       const messages: ChatMessage[] = [
@@ -85,7 +91,12 @@ export class OpenAIAgent implements AIProvider {
         ...baseMessages,
       ];
 
-      const response = await this.provider.chat(messages, { tools: builtinTools });
+      const response = await this.provider.chat(messages, { tools: builtinTools, abortSignal });
+
+      // 检查取消信号
+      if (abortSignal?.aborted) {
+        throw new Error('ABORTED');
+      }
 
       if (response.usage) {
         totalUsage.promptTokens += response.usage.promptTokens;

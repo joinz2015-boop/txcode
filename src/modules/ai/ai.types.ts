@@ -20,6 +20,7 @@ export interface ChatOptions {
   maxTokens?: number;
   model?: string;
   tools?: ToolDefinition[];
+  abortSignal?: AbortSignal;
 }
 
 export interface ToolDefinition {

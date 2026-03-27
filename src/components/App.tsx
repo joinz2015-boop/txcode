@@ -66,8 +66,8 @@ export function App() {
   // ========== 消息相关状态 ==========
   /** 聊天消息列表 */
   const [messages, setMessages] = useState<MessageItem[]>([]);
-  /** 当前状态：idle(空闲) 或 thinking(AI 思考中) */
-  const [status, setStatus] = useState<'idle' | 'thinking'>('idle');
+  /** 当前状态：idle(空闲) 或 thinking(AI 思考中) 或 stopping(正在停止) */
+  const [status, setStatus] = useState<'idle' | 'thinking' | 'stopping'>('idle');
   /** 当前会话 ID */
   const [currentSession, setCurrentSession] = useState<string | null>(null);
   /** 错误信息 */
@@ -110,6 +110,10 @@ export function App() {
   const [inputHistory, setInputHistory] = useState<string[]>([]);
   /** 当前历史记录索引 */
   const [historyIndex, setHistoryIndex] = useState(-1);
+
+  // ========== AI 停止控制 ==========
+  /** AbortController 用于停止 AI 调用 */
+  const abortControllerRef = React.useRef<AbortController | null>(null);
 
   // ========== 辅助函数 ==========
 
@@ -316,10 +320,13 @@ export function App() {
 
     setStatus('thinking');
 
+    abortControllerRef.current = new AbortController();
+
     try {
       const result = await aiService.chatWithReAct(trimmedInput, {
         sessionId: sessionId,
         memoryService,
+        abortSignal: abortControllerRef.current.signal,
         onStep: (state: ReActState, iteration: number) => {
           if (state.thought) {
             const thoughtPreview = state.thought.length > 150 
@@ -451,9 +458,14 @@ export function App() {
       }
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Unknown error';
-      setError(errorMsg);
-      addMessage('system', `错误: ${errorMsg}`);
+      if (errorMsg === 'ABORTED') {
+        addMessage('system', '已停止');
+      } else {
+        setError(errorMsg);
+        addMessage('system', `错误: ${errorMsg}`);
+      }
     } finally {
+      abortControllerRef.current = null;
       setStatus('idle');
     }
   }, [input, status, currentSession, addMessage, exit]);
@@ -592,7 +604,12 @@ export function App() {
         }
       }
     } else if (key.escape) {
-      exit();
+      if (status === 'thinking' && abortControllerRef.current) {
+        setStatus('stopping');
+        abortControllerRef.current.abort();
+      } else if (status === 'idle') {
+        exit();
+      }
     } else if (char && !key.ctrl && !key.meta) {
       const newInput = input.slice(0, cursorPosition) + char + input.slice(cursorPosition);
       setInput(newInput);
@@ -713,6 +730,14 @@ export function App() {
           <Box marginBottom={1} paddingLeft={2}>
             <Text bold color="cyan">▣ Build</Text>
             <Text dimColor> · {currentModelName}</Text>
+            <Text dimColor> · 按 ESC 停止...</Text>
+          </Box>
+        )}
+
+        {/* ========== 停止状态 ========== */}
+        {status === 'stopping' && (
+          <Box marginBottom={1} paddingLeft={2}>
+            <Text bold color="yellow">■ 正在停止...</Text>
           </Box>
         )}
       </Box>
@@ -720,9 +745,9 @@ export function App() {
       {/* ========== 输入框 ========== */}
       <Box borderStyle="single" borderColor="gray" paddingX={1} marginBottom={1}>
         <Text dimColor>{'> '}</Text>
-        <Text>{input.slice(0, cursorPosition)}</Text>
+        <Text>{status === 'stopping' ? '等待停止...' : input.slice(0, cursorPosition)}</Text>
         <Text color="cyan">▋</Text>
-        <Text>{input.slice(cursorPosition)}</Text>
+        <Text>{status === 'stopping' ? '' : input.slice(cursorPosition)}</Text>
       </Box>
 
       {/* ========== 文件选择列表 ========== */}

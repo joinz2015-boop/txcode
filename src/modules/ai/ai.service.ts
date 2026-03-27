@@ -180,11 +180,13 @@ export class AIService {
       contextService?: ContextService;
       onStep?: (step: any, iteration: number) => void;
       onCompact?: (info: { beforeTokens: number; afterTokens: number }) => void;
+      abortSignal?: AbortSignal;
     }
   ): Promise<ReActResult | ProviderRunResult> {
     const provider = this.getProvider();
     const sessionId = options?.sessionId;
     const aiMode = txConfig.ai.aiMode || 'react';
+    const externalAbort = options?.abortSignal;
 
     let historyMessages: ChatMessage[] = [];
     if (sessionId && options?.memoryService) {
@@ -253,22 +255,35 @@ export class AIService {
           }
         : undefined;
 
-      const result = await agent.run(userMessage, {
-        onStep: wrappedOnStep,
-        historyMessages,
-        sessionId,
-        memoryService,
-      });
-
-      if (sessionId && result.usage) {
-        this.sessionService.updateTokenUsage(
-          sessionId,
-          result.usage.promptTokens,
-          result.usage.completionTokens
-        );
+      const abortController = new AbortController();
+      const abortHandler = () => abortController.abort();
+      if (externalAbort) {
+        externalAbort.addEventListener('abort', abortHandler);
       }
 
-      return result;
+      try {
+        const result = await agent.run(userMessage, {
+          onStep: wrappedOnStep,
+          historyMessages,
+          sessionId,
+          memoryService,
+          abortSignal: abortController.signal,
+        });
+
+        if (sessionId && result.usage) {
+          this.sessionService.updateTokenUsage(
+            sessionId,
+            result.usage.promptTokens,
+            result.usage.completionTokens
+          );
+        }
+
+        return result;
+      } finally {
+        if (externalAbort) {
+          externalAbort.removeEventListener('abort', abortHandler);
+        }
+      }
     }
 
     const agent = new ReActAgent({
@@ -297,23 +312,36 @@ export class AIService {
         }
       : undefined;
 
-    const result = await agent.run(userMessage, {
-      onStep: wrappedOnStep,
-      historyMessages,
-    });
-
-    // ========== 步骤 5: 更新 Token 统计 ==========
-    // 每次对话完成后，更新会话的 Token 使用量统计
-    if (sessionId && result.usage) {
-      this.sessionService.updateTokenUsage(
-        sessionId,
-        result.usage.promptTokens,
-        result.usage.completionTokens
-      );
+    const abortController = new AbortController();
+    const abortHandler = () => abortController.abort();
+    if (externalAbort) {
+      externalAbort.addEventListener('abort', abortHandler);
     }
 
-    // ========== 步骤 6: 返回结果 ==========
-    return result;
+    try {
+      const result = await agent.run(userMessage, {
+        onStep: wrappedOnStep,
+        historyMessages,
+        abortSignal: abortController.signal,
+      });
+
+      // ========== 步骤 5: 更新 Token 统计 ==========
+      // 每次对话完成后，更新会话的 Token 使用量统计
+      if (sessionId && result.usage) {
+        this.sessionService.updateTokenUsage(
+          sessionId,
+          result.usage.promptTokens,
+          result.usage.completionTokens
+        );
+      }
+
+      // ========== 步骤 6: 返回结果 ==========
+      return result;
+    } finally {
+      if (externalAbort) {
+        externalAbort.removeEventListener('abort', abortHandler);
+      }
+    }
   }
 
   /**

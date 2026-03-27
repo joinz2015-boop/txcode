@@ -27,6 +27,7 @@ export interface ReActAgentConfig {
 export interface ReActRunOptions {
   onStep?: (step: ReActStep, iteration: number, usage?: { promptTokens: number; completionTokens: number; totalTokens: number }) => void;
   historyMessages?: ChatMessage[];
+  abortSignal?: AbortSignal;
 }
 
 /**
@@ -70,6 +71,7 @@ export class ReActAgent {
   ): Promise<ReActResult> {
     const steps: ReActStep[] = [];
     const baseMessages: ChatMessage[] = [];
+    const abortSignal = options?.abortSignal;
 
     // 获取可用的技能和工具，构建系统提示词
     const skills = await this.getAvailableSkills();
@@ -96,6 +98,11 @@ export class ReActAgent {
 
     // ReAct 循环：推理 -> 行动 -> 观察
     while (iteration < this.maxIterations) {
+      // 检查取消信号
+      if (abortSignal?.aborted) {
+        throw new Error('ABORTED');
+      }
+
       iteration++;
 
       const messages: ChatMessage[] = [
@@ -104,7 +111,12 @@ export class ReActAgent {
       ];
 
       // 调用 AI 模型获取响应
-      const response = await this.provider.chat(messages);
+      const response = await this.provider.chat(messages, { abortSignal });
+      
+      // 检查取消信号
+      if (abortSignal?.aborted) {
+        throw new Error('ABORTED');
+      }
       
       // 累加 token 使用量
       if (response.usage) {

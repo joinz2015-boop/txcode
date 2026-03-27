@@ -26,6 +26,7 @@ export interface ProviderRunOptions {
   historyMessages?: ChatMessage[];
   memoryService?: MemoryService;
   sessionId?: string;
+  abortSignal?: AbortSignal;
 }
 
 export interface ProviderStep {

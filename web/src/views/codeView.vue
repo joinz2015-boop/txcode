@@ -97,7 +97,13 @@
             @keydown.enter.native="fileSelectVisible ? confirmFileSelect(panel) : handleKeydown($event, panel)"
             @keydown.esc.native="fileSelectVisible ? cancelFileSelect() : null"
           />
-          <el-button type="primary" :loading="panel.disabled" @click.stop="sendToPanel(panel)" class="send-btn">
+          <el-button v-if="panel.disabled && !panel.stopping" type="danger" @click.stop="stopPanel(panel)" class="stop-btn">
+            ■ 停止
+          </el-button>
+          <el-button v-else-if="panel.stopping" type="info" disabled class="stop-btn">
+            停止中...
+          </el-button>
+          <el-button v-else type="primary" :disabled="!panel.session?.id" @click.stop="sendToPanel(panel)" class="send-btn">
             发送
           </el-button>
         </div>
@@ -376,6 +382,7 @@ handlePanelWsMessage(panel, msg) {
           break
         case 'done':
           panel.disabled = false
+          panel.stopping = false
           if (data?.response) {
             panel.logItems.push({ type: 'think', content: data.response })
           }
@@ -383,9 +390,15 @@ handlePanelWsMessage(panel, msg) {
             this.loadSessions()
           }
           break
+        case 'stopped':
+          panel.disabled = false
+          panel.stopping = false
+          panel.logItems.push({ type: 'think', content: '【已停止】' })
+          break
         case 'error':
           this.$message.error(error || '发生错误')
           panel.disabled = false
+          panel.stopping = false
           break
       }
       
@@ -424,6 +437,7 @@ handlePanelWsMessage(panel, msg) {
             modelName: '',
             input: '',
             disabled: false,
+            stopping: false,
             wsConnected: false,
           })
         }
@@ -443,6 +457,8 @@ handlePanelWsMessage(panel, msg) {
         panel.session = this.draggedSession
         panel.logItems = []
         panel.userQuestion = ''
+        panel.disabled = false
+        panel.stopping = false
         panel.wsConnected = false
         this.loadMessagesForPanel(panel, this.draggedSession.id)
         this.initPanelWs(panel)
@@ -457,6 +473,8 @@ handlePanelWsMessage(panel, msg) {
         panel.session = session
         panel.logItems = []
         panel.userQuestion = ''
+        panel.disabled = false
+        panel.stopping = false
         panel.wsConnected = false
         this.loadMessagesForPanel(panel, session.id)
         this.initPanelWs(panel)
@@ -534,6 +552,7 @@ handlePanelWsMessage(panel, msg) {
 
       panel.input = ''
       panel.disabled = true
+      panel.stopping = false
       panel.userQuestion = content
       panel.logItems.push({ type: 'chat', content: content })
 
@@ -553,6 +572,14 @@ handlePanelWsMessage(panel, msg) {
           }
         }, 500)
       }
+    },
+
+    stopPanel(panel) {
+      if (!panel.session?.id || panel.stopping) return
+      panel.stopping = true
+      api.sessionWsSend(panel.session.id, 'stop', {
+        sessionId: panel.session.id,
+      })
     },
 
     async handleSessionCommand(cmd, session) {
@@ -741,6 +768,7 @@ handlePanelWsMessage(panel, msg) {
 
 .input-area { flex: 1; }
 .send-btn { height: auto; }
+.stop-btn { height: auto; }
 
 .ws-connected { color: #22c55e; }
 .ws-disconnected { color: #ef4444; }

@@ -34,6 +34,16 @@
           </div>
         </div>
       </div>
+
+      <div class="border-t border-border">
+        <div
+          @click="$router.push('/aiLogs')"
+          class="flex items-center gap-2 px-3 py-2 cursor-pointer text-sm text-textMuted hover:text-white hover:bg-white/5 border-l-2 border-transparent"
+        >
+          <i class="fa-solid fa-robot text-textMuted text-xs"></i>
+          <span class="truncate">AI 日志</span>
+        </div>
+      </div>
     </aside>
 
     <main class="flex-1 flex flex-col min-w-0 bg-[#1e1e1e]">

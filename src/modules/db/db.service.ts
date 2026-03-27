@@ -188,6 +188,7 @@ export class DbService {
       () => this.migration002AddContextFields(),
       () => this.migration003AddLspServers(),
       () => this.migration004AddProjects(),
+      () => this.migration005AddAiCallLogs(),
     ];
 
     for (let i = 0; i < migrations.length; i++) {
@@ -436,6 +437,31 @@ export class DbService {
 
     this.db.run(`CREATE INDEX IF NOT EXISTS idx_projects_path ON projects(path)`);
     this.db.run(`CREATE INDEX IF NOT EXISTS idx_projects_active ON projects(is_active)`);
+  }
+
+  private migration005AddAiCallLogs(): void {
+    if (!this.db) return;
+
+    this.db.run(`
+      CREATE TABLE IF NOT EXISTS ai_call_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        model_address TEXT NOT NULL,
+        model_name TEXT NOT NULL,
+        request_time DATETIME DEFAULT (datetime('now', 'localtime')),
+        response_time DATETIME,
+        duration_ms INTEGER DEFAULT 0,
+        input_tokens INTEGER DEFAULT 0,
+        output_tokens INTEGER DEFAULT 0,
+        cost REAL DEFAULT 0,
+        call_type TEXT NOT NULL CHECK (call_type IN ('tool_call', 'normal')),
+        session_id TEXT,
+        created_at DATETIME DEFAULT (datetime('now', 'localtime'))
+      )
+    `);
+
+    this.db.run(`CREATE INDEX IF NOT EXISTS idx_ai_logs_request_time ON ai_call_logs(request_time)`);
+    this.db.run(`CREATE INDEX IF NOT EXISTS idx_ai_logs_session_id ON ai_call_logs(session_id)`);
+    this.db.run(`CREATE INDEX IF NOT EXISTS idx_ai_logs_call_type ON ai_call_logs(call_type)`);
   }
 
   private getTableColumns(tableName: string): string[] {

@@ -24,6 +24,15 @@ import { memoryService } from '../modules/memory/index.js';
 import { skillsManager } from '../modules/skill/index.js';
 import { logger } from '../modules/logger/logger.js';
 import { ApiResponse, ChatRequest } from './api.types.js';
+import { aiLogService } from '../modules/ai/ai-log.service.js';
+import { configService } from '../modules/config/config.service.js';
+
+function calculateCost(usage?: { promptTokens?: number; completionTokens?: number }): number {
+  if (!usage) return 0;
+  const promptCost = (usage.promptTokens || 0) * 0.00015 / 1000;
+  const completionCost = (usage.completionTokens || 0) * 0.0006 / 1000;
+  return promptCost + completionCost;
+}
 
 /**
  * 创建聊天路由 Router
@@ -92,6 +101,9 @@ chatRouter.post('/', async (req: Request, res: Response) => {
     // 设置当前会话为活跃状态，后续操作都基于此会话
     sessionService.switchTo(session.id);
 
+    // ========== 记录请求开始时间 ==========
+    const requestStartTime = Date.now();
+
     // ========== 步骤 4: 准备 ReAct 执行 ==========
     // 创建数组存储 ReAct 执行过程中的每一步
     // 用于返回给客户端，便于调试和展示思考过程
@@ -138,6 +150,27 @@ chatRouter.post('/', async (req: Request, res: Response) => {
           keepContext: step.keepContext,         // 是否保留到长期记忆
         });
       },
+    });
+
+    // ========== 记录 AI 调用日志 ==========
+    const requestEndTime = Date.now();
+    const durationMs = requestEndTime - requestStartTime;
+
+    const providerConfig = configService.getDefaultProvider();
+    const models = providerConfig ? configService.getModels(providerConfig.id) : [];
+    const defaultModel = models.find(m => m.enabled) || { name: 'gpt-4' };
+
+    aiLogService.logAiCall({
+      model_address: providerConfig?.baseUrl || '',
+      model_name: defaultModel?.name || '',
+      request_time: new Date(requestStartTime),
+      response_time: new Date(requestEndTime),
+      duration_ms: durationMs,
+      input_tokens: (result as any).usage?.promptTokens || 0,
+      output_tokens: (result as any).usage?.completionTokens || 0,
+      cost: calculateCost((result as any).usage),
+      call_type: reactSteps.length > 0 ? 'tool_call' : 'normal',
+      session_id: session.id,
     });
 
     // ========== 步骤 5: 返回响应 ==========

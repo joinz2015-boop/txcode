@@ -40,6 +40,7 @@ export class OpenAIProvider {
       maxTokens = 8192,
       model = this.defaultModel,
       tools,
+      abortSignal,
     } = options;
 
     const requestBody: Record<string, any> = {
@@ -57,7 +58,7 @@ export class OpenAIProvider {
     const url = `${this.client.baseURL}/chat/completions`;
     logger.logRequest(url, requestBody);
 
-    const response = await this.client.chat.completions.create(requestBody as any);
+    const response = await this.client.chat.completions.create(requestBody as any, { signal: abortSignal });
 
     logger.logResponse(url, response);
 

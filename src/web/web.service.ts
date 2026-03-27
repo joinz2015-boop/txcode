@@ -49,6 +49,7 @@ export class WebService {
   private server: http.Server | null = null;
   private wss: WebSocketServer | null = null;
   private wsClients: Set<WebSocket> = new Set();
+  private abortControllers: Map<string, AbortController> = new Map();
 
   /**
    * 构造函数
@@ -279,6 +280,10 @@ npm run dev
         
         ws.on('close', () => {
           this.wsClients.delete(ws);
+          for (const [sessionId, controller] of this.abortControllers.entries()) {
+            controller.abort();
+            this.abortControllers.delete(sessionId);
+          }
         });
       });
 
@@ -365,6 +370,9 @@ resolve();
       case 'chat':
         await this.handleChat(ws, data);
         break;
+      case 'stop':
+        this.handleStop(data);
+        break;
       case 'ping':
         ws.send(JSON.stringify({ type: 'pong' }));
         break;
@@ -373,8 +381,27 @@ resolve();
     }
   }
 
+  private handleStop(data: any): void {
+    const { sessionId } = data;
+    if (!sessionId) return;
+    
+    const controller = this.abortControllers.get(sessionId);
+    if (controller) {
+      controller.abort();
+      this.abortControllers.delete(sessionId);
+    }
+  }
+
   private async handleChat(ws: WebSocket, data: any): Promise<void> {
     const { message, sessionId, projectPath } = data;
+
+    const existingController = this.abortControllers.get(sessionId);
+    if (existingController) {
+      existingController.abort();
+    }
+
+    const abortController = new AbortController();
+    this.abortControllers.set(sessionId, abortController);
 
     try {
       let session = sessionId ? sessionService.get(sessionId) : null;
@@ -395,6 +422,7 @@ resolve();
         sessionId: session.id,
         projectPath: session.projectPath || undefined,
         memoryService,
+        abortSignal: abortController.signal,
         onStep: (step, iteration) => {
           const actions = (step.actions || []).map((a: { actionName: string; actionInput: any }) => ({
             actionName: a.actionName,
@@ -435,10 +463,25 @@ resolve();
         }
       }));
     } catch (error) {
-      ws.send(JSON.stringify({
-        type: 'error',
-        error: error instanceof Error ? error.message : 'Unknown error'
-      }));
+      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+      const isAbort = error instanceof Error && (
+        error.name === 'AbortError' || 
+        errorMsg === 'ABORTED' ||
+        errorMsg.toLowerCase().includes('abort')
+      );
+      if (isAbort) {
+        ws.send(JSON.stringify({
+          type: 'stopped',
+          reason: 'user_cancelled'
+        }));
+      } else {
+        ws.send(JSON.stringify({
+          type: 'error',
+          error: errorMsg
+        }));
+      }
+    } finally {
+      this.abortControllers.delete(sessionId);
     }
   }
 

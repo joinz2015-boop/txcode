@@ -357,6 +357,15 @@ export const api = {
     return request('POST', '/db/execute', { query });
   },
 
+  /**
+   * 获取AI调用日志
+   * @param {number} page - 页码
+   * @param {number} pageSize - 每页数量
+   */
+  getAiCallLogs(page = 1, pageSize = 50) {
+    return request('GET', `/ai-logs/logs?page=${page}&pageSize=${pageSize}`);
+  },
+
   // ==================== WebSocket 通信 ====================
 
   wsConnect(onMessage, onOpen, onClose, onError) {
