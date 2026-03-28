@@ -1,10 +1,10 @@
 /**
  * 终端服务模块
  * 
- * 使用 Python pty 实现跨平台终端功能
+ * 使用 Python pty (Unix) 或 PowerShell 7 (Windows) 实现跨平台终端功能
  */
 
-import { spawn, ChildProcess, StdioOptions } from 'child_process';
+import { spawn, ChildProcess } from 'child_process';
 import * as os from 'os';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -43,10 +43,8 @@ import signal
 pid, fd = pty.fork()
 
 if pid == 0:
-    # Child process - exec bash
     os.execvp('bash', ['bash'])
 else:
-    # Parent process - relay I/O
     def write_all(data):
         sys.stdout.write(data)
         sys.stdout.flush()
@@ -84,22 +82,21 @@ class TerminalService {
   private ptyProcesses: Map<string, PtyProcess> = new Map();
   private sessions: Map<string, TerminalSession> = new Map();
 
-  async checkPythonAvailable(): Promise<{ available: boolean; version: string; error?: string }> {
+  private async checkCommandAvailable(cmd: string): Promise<boolean> {
     return new Promise((resolve) => {
-      const proc = spawn('python3', ['--version'], { shell: false });
+      const proc = spawn(cmd, ['--version'], { shell: false, timeout: 3000 });
       
-      proc.on('error', (err) => {
-        resolve({ available: false, version: '', error: err.message });
-      });
-      
-      proc.on('close', (code) => {
-        if (code === 0) {
-          resolve({ available: true, version: '3.x' });
-        } else {
-          resolve({ available: false, version: '', error: 'Python not found' });
-        }
-      });
+      proc.on('error', () => resolve(false));
+      proc.on('close', (code) => resolve(code === 0));
     });
+  }
+
+  private async checkPythonAvailable(): Promise<boolean> {
+    return this.checkCommandAvailable('python3');
+  }
+
+  private async checkPowerShellAvailable(): Promise<boolean> {
+    return this.checkCommandAvailable('pwsh');
   }
 
   private createPtySession(options: TerminalOptions = {}): TerminalSession {
@@ -113,21 +110,34 @@ class TerminalService {
       id,
       title: `终端 ${id.slice(0, 8)}`,
       platform: platform === 'win32' ? 'windows' : platform === 'darwin' ? 'darwin' : 'linux',
-      shell: '/bin/bash',
+      shell: platform === 'win32' ? 'pwsh' : 'bash',
       createdAt: new Date(),
       isPty: true,
     };
 
-    const proc = spawn('python3', ['-u', '-c', PYTHON_PTY_SCRIPT], {
-      cwd,
-      env: {
-        ...process.env,
-        TERM: 'xterm-256color',
-        COLS: String(cols),
-        ROWS: String(rows),
-      },
-      stdio: ['pipe', 'pipe', 'pipe'],
-    });
+    let proc: ChildProcess;
+
+    if (session.platform === 'windows') {
+      proc = spawn('pwsh', ['-NoLogo'], {
+        cwd,
+        env: {
+          ...process.env,
+          TERM: 'xterm-256color',
+        },
+        stdio: ['pipe', 'pipe', 'pipe'],
+      });
+    } else {
+      proc = spawn('python3', ['-u', '-c', PYTHON_PTY_SCRIPT], {
+        cwd,
+        env: {
+          ...process.env,
+          TERM: 'xterm-256color',
+          COLS: String(cols),
+          ROWS: String(rows),
+        },
+        stdio: ['pipe', 'pipe', 'pipe'],
+      });
+    }
 
     proc.stdout?.on('data', (data: Buffer) => {
       const entry = this.ptyProcesses.get(id);
@@ -162,15 +172,31 @@ class TerminalService {
     });
 
     this.sessions.set(id, session);
-    console.log(`[Terminal] Created PTY session ${id}`);
+    console.log(`[Terminal] Created PTY session ${id} using ${session.shell}`);
     return session;
   }
 
   async createSession(options: TerminalOptions = {}): Promise<TerminalSession> {
-    const pythonCheck = await this.checkPythonAvailable();
-    
-    if (!pythonCheck.available) {
-      throw new Error('Python 3.6+ 未安装。请安装 Python 后重试。\nmacOS: brew install python3\nUbuntu: sudo apt install python3\nWindows: 从 python.org 下载安装');
+    const platform = os.platform();
+
+    if (platform === 'win32') {
+      const hasPowerShell = await this.checkPowerShellAvailable();
+      if (!hasPowerShell) {
+        throw new Error(
+          'PowerShell 7 未安装。Windows 终端需要 PowerShell 7 才能工作。\n' +
+          '请安装 PowerShell 7: https://aka.ms/powershell\n' +
+          '或使用 winget: winget install Microsoft.PowerShell'
+        );
+      }
+    } else {
+      const hasPython = await this.checkPythonAvailable();
+      if (!hasPython) {
+        throw new Error(
+          'Python 3 未安装。macOS/Linux 终端需要 Python 才能工作。\n' +
+          'macOS: brew install python3\n' +
+          'Ubuntu: sudo apt install python3'
+        );
+      }
     }
 
     return this.createPtySession(options);
@@ -205,8 +231,7 @@ class TerminalService {
   }
 
   resize(id: string, cols: number, rows: number): void {
-    // PTY handles resize via SIGWINCH in a full implementation
-    // For now, this is a no-op as Python pty doesn't directly support resize
+    // Full PTY would handle SIGWINCH, but for now this is handled by the shell
   }
 
   setCallbacks(id: string, onOutput: OutputCallback, onExit: ExitCallback): void {
