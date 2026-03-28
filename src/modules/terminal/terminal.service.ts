@@ -1,17 +1,10 @@
 /**
  * 终端服务模块
  * 
- * 提供跨平台终端会话管理功能：
- * - 创建/删除终端会话
- * - PTY 进程管理
- * - WebSocket 实时通信
- * 
- * 降级策略：
- * 1. 优先使用 node-pty (完整终端功能)
- * 2. 不可用时降级到 child_process.spawn (基本功能)
+ * 使用 Python pty 实现跨平台终端功能
  */
 
-import { spawn, ChildProcess } from 'child_process';
+import { spawn, ChildProcess, StdioOptions } from 'child_process';
 import * as os from 'os';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -33,79 +26,85 @@ export interface TerminalOptions {
 type OutputCallback = (data: string) => void;
 type ExitCallback = (code: number) => void;
 
-let nodePty: any = null;
-let nodePtyLoadFailed = false;
-
-export function isNodePtyAvailable(): boolean {
-  return !nodePtyLoadFailed && nodePty !== null;
-}
-
-async function loadNodePty() {
-  if (nodePtyLoadFailed) {
-    return null;
-  }
-  
-  if (nodePty) return nodePty;
-  
-  try {
-    nodePty = await import('node-pty');
-    return nodePty;
-  } catch (e) {
-    nodePtyLoadFailed = true;
-    console.warn('[Terminal] node-pty not available, falling back to basic spawn');
-    return null;
-  }
-}
-
-function getShell(): string {
-  const platform = os.platform();
-  
-  if (platform === 'win32') {
-    return process.env.COMSPEC || 'cmd.exe';
-  }
-  
-  const shell = process.env.SHELL;
-  if (shell) return shell;
-  
-  if (platform === 'darwin') {
-    return '/bin/zsh';
-  }
-  
-  return '/bin/bash';
-}
-
-function getPlatformType(): 'windows' | 'darwin' | 'linux' {
-  const platform = os.platform();
-  if (platform === 'win32') return 'windows';
-  if (platform === 'darwin') return 'darwin';
-  return 'linux';
-}
-
-interface PtyEntry {
-  pty: any;
-  session: TerminalSession;
-  onOutput: OutputCallback;
-  onExit: ExitCallback;
-}
-
-interface SpawnEntry {
+interface PtyProcess {
   proc: ChildProcess;
   session: TerminalSession;
   onOutput: OutputCallback;
   onExit: ExitCallback;
 }
 
-class TerminalService {
-  private ptySessions: Map<string, PtyEntry> = new Map();
-  private spawnSessions: Map<string, SpawnEntry> = new Map();
-  private pendingBuffers: Map<string, string[]> = new Map();
+const PYTHON_PTY_SCRIPT = `
+import pty
+import os
+import sys
+import select
+import signal
 
+pid, fd = pty.fork()
+
+if pid == 0:
+    # Child process - exec bash
+    os.execvp('bash', ['bash'])
+else:
+    # Parent process - relay I/O
+    def write_all(data):
+        sys.stdout.write(data)
+        sys.stdout.flush()
+    
+    signal.signal(signal.SIGTERM, lambda *args: sys.exit(0))
+    
+    try:
+        while True:
+            r, _, _ = select.select([0, fd], [], [], 0.1)
+            if 0 in r:
+                try:
+                    data = os.read(0, 4096)
+                    if not data:
+                        break
+                    os.write(fd, data)
+                except OSError:
+                    break
+            if fd in r:
+                try:
+                    data = os.read(fd, 4096)
+                    if data:
+                        write_all(data.decode('utf-8', errors='replace'))
+                except OSError:
+                    break
+    except KeyboardInterrupt:
+        pass
+    finally:
+        os.close(fd)
+        os.close(0)
+        os.close(1)
+        os.close(2)
+`;
+
+class TerminalService {
+  private ptyProcesses: Map<string, PtyProcess> = new Map();
   private sessions: Map<string, TerminalSession> = new Map();
 
-  async createSession(options: TerminalOptions = {}): Promise<TerminalSession> {
+  async checkPythonAvailable(): Promise<{ available: boolean; version: string; error?: string }> {
+    return new Promise((resolve) => {
+      const proc = spawn('python3', ['--version'], { shell: false });
+      
+      proc.on('error', (err) => {
+        resolve({ available: false, version: '', error: err.message });
+      });
+      
+      proc.on('close', (code) => {
+        if (code === 0) {
+          resolve({ available: true, version: '3.x' });
+        } else {
+          resolve({ available: false, version: '', error: 'Python not found' });
+        }
+      });
+    });
+  }
+
+  private createPtySession(options: TerminalOptions = {}): TerminalSession {
     const id = uuidv4();
-    const shell = getShell();
-    const platform = getPlatformType();
+    const platform = os.platform();
     const cwd = options.cwd || process.cwd();
     const cols = options.cols || 80;
     const rows = options.rows || 24;
@@ -113,123 +112,68 @@ class TerminalService {
     const session: TerminalSession = {
       id,
       title: `终端 ${id.slice(0, 8)}`,
-      platform,
-      shell,
+      platform: platform === 'win32' ? 'windows' : platform === 'darwin' ? 'darwin' : 'linux',
+      shell: '/bin/bash',
       createdAt: new Date(),
-      isPty: false,
+      isPty: true,
     };
 
-    const pty = await loadNodePty();
+    const proc = spawn('python3', ['-u', '-c', PYTHON_PTY_SCRIPT], {
+      cwd,
+      env: {
+        ...process.env,
+        TERM: 'xterm-256color',
+        COLS: String(cols),
+        ROWS: String(rows),
+      },
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
 
-    if (pty) {
-      try {
-        const ptyProcess = pty.spawn(shell, [], {
-          name: 'xterm-256color',
-          cols,
-          rows,
-          cwd,
-          env: {
-            ...process.env,
-            TERM: 'xterm-256color',
-            COLORTERM: 'truecolor',
-          } as { [key: string]: string },
-        });
-
-        this.ptySessions.set(id, {
-          pty: ptyProcess,
-          session,
-          onOutput: () => {},
-          onExit: () => {},
-        });
-
-        this.pendingBuffers.set(id, []);
-
-        ptyProcess.onData((data: string) => {
-          const entry = this.ptySessions.get(id);
-          const buffers = this.pendingBuffers.get(id);
-          if (buffers) {
-            buffers.push(data);
-          }
-          if (entry?.onOutput) {
-            entry.onOutput(data);
-          }
-        });
-
-        ptyProcess.onExit(({ exitCode }: { exitCode: number }) => {
-          const entry = this.ptySessions.get(id);
-          if (entry?.onExit) {
-            entry.onExit(exitCode);
-          }
-        });
-
-        session.isPty = true;
-      } catch (e) {
-        console.warn(`[Terminal] Failed to spawn PTY, falling back to basic spawn:`, e);
-        this.createSpawnSession(session, cwd, cols, rows);
+    proc.stdout?.on('data', (data: Buffer) => {
+      const entry = this.ptyProcesses.get(id);
+      if (entry && entry.onOutput) {
+        entry.onOutput(data.toString());
       }
-    } else {
-      this.createSpawnSession(session, cwd, cols, rows);
-    }
+    });
 
-    this.sessions.set(id, session);
-    return session;
-  }
+    proc.stderr?.on('data', (data: Buffer) => {
+      const entry = this.ptyProcesses.get(id);
+      if (entry && entry.onOutput) {
+        entry.onOutput(data.toString());
+      }
+    });
 
-  private createSpawnSession(session: TerminalSession, cwd: string, cols: number, rows: number): void {
-    const isWindows = session.platform === 'windows';
+    proc.on('close', (code) => {
+      const entry = this.ptyProcesses.get(id);
+      if (entry && entry.onExit) {
+        entry.onExit(code || 0);
+      }
+    });
 
-    let proc: ChildProcess;
-    if (isWindows) {
-      proc = spawn('cmd.exe', ['/c'], {
-        cwd,
-        env: {
-          ...process.env,
-          TERM: 'xterm-256color',
-        },
-        shell: false,
-        stdio: ['pipe', 'pipe', 'pipe'],
-      });
-    } else {
-      proc = spawn('/bin/sh', ['-c', ''], {
-        cwd,
-        env: {
-          ...process.env,
-          TERM: 'xterm-256color',
-        },
-        shell: false,
-        stdio: ['pipe', 'pipe', 'pipe'],
-      });
-    }
+    proc.on('error', (err) => {
+      console.error(`[Terminal] PTY process error for ${id}:`, err);
+    });
 
-    this.spawnSessions.set(session.id, {
+    this.ptyProcesses.set(id, {
       proc,
       session,
       onOutput: () => {},
       onExit: () => {},
     });
 
-    proc.stdout?.on('data', (data: Buffer) => {
-      const entry = this.spawnSessions.get(session.id);
-      if (entry) {
-        entry.onOutput(data.toString());
-      }
-    });
+    this.sessions.set(id, session);
+    console.log(`[Terminal] Created PTY session ${id}`);
+    return session;
+  }
 
-    proc.stderr?.on('data', (data: Buffer) => {
-      const entry = this.spawnSessions.get(session.id);
-      if (entry) {
-        entry.onOutput(data.toString());
-      }
-    });
+  async createSession(options: TerminalOptions = {}): Promise<TerminalSession> {
+    const pythonCheck = await this.checkPythonAvailable();
+    
+    if (!pythonCheck.available) {
+      throw new Error('Python 3.6+ 未安装。请安装 Python 后重试。\nmacOS: brew install python3\nUbuntu: sudo apt install python3\nWindows: 从 python.org 下载安装');
+    }
 
-    proc.on('exit', (code: number | null) => {
-      const entry = this.spawnSessions.get(session.id);
-      if (entry) {
-        entry.onExit(code || 0);
-      }
-    });
-
-    console.log(`[Terminal] Created basic spawn session ${session.id}`);
+    return this.createPtySession(options);
   }
 
   getSession(id: string): TerminalSession | null {
@@ -241,97 +185,44 @@ class TerminalService {
   }
 
   deleteSession(id: string): void {
-    const ptyEntry = this.ptySessions.get(id);
-    if (ptyEntry) {
+    const entry = this.ptyProcesses.get(id);
+    if (entry) {
       try {
-        ptyEntry.pty.kill();
+        entry.proc.kill('SIGTERM');
       } catch (e) {
         console.error(`Failed to kill PTY for session ${id}:`, e);
       }
-      this.ptySessions.delete(id);
+      this.ptyProcesses.delete(id);
     }
-
-    const spawnEntry = this.spawnSessions.get(id);
-    if (spawnEntry) {
-      try {
-        spawnEntry.proc.kill();
-      } catch (e) {
-        console.error(`Failed to kill spawn for session ${id}:`, e);
-      }
-      this.spawnSessions.delete(id);
-    }
-
     this.sessions.delete(id);
   }
 
   write(id: string, data: string): void {
-    const ptyEntry = this.ptySessions.get(id);
-    if (ptyEntry) {
-      ptyEntry.pty.write(data);
-      return;
-    }
-
-    const spawnEntry = this.spawnSessions.get(id);
-    if (spawnEntry) {
-      if (data === '\x03') {
-        spawnEntry.proc.kill('SIGINT');
-      } else if (data === '\x04') {
-        spawnEntry.proc.stdin?.end();
-      } else {
-        if (spawnEntry.session.platform === 'windows') {
-          const normalized = data.replace(/\n/g, '\r\n');
-          spawnEntry.proc.stdin?.write(normalized);
-        } else {
-          spawnEntry.proc.stdin?.write(data);
-        }
-      }
+    const entry = this.ptyProcesses.get(id);
+    if (entry) {
+      entry.proc.stdin?.write(data);
     }
   }
 
   resize(id: string, cols: number, rows: number): void {
-    const ptyEntry = this.ptySessions.get(id);
-    if (ptyEntry) {
-      try {
-        ptyEntry.pty.resize(cols, rows);
-      } catch (e) {
-        console.error(`Failed to resize PTY for session ${id}:`, e);
-      }
-    }
+    // PTY handles resize via SIGWINCH in a full implementation
+    // For now, this is a no-op as Python pty doesn't directly support resize
   }
 
-  setCallbacks(id: string, onOutput: OutputCallback, onExit: ExitCallback): string[] | null {
-    const ptyEntry = this.ptySessions.get(id);
-    if (ptyEntry) {
-      ptyEntry.onOutput = onOutput;
-      ptyEntry.onExit = onExit;
-
-      const buffers = this.pendingBuffers.get(id) || [];
-      this.pendingBuffers.delete(id);
-      return buffers;
+  setCallbacks(id: string, onOutput: OutputCallback, onExit: ExitCallback): void {
+    const entry = this.ptyProcesses.get(id);
+    if (entry) {
+      entry.onOutput = onOutput;
+      entry.onExit = onExit;
     }
-
-    const spawnEntry = this.spawnSessions.get(id);
-    if (spawnEntry) {
-      spawnEntry.onOutput = onOutput;
-      spawnEntry.onExit = onExit;
-
-      spawnEntry.proc.stdout?.on('data', (data: Buffer) => {
-        onOutput(data.toString());
-      });
-
-      spawnEntry.proc.stderr?.on('data', (data: Buffer) => {
-        onOutput(data.toString());
-      });
-
-      spawnEntry.proc.on('exit', (code: number | null) => {
-        onExit(code || 0);
-      });
-    }
-    return null;
   }
 
   isSessionAlive(id: string): boolean {
-    return this.sessions.has(id);
+    const entry = this.ptyProcesses.get(id);
+    if (entry) {
+      return entry.proc.exitCode === null;
+    }
+    return false;
   }
 
   getPlatform(id: string): string {
@@ -340,8 +231,7 @@ class TerminalService {
   }
 
   isPtyMode(id: string): boolean {
-    const ptyEntry = this.ptySessions.get(id);
-    return !!ptyEntry;
+    return this.ptyProcesses.has(id);
   }
 }
 

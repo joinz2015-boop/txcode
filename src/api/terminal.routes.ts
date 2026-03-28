@@ -11,7 +11,7 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { terminalService, isNodePtyAvailable } from '../modules/terminal/terminal.service.js';
+import { terminalService } from '../modules/terminal/terminal.service.js';
 
 export const terminalRouter = Router();
 
@@ -23,10 +23,8 @@ terminalRouter.get('/status', (req: Request, res: Response) => {
   res.json({ 
     success: true, 
     data: { 
-      ptyAvailable: isNodePtyAvailable(),
-      message: isNodePtyAvailable() 
-        ? 'node-pty loaded successfully' 
-        : 'node-pty not available, using basic shell spawn'
+      ptyAvailable: false,
+      message: 'Using basic shell spawn'
     } 
   });
 });

@@ -523,7 +523,7 @@ resolve();
     const platform = terminalService.getPlatform(sessionId);
     ws.send(JSON.stringify({ type: 'platform', data: { platform } }));
 
-    const bufferedData = terminalService.setCallbacks(
+    terminalService.setCallbacks(
       sessionId,
       (data: string) => {
         if (ws.readyState === WebSocket.OPEN) {
@@ -536,14 +536,6 @@ resolve();
         }
       }
     );
-
-    if (bufferedData && bufferedData.length > 0) {
-      for (const data of bufferedData) {
-        if (ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify({ type: 'output', data }));
-        }
-      }
-    }
 
     ws.on('message', (data: Buffer) => {
       try {
