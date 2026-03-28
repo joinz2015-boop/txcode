@@ -27,6 +27,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "node-pty": "^1.0.0",
     "cors": "^2.8.6",
     "dingtalk-stream-sdk-nodejs": "^2.0.4",
     "express": "^5.2.1",
@@ -41,9 +42,7 @@
     "xml2js": "^0.6.2",
     "yaml": "^2.8.3"
   },
-  "optionalDependencies": {
-    "node-pty": "^1.1.0"
-  },
+  "optionalDependencies": {},
   "devDependencies": {
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
