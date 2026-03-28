@@ -221,6 +221,70 @@ filesRouter.post('/edit', (req: Request, res: Response) => {
 });
 
 /**
+ * POST /api/files/mkdir
+ * 创建目录
+ */
+filesRouter.post('/mkdir', (req: Request, res: Response) => {
+  const { path: dirPath } = req.body;
+  
+  if (!dirPath) {
+    res.status(400).json({ success: false, error: 'Path is required' });
+    return;
+  }
+  
+  try {
+    const normalizedPath = path.normalize(dirPath);
+    
+    if (fs.existsSync(normalizedPath)) {
+      res.status(400).json({ success: false, error: 'Directory already exists' });
+      return;
+    }
+    
+    fs.mkdirSync(normalizedPath, { recursive: true });
+    res.json({ success: true, message: 'Directory created successfully' });
+  } catch (error) {
+    logError('Failed to create directory:', error);
+    res.status(500).json({ success: false, error: 'Failed to create directory' });
+  }
+});
+
+/**
+ * POST /api/files/rename
+ * 重命名文件或目录
+ */
+filesRouter.post('/rename', (req: Request, res: Response) => {
+  const { path: oldPath, newName } = req.body;
+  
+  if (!oldPath || !newName) {
+    res.status(400).json({ success: false, error: 'Path and newName are required' });
+    return;
+  }
+  
+  try {
+    const normalizedOldPath = path.normalize(oldPath);
+    
+    if (!fs.existsSync(normalizedOldPath)) {
+      res.status(404).json({ success: false, error: 'Path not found' });
+      return;
+    }
+    
+    const parentDir = path.dirname(normalizedOldPath);
+    const newPath = path.join(parentDir, newName);
+    
+    if (fs.existsSync(newPath)) {
+      res.status(400).json({ success: false, error: 'Target name already exists' });
+      return;
+    }
+    
+    fs.renameSync(normalizedOldPath, newPath);
+    res.json({ success: true, message: 'Renamed successfully', newPath });
+  } catch (error) {
+    logError('Failed to rename:', error);
+    res.status(500).json({ success: false, error: 'Failed to rename' });
+  }
+});
+
+/**
  * POST /api/files/delete
  * 删除文件
  */

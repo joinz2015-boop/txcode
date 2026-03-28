@@ -81,8 +81,6 @@ filesystemRouter.get('/browse', (req: Request, res: Response) => {
       const entries = fs.readdirSync(dirPath);
       
       for (const entry of entries.sort()) {
-        if (entry.startsWith('.')) continue;
-        
         const entryPath = path.join(dirPath, entry);
         try {
           const entryStat = fs.statSync(entryPath);

@@ -284,7 +284,7 @@ export const api = {
    * @param {string} content - 文件内容
    */
   writeFile(path, content) {
-    return request('POST', `/files/write?path=${encodeURIComponent(path)}`, content);
+    return request('POST', '/files/write', { path, content });
   },
 
   /**
@@ -302,7 +302,24 @@ export const api = {
    * @param {string} path - 文件路径
    */
   deleteFile(path) {
-    return request('POST', `/files/delete?path=${encodeURIComponent(path)}`);
+    return request('POST', '/files/delete', { path });
+  },
+
+  /**
+   * 创建目录
+   * @param {string} path - 目录路径
+   */
+  createDirectory(path) {
+    return request('POST', '/files/mkdir', { path });
+  },
+
+  /**
+   * 重命名文件或目录
+   * @param {string} path - 原路径
+   * @param {string} newName - 新名称
+   */
+  renameFile(path, newName) {
+    return request('POST', '/files/rename', { path, newName });
   },
 
   /**
