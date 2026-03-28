@@ -10,14 +10,14 @@
 
       <div class="file-select-path">{{ currentPath || '/' }}</div>
       <div class="file-tree-container">
-        <file-tree-node
+        <file-select-tree-node
           v-for="node in fileTreeData"
           :key="node.path"
           :node="node"
           :level="0"
           :selected-path="selectedPath"
           @select="handleSelect"
-          @open-file="handleOpen"
+          @confirm="handleConfirm"
           @load-children="handleLoadChildren"
         />
         <div v-if="loading" class="empty-files">
@@ -27,18 +27,18 @@
           此目录为空
         </div>
       </div>
-      <div class="file-select-hint">单击展开文件夹 | 双击选择文件或文件夹</div>
+      <div class="file-select-hint">单击文件夹展开 | 单击选中 | 双击选中并关闭</div>
     </div>
   </el-dialog>
 </template>
 
 <script>
-import FileTreeNode from './FileTreeNode.vue'
+import FileSelectTreeNode from './FileSelectTreeNode.vue'
 import { api } from '../api'
 
 export default {
   name: 'FileSelectDialog',
-  components: { FileTreeNode },
+  components: { FileSelectTreeNode },
   props: {
     visible: {
       type: Boolean,
@@ -96,11 +96,9 @@ export default {
     handleSelect(node) {
       this.selectedPath = node.path
     },
-    handleOpen(node) {
-      if (!node.is_directory) {
-        this.$emit('select', node.path)
-        this.visible = false
-      }
+    handleConfirm(node) {
+      this.$emit('select', node.path)
+      this.visible = false
     },
     async handleLoadChildren({ path, callback }) {
       try {

@@ -35,6 +35,7 @@ import { sessionService } from '../modules/session/index.js';
 import { memoryService } from '../modules/memory/index.js';
 import { configService } from '../modules/config/config.service.js';
 import { logger } from '../modules/logger/logger.js';
+import { terminalService } from '../modules/terminal/index.js';
 
 /**
  * WebService 类
@@ -267,7 +268,15 @@ npm run dev
       
       this.wss = new WebSocketServer({ server: this.server });
       
-      this.wss.on('connection', (ws: WebSocket) => {
+      this.wss.on('connection', (ws: WebSocket, req: http.IncomingMessage) => {
+        const url = req.url || '';
+        
+        if (url.startsWith('/ws/terminal/')) {
+          const sessionId = url.replace('/ws/terminal/', '');
+          this.handleTerminalWs(ws, sessionId);
+          return;
+        }
+        
         this.wsClients.add(ws);
         ws.send(JSON.stringify({ type: 'connected', message: 'WebSocket connected' }));
         
@@ -501,6 +510,69 @@ resolve();
       if (client.readyState === WebSocket.OPEN) {
         client.send(data);
       }
+    });
+  }
+
+  private handleTerminalWs(ws: WebSocket, sessionId: string): void {
+    if (!terminalService.isSessionAlive(sessionId)) {
+      ws.send(JSON.stringify({ type: 'error', message: 'Terminal session not found' }));
+      ws.close();
+      return;
+    }
+
+    const platform = terminalService.getPlatform(sessionId);
+    ws.send(JSON.stringify({ type: 'platform', data: { platform } }));
+
+    const bufferedData = terminalService.setCallbacks(
+      sessionId,
+      (data: string) => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: 'output', data }));
+        }
+      },
+      (code: number) => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: 'exit', code }));
+        }
+      }
+    );
+
+    if (bufferedData && bufferedData.length > 0) {
+      for (const data of bufferedData) {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: 'output', data }));
+        }
+      }
+    }
+
+    ws.on('message', (data: Buffer) => {
+      try {
+        const msg = JSON.parse(data.toString());
+        const { type, data: msgData } = msg;
+
+        switch (type) {
+          case 'input':
+            terminalService.write(sessionId, msgData);
+            break;
+          case 'resize':
+            terminalService.resize(sessionId, msgData.cols, msgData.rows);
+            break;
+          case 'close':
+            terminalService.deleteSession(sessionId);
+            ws.close();
+            break;
+        }
+      } catch (e) {
+        ws.send(JSON.stringify({ type: 'error', message: 'Invalid message format' }));
+      }
+    });
+
+    ws.on('close', () => {
+      console.log(`Terminal WebSocket [${sessionId}] closed`);
+    });
+
+    ws.on('error', (err) => {
+      console.error(`Terminal WebSocket [${sessionId}] error:`, err);
     });
   }
 

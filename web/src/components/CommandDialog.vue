@@ -11,6 +11,8 @@
         v-for="cmd in commands"
         :key="cmd.name"
         class="command-item"
+        :class="{ selected: selectedCommand === cmd.name }"
+        @click="selectedCommand = cmd.name"
         @dblclick="handleExecute(cmd)"
         :title="'双击执行: ' + cmd.name"
       >
@@ -36,6 +38,7 @@ export default {
   data() {
     return {
       loading: false,
+      selectedCommand: '',
       commands: [
         { name: '/help', description: '显示帮助信息' },
         { name: '/new [title]', description: '创建新会话' },
@@ -57,8 +60,18 @@ export default {
   },
   methods: {
     handleExecute(cmd) {
-      this.$emit('execute', cmd.name)
-      this.visible = false
+      if (cmd.name === '/compact') {
+        this.$prompt('压缩当前会话上下文，移除对话历史中的冗余部分', '压缩会话', {
+          confirmButtonText: '确定',
+          cancelButtonText: '取消'
+        }).then(() => {
+          this.$emit('execute', cmd.name)
+          this.$emit('update:visible', false)
+        }).catch(() => {})
+      } else {
+        this.$emit('execute', cmd.name)
+        this.$emit('update:visible', false)
+      }
     },
     handleClose() {
       this.$emit('close')
@@ -84,6 +97,10 @@ export default {
 
 .command-item:hover {
   background: #27272a;
+}
+
+.command-item.selected {
+  background: #3b3f46;
 }
 
 .command-item:active {
