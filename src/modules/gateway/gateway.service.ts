@@ -167,7 +167,7 @@ export class GatewayService {
 
   private async handleMessage(message: DingtalkMessage): Promise<void> {
     console.log('[Gateway] handleMessage called', { message });
-    const userId = message.senderId || message.senderStaffId || 'unknown';
+    const userId = message.senderStaffId || message.senderId || 'unknown';
     const userName = message.senderNick || 'Unknown User';
     const content = message.text?.content?.trim() || '';
     const webhook = message.sessionWebhook || '';
@@ -185,7 +185,9 @@ export class GatewayService {
     }
 
     if (content === '/new') {
-      this.createNewSession(userId, userName, webhook);
+      this.userSessions.delete(userId);
+      const sessionId = this.createNewSession(userId, userName, webhook);
+      this.sendToDingTalk(webhook, '已创建新会话，请开始提问。');
       return;
     }
 
@@ -209,9 +211,20 @@ export class GatewayService {
   }
 
   private async processMessage(msg: QueuedMessage): Promise<void> {
-    const sessionId = this.getOrCreateSession(msg.userId, msg.userName);
+    let sessionId = msg.sessionId;
+    if (!sessionId) {
+      sessionId = this.getOrCreateSession(msg.userId, msg.userName);
+    } else {
+      const existing = this.userSessions.get(msg.userId);
+      if (existing && existing !== sessionId) {
+        console.log('[Gateway] Warning: session mismatch, using existing');
+        sessionId = existing;
+      }
+    }
     msg.sessionId = sessionId;
     this.userSessions.set(msg.userId, sessionId);
+
+    console.log('[Gateway] Using session:', sessionId, 'for user:', msg.userId);
 
     gatewayQueue.setProcessing({
       userId: msg.userId,
@@ -227,6 +240,7 @@ export class GatewayService {
       const result = await aiService.chatWithTools(msg.content, {
         sessionId,
         projectPath: process.cwd(),
+        memoryService,
         onStep: (step: any) => {
           if (step.actions && step.actions.length > 0) {
             for (const action of step.actions) {
@@ -269,12 +283,15 @@ export class GatewayService {
   private getOrCreateSession(userId: string, userName?: string): string {
     const existing = this.userSessions.get(userId);
     if (existing) {
+      console.log('[Gateway] Reusing existing session:', existing, 'for user:', userId);
       return existing;
     }
+    console.log('[Gateway] Creating NEW session for user:', userId);
     return this.createNewSession(userId, userName, '');
   }
 
   private createNewSession(userId: string, userName?: string, webhook?: string): string {
+    console.log('[Gateway] createNewSession called for user:', userId, 'webhook:', webhook ? 'yes' : 'no');
     const session = sessionService.create(`DingTalk - ${userName || userId}`);
     this.userSessions.set(userId, session.id);
     

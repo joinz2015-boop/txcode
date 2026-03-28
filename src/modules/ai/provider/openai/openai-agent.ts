@@ -72,7 +72,7 @@ export class OpenAIAgent implements AIProvider {
     }
 
     baseMessages.push({ role: 'user', content: userMessage });
-    this.addMessage('user', userMessage, true, true, undefined, undefined, options?.sessionId);
+    this.addMessage('user', userMessage, true, true, undefined, undefined, this.sessionId);
 
     let iteration = 0;
     let finalAnswer = '';
@@ -111,6 +111,7 @@ export class OpenAIAgent implements AIProvider {
 
       if (response.finishReason === 'stop' && response.content) {
         finalAnswer = response.content;
+        this.addMessage('assistant', finalAnswer, true, false, undefined, undefined, options?.sessionId);
         break;
       }
 
