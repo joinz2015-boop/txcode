@@ -82,42 +82,73 @@ class TerminalService {
   private ptyProcesses: Map<string, PtyProcess> = new Map();
   private sessions: Map<string, TerminalSession> = new Map();
 
-  private async checkCommandAvailable(cmd: string): Promise<boolean> {
+  private async checkCommandAvailable(cmd: string, args: string[] = ['--version']): Promise<boolean> {
     return new Promise((resolve) => {
-      const proc = spawn(cmd, ['--version'], { shell: false, timeout: 3000 });
+      const proc = spawn(cmd, args, { shell: false, timeout: 3000 });
       
       proc.on('error', () => resolve(false));
       proc.on('close', (code) => resolve(code === 0));
     });
   }
 
-  private async checkPythonAvailable(): Promise<boolean> {
-    return this.checkCommandAvailable('python3');
+  private async checkGitAvailable(): Promise<boolean> {
+    if (os.platform() !== 'win32') {
+      return false;
+    }
+    
+    // Check if bash is available (Git Bash adds it to PATH)
+    if (await this.checkCommandAvailable('bash', ['--version'])) {
+      return true;
+    }
+    
+    // Check common Git Bash installation paths
+    const fs = await import('fs');
+    const commonPaths = [
+      'C:\\Program Files\\Git\\bin\\bash.exe',
+      'C:\\Program Files (x86)\\Git\\bin\\bash.exe',
+    ];
+    
+    for (const path of commonPaths) {
+      try {
+        if (fs.existsSync(path)) {
+          return true;
+        }
+      } catch {}
+    }
+    
+    return false;
   }
 
   private async checkPowerShellAvailable(): Promise<boolean> {
     return this.checkCommandAvailable('pwsh');
   }
 
-  private createPtySession(options: TerminalOptions = {}): TerminalSession {
+  private createPtySession(options: TerminalOptions = {}, shellType: 'gitbash' | 'powershell' | 'python' = 'python'): TerminalSession {
     const id = uuidv4();
     const platform = os.platform();
     const cwd = options.cwd || process.cwd();
-    const cols = options.cols || 80;
-    const rows = options.rows || 24;
 
     const session: TerminalSession = {
       id,
       title: `终端 ${id.slice(0, 8)}`,
       platform: platform === 'win32' ? 'windows' : platform === 'darwin' ? 'darwin' : 'linux',
-      shell: platform === 'win32' ? 'pwsh' : 'bash',
+      shell: shellType === 'gitbash' ? 'bash' : shellType === 'powershell' ? 'pwsh' : 'bash',
       createdAt: new Date(),
       isPty: true,
     };
 
     let proc: ChildProcess;
 
-    if (session.platform === 'windows') {
+    if (shellType === 'gitbash') {
+      proc = spawn('bash', [], {
+        cwd,
+        env: {
+          ...process.env,
+          TERM: 'xterm-256color',
+        },
+        stdio: ['pipe', 'pipe', 'pipe'],
+      });
+    } else if (shellType === 'powershell') {
       proc = spawn('pwsh', ['-NoLogo'], {
         cwd,
         env: {
@@ -132,8 +163,6 @@ class TerminalService {
         env: {
           ...process.env,
           TERM: 'xterm-256color',
-          COLS: String(cols),
-          ROWS: String(rows),
         },
         stdio: ['pipe', 'pipe', 'pipe'],
       });
@@ -180,16 +209,25 @@ class TerminalService {
     const platform = os.platform();
 
     if (platform === 'win32') {
-      const hasPowerShell = await this.checkPowerShellAvailable();
-      if (!hasPowerShell) {
-        throw new Error(
-          'PowerShell 7 未安装。Windows 终端需要 PowerShell 7 才能工作。\n' +
-          '请安装 PowerShell 7: https://aka.ms/powershell\n' +
-          '或使用 winget: winget install Microsoft.PowerShell'
-        );
+      // Windows: 先检查 Git Bash，再检查 PowerShell 7
+      const hasGit = await this.checkGitAvailable();
+      if (hasGit) {
+        return this.createPtySession(options, 'gitbash');
       }
+      
+      const hasPowerShell = await this.checkPowerShellAvailable();
+      if (hasPowerShell) {
+        return this.createPtySession(options, 'powershell');
+      }
+      
+      throw new Error(
+        'Windows 终端需要 Git Bash 或 PowerShell 7。\n' +
+        '请安装 Git: https://git-scm.com/download/win\n' +
+        '或安装 PowerShell 7: https://aka.ms/powershell'
+      );
     } else {
-      const hasPython = await this.checkPythonAvailable();
+      // macOS/Linux: 使用 Python pty
+      const hasPython = await this.checkCommandAvailable('python3');
       if (!hasPython) {
         throw new Error(
           'Python 3 未安装。macOS/Linux 终端需要 Python 才能工作。\n' +
@@ -197,9 +235,8 @@ class TerminalService {
           'Ubuntu: sudo apt install python3'
         );
       }
+      return this.createPtySession(options, 'python');
     }
-
-    return this.createPtySession(options);
   }
 
   getSession(id: string): TerminalSession | null {
