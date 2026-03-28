@@ -168,6 +168,49 @@ export class ConfigService {
     );
   }
 
+  getModelProvider(modelName: string): Provider | undefined {
+    const row = this.db.get<any>(
+      `SELECT p.* FROM providers p 
+       INNER JOIN models m ON m.provider_id = p.id 
+       WHERE m.name = ? LIMIT 1`,
+      [modelName]
+    );
+    return row ? this.rowToProvider(row) : undefined;
+  }
+
+  getDefaultModel(): string {
+    const existing = this.get<string>('defaultModel');
+    if (existing) {
+      return existing;
+    }
+
+    const models = this.getAllModels();
+    if (models.length === 0) {
+      throw new Error('无可用模型，请先配置模型');
+    }
+
+    const randomModel = models[Math.floor(Math.random() * models.length)];
+    this.set('defaultModel', randomModel.name);
+    return randomModel.name;
+  }
+
+  initDefaultModel(): void {
+    const existing = this.get<string>('defaultModel');
+    if (existing) {
+      return;
+    }
+
+    const models = this.getAllModels();
+    if (models.length === 0) {
+      console.warn('[ConfigService] No models available, skipping default model initialization');
+      return;
+    }
+
+    const randomModel = models[Math.floor(Math.random() * models.length)];
+    this.set('defaultModel', randomModel.name);
+    console.log(`[ConfigService] Default model initialized: ${randomModel.name}`);
+  }
+
   private rowToProvider(row: any): Provider {
     return {
       id: row.id,

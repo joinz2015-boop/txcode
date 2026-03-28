@@ -4,11 +4,18 @@ export class DingtalkStreamAdapter implements DingtalkAdapter {
   private client: any = null;
   private handler: MessageHandler | null = null;
   private running: boolean = false;
+  private reconnectAttempts: number = 0;
+  private maxReconnectAttempts: number = 10;
+  private reconnectInterval: number = 5000;
+  private reconnectTimer: NodeJS.Timeout | null = null;
+  private config: DingtalkAdapterConfig | null = null;
 
   async start(config: DingtalkAdapterConfig): Promise<void> {
     if (this.running) {
       return;
     }
+
+    this.config = config;
 
     try {
       const { DWClient, TOPIC_ROBOT, EventAck } = await import('dingtalk-stream-sdk-nodejs');
@@ -16,6 +23,7 @@ export class DingtalkStreamAdapter implements DingtalkAdapter {
       this.client = new DWClient({
         clientId: config.clientId,
         clientSecret: config.clientSecret,
+        keepAlive: true,
       });
       this.client.debug = true;
 
@@ -62,6 +70,20 @@ export class DingtalkStreamAdapter implements DingtalkAdapter {
         return { status: EventAck.SUCCESS };
       });
 
+      this.client.on('connect', () => {
+        console.log('[DingTalk] WebSocket 已连接');
+        this.reconnectAttempts = 0;
+      });
+
+      this.client.on('disconnect', (err: any) => {
+        console.log('[DingTalk] WebSocket 连接断开:', err?.message || err);
+        this.scheduleReconnect();
+      });
+
+      this.client.on('error', (err: any) => {
+        console.error('[DingTalk] WebSocket 错误:', err?.message || err);
+      });
+
       this.client.connect();
       this.running = true;
     } catch (error) {
@@ -72,6 +94,7 @@ export class DingtalkStreamAdapter implements DingtalkAdapter {
   }
 
   async stop(): Promise<void> {
+    this.cancelReconnect();
     if (this.client && this.running) {
       try {
         this.client.disconnect();
@@ -80,6 +103,44 @@ export class DingtalkStreamAdapter implements DingtalkAdapter {
       }
       this.client = null;
       this.running = false;
+    }
+  }
+
+  private scheduleReconnect(): void {
+    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+      console.error(`[DingTalk] 已达到最大重连次数 (${this.maxReconnectAttempts})，停止重连`);
+      return;
+    }
+
+    if (!this.running || !this.config) {
+      console.log('[DingTalk] 已停止运行，取消重连');
+      return;
+    }
+
+    this.reconnectAttempts++;
+    const delay = Math.min(this.reconnectInterval * this.reconnectAttempts, 30000);
+    
+    console.log(`[DingTalk] ${delay/1000}秒后进行第 ${this.reconnectAttempts} 次重连...`);
+    
+    this.reconnectTimer = setTimeout(async () => {
+      if (!this.running || !this.config) return;
+      
+      try {
+        console.log(`[DingTalk] 执行第 ${this.reconnectAttempts} 次重连...`);
+        this.client = null;
+        await this.start(this.config);
+        console.log('[DingTalk] 重连成功');
+      } catch (error) {
+        console.error(`[DingTalk] 重连失败:`, error);
+        this.scheduleReconnect();
+      }
+    }, delay);
+  }
+
+  private cancelReconnect(): void {
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
     }
   }
 

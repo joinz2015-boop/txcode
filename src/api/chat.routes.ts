@@ -26,6 +26,8 @@ import { logger } from '../modules/logger/logger.js';
 import { ApiResponse, ChatRequest } from './api.types.js';
 import { aiLogService } from '../modules/ai/ai-log.service.js';
 import { configService } from '../modules/config/config.service.js';
+import { reactParser } from '../modules/ai/react/react.parser.js';
+import txConfig from '../config/tx.config.js';
 
 function calculateCost(usage?: { promptTokens?: number; completionTokens?: number }): number {
   if (!usage) return 0;
@@ -74,7 +76,7 @@ export const chatRouter = Router();
 chatRouter.post('/', async (req: Request, res: Response) => {
   // ========== 步骤 1: 接收请求参数 ==========
   // 从请求体中解构聊天请求参数
-  const { message, sessionId, projectPath, skill } = req.body as ChatRequest;
+  const { message, sessionId, projectPath, skill, modelName } = req.body as ChatRequest;
 
   // 记录请求日志
   logger.logRequest('/api/chat', { message, sessionId, projectPath });
@@ -132,6 +134,7 @@ chatRouter.post('/', async (req: Request, res: Response) => {
       sessionId: session.id,
       projectPath: session.projectPath || undefined,
       memoryService,
+      modelName,
       // onStep 回调：在 ReAct 循环的每一步执行后调用
       // 收集 Thought、Action、ActionInput、Observation 等信息
       onStep: (step, iteration) => {
@@ -293,49 +296,81 @@ chatRouter.post('/stream', async (req: Request, res: Response) => {
  *   - success: 请求是否成功
  *   - data: Message[] - 消息数组，包含所有历史消息
  */
-import { reactParser } from '../modules/ai/react/react.parser.js';
 
 chatRouter.get('/history/:sessionId', async (req: Request, res: Response) => {
   const sessionId = String(req.params.sessionId);
 
   try {
     const messages = memoryService.getAllMessages(sessionId);
+    const aiMode = txConfig.ai.aiMode;
     
     const result: any[] = [];
-    let foundUser = false;
 
-    for (const msg of messages) {
-      if (msg.role === 'user' && (msg as any).isOriginal) {
-        if (!foundUser) {
-          result.push({ type: 'chat', content: msg.content });
-          foundUser = true;
+    if (aiMode === 'provider') {
+      for (const msg of messages) {
+        if (msg.role === 'user' && (msg as any).isOriginal) {
+          result.push({ type: 'chat', role: 'user', content: msg.content });
         }
-        continue;
-      }
-
-      if (msg.role === 'assistant') {
-        const parsed = await reactParser.parse(msg.content);
         
-        if (parsed.steps.length === 0) {
-          result.push({
-            type: 'step',
-            thought: msg.content,
-            action: '',
-            input: '',
-            success: true
+        if (msg.role === 'assistant') {
+          let thought = '';
+          let actions: any[] = [];
+          
+          try {
+            const parsed = JSON.parse(msg.content);
+            if (parsed.type === 'assistant_with_tools' && parsed.toolCalls) {
+              actions = parsed.toolCalls.map((tc: any) => ({
+                actionName: tc.function.name,
+                input: typeof tc.function.arguments === 'string' 
+                  ? JSON.parse(tc.function.arguments) 
+                  : tc.function.arguments,
+              }));
+            }
+          } catch {
+            thought = msg.content;
+          }
+          
+          result.push({ 
+            type: 'step', 
+            role: 'assistant',
+            thought,
+            actions,
+            success: true 
           });
-        } else {
-          for (const step of parsed.steps) {
-            const actions = (step.actions || []).map((a: { actionName: string; actionInput: any }) => ({
-              actionName: a.actionName,
-              actionInput: a.actionInput ? (typeof a.actionInput === 'string' ? a.actionInput : JSON.stringify(a.actionInput)) : '',
-            }));
-            result.push({ 
-              type: 'step', 
-              thought: step.thought || '',
-              actions,
-              success: true 
+        }
+      }
+    } else {
+      for (const msg of messages) {
+        if (msg.role === 'user' && (msg as any).isOriginal) {
+          result.push({ type: 'chat', role: 'user', content: msg.content });
+          continue;
+        }
+
+        if (msg.role === 'assistant') {
+          const parsed = await reactParser.parse(msg.content);
+          
+          if (parsed.steps.length === 0) {
+            result.push({
+              type: 'step',
+              role: 'assistant',
+              thought: msg.content,
+              actions: [],
+              success: true
             });
+          } else {
+            for (const step of parsed.steps) {
+              const actions = (step.actions || []).map((a: { actionName: string; actionInput: any }) => ({
+                actionName: a.actionName,
+                input: a.actionInput ? (typeof a.actionInput === 'string' ? a.actionInput : JSON.stringify(a.actionInput)) : '',
+              }));
+              result.push({ 
+                type: 'step', 
+                role: 'assistant',
+                thought: step.thought || '',
+                actions,
+                success: true 
+              });
+            }
           }
         }
       }

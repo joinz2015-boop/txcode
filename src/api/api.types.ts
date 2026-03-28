@@ -46,6 +46,7 @@ export interface ChatRequest {
   projectPath?: string;
   skill?: string;
   stream?: boolean;
+  modelName?: string;
 }
 
 /**

@@ -112,7 +112,9 @@
             {{ panel.disabled && !panel.stopping ? panel.dotAnimation + ' 思考中' : '✓ 就绪' }}
           </span>
           <span class="separator">|</span>
-          <span>模型：{{ panel.modelName || '-' }}</span>
+          <span class="model-selector" @click.stop="openModelSelector(panel)">
+            模型：{{ panel.modelName || '-' }} ▾
+          </span>
           <span class="separator">|</span>
           <span>会话：{{ panel.session?.id ? panel.session.id.slice(0, 8) : '--------' }}</span>
           <span class="separator">|</span>
@@ -159,6 +161,27 @@
         <div class="file-select-hint">↑↓ 选择 | Enter 确认 | ESC 取消</div>
       </div>
     </el-dialog>
+
+    <el-dialog
+      :visible.sync="modelSelectVisible"
+      title="选择模型"
+      width="400px"
+      @close="modelSelectVisible = false"
+    >
+      <div class="model-list">
+        <div
+          v-for="model in availableModels"
+          :key="model.id"
+          class="model-item"
+          :class="{ active: selectedPanel?.modelName === model.name }"
+          @click="selectModel(model)"
+        >
+          <span class="model-name">{{ model.name }}</span>
+          <span class="model-provider">{{ model.providerId }}</span>
+        </div>
+        <div v-if="availableModels.length === 0" class="empty-models">加载中...</div>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -193,6 +216,9 @@ export default {
       fileSelectedIndex: 0,
       currentPanel: null,
       dots: ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧'],
+      modelSelectVisible: false,
+      availableModels: [],
+      selectedPanel: null,
     }
   },
 
@@ -622,6 +648,45 @@ handlePanelWsMessage(panel, msg) {
         this.$router.push({ name: 'codeView-session', params: { id: session.id } }).catch(() => {})
       }
       this.bindSessionToPanel(session)
+      this.loadDefaultModel(session)
+    },
+
+    async loadDefaultModel(session) {
+      try {
+        const configRes = await api.getConfig('defaultModel')
+        if (configRes.data?.value) {
+          const panel = this.activeSessions[this.focusedPanelIndex]
+          if (panel && panel.session?.id === session.id) {
+            panel.modelName = configRes.data.value
+          }
+        }
+      } catch (e) {
+        console.error('加载默认模型失败:', e)
+      }
+    },
+
+    async openModelSelector(panel) {
+      this.selectedPanel = panel
+      this.modelSelectVisible = true
+      await this.loadModels()
+    },
+
+    async loadModels() {
+      try {
+        const res = await api.getModels()
+        this.availableModels = res.data || []
+      } catch (e) {
+        console.error('加载模型列表失败:', e)
+        this.availableModels = []
+      }
+    },
+
+    selectModel(model) {
+      if (this.selectedPanel) {
+        this.selectedPanel.modelName = model.name
+        api.setConfig('defaultModel', model.name)
+        this.modelSelectVisible = false
+      }
     },
 
     async sendToPanel(panel) {
@@ -645,6 +710,7 @@ handlePanelWsMessage(panel, msg) {
         api.sessionWsSend(panel.session.id, 'chat', {
           message: content,
           sessionId: panel.session?.id,
+          modelName: panel.modelName || undefined,
         })
       } else {
         this.initPanelWs(panel)
@@ -653,6 +719,7 @@ handlePanelWsMessage(panel, msg) {
             api.sessionWsSend(panel.session.id, 'chat', {
               message: content,
               sessionId: panel.session?.id,
+              modelName: panel.modelName || undefined,
             })
           }
         }, 500)
@@ -992,4 +1059,17 @@ handlePanelWsMessage(panel, msg) {
 .file-item.active .file-name { color: #fff; }
 .empty-files { padding: 20px; text-align: center; color: #71717a; }
 .file-select-hint { margin-top: 12px; padding: 8px; background: #27272a; color: #a1a1aa; font-size: 12px; border-radius: 4px; text-align: center; }
+
+.model-list { max-height: 400px; overflow-y: auto; }
+.model-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; cursor: pointer; border-radius: 4px; transition: background 0.2s; }
+.model-item:hover { background: #27272a; }
+.model-item.active { background: #3b82f6; }
+.model-name { color: #d4d4d8; font-weight: 500; }
+.model-item.active .model-name { color: #fff; }
+.model-provider { color: #84848a; font-size: 12px; }
+.model-item.active .model-provider { color: #e0e0e0; }
+.empty-models { padding: 20px; text-align: center; color: #71717a; }
+
+.model-selector { cursor: pointer; }
+.model-selector:hover { color: #60a5fa; }
 </style>

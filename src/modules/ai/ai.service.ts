@@ -104,28 +104,19 @@ export class AIService {
    * @returns {OpenAIProvider} AI Provider 实例
    * @throws {Error} 如果没有配置默认 AI 提供商
    */
-  private getProvider(): OpenAIProvider {
-    // 延迟初始化：只有当 provider 为 null 时才创建
-    if (!this.provider) {
-      // ========== 获取默认 AI 提供商配置 ==========
-      const providerConfig = this.configService.getDefaultProvider();
-      if (!providerConfig) {
-        throw new Error('No default AI provider configured');
-      }
-
-      // ========== 获取模型列表 ==========
-      const models = this.configService.getModels(providerConfig.id);
-      // 找到启用的模型，如果没有启用任何模型则默认使用 gpt-4
-      const defaultModel = models.find(m => m.enabled) || { name: 'gpt-4' };
-
-      // ========== 创建 Provider 实例 ==========
-      this.provider = new OpenAIProvider({
-        apiKey: providerConfig.apiKey,           // API 密钥
-        baseUrl: providerConfig.baseUrl,         // API 基础 URL
-        defaultModel: defaultModel.name,         // 默认模型名称
-      });
+  private getProvider(modelName?: string): OpenAIProvider {
+    const defaultModel = modelName || this.configService.getDefaultModel();
+    
+    const providerConfig = this.configService.getModelProvider(defaultModel);
+    if (!providerConfig) {
+      throw new Error(`Provider not found for model: ${defaultModel}`);
     }
-    return this.provider;
+    
+    return new OpenAIProvider({
+      apiKey: providerConfig.apiKey,
+      baseUrl: providerConfig.baseUrl,
+      defaultModel: defaultModel,
+    });
   }
 
   /**
@@ -181,9 +172,10 @@ export class AIService {
       onStep?: (step: any, iteration: number) => void;
       onCompact?: (info: { beforeTokens: number; afterTokens: number }) => void;
       abortSignal?: AbortSignal;
+      modelName?: string;
     }
   ): Promise<ReActResult | ProviderRunResult> {
-    const provider = this.getProvider();
+    const provider = this.getProvider(options?.modelName);
     const sessionId = options?.sessionId;
     const aiMode = txConfig.ai.aiMode || 'react';
     const externalAbort = options?.abortSignal;
