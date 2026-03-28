@@ -40,38 +40,14 @@ export default {
       loading: false,
       selectedCommand: '',
       commands: [
-        { name: '/help', description: '显示帮助信息' },
-        { name: '/new [title]', description: '创建新会话' },
-        { name: '/sessions', description: '列出所有会话' },
-        { name: '/switch <id>', description: '切换到指定会话' },
-        { name: '/delete <id>', description: '删除会话' },
-        { name: '/compact', description: '压缩当前会话上下文' },
-        { name: '/skills', description: '列出所有技能' },
-        { name: '/use <skill>', description: '使用技能' },
-        { name: '/providers', description: '列出服务商' },
-        { name: '/models', description: '列出模型' },
-        { name: '/model <id>', description: '切换模型' },
-        { name: '/token', description: '显示 Token 统计' },
-        { name: '/config <k=v>', description: '设置配置' },
-        { name: '/clear', description: '清除当前会话' },
-        { name: '/exit', description: '退出程序' }
+        { name: '/compact', description: '压缩当前会话上下文' }
       ]
     }
   },
   methods: {
     handleExecute(cmd) {
-      if (cmd.name === '/compact') {
-        this.$prompt('压缩当前会话上下文，移除对话历史中的冗余部分', '压缩会话', {
-          confirmButtonText: '确定',
-          cancelButtonText: '取消'
-        }).then(() => {
-          this.$emit('execute', cmd.name)
-          this.$emit('update:visible', false)
-        }).catch(() => {})
-      } else {
         this.$emit('execute', cmd.name)
         this.$emit('update:visible', false)
-      }
     },
     handleClose() {
       this.$emit('close')

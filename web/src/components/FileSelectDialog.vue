@@ -8,7 +8,6 @@
   >
     <div class="file-select-content">
 
-      <div class="file-select-path">{{ currentPath || '/' }}</div>
       <div class="file-tree-container">
         <file-select-tree-node
           v-for="node in fileTreeData"
@@ -17,7 +16,6 @@
           :level="0"
           :selected-path="selectedPath"
           @select="handleSelect"
-          @confirm="handleConfirm"
           @load-children="handleLoadChildren"
         />
         <div v-if="loading" class="empty-files">
@@ -27,7 +25,14 @@
           此目录为空
         </div>
       </div>
-      <div class="file-select-hint">单击文件夹展开 | 单击选中 | 双击选中并关闭</div>
+      <div class="file-select-footer">
+        <span class="selected-path">{{ selectedPath || '未选择' }}</span>
+        <button 
+          class="confirm-btn" 
+          :disabled="!selectedPath"
+          @click="handleConfirm"
+        >选择</button>
+      </div>
     </div>
   </el-dialog>
 </template>
@@ -96,9 +101,10 @@ export default {
     handleSelect(node) {
       this.selectedPath = node.path
     },
-    handleConfirm(node) {
-      this.$emit('select', node.path)
-      this.visible = false
+    handleConfirm() {
+      if (!this.selectedPath) return
+      this.$emit('select', this.selectedPath)
+      this.$emit('update:visible', false)
     },
     async handleLoadChildren({ path, callback }) {
       try {
@@ -153,6 +159,11 @@ export default {
 .file-tree-container { flex: 1; overflow-y: auto; border: 1px solid #3f3f46; border-radius: 4px; }
 .empty-files { padding: 20px; text-align: center; color: #71717a; }
 .file-select-hint { margin-top: 8px; padding: 8px; background: #27272a; color: #a1a1aa; font-size: 12px; border-radius: 4px; text-align: center; }
+.file-select-footer { margin-top: 8px; display: flex; gap: 8px; align-items: center; }
+.selected-path { flex: 1; padding: 8px 12px; background: #27272a; color: #a1a1aa; font-size: 13px; border-radius: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.confirm-btn { padding: 8px 16px; background: #3b82f6; border: none; border-radius: 4px; color: white; font-size: 13px; cursor: pointer; }
+.confirm-btn:hover { background: #2563eb; }
+.confirm-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 :deep(.el-dialog) {
   background: #18181b;

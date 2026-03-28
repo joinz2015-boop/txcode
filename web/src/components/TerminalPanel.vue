@@ -1,20 +1,6 @@
 <template>
-  <div class="terminal-panel">
+  <div class="terminal-panel" ref="terminalPanel">
     <div ref="terminalContainer" class="terminal-output"></div>
-    <div class="terminal-input-block">
-      <span class="prompt">{{ promptSymbol }}</span>
-      <input
-        ref="terminalInput"
-        v-model="inputValue"
-        type="text"
-        class="terminal-input"
-        :placeholder="inputPlaceholder"
-        :disabled="!sessionId"
-        @keydown.enter="sendCommand"
-        @keydown.ctrl.c="sendInterrupt"
-        @keydown.ctrl.l="clearScreen"
-      />
-    </div>
     <div class="status-bar">
       <span :class="wsConnected ? 'status-connected' : 'status-disconnected'">
         {{ wsConnected ? '● 已连接' : '○ 未连接' }}
@@ -28,6 +14,9 @@
 </template>
 
 <script>
+import { Terminal } from 'xterm'
+import { FitAddon } from '@xterm/addon-fit'
+import 'xterm/css/xterm.css'
 import { api } from '../api'
 
 export default {
@@ -40,106 +29,162 @@ export default {
 
   data() {
     return {
-      inputValue: '',
-      outputBuffer: [],
-      promptSymbol: '$',
-      inputPlaceholder: '输入命令后按 Enter 执行...'
+      wsConnected: false,
+      term: null,
+      fitAddon: null
     }
   },
 
   watch: {
     sessionId: {
       immediate: true,
-      handler(newId) {
+      handler(newId, oldId) {
+        if (oldId && oldId !== newId) {
+          this.disconnectWs(oldId)
+        }
         if (newId) {
-          this.inputPlaceholder = '输入命令后按 Enter 执行...'
-        } else {
-          this.inputPlaceholder = '选择或创建终端会话...'
+          this.$nextTick(() => {
+            this.initTerminal()
+          })
         }
       }
     }
   },
 
   methods: {
+    initTerminal() {
+      if (this.term) {
+        this.term.dispose()
+      }
+
+      this.term = new Terminal({
+        cursorBlink: true,
+        fontSize: 14,
+        fontFamily: '"JetBrains Mono", "Fira Code", Consolas, monospace',
+        theme: {
+          background: '#0a0a09',
+          foreground: '#d4d4d8',
+          cursor: '#22c55e',
+          cursorAccent: '#0a0a09',
+          selectionBackground: 'rgba(59, 130, 246, 0.5)',
+          black: '#0a0a09',
+          red: '#ef4444',
+          green: '#22c55e',
+          yellow: '#eab308',
+          blue: '#3b82f6',
+          magenta: '#a855f7',
+          cyan: '#06b6d4',
+          white: '#d4d4d8',
+          brightBlack: '#545459',
+          brightRed: '#f87171',
+          brightGreen: '#4ade80',
+          brightYellow: '#facc15',
+          brightBlue: '#60a5fa',
+          brightMagenta: '#c084fc',
+          brightCyan: '#22d3ee',
+          brightWhite: '#f4f4f5'
+        },
+        scrollback: 10000
+      })
+
+      this.fitAddon = new FitAddon()
+      this.term.loadAddon(this.fitAddon)
+
+      this.term.open(this.$refs.terminalContainer)
+      this.$nextTick(() => {
+        this.fitAddon.fit()
+      })
+
+      this.term.onData((data) => {
+        if (this.sessionId && this.wsConnected) {
+          api.terminalWsSend(this.sessionId, 'input', data)
+        }
+      })
+
+      this.term.onResize(({ cols, rows }) => {
+        if (this.sessionId && this.wsConnected) {
+          api.terminalWsSend(this.sessionId, 'resize', { cols, rows })
+        }
+      })
+
+      window.addEventListener('resize', this.handleResize)
+      
+      this.connectWs()
+    },
+
+    handleResize() {
+      if (this.fitAddon) {
+        this.fitAddon.fit()
+      }
+    },
+
+    connectWs() {
+      if (!this.sessionId) return
+      
+      api.terminalWsConnect(
+        this.sessionId,
+        (msg) => this.handleMessage(msg),
+        () => { 
+          this.wsConnected = true 
+          this.$emit('ws-connected', true)
+        },
+        () => { 
+          this.wsConnected = false 
+          this.$emit('ws-disconnected', false)
+        },
+        (err) => { 
+          this.wsConnected = false
+          console.error('WebSocket error:', err)
+        }
+      )
+    },
+
+    disconnectWs(sessionId) {
+      api.terminalWsDisconnect(sessionId)
+      this.wsConnected = false
+    },
+
     handleMessage(msg) {
+      if (!this.term) return
+
       const { type, data } = msg
       switch (type) {
         case 'output':
-          this.appendOutput(data)
+          this.term.write(data)
           break
         case 'exit':
-          this.appendOutput(`\n[进程退出，退出码: ${data.code || 0}]\n`)
-          this.promptSymbol = '$'
+          this.term.write(`\r\n[进程退出，退出码: ${data.code || 0}]\r\n`)
           break
         case 'error':
-          this.appendOutput(`[错误] ${data.message}\n`)
-          this.promptSymbol = '$'
+          this.term.write(`\r\n[错误] ${data.message}\r\n`)
           break
         case 'platform':
-          this.updatePrompt(data.platform)
           break
-      }
-    },
-
-    updatePrompt(platform) {
-      if (platform === 'windows') {
-        this.promptSymbol = '>'
-      } else {
-        this.promptSymbol = '$'
-      }
-    },
-
-    appendOutput(text) {
-      this.outputBuffer.push(text)
-      this.renderOutput()
-    },
-
-    renderOutput() {
-      if (this.$refs.terminalContainer) {
-        this.$refs.terminalContainer.innerHTML = this.outputBuffer.join('')
-          .replace(/&/g, '&amp;')
-          .replace(/</g, '&lt;')
-          .replace(/>/g, '&gt;')
-        this.$refs.terminalContainer.scrollTop = this.$refs.terminalContainer.scrollHeight
       }
     },
 
     clearScreen() {
-      this.outputBuffer = []
-      if (this.$refs.terminalContainer) {
-        this.$refs.terminalContainer.innerHTML = ''
+      if (this.term) {
+        this.term.clear()
+        this.term.reset()
       }
-    },
-
-    sendCommand() {
-      if (!this.inputValue.trim() || !this.sessionId) return
-      
-      const command = this.inputValue + '\n'
-      this.appendOutput(this.promptSymbol + ' ' + this.inputValue + '\n')
-      this.inputValue = ''
-      
-      if (api.terminalWsSend(this.sessionId, 'input', command)) {
-        this.promptSymbol = '...'
-      } else {
-        this.appendOutput('[错误] WebSocket 未连接\n')
-        this.promptSymbol = '$'
-      }
-    },
-
-    sendInterrupt() {
-      if (!this.sessionId) return
-      api.terminalWsSend(this.sessionId, 'input', '\x03')
-    },
-
-    focusInput() {
-      this.$nextTick(() => {
-        this.$refs.terminalInput?.focus()
-      })
     }
   },
 
   mounted() {
-    this.renderOutput()
+    if (this.sessionId) {
+      this.initTerminal()
+    }
+  },
+
+  beforeDestroy() {
+    window.removeEventListener('resize', this.handleResize)
+    if (this.sessionId) {
+      this.disconnectWs(this.sessionId)
+    }
+    if (this.term) {
+      this.term.dispose()
+    }
   }
 }
 </script>
@@ -154,47 +199,17 @@ export default {
 
 .terminal-output {
   flex: 1;
-  padding: 12px 16px;
-  overflow-y: auto;
-  font-size: 14px;
-  line-height: 1.5;
-  color: #d4d4d8;
+  padding: 8px;
   background: #0a0a09;
-  white-space: pre-wrap;
-  word-break: break-all;
+  overflow: hidden;
 }
 
-.terminal-input-block {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 16px;
-  background-color: #18191b;
-  border-top: 1px solid #27272a;
+.terminal-output :deep(.xterm) {
+  height: 100%;
 }
 
-.prompt {
-  color: #22c55e;
-  font-weight: bold;
-  font-size: 14px;
-}
-
-.terminal-input {
-  flex: 1;
-  background: transparent;
-  border: none;
-  outline: none;
-  color: #f4f4f5;
-  font-family: inherit;
-  font-size: 14px;
-}
-
-.terminal-input::placeholder {
-  color: #545459;
-}
-
-.terminal-input:disabled {
-  cursor: not-allowed;
+.terminal-output :deep(.xterm-viewport) {
+  overflow-y: auto !important;
 }
 
 .status-bar {

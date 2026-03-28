@@ -108,8 +108,7 @@ export default {
     },
     
     handleDblClick() {
-      this.$emit('select', this.node)
-      this.$emit('confirm', this.node)
+      // 双击不做任何处理
     },
 
     getFileIcon(name, isDir) {

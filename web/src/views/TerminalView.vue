@@ -17,17 +17,29 @@
         :class="{ 'panel-active': focusedPanelIndex === index }"
         @click="focusedPanelIndex = index"
       >
+        <div class="panel-tabs" v-if="panel.tabs.length > 0">
+          <div
+            v-for="(tab, tabIndex) in panel.tabs"
+            :key="tab.sessionId"
+            class="panel-tab"
+            :class="{ 'tab-active': panel.activeTabIndex === tabIndex }"
+            @click.stop="switchPanelTab(index, tabIndex)"
+          >
+            <span class="tab-title">{{ tab.sessionId ? tab.sessionId.slice(0, 8) : '新会话' }}</span>
+            <span class="tab-close" @click.stop="closePanelTab(index, tabIndex)">×</span>
+          </div>
+        </div>
         <div class="panel-header">
-          <span class="title">终端 {{ panel.sessionId ? panel.sessionId.slice(0, 8) : '' }}</span>
+          <span class="title">终端 {{ panel.tabs[panel.activeTabIndex]?.sessionId ? panel.tabs[panel.activeTabIndex].sessionId.slice(0, 8) : '' }}</span>
           <span class="platform-badge">{{ platform }}</span>
         </div>
-        <TerminalPanel
-          :ref="'terminalPanel_' + index"
-          :session-id="panel.sessionId"
-          :ws-connected="panel.wsConnected"
-          @ws-connected="panel.wsConnected = true"
-          @ws-disconnected="panel.wsConnected = false"
-        />
+        <div class="terminal-content">
+          <TerminalPanel
+            v-if="panel.tabs[panel.activeTabIndex]"
+            :key="panel.tabs[panel.activeTabIndex].sessionId"
+            :session-id="panel.tabs[panel.activeTabIndex].sessionId"
+          />
+        </div>
       </div>
     </div>
 
@@ -84,14 +96,6 @@ export default {
     this.loadSessions()
   },
 
-  beforeDestroy() {
-    this.activeTerminals.forEach(panel => {
-      if (panel.sessionId) {
-        api.terminalWsDisconnect(panel.sessionId)
-      }
-    })
-  },
-
   methods: {
     detectPlatform() {
       const agent = navigator.userAgent.toLowerCase()
@@ -110,43 +114,57 @@ export default {
       const count = this.layoutMode
       const newActive = []
       for (let i = 0; i < count; i++) {
-        newActive.push(this.activeTerminals[i] || {
-          sessionId: null,
-          wsConnected: false
-        })
+        newActive.push(this.activeTerminals[i] || this.createEmptyPanel())
       }
       this.activeTerminals = newActive
+    },
+
+    createEmptyPanel() {
+      return {
+        tabs: [],
+        activeTabIndex: 0
+      }
+    },
+
+    createTab(sessionId) {
+      return {
+        sessionId,
+        wsConnected: false
+      }
+    },
+
+    switchPanelTab(panelIndex, tabIndex) {
+      const panel = this.activeTerminals[panelIndex]
+      if (panel) {
+        panel.activeTabIndex = tabIndex
+      }
+    },
+
+    closePanelTab(panelIndex, tabIndex) {
+      const panel = this.activeTerminals[panelIndex]
+      if (!panel) return
+      const tab = panel.tabs[tabIndex]
+      if (tab?.sessionId) {
+        api.terminalWsDisconnect(tab.sessionId)
+      }
+      panel.tabs.splice(tabIndex, 1)
+      if (panel.activeTabIndex >= panel.tabs.length) {
+        panel.activeTabIndex = Math.max(0, panel.tabs.length - 1)
+      }
     },
 
     bindSessionToPanel(session, panelIndex = null) {
       const idx = panelIndex !== null ? panelIndex : this.focusedPanelIndex
       if (idx >= 0 && idx < this.activeTerminals.length) {
         const panel = this.activeTerminals[idx]
-        panel.sessionId = session.id
-        panel.wsConnected = false
-        this.initTerminalWs(panel)
-      }
-    },
-
-    initTerminalWs(panel) {
-      if (!panel.sessionId || panel.wsConnected) return
-      
-      api.terminalWsConnect(
-        panel.sessionId,
-        (msg) => this.handleTerminalMessage(panel, msg),
-        () => { panel.wsConnected = true; this.$emit('ws-connected') },
-        () => {
-          panel.wsConnected = false
-          this.$emit('ws-disconnected')
-        },
-        (err) => { panel.wsConnected = false; console.error(err) }
-      )
-    },
-
-    handleTerminalMessage(panel, msg) {
-      const terminalRef = this.$refs['terminalPanel_' + this.activeTerminals.indexOf(panel)][0]
-      if (terminalRef && terminalRef.handleMessage) {
-        terminalRef.handleMessage(msg)
+        const existingTab = panel.tabs.find(t => t.sessionId === session.id)
+        if (existingTab) {
+          panel.activeTabIndex = panel.tabs.indexOf(existingTab)
+        } else {
+          const newTab = this.createTab(session.id)
+          panel.tabs.push(newTab)
+          panel.activeTabIndex = panel.tabs.length - 1
+        }
       }
     },
 
@@ -259,6 +277,13 @@ export default {
 }
 
 .panel-header .title { color: #f4f4f5; font-size: 13px; }
+.panel-tabs { display: flex; background: #1e1e1e; border-bottom: 1px solid #27272a; overflow-x: auto; }
+.panel-tab { display: flex; align-items: center; gap: 6px; padding: 8px 12px; cursor: pointer; border-right: 1px solid #27272a; font-size: 12px; color: #a1a1aa; }
+.panel-tab:hover { background: #27272a; }
+.panel-tab.tab-active { background: #0a0a09; color: #fff; border-bottom: 2px solid #3b82f6; }
+.tab-close { opacity: 0.5; }
+.tab-close:hover { opacity: 1; color: #ef4444; }
+.terminal-content { flex: 1; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
 .platform-badge {
   font-size: 11px;
   color: #84848a;

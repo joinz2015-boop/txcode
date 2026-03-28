@@ -106,7 +106,7 @@ class TerminalService {
     const id = uuidv4();
     const shell = getShell();
     const platform = getPlatformType();
-    const cwd = options.cwd || os.homedir();
+    const cwd = options.cwd || process.cwd();
     const cols = options.cols || 80;
     const rows = options.rows || 24;
 
