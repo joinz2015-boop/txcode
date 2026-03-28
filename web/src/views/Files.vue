@@ -256,6 +256,12 @@ export default {
     document.addEventListener('mousemove', this.handleResize)
     document.addEventListener('mouseup', this.stopResize)
   },
+  activated() {
+    if (!this.editor && this.$refs.editorContainer) {
+      this.initEditor()
+    }
+  },
+
   beforeDestroy() {
     document.removeEventListener('click', this.hideContextMenu)
     document.removeEventListener('mousemove', this.handleResize)

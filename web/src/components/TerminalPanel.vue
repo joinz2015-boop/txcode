@@ -189,6 +189,15 @@ export default {
     }
   },
 
+  activated() {
+    if (this.sessionId && !this.wsConnected) {
+      this.connectWs()
+    }
+  },
+
+  deactivated() {
+  },
+
   beforeDestroy() {
     window.removeEventListener('resize', this.handleResize)
     if (this.sessionId) {

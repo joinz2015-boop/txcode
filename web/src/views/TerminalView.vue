@@ -64,6 +64,9 @@ export default {
     this.loadOrCreateSession()
   },
 
+  activated() {
+  },
+
   methods: {
     detectPlatform() {
       const agent = navigator.userAgent.toLowerCase()
@@ -144,11 +147,6 @@ export default {
 </script>
 
 <style scoped>
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #52525b; }
-
 .terminal-view {
   display: flex;
   height: 100%;

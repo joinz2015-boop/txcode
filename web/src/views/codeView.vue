@@ -186,12 +186,15 @@ export default {
     this.loadSessions()
   },
 
-  beforeDestroy() {
+  activated() {
     this.activeSessions.forEach(panel => {
-      if (panel.session?.id) {
-        api.sessionWsDisconnect(panel.session.id)
+      if (panel.session?.id && !panel.wsConnected) {
+        this.initPanelWs(panel, panel.session.id)
       }
     })
+  },
+
+  deactivated() {
   },
 
   methods: {

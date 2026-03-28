@@ -46,7 +46,9 @@
         </div>
       </nav>
 
-      <router-view class="flex-1 flex overflow-hidden" :sidebar-visible="sidebarVisible" @toggle-sidebar="toggleSidebar" />
+      <keep-alive :include="['CodeView', 'TerminalView', 'Files']">
+        <router-view class="flex-1 flex overflow-hidden" :sidebar-visible="sidebarVisible" @toggle-sidebar="toggleSidebar" />
+      </keep-alive>
     </div>
 
     <footer class="h-6 bg-accent text-white text-xs flex items-center justify-between px-3 shrink-0 z-20">
