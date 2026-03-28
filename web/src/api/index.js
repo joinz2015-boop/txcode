@@ -11,6 +11,7 @@ const API_BASE = '/api';
 let wsInstance = null;
 let wsListeners = new Map();
 let sessionWsInstances = new Map();
+let terminalWsInstances = new Map();
 
 function getWsUrl(sessionId = null) {
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -199,6 +200,15 @@ export const api = {
    */
   chat(data) {
     return request('POST', '/chat', data);
+  },
+
+  /**
+   * 执行命令
+   * @param {string} message - 命令内容 (以 / 开头)
+   * @param {string} sessionId - 会话 ID
+   */
+  chatCommand(message, sessionId) {
+    return request('POST', '/chat/command', { message, sessionId });
   },
 
   /**
@@ -569,5 +579,82 @@ export const api = {
 
   getQueueStatus() {
     return request('GET', '/gateway/queue/status');
+  },
+
+  // ==================== 终端会话管理 ====================
+
+  getTerminalSessions() {
+    return request('GET', '/terminal/sessions');
+  },
+
+  createTerminalSession() {
+    return request('POST', '/terminal/sessions');
+  },
+
+  deleteTerminalSession(id) {
+    return request('DELETE', `/terminal/sessions/${id}`);
+  },
+
+  terminalWsConnect(sessionId, onMessage, onOpen, onClose, onError) {
+    if (terminalWsInstances.has(sessionId)) {
+      const existing = terminalWsInstances.get(sessionId);
+      if (existing.readyState === WebSocket.OPEN) {
+        return existing;
+      }
+    }
+
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${window.location.host}/ws/terminal/${sessionId}`;
+    const ws = new WebSocket(wsUrl);
+
+    ws.onopen = () => {
+      console.log(`Terminal WebSocket [${sessionId}] connected`);
+      if (onOpen) onOpen();
+    };
+
+    ws.onmessage = (e) => {
+      try {
+        const msg = JSON.parse(e.data);
+        if (onMessage) onMessage(msg);
+      } catch (err) {
+        console.error('Terminal WebSocket parse error:', err);
+      }
+    };
+
+    ws.onclose = () => {
+      console.log(`Terminal WebSocket [${sessionId}] closed`);
+      terminalWsInstances.delete(sessionId);
+      if (onClose) onClose();
+    };
+
+    ws.onerror = (err) => {
+      console.error(`Terminal WebSocket [${sessionId}] error:`, err);
+      if (onError) onError(err);
+    };
+
+    terminalWsInstances.set(sessionId, ws);
+    return ws;
+  },
+
+  terminalWsDisconnect(sessionId) {
+    const ws = terminalWsInstances.get(sessionId);
+    if (ws) {
+      ws.close();
+      terminalWsInstances.delete(sessionId);
+    }
+  },
+
+  terminalWsSend(sessionId, type, data) {
+    const ws = terminalWsInstances.get(sessionId);
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type, data }));
+      return true;
+    }
+    return false;
+  },
+
+  terminalWsIsConnected(sessionId) {
+    const ws = terminalWsInstances.get(sessionId);
+    return ws && ws.readyState === WebSocket.OPEN;
   },
 };

@@ -47,6 +47,9 @@
         :style="{ left: contextMenu.x + 'px', top: contextMenu.y + 'px' }"
       >
         <template v-if="contextMenu.target?.is_directory">
+          <button @click="copyPath" class="w-full text-left px-4 py-2 text-sm text-textMain hover:bg-active flex items-center gap-2">
+            <i class="fa-solid fa-copy text-xs"></i> 复制路径
+          </button>
           <button @click="createNewFile" class="w-full text-left px-4 py-2 text-sm text-textMain hover:bg-active flex items-center gap-2">
             <i class="fa-solid fa-file-lines text-xs"></i> 新建文件
           </button>
@@ -62,6 +65,9 @@
           </button>
         </template>
         <template v-else>
+          <button @click="copyPath" class="w-full text-left px-4 py-2 text-sm text-textMain hover:bg-active flex items-center gap-2">
+            <i class="fa-solid fa-copy text-xs"></i> 复制路径
+          </button>
           <button @click="renameItem" class="w-full text-left px-4 py-2 text-sm text-textMain hover:bg-active flex items-center gap-2">
             <i class="fa-solid fa-pen text-xs"></i> 重命名
           </button>
@@ -433,6 +439,11 @@ export default {
       this.$nextTick(() => {
         this.$refs.renameInput?.focus()
       })
+    },
+    copyPath() {
+      this.hideContextMenu()
+      navigator.clipboard.writeText(this.contextMenu.target.path)
+      this.$message.success('路径已复制')
     },
     renameItem() {
       this.hideContextMenu()

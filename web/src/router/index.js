@@ -47,6 +47,16 @@ const routes = [
         component: Skills,
       },
       {
+        path: 'terminal',
+        name: 'terminal',
+        component: () => import('../views/TerminalView.vue'),
+      },
+      {
+        path: 'terminal/:id',
+        name: 'terminal-session',
+        component: () => import('../views/TerminalView.vue'),
+      },
+      {
         path: 'db',
         name: 'db',
         component: DbView,

@@ -7,25 +7,13 @@
           <span>TXCode Agent</span>
         </div>
         <div class="relative">
-          <div @click="toggleSessionDropdown" class="bg-black/20 px-2 py-0.5 rounded text-xs text-textMuted border border-white/10 cursor-pointer hover:bg-black/40 flex items-center gap-2 select-none">
-            <i class="fa-solid fa-comment"></i> <span>{{ currentSessionName || '选择会话' }}</span> <i class="fa-solid fa-chevron-down text-[10px] transition-transform" :class="{ 'rotate-180': showSessionDropdown }"></i>
-          </div>
-          <div v-show="showSessionDropdown" class="absolute top-full left-0 mt-1 w-56 bg-sidebar border border-border rounded shadow-lg py-1 z-50">
-            <div class="px-3 py-1.5 text-xs text-textMuted uppercase font-bold">最近会话</div>
-            <button v-for="session in sessions" :key="session.id" @click="switchSession(session)" class="w-full text-left px-3 py-2 text-sm hover:bg-active flex items-center gap-2" :class="session.id === currentSessionId ? 'text-white bg-active' : 'text-textMuted hover:text-white'">
-              <i class="fa-regular fa-comment text-xs"></i> {{ session.title }}
-            </button>
-            <div class="border-t border-border my-1"></div>
-            <button @click="createNewSession" class="w-full text-left px-3 py-2 text-sm text-textMuted hover:bg-active hover:text-white flex items-center gap-2">
-              <i class="fa-solid fa-plus text-xs"></i> 新建会话...
-            </button>
-          </div>
+          
         </div>
       </div>
       <div class="flex items-center gap-3">
         <span class="text-xs text-textMuted mr-2"><i class="fa-solid fa-circle text-green-500 text-[8px]"></i> Server Connected</span>
         <button v-show="$route.name === 'chat'" @click="toggleSidebar" class="hover:text-white" :title="sidebarVisible ? '关闭侧栏' : '显示侧栏'"><i class="fa-solid fa-columns"></i></button>
-        <router-link to="/settings" class="hover:text-white" title="设置"><i class="fa-solid fa-gear"></i></router-link>
+        <!-- <router-link to="/settings" class="hover:text-white" title="设置"><i class="fa-solid fa-gear"></i></router-link> -->
       </div>
     </header>
 
@@ -37,6 +25,9 @@
           </router-link>
           <router-link to="/files" class="w-10 h-10 mb-2 rounded flex items-center justify-center" :class="$route.name === 'files' ? 'text-white border-l-2 border-accent bg-sidebar' : 'text-textMuted hover:text-white border-l-2 border-transparent'" title="文件">
             <i class="fa-solid fa-folder-open text-xl"></i>
+          </router-link>
+          <router-link to="/terminal" class="w-10 h-10 mb-2 rounded flex items-center justify-center" :class="$route.name === 'terminal' || $route.name === 'terminal-session' ? 'text-white border-l-2 border-accent bg-sidebar' : 'text-textMuted hover:text-white border-l-2 border-transparent'" title="终端">
+            <i class="fa-solid fa-terminal text-xl"></i>
           </router-link>
           <router-link to="/skills" class="w-10 h-10 mb-2 rounded flex items-center justify-center relative" :class="$route.name === 'skills' ? 'text-white border-l-2 border-accent bg-sidebar' : 'text-textMuted hover:text-white border-l-2 border-transparent'" title="Skill 管理">
             <i class="fa-solid fa-shapes text-xl"></i>

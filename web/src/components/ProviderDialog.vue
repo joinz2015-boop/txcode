@@ -155,4 +155,58 @@ export default {
   color: #67c23a;
   margin-top: 4px;
 }
+
+:deep(.el-dialog) {
+  background: #18181b;
+  border: 1px solid #3f3f46;
+}
+:deep(.el-dialog__header) {
+  background: #18181b;
+  border-bottom: 1px solid #3f3f46;
+  padding: 16px 20px;
+}
+:deep(.el-dialog__title) {
+  color: #d4d4d8;
+  font-size: 15px;
+  font-weight: 500;
+}
+:deep(.el-dialog__headerbtn) {
+  top: 16px;
+  right: 16px;
+}
+:deep(.el-dialog__headerbtn .el-dialog__close) {
+  color: #71717a;
+}
+:deep(.el-dialog__headerbtn:hover .el-dialog__close) {
+  color: #fff;
+}
+:deep(.el-dialog__body) {
+  background: #18181b;
+  padding: 20px;
+  color: #d4d4d8;
+}
+:deep(.el-dialog__footer) {
+  background: #18181b;
+  border-top: 1px solid #3f3f46;
+  padding: 16px 20px;
+}
+:deep(.el-form-item__label) {
+  color: #a1a1aa;
+}
+:deep(.el-input__inner) {
+  background: #27272a;
+  border-color: #3f3f46;
+  color: #d4d4d8;
+}
+:deep(.el-input__inner:focus) {
+  border-color: #3b82f6;
+}
+:deep(.el-select) {
+  width: 100%;
+}
+:deep(.el-select .el-input__inner) {
+  background: #27272a;
+  border-color: #3f3f46;
+  color: #d4d4d8;
+}
 </style>

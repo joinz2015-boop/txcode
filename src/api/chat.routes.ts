@@ -28,6 +28,7 @@ import { aiLogService } from '../modules/ai/ai-log.service.js';
 import { configService } from '../modules/config/config.service.js';
 import { reactParser } from '../modules/ai/react/react.parser.js';
 import txConfig from '../config/tx.config.js';
+import { executeCommand } from '../cli/commands.js';
 
 function calculateCost(usage?: { promptTokens?: number; completionTokens?: number }): number {
   if (!usage) return 0;
@@ -82,7 +83,29 @@ chatRouter.post('/', async (req: Request, res: Response) => {
   logger.logRequest('/api/chat', { message, sessionId, projectPath });
 
   try {
-    // ========== 步骤 2: 检查或创建会话 ==========
+    // ========== 步骤 2: 检查是否是命令 ==========
+    // 以 / 开头的输入作为命令处理
+    if (message && message.trim().startsWith('/')) {
+      const cmdResult = await executeCommand(message.trim());
+      
+      // 命令执行结果通过 WebSocket 发送 'think' 类型消息返回给前端
+      // 前端会将其显示在 logItems 中
+      if (sessionId) {
+        memoryService.addMessage(sessionId, 'user', message, true);
+        memoryService.addMessage(sessionId, 'assistant', cmdResult.message || '命令已执行', true);
+      }
+      
+      return res.json({
+        success: true,
+        data: {
+          sessionId: cmdResult.data?.id || sessionId,
+          response: cmdResult.message || '命令已执行',
+          success: cmdResult.success,
+        },
+      });
+    }
+
+    // ========== 步骤 3: 检查或创建会话 ==========
     /**
      * 会话管理逻辑：
      * - 如果提供了 sessionId，尝试获取已存在的会话
@@ -282,6 +305,78 @@ chatRouter.post('/stream', async (req: Request, res: Response) => {
     // 发送错误信息并结束连接
     res.write(`data: ${JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' })}\n\n`);
     res.end();
+  }
+});
+
+/**
+ * POST /api/chat/command
+ * 
+ * 执行 CLI 命令接口
+ * 
+ * 请求流程：
+ * 1. 接收命令内容
+ * 2. 调用 executeCommand 执行命令
+ * 3. 返回命令执行结果
+ * 
+ * @param {ChatRequest} req.body - 请求体
+ *   - message: 命令内容 (必填，以 / 开头)
+ *   - sessionId: 会话 ID (可选)
+ * 
+ * @returns {ApiResponse}
+ *   - success: 请求是否成功
+ *   - data: {
+ *       - response: 命令执行结果文本
+ *       - sessionId: 会话 ID (如果有)
+ *     }
+ */
+chatRouter.post('/command', async (req: Request, res: Response) => {
+  const { message, sessionId } = req.body as ChatRequest;
+
+  logger.logRequest('/api/chat/command', { message, sessionId });
+
+  try {
+    if (!message || !message.trim().startsWith('/')) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid command. Commands must start with /',
+      });
+    }
+
+    // 如果没有 sessionId，创建一个新会话
+    let currentSessionId = sessionId;
+    if (!currentSessionId) {
+      const session = sessionService.create('Command Session');
+      sessionService.switchTo(session.id);
+      currentSessionId = session.id;
+    }
+
+    // 执行命令
+    const cmdResult = await executeCommand(message.trim());
+
+    // 添加到记忆
+    memoryService.addMessage(currentSessionId, 'user', message, true);
+    memoryService.addMessage(currentSessionId, 'assistant', cmdResult.message || '命令已执行', true);
+
+    logger.logResponse('/api/chat/command', {
+      success: cmdResult.success,
+      response: cmdResult.message,
+    });
+
+    res.json({
+      success: true,
+      data: {
+        response: cmdResult.message || '命令已执行',
+        sessionId: cmdResult.data?.id || currentSessionId,
+        success: cmdResult.success,
+      },
+    });
+  } catch (error) {
+    logger.logResponse('/api/chat/command/error', { error: error instanceof Error ? error.message : 'Unknown error' });
+    
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
   }
 });
 

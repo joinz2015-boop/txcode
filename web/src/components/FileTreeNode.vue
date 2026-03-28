@@ -33,7 +33,7 @@
         @select="$emit('select', $event)"
         @open-file="$emit('open-file', $event)"
         @load-children="$emit('load-children', $event)"
-        @contextmenu="(e) => $emit('contextmenu', e, child)"
+        @contextmenu="(e, n) => $emit('contextmenu', e, n)"
       />
     </div>
   </div>
@@ -118,6 +118,7 @@ export default {
     },
 
     handleContextMenu(e) {
+      e.stopPropagation()
       this.$emit('contextmenu', e, this.node)
     },
 

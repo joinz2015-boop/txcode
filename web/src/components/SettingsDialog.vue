@@ -215,4 +215,71 @@ export default {
   max-width: 500px;
   margin-top: 20px;
 }
+
+:deep(.el-dialog) {
+  background: #18181b;
+  border: 1px solid #3f3f46;
+}
+:deep(.el-dialog__header) {
+  background: #18181b;
+  border-bottom: 1px solid #3f3f46;
+  padding: 16px 20px;
+}
+:deep(.el-dialog__title) {
+  color: #d4d4d8;
+  font-size: 15px;
+  font-weight: 500;
+}
+:deep(.el-dialog__headerbtn) {
+  top: 16px;
+  right: 16px;
+}
+:deep(.el-dialog__headerbtn .el-dialog__close) {
+  color: #71717a;
+}
+:deep(.el-dialog__headerbtn:hover .el-dialog__close) {
+  color: #fff;
+}
+:deep(.el-dialog__body) {
+  background: #18181b;
+  padding: 20px;
+  color: #d4d4d8;
+}
+:deep(.el-tabs__header) {
+  background: #18181b;
+  border-bottom: 1px solid #3f3f46;
+  margin: 0;
+}
+:deep(.el-tabs__nav-wrap::after) {
+  background: #3f3f46;
+}
+:deep(.el-tabs__item) {
+  color: #71717a;
+}
+:deep(.el-tabs__item:hover) {
+  color: #d4d4d8;
+}
+:deep(.el-tabs__item.is-active) {
+  color: #3b82f6;
+}
+:deep(.el-tabs__active-bar) {
+  background: #3b82f6;
+}
+:deep(.el-form-item__label) {
+  color: #a1a1aa;
+}
+:deep(.el-input-number) {
+  width: 100%;
+}
+:deep(.el-input__inner) {
+  background: #27272a;
+  border-color: #3f3f46;
+  color: #d4d4d8;
+}
+:deep(.el-input-number__decrease),
+:deep(.el-input-number__increase) {
+  background: #27272a;
+  border-color: #3f3f46;
+  color: #a1a1aa;
+}
 </style>

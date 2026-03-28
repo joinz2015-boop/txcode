@@ -1,41 +1,17 @@
 <template>
   <div class="code-view">
-    <aside v-if="sidebarVisible" class="sidebar">
-      <div class="sidebar-header">
-        <div class="sidebar-title">会话列表</div>
-        <el-button type="primary" size="small" @click="createSession" class="new-btn">
-          + 新建
-        </el-button>
-      </div>
-      <div class="sidebar-content">
-        <div
-          v-for="session in displayedSessions"
-          :key="session.id"
-          class="session-item"
-          :class="currentSession?.id === session.id ? 'active' : ''"
-          draggable="true"
-          @dragstart="onDragStart($event, session)"
-          @click="selectSession(session)"
-        >
-          <div class="session-row">
-            <span class="session-title truncate">{{ session.title || '新会话' }}</span>
-            <span class="session-time">{{ formatTime(session.createdAt) }}</span>
-            <div class="session-actions" @click.stop>
-              <el-dropdown trigger="click" @command="(cmd) => handleSessionCommand(cmd, session)">
-                <span class="action-btn">⋮</span>
-                <el-dropdown-menu slot="dropdown">
-                  <el-dropdown-item command="rename">重命名</el-dropdown-item>
-                  <el-dropdown-item command="delete" divided>删除</el-dropdown-item>
-                </el-dropdown-menu>
-              </el-dropdown>
-            </div>
-          </div>
-        </div>
-        <div v-if="hasMore" class="load-more" @click="loadMore">
-          <el-button size="small" :loading="loadingMore">加载更多</el-button>
-        </div>
-      </div>
-    </aside>
+    <SessionsPanel
+      v-if="sidebarVisible"
+      :sessions="displayedSessions"
+      :current-session-id="currentSession?.id"
+      :has-more="hasMore"
+      :loading-more="loadingMore"
+      @create="createSession"
+      @select="selectSession"
+      @command="handleSessionCommand"
+      @dragstart="onDragStart"
+      @loadmore="loadMore"
+    />
 
     <div class="terminal-container" :class="'layout-' + layoutMode">
       <div
@@ -71,11 +47,9 @@
                 </div>
               </template>
             </template>
-
             <div v-if="panel.logItems.length === 0" class="empty-state">
               <span>开始对话吧！输入您的问题...</span>
             </div>
-
             <div class="build-info" v-if="panel.modelName">
               <span class="icon">▣</span> Build · {{ panel.modelName }}
             </div>
@@ -93,9 +67,8 @@
             :disabled="panel.disabled || !panel.session?.id"
             class="input-area"
             @input="onInputChange($event, panel)"
-            @keydown.native="fileSelectVisible ? onFileSelectKeydown($event, panel) : null"
-            @keydown.enter.native="fileSelectVisible ? confirmFileSelect(panel) : handleKeydown($event, panel)"
-            @keydown.esc.native="fileSelectVisible ? cancelFileSelect() : null"
+            @keydown.enter.native="handleKeydown($event, panel)"
+            @keydown.esc.native="cancelFileSelect"
           />
           <el-button v-if="panel.disabled && !panel.stopping" type="danger" @click.stop="stopPanel(panel)" class="stop-btn">
             ■ 停止
@@ -120,9 +93,9 @@
           <span class="separator">|</span>
           <span>token：(<span :class="panel.promptTokens > 50000 ? 'token-warning' : ''">{{ panel.promptTokens || 0 }}{{ panel.promptTokens > 50000 ? ' 会话太大推荐用/compact压缩会话' : '' }}</span>)</span>
           <span class="separator">|</span>
-          <span>帮助 /help</span>
+          <span class="status-action" @click.stop="openCommandDialog">命令</span>
           <span class="separator">|</span>
-          <span>退出 ctrl+c</span>
+          <span class="status-action" @click.stop="openFileSelectFromStatus">选择文件</span>
         </div>
       </div>
     </div>
@@ -135,62 +108,38 @@
       </el-button-group>
     </div>
 
-    <el-dialog
+    <FileSelectDialog
       :visible.sync="fileSelectVisible"
-      title="选择文件"
-      width="500px"
-      :close-on-click-modal="false"
+      @select="onFileSelected"
       @close="cancelFileSelect"
-    >
-      <div class="file-select-content">
-        <div class="file-select-path">{{ fileSelectPath || '/' }}</div>
-        <div class="file-list">
-          <div
-            v-for="(file, index) in fileList"
-            :key="file.path"
-            class="file-item"
-            :class="{ active: index === fileSelectedIndex }"
-            @click="onFileItemClick(file, index)"
-            @dblclick="onFileItemDblClick(file)"
-          >
-            <span class="file-icon">{{ file.isDirectory ? '📁' : '📄' }}</span>
-            <span class="file-name">{{ file.name }}</span>
-          </div>
-          <div v-if="fileList.length === 0" class="empty-files">加载中...</div>
-        </div>
-        <div class="file-select-hint">↑↓ 选择 | Enter 确认 | ESC 取消</div>
-      </div>
-    </el-dialog>
+    />
 
-    <el-dialog
+    <ModelSelectDialog
       :visible.sync="modelSelectVisible"
-      title="选择模型"
-      width="400px"
+      :current-model="selectedPanel?.modelName"
+      @select="onModelSelected"
       @close="modelSelectVisible = false"
-    >
-      <div class="model-list">
-        <div
-          v-for="model in availableModels"
-          :key="model.id"
-          class="model-item"
-          :class="{ active: selectedPanel?.modelName === model.name }"
-          @click="selectModel(model)"
-        >
-          <span class="model-name">{{ model.name }}</span>
-          <span class="model-provider">{{ model.providerId }}</span>
-        </div>
-        <div v-if="availableModels.length === 0" class="empty-models">加载中...</div>
-      </div>
-    </el-dialog>
+    />
+
+    <CommandDialog
+      :visible.sync="commandDialogVisible"
+      @execute="handleExecuteCommand"
+      @close="commandDialogVisible = false"
+    />
   </div>
 </template>
 
 <script>
 import { api } from '../api'
 import { marked } from 'marked'
+import SessionsPanel from '../components/SessionsPanel.vue'
+import FileSelectDialog from '../components/FileSelectDialog.vue'
+import ModelSelectDialog from '../components/ModelSelectDialog.vue'
+import CommandDialog from '../components/CommandDialog.vue'
 
 export default {
   name: 'CodeView',
+  components: { SessionsPanel, FileSelectDialog, ModelSelectDialog, CommandDialog },
 
   props: {
     sidebarVisible: { type: Boolean, default: true }
@@ -209,16 +158,12 @@ export default {
       hasMore: false,
       loadingMore: false,
       draggedSession: null,
-      wsConnected: false,
       fileSelectVisible: false,
-      fileSelectPath: '',
-      fileList: [],
-      fileSelectedIndex: 0,
       currentPanel: null,
-      dots: ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧'],
       modelSelectVisible: false,
-      availableModels: [],
       selectedPanel: null,
+      commandDialogVisible: false,
+      dots: ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧']
     }
   },
 
@@ -250,89 +195,23 @@ export default {
   },
 
   methods: {
-    async loadFileList(dirPath = '') {
-      try {
-        const res = await api.browseFilesystem(dirPath)
-        const items = res.data?.items || []
-        items.sort((a, b) => {
-          if (a.is_directory === b.is_directory) {
-            return a.name.localeCompare(b.name)
-          }
-          return a.is_directory ? -1 : 1
-        })
-        this.fileList = items
-        this.fileSelectPath = res.data?.current_path || dirPath
-        this.fileSelectedIndex = 0
-      } catch (e) {
-        this.fileList = []
-      }
-    },
-
     onInputChange(value, panel) {
       const atIndex = value.lastIndexOf('@')
       if (atIndex !== -1) {
         const afterAt = value.slice(atIndex + 1)
         if (!afterAt.includes(' ') && !this.fileSelectVisible) {
           this.currentPanel = panel
-          this.fileSelectPath = ''
-          this.fileSelectedIndex = 0
           this.fileSelectVisible = true
-          this.loadFileList('')
         }
       }
     },
 
-    onFileItemClick(file, index) {
-      this.fileSelectedIndex = index
-    },
-
-    onFileItemDblClick(file) {
-      if (file.isDirectory) {
-        this.loadFileList(file.path)
-      } else {
-        this.confirmFileSelectByPath(file.path)
-      }
-    },
-
-    onFileSelectKeydown(e, panel) {
-      if (e.key === 'ArrowUp') {
-        e.preventDefault()
-        this.fileSelectedIndex = Math.max(0, this.fileSelectedIndex - 1)
-      } else if (e.key === 'ArrowDown') {
-        e.preventDefault()
-        this.fileSelectedIndex = Math.min(this.fileList.length - 1, this.fileSelectedIndex + 1)
-      } else if (e.key === 'Enter') {
-        e.preventDefault()
-        const file = this.fileList[this.fileSelectedIndex]
-        if (file) {
-          if (file.isDirectory) {
-            this.loadFileList(file.path)
-          } else {
-            this.confirmFileSelect(panel)
-          }
-        }
-      } else if (e.key === 'Escape') {
-        e.preventDefault()
-        this.cancelFileSelect()
-      }
-    },
-
-    confirmFileSelect(panel) {
-      const file = this.fileList[this.fileSelectedIndex]
-      if (file) {
-        this.confirmFileSelectByPath(file.path)
-      }
-      this.fileSelectVisible = false
-      this.currentPanel = null
-    },
-
-    confirmFileSelectByPath(filePath) {
+    onFileSelected(filePath) {
       const panel = this.currentPanel
       if (!panel) return
       const atIndex = panel.input.lastIndexOf('@')
       panel.input = panel.input.slice(0, atIndex) + filePath + ' '
-      this.fileSelectVisible = false
-      this.currentPanel = null
+      this.cancelFileSelect()
     },
 
     cancelFileSelect() {
@@ -340,24 +219,45 @@ export default {
       this.currentPanel = null
     },
 
-    getTodoStatusIcon(status) {
-      const icons = {
-        completed: '✅',
-        in_progress: '🔄',
-        pending: '⬜',
-        cancelled: '❌'
-      }
-      return icons[status] || '⬜'
+    openModelSelector(panel) {
+      this.selectedPanel = panel
+      this.modelSelectVisible = true
     },
 
-    formatTime(dateStr) {
-      if (!dateStr) return ''
-      const date = new Date(dateStr)
-      const month = String(date.getMonth() + 1).padStart(2, '0')
-      const day = String(date.getDate()).padStart(2, '0')
-      const hour = String(date.getHours()).padStart(2, '0')
-      const min = String(date.getMinutes()).padStart(2, '0')
-      return `${month}-${day} ${hour}:${min}`
+    onModelSelected(model) {
+      if (this.selectedPanel) {
+        this.selectedPanel.modelName = model.name
+        api.setConfig('defaultModel', model.name)
+      }
+    },
+
+    openCommandDialog() {
+      this.commandDialogVisible = true
+    },
+
+    openFileSelectFromStatus() {
+      this.currentPanel = this.activeSessions[this.focusedPanelIndex]
+      this.fileSelectVisible = true
+    },
+
+    async handleExecuteCommand(cmd) {
+      const panel = this.activeSessions[this.focusedPanelIndex]
+      if (!panel) {
+        this.$message.warning('请先选择面板')
+        return
+      }
+      panel.input = cmd + ' '
+      this.$nextTick(() => {
+        const textarea = panel.$el?.querySelector('.input-area textarea')
+        if (textarea) {
+          textarea.focus()
+        }
+      })
+    },
+
+    getTodoStatusIcon(status) {
+      const icons = { completed: '✅', in_progress: '🔄', pending: '⬜', cancelled: '❌' }
+      return icons[status] || '⬜'
     },
 
     formatInput(action, input) {
@@ -369,10 +269,7 @@ export default {
         if (action === 'read_file') {
           return parsed.file_path + (parsed.offset ? `:${parsed.offset}` : '')
         }
-        if (action === 'edit_file') {
-          return parsed.file_path
-        }
-        if (action === 'write_file') {
+        if (action === 'edit_file' || action === 'write_file') {
           return parsed.file_path
         }
         if (action === 'glob' || action === 'find_files') {
@@ -388,95 +285,54 @@ export default {
     },
 
     renderMarkdown(text) {
-      if (!text) return ''
-      return marked(text)
+      return text ? marked(text) : ''
     },
 
     initPanelWs(panel) {
-      if (!panel.session?.id) return
-      if (panel.wsConnected) return
-
+      if (!panel.session?.id || panel.wsConnected) return
       api.sessionWsConnect(
         panel.session.id,
-        (msg) => {
-          this.handlePanelWsMessage(panel, msg)
-        },
-        () => {
-          panel.wsConnected = true
-          console.log(`WebSocket [${panel.session.id}] 已连接`)
-        },
+        (msg) => this.handlePanelWsMessage(panel, msg),
+        () => { panel.wsConnected = true },
         () => {
           panel.wsConnected = false
-          console.log(`WebSocket [${panel.session.id}] 已断开`)
           setTimeout(() => {
-            if (!api.sessionWsIsConnected(panel.session.id)) {
-              this.initPanelWs(panel)
-            }
+            if (!api.sessionWsIsConnected(panel.session.id)) this.initPanelWs(panel)
           }, 3000)
         },
-        (err) => {
-          panel.wsConnected = false
-          console.error(`WebSocket [${panel.session.id}] 错误:`, err)
-        }
+        (err) => { panel.wsConnected = false; console.error(err) }
       )
     },
 
-handlePanelWsMessage(panel, msg) {
-      const { type, data, error } = msg;
-      
+    handlePanelWsMessage(panel, msg) {
+      const { type, data, error } = msg
       switch (type) {
         case 'todos':
-          if (data?.todos) {
-            panel.logItems.push({
-              type: 'todos',
-              todos: data.todos
-            })
-          }
+          if (data?.todos) panel.logItems.push({ type: 'todos', todos: data.todos })
           break
         case 'session':
-          if (data?.sessionId && !panel.session.id) {
-            panel.session.id = data.sessionId
-          }
+          if (data?.sessionId && !panel.session.id) panel.session.id = data.sessionId
           break
         case 'step':
-          if (data) {
-            panel.logItems.push({ 
-              type: 'step', 
-              thought: data.thought, 
-              actions: data.actions,
-              success: data.success
-            })
-          }
+          if (data) panel.logItems.push({ type: 'step', thought: data.thought, actions: data.actions, success: data.success })
           break
         case 'done':
           panel.disabled = false
           panel.stopping = false
           panel.dotAnimation = ''
-          if (panel.dotInterval) {
-            clearInterval(panel.dotInterval)
-            panel.dotInterval = null
-          }
-          if (data?.modelName) {
-            panel.modelName = data.modelName
-          }
-          if (data?.usage?.promptTokens) {
-            panel.promptTokens = data.usage.promptTokens
-          }
-          if (data?.response) {
-            panel.logItems.push({ type: 'think', content: data.response })
-          }
-          if (data?.sessionId) {
-            this.loadSessions()
-          }
+          clearInterval(panel.dotInterval)
+          panel.dotInterval = null
+          if (data?.modelName) panel.modelName = data.modelName
+          if (data?.usage?.promptTokens) panel.promptTokens = data.usage.promptTokens
+          if (data?.response) panel.logItems.push({ type: 'think', content: data.response })
+          if (data?.sessionId) this.loadSessions()
           break
         case 'stopped':
           panel.disabled = false
           panel.stopping = false
           panel.dotAnimation = ''
-          if (panel.dotInterval) {
-            clearInterval(panel.dotInterval)
-            panel.dotInterval = null
-          }
+          clearInterval(panel.dotInterval)
+          panel.dotInterval = null
           panel.logItems.push({ type: 'think', content: '【已停止】' })
           break
         case 'error':
@@ -484,24 +340,15 @@ handlePanelWsMessage(panel, msg) {
           panel.disabled = false
           panel.stopping = false
           panel.dotAnimation = ''
-          if (panel.dotInterval) {
-            clearInterval(panel.dotInterval)
-            panel.dotInterval = null
-          }
+          clearInterval(panel.dotInterval)
+          panel.dotInterval = null
           break
       }
-      
       this.$nextTick(() => {
         const panelIdx = this.activeSessions.indexOf(panel)
         if (panelIdx > -1) {
-          const panels = this.$el?.querySelectorAll('.session-panel')
-          const el = panels?.[panelIdx]
-          if (el) {
-            const logArea = el.querySelector('.log-area')
-            if (logArea) {
-              logArea.scrollTop = logArea.scrollHeight
-            }
-          }
+          const el = this.$el?.querySelectorAll('.session-panel')?.[panelIdx]
+          el?.querySelector('.log-area')?.scrollTo(0, el.querySelector('.log-area').scrollHeight)
         }
       })
     },
@@ -514,27 +361,13 @@ handlePanelWsMessage(panel, msg) {
     updateActiveSessions() {
       const count = this.layoutMode
       const newActive = []
-      
       for (let i = 0; i < count; i++) {
-        if (this.activeSessions[i]) {
-          newActive.push(this.activeSessions[i])
-        } else {
-          newActive.push({
-            session: null,
-            logItems: [],
-            userQuestion: '',
-            modelName: '',
-            input: '',
-            disabled: false,
-            stopping: false,
-            wsConnected: false,
-            promptTokens: 0,
-            dotAnimation: '',
-            dotInterval: null,
-          })
-        }
+        newActive.push(this.activeSessions[i] || {
+          session: null, logItems: [], userQuestion: '', modelName: '',
+          input: '', disabled: false, stopping: false, wsConnected: false,
+          promptTokens: 0, dotAnimation: '', dotInterval: null
+        })
       }
-      
       this.activeSessions = newActive
     },
 
@@ -544,42 +377,31 @@ handlePanelWsMessage(panel, msg) {
     },
 
     onDropPanel(event, index) {
-      if (this.draggedSession) {
-        const panel = this.activeSessions[index]
-        panel.session = this.draggedSession
-        panel.logItems = []
-        panel.userQuestion = ''
-        panel.disabled = false
-        panel.stopping = false
-        panel.wsConnected = false
-        panel.promptTokens = 0
-        panel.dotAnimation = ''
-        if (panel.dotInterval) {
-          clearInterval(panel.dotInterval)
-          panel.dotInterval = null
-        }
-        this.loadMessagesForPanel(panel, this.draggedSession.id)
-        this.initPanelWs(panel)
-        this.draggedSession = null
-      }
+      if (!this.draggedSession) return
+      const panel = this.activeSessions[index]
+      panel.session = this.draggedSession
+      panel.logItems = []
+      panel.userQuestion = ''
+      panel.disabled = false
+      panel.stopping = false
+      panel.wsConnected = false
+      panel.promptTokens = 0
+      panel.dotAnimation = ''
+      clearInterval(panel.dotInterval)
+      panel.dotInterval = null
+      this.loadMessagesForPanel(panel, this.draggedSession.id)
+      this.initPanelWs(panel)
+      this.draggedSession = null
     },
 
     bindSessionToPanel(session, panelIndex = null) {
       const idx = panelIndex !== null ? panelIndex : this.focusedPanelIndex
       if (idx >= 0 && idx < this.activeSessions.length) {
         const panel = this.activeSessions[idx]
-        panel.session = session
-        panel.logItems = []
-        panel.userQuestion = ''
-        panel.disabled = false
-        panel.stopping = false
-        panel.wsConnected = false
-        panel.promptTokens = 0
-        panel.dotAnimation = ''
-        if (panel.dotInterval) {
-          clearInterval(panel.dotInterval)
-          panel.dotInterval = null
-        }
+        Object.assign(panel, {
+          session, logItems: [], userQuestion: '', disabled: false,
+          stopping: false, wsConnected: false, promptTokens: 0, dotAnimation: '', dotInterval: null
+        })
         this.loadMessagesForPanel(panel, session.id)
         this.initPanelWs(panel)
       }
@@ -589,14 +411,9 @@ handlePanelWsMessage(panel, msg) {
       try {
         const res = await api.getMessages(sessionId)
         panel.logItems = res.data || []
-        if (panel.logItems.length > 0) {
-          const userItem = panel.logItems.find(item => item.type === 'chat' || item.type === 'think')
-          if (userItem) {
-            panel.userQuestion = userItem.content
-          }
-        }
+        const userItem = panel.logItems.find(item => item.type === 'chat' || item.type === 'think')
+        if (userItem) panel.userQuestion = userItem.content
       } catch (e) {
-        console.error('加载消息失败:', e)
         panel.logItems = []
       }
     },
@@ -665,30 +482,6 @@ handlePanelWsMessage(panel, msg) {
       }
     },
 
-    async openModelSelector(panel) {
-      this.selectedPanel = panel
-      this.modelSelectVisible = true
-      await this.loadModels()
-    },
-
-    async loadModels() {
-      try {
-        const res = await api.getModels()
-        this.availableModels = res.data || []
-      } catch (e) {
-        console.error('加载模型列表失败:', e)
-        this.availableModels = []
-      }
-    },
-
-    selectModel(model) {
-      if (this.selectedPanel) {
-        this.selectedPanel.modelName = model.name
-        api.setConfig('defaultModel', model.name)
-        this.modelSelectVisible = false
-      }
-    },
-
     async sendToPanel(panel) {
       const content = panel.input.trim()
       if (!content || panel.disabled) return
@@ -707,20 +500,12 @@ handlePanelWsMessage(panel, msg) {
       }, 150)
 
       if (api.sessionWsIsConnected(panel.session.id)) {
-        api.sessionWsSend(panel.session.id, 'chat', {
-          message: content,
-          sessionId: panel.session?.id,
-          modelName: panel.modelName || undefined,
-        })
+        api.sessionWsSend(panel.session.id, 'chat', { message: content, sessionId: panel.session?.id, modelName: panel.modelName || undefined })
       } else {
         this.initPanelWs(panel)
         setTimeout(() => {
           if (api.sessionWsIsConnected(panel.session.id)) {
-            api.sessionWsSend(panel.session.id, 'chat', {
-              message: content,
-              sessionId: panel.session?.id,
-              modelName: panel.modelName || undefined,
-            })
+            api.sessionWsSend(panel.session.id, 'chat', { message: content, sessionId: panel.session?.id, modelName: panel.modelName || undefined })
           }
         }, 500)
       }
@@ -729,9 +514,7 @@ handlePanelWsMessage(panel, msg) {
     stopPanel(panel) {
       if (!panel.session?.id || panel.stopping) return
       panel.stopping = true
-      api.sessionWsSend(panel.session.id, 'stop', {
-        sessionId: panel.session.id,
-      })
+      api.sessionWsSend(panel.session.id, 'stop', { sessionId: panel.session.id })
     },
 
     async handleSessionCommand(cmd, session) {
@@ -746,9 +529,7 @@ handlePanelWsMessage(panel, msg) {
           try {
             await api.updateSession(session.id, { title: value })
             session.title = value
-            if (this.currentSession?.id === session.id) {
-              this.currentSession.title = value
-            }
+            if (this.currentSession?.id === session.id) this.currentSession.title = value
             this.$message.success('重命名成功')
           } catch (e) {
             this.$message.error('重命名失败: ' + e.message)
@@ -767,11 +548,7 @@ handlePanelWsMessage(panel, msg) {
             const displayIdx = this.displayedSessions.findIndex(s => s.id === session.id)
             if (displayIdx > -1) this.displayedSessions.splice(displayIdx, 1)
             if (this.currentSession?.id === session.id) {
-              if (this.displayedSessions.length > 0) {
-                this.selectSession(this.displayedSessions[0])
-              } else {
-                this.currentSession = null
-              }
+              this.currentSession = this.displayedSessions.length > 0 ? this.displayedSessions[0] : null
             }
             this.$message.success('删除成功')
           } catch (e) {
@@ -779,8 +556,8 @@ handlePanelWsMessage(panel, msg) {
           }
         }).catch(() => {})
       }
-    },
-  },
+    }
+  }
 }
 </script>
 
@@ -821,14 +598,8 @@ handlePanelWsMessage(panel, msg) {
   transition: border-color 0.2s;
 }
 
-.session-panel:hover {
-  border-color: #3b82f6;
-}
-
-.session-panel.panel-active {
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 1px #3b82f6;
-}
+.session-panel:hover { border-color: #3b82f6; }
+.session-panel.panel-active { border-color: #3b82f6; box-shadow: 0 0 0 1px #3b82f6; }
 
 .panel-header {
   display: flex;
@@ -850,54 +621,17 @@ handlePanelWsMessage(panel, msg) {
   line-height: 1.6;
 }
 
-.log-area p {
-  margin: 0 0 16px 0;
-  color: #d4d4d8;
-}
-
-.user-question {
-  color: #60a5fa;
-  font-weight: bold;
-}
-
-.todos-list {
-  margin-bottom: 16px;
-  color: #d4d4d8;
-}
-
-.todo-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 2px 0;
-}
-
-.todo-status {
-  font-size: 14px;
-}
-
-.todo-name {
-  font-size: 14px;
-}
-
-.log-mute {
-  color: #84848a;
-  margin-bottom: 16px;
-  white-space: pre;
-}
-
+.log-area p { margin: 0 0 16px 0; color: #d4d4d8; }
+.user-question { color: #60a5fa; font-weight: bold; }
+.todos-list { margin-bottom: 16px; color: #d4d4d8; }
+.todo-item { display: flex; align-items: center; gap: 8px; padding: 2px 0; }
+.todo-status, .todo-name { font-size: 14px; }
+.log-mute { color: #84848a; margin-bottom: 16px; white-space: pre; }
 .tool-success { color: #22c55e; }
 .tool-fail { color: #ef4444; }
 .tool-input { color: #60a5fa; margin-left: 8px; }
 
-.build-info {
-  color: #84848a;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 16px;
-}
-
+.build-info { color: #84848a; display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
 .build-info .icon { color: #60a5fa; font-size: 12px; }
 
 .empty-state {
@@ -919,22 +653,7 @@ handlePanelWsMessage(panel, msg) {
 }
 
 .input-area { flex: 1; }
-.send-btn { height: auto; }
-.stop-btn { height: auto; }
-
-.ws-connected { color: #22c55e; }
-.ws-disconnected { color: #ef4444; }
-
-.footer {
-  display: flex;
-  justify-content: space-between;
-  padding: 8px 16px;
-  font-size: 12px;
-  border-top: 1px solid #27272a;
-  flex-shrink: 0;
-}
-
-.footer-left { display: flex; gap: 16px; align-items: center; color: #84848a; }
+.send-btn, .stop-btn { height: auto; }
 
 .status-bar {
   display: flex;
@@ -947,129 +666,15 @@ handlePanelWsMessage(panel, msg) {
   flex-shrink: 0;
   flex-wrap: wrap;
 }
+
 .status-bar .separator { color: #3f3f46; }
 .status-ready { color: #22c55e; }
 .status-thinking { color: #60a5fa; }
 .token-warning { color: #ef4444; }
 
-.layout-switcher {
-  position: fixed;
-  right: 20px;
-  bottom: 20px;
-  z-index: 100;
-}
-
-.sidebar {
-  width: 260px;
-  background-color: #0a0a09;
-  border-right: 1px solid #27272a;
-  display: flex;
-  flex-direction: column;
-  flex-shrink: 0;
-}
-
-.sidebar-header {
-  padding: 12px 16px;
-  border-bottom: 1px solid #27272a;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.sidebar-title {
-  font-size: 12px;
-  color: #84848a;
-  font-weight: bold;
-}
-
-.new-btn { font-size: 12px; padding: 4px 8px; }
-.sidebar-content { flex: 1; overflow-y: auto; }
-
-.session-item {
-  padding: 8px 16px;
-  cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: 13px;
-  color: #84848a;
-  transition: all 0.2s;
-  border-left: 2px solid transparent;
-  position: relative;
-}
-
-.session-item:hover {
-  background-color: #18191b;
-  color: #d4d4d8;
-}
-
-.session-item:hover .session-actions { opacity: 1; }
-
-.session-row {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.session-title { order: 1; }
-.session-time { order: 2; font-size: 11px; color: #545459; }
-
-.session-actions {
-  order: 3;
-  opacity: 0;
-  position: absolute;
-  right: 8px;
-  top: 50%;
-  transform: translateY(-50%);
-  transition: opacity 0.2s;
-}
-
-.action-btn {
-  cursor: pointer;
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-size: 14px;
-  color: #84848a;
-}
-
-.action-btn:hover {
-  background-color: #3f3f46;
-  color: #d4d4d8;
-}
-
-.session-item.active {
-  background-color: #18191b;
-  border-left-color: #3b82f6;
-  color: #f4f4f5;
-}
-
-.session-item.active .session-time { color: #60a5fa; }
-
-.truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.load-more { padding: 12px; text-align: center; border-top: 1px solid #27272a; }
-
-.file-select-content { height: 400px; display: flex; flex-direction: column; }
-.file-select-path { padding: 8px 12px; background: #27272a; color: #a1a1aa; font-size: 13px; border-radius: 4px; margin-bottom: 12px; }
-.file-list { flex: 1; overflow-y: auto; border: 1px solid #3f3f46; border-radius: 4px; }
-.file-item { display: flex; align-items: center; gap: 8px; padding: 8px 12px; cursor: pointer; transition: background 0.2s; }
-.file-item:hover { background: #27272a; }
-.file-item.active { background: #3b82f6; }
-.file-icon { font-size: 16px; }
-.file-name { color: #d4d4d8; font-size: 14px; }
-.file-item.active .file-name { color: #fff; }
-.empty-files { padding: 20px; text-align: center; color: #71717a; }
-.file-select-hint { margin-top: 12px; padding: 8px; background: #27272a; color: #a1a1aa; font-size: 12px; border-radius: 4px; text-align: center; }
-
-.model-list { max-height: 400px; overflow-y: auto; }
-.model-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; cursor: pointer; border-radius: 4px; transition: background 0.2s; }
-.model-item:hover { background: #27272a; }
-.model-item.active { background: #3b82f6; }
-.model-name { color: #d4d4d8; font-weight: 500; }
-.model-item.active .model-name { color: #fff; }
-.model-provider { color: #84848a; font-size: 12px; }
-.model-item.active .model-provider { color: #e0e0e0; }
-.empty-models { padding: 20px; text-align: center; color: #71717a; }
-
+.layout-switcher { position: fixed; right: 20px; bottom: 20px; z-index: 100; }
 .model-selector { cursor: pointer; }
 .model-selector:hover { color: #60a5fa; }
+.status-action { cursor: pointer; }
+.status-action:hover { color: #60a5fa; }
 </style>
