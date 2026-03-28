@@ -24,27 +24,32 @@ export default {
   
   props: {
     sessionId: { type: String, default: null },
-    wsConnected: { type: Boolean, default: false }
+    active: { type: Boolean, default: false }
   },
 
   data() {
     return {
       wsConnected: false,
       term: null,
-      fitAddon: null
+      fitAddon: null,
+      mounted: false
     }
   },
 
   watch: {
-    sessionId: {
+    active: {
       immediate: true,
-      handler(newId, oldId) {
-        if (oldId && oldId !== newId) {
-          this.disconnectWs(oldId)
-        }
-        if (newId) {
+      handler(isActive) {
+        if (isActive && this.sessionId && !this.term) {
           this.$nextTick(() => {
             this.initTerminal()
+          })
+        } else if (!isActive && this.term) {
+          this.disconnectWs(this.sessionId)
+        } else if (isActive && this.term) {
+          this.connectWs()
+          this.$nextTick(() => {
+            this.fit()
           })
         }
       }
@@ -168,11 +173,18 @@ export default {
         this.term.clear()
         this.term.reset()
       }
+    },
+
+    fit() {
+      if (this.fitAddon) {
+        this.fitAddon.fit()
+      }
     }
   },
 
   mounted() {
-    if (this.sessionId) {
+    this.mounted = true
+    if (this.active && this.sessionId) {
       this.initTerminal()
     }
   },

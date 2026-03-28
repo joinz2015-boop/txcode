@@ -1,78 +1,50 @@
 <template>
   <div class="terminal-view">
-    <TerminalSidebar
-      v-if="sidebarVisible"
-      :sessions="sessions"
-      :current-session-id="currentSession?.id"
-      @create="createSession"
-      @select="selectSession"
-      @delete="deleteSession"
-    />
-
-    <div class="terminal-container" :class="'layout-' + layoutMode">
-      <div
-        v-for="(panel, index) in activeTerminals"
-        :key="index"
-        class="terminal-panel"
-        :class="{ 'panel-active': focusedPanelIndex === index }"
-        @click="focusedPanelIndex = index"
-      >
-        <div class="panel-tabs" v-if="panel.tabs.length > 0">
+    <div class="terminal-container">
+      <div class="terminal-panel">
+        <div class="panel-tabs" v-if="activeTerminals[0].tabs.length > 0">
           <div
-            v-for="(tab, tabIndex) in panel.tabs"
+            v-for="(tab, tabIndex) in activeTerminals[0].tabs"
             :key="tab.sessionId"
             class="panel-tab"
-            :class="{ 'tab-active': panel.activeTabIndex === tabIndex }"
-            @click.stop="switchPanelTab(index, tabIndex)"
+            :class="{ 'tab-active': activeTerminals[0].activeTabIndex === tabIndex }"
+            @click.stop="switchPanelTab(tabIndex)"
           >
             <span class="tab-title">{{ tab.sessionId ? tab.sessionId.slice(0, 8) : '新会话' }}</span>
-            <span class="tab-close" @click.stop="closePanelTab(index, tabIndex)">×</span>
+            <span class="tab-close" @click.stop="closePanelTab(tabIndex)">×</span>
           </div>
+          <span class="tab-add" @click.stop="createTabInPanel">+</span>
         </div>
         <div class="panel-header">
-          <span class="title">终端 {{ panel.tabs[panel.activeTabIndex]?.sessionId ? panel.tabs[panel.activeTabIndex].sessionId.slice(0, 8) : '' }}</span>
+          <span class="title">终端 {{ activeTerminals[0].tabs[activeTerminals[0].activeTabIndex]?.sessionId ? activeTerminals[0].tabs[activeTerminals[0].activeTabIndex].sessionId.slice(0, 8) : '' }}</span>
           <span class="platform-badge">{{ platform }}</span>
         </div>
         <div class="terminal-content">
           <TerminalPanel
-            v-if="panel.tabs[panel.activeTabIndex]"
-            :key="panel.tabs[panel.activeTabIndex].sessionId"
-            :session-id="panel.tabs[panel.activeTabIndex].sessionId"
+            v-for="(tab, tabIndex) in activeTerminals[0].tabs"
+            v-show="activeTerminals[0].activeTabIndex === tabIndex"
+            :key="tab.sessionId"
+            :session-id="tab.sessionId"
+            :active="activeTerminals[0].activeTabIndex === tabIndex"
+            :ref="'terminal-' + tab.sessionId"
           />
         </div>
       </div>
-    </div>
-
-    <div class="layout-switcher">
-      <el-button-group>
-        <el-button :type="layoutMode === 1 ? 'primary' : ''" @click="setLayout(1)">1</el-button>
-        <el-button :type="layoutMode === 2 ? 'primary' : ''" @click="setLayout(2)">2</el-button>
-        <el-button :type="layoutMode === 4 ? 'primary' : ''" @click="setLayout(4)">4</el-button>
-      </el-button-group>
     </div>
   </div>
 </template>
 
 <script>
 import { api } from '../api'
-import TerminalSidebar from '../components/TerminalSidebar.vue'
 import TerminalPanel from '../components/TerminalPanel.vue'
 
 export default {
   name: 'TerminalView',
-  components: { TerminalSidebar, TerminalPanel },
-
-  props: {
-    sidebarVisible: { type: Boolean, default: true }
-  },
+  components: { TerminalPanel },
 
   data() {
     return {
-      layoutMode: 1,
-      focusedPanelIndex: 0,
-      sessions: [],
-      currentSession: null,
-      activeTerminals: [],
+      activeTerminals: [{ tabs: [], activeTabIndex: 0 }],
       platform: this.detectPlatform()
     }
   },
@@ -82,18 +54,14 @@ export default {
       immediate: true,
       handler(id) {
         if (id) {
-          const session = this.sessions.find(s => s.id === id)
-          if (session) {
-            this.currentSession = session
-            this.bindSessionToPanel(session)
-          }
+          this.bindSessionToPanel(id)
         }
       }
     }
   },
 
   created() {
-    this.loadSessions()
+    this.loadOrCreateSession()
   },
 
   methods: {
@@ -105,44 +73,16 @@ export default {
       return 'Unknown'
     },
 
-    setLayout(mode) {
-      this.layoutMode = mode
-      this.updateActiveTerminals()
-    },
-
-    updateActiveTerminals() {
-      const count = this.layoutMode
-      const newActive = []
-      for (let i = 0; i < count; i++) {
-        newActive.push(this.activeTerminals[i] || this.createEmptyPanel())
-      }
-      this.activeTerminals = newActive
-    },
-
-    createEmptyPanel() {
-      return {
-        tabs: [],
-        activeTabIndex: 0
-      }
-    },
-
     createTab(sessionId) {
-      return {
-        sessionId,
-        wsConnected: false
-      }
+      return { sessionId, wsConnected: false }
     },
 
-    switchPanelTab(panelIndex, tabIndex) {
-      const panel = this.activeTerminals[panelIndex]
-      if (panel) {
-        panel.activeTabIndex = tabIndex
-      }
+    switchPanelTab(tabIndex) {
+      this.activeTerminals[0].activeTabIndex = tabIndex
     },
 
-    closePanelTab(panelIndex, tabIndex) {
-      const panel = this.activeTerminals[panelIndex]
-      if (!panel) return
+    closePanelTab(tabIndex) {
+      const panel = this.activeTerminals[0]
       const tab = panel.tabs[tabIndex]
       if (tab?.sessionId) {
         api.terminalWsDisconnect(tab.sessionId)
@@ -153,72 +93,50 @@ export default {
       }
     },
 
-    bindSessionToPanel(session, panelIndex = null) {
-      const idx = panelIndex !== null ? panelIndex : this.focusedPanelIndex
-      if (idx >= 0 && idx < this.activeTerminals.length) {
-        const panel = this.activeTerminals[idx]
-        const existingTab = panel.tabs.find(t => t.sessionId === session.id)
-        if (existingTab) {
-          panel.activeTabIndex = panel.tabs.indexOf(existingTab)
-        } else {
-          const newTab = this.createTab(session.id)
-          panel.tabs.push(newTab)
-          panel.activeTabIndex = panel.tabs.length - 1
-        }
+    bindSessionToPanel(sessionId) {
+      const panel = this.activeTerminals[0]
+      const existingTab = panel.tabs.find(t => t.sessionId === sessionId)
+      if (existingTab) {
+        panel.activeTabIndex = panel.tabs.indexOf(existingTab)
+      } else {
+        const newTab = this.createTab(sessionId)
+        panel.tabs.push(newTab)
+        panel.activeTabIndex = panel.tabs.length - 1
       }
     },
 
-    async loadSessions() {
+    async loadOrCreateSession() {
       try {
         const res = await api.getTerminalSessions()
-        this.sessions = res.data || []
-        this.updateActiveTerminals()
+        const sessions = res.data || []
+        if (sessions.length > 0) {
+          const session = sessions[0]
+          if (this.$route.params.id !== session.id) {
+            this.$router.push({ name: 'terminal-session', params: { id: session.id } }).catch(() => {})
+          }
+          this.bindSessionToPanel(session.id)
+        } else {
+          await this.createTabInPanel()
+        }
       } catch (e) {
         console.error('加载终端会话失败:', e)
+        await this.createTabInPanel()
       }
     },
 
-    async createSession() {
+    async createTabInPanel() {
       try {
         const res = await api.createTerminalSession()
         const newSession = res.data
-        this.sessions.unshift(newSession)
-        this.currentSession = newSession
-        
+        const panel = this.activeTerminals[0]
+        const newTab = this.createTab(newSession.id)
+        panel.tabs.push(newTab)
+        panel.activeTabIndex = panel.tabs.length - 1
         if (this.$route.params.id !== newSession.id) {
           this.$router.push({ name: 'terminal-session', params: { id: newSession.id } }).catch(() => {})
         }
-        
-        this.bindSessionToPanel(newSession)
       } catch (e) {
         this.$message.error('创建终端会话失败: ' + e.message)
-      }
-    },
-
-    selectSession(session) {
-      this.currentSession = session
-      if (this.$route.params.id !== session.id) {
-        this.$router.push({ name: 'terminal-session', params: { id: session.id } }).catch(() => {})
-      }
-      this.bindSessionToPanel(session)
-    },
-
-    async deleteSession(session) {
-      try {
-        await api.deleteTerminalSession(session.id)
-        const idx = this.sessions.findIndex(s => s.id === session.id)
-        if (idx > -1) this.sessions.splice(idx, 1)
-        
-        if (this.currentSession?.id === session.id) {
-          this.currentSession = this.sessions.length > 0 ? this.sessions[0] : null
-          if (this.currentSession) {
-            this.bindSessionToPanel(this.currentSession)
-          }
-        }
-        
-        this.$message.success('删除成功')
-      } catch (e) {
-        this.$message.error('删除失败: ' + e.message)
       }
     }
   }
@@ -241,29 +159,23 @@ export default {
 
 .terminal-container {
   flex: 1;
-  display: grid;
-  gap: 12px;
+  display: flex;
+  flex-direction: column;
   padding: 12px;
   overflow: hidden;
 }
 
-.terminal-container.layout-1 { grid-template-columns: 1fr; }
-.terminal-container.layout-2 { grid-template-columns: 1fr 1fr; }
-.terminal-container.layout-4 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
-
 .terminal-panel {
   display: flex;
   flex-direction: column;
+  flex: 1;
   background-color: #0a0a09;
   border: 1px solid #1e1e1e;
   overflow: hidden;
   min-height: 0;
-  cursor: pointer;
-  transition: border-color 0.2s;
 }
 
 .terminal-panel:hover { border-color: #3b82f6; }
-.terminal-panel.panel-active { border-color: #3b82f6; box-shadow: 0 0 0 1px #3b82f6; }
 
 .panel-header {
   display: flex;
@@ -283,6 +195,8 @@ export default {
 .panel-tab.tab-active { background: #0a0a09; color: #fff; border-bottom: 2px solid #3b82f6; }
 .tab-close { opacity: 0.5; }
 .tab-close:hover { opacity: 1; color: #ef4444; }
+.tab-add { display: flex; align-items: center; padding: 8px 12px; cursor: pointer; color: #a1a1aa; font-size: 14px; }
+.tab-add:hover { background: #27272a; color: #fff; }
 .terminal-content { flex: 1; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
 .platform-badge {
   font-size: 11px;
@@ -292,5 +206,5 @@ export default {
   border-radius: 4px;
 }
 
-.layout-switcher { position: fixed; right: 20px; bottom: 20px; z-index: 100; }
+
 </style>
