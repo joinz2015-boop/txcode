@@ -20,9 +20,9 @@
                 <span class="todo-name">{{ todo.name }}</span>
               </div>
             </div>
-            <p v-else-if="item.type === 'chat' || item.type === 'think'" class="user-question" v-html="renderMarkdown(item.content)"></p>
+            <div v-else-if="item.type === 'chat' || item.type === 'think'" class="user-question" v-html="renderMarkdown(item.content)"></div>
             <template v-else-if="item.type === 'step'">
-              <p v-if="item.thought" v-html="renderMarkdown(item.thought)"></p>
+              <div v-if="item.thought" class="ai-thought" v-html="renderMarkdown(item.thought)"></div>
               <div v-for="(action, aIdx) in item.actions" :key="aIdx" class="log-mute">
                 <span :class="item.success !== false ? 'tool-success' : 'tool-fail'">
                   {{ item.success !== false ? '✓' : '✗' }}
@@ -412,21 +412,33 @@ export default {
 .todo-item { display: flex; align-items: center; gap: 8px; padding: 2px 0; }
 .todo-status, .todo-name { font-size: 14px; }
 .user-question { color: #60a5fa; font-weight: bold; margin-bottom: 16px; }
-.user-question :deep(p) { color: #d4d4d8; font-weight: normal; margin: 0 0 8px 0; }
-.user-question :deep(p:last-child) { margin-bottom: 0; }
+.user-question :deep(p) { color: #d4d4d8; font-weight: normal; margin: 0 0 8px 0; font-size: 14px; line-height: 1.6; }
 .user-question :deep(strong) { color: #fff; }
-.user-question :deep(code) { background: #27272a; padding: 2px 6px; border-radius: 4px; color: #60a5fa; }
-.user-question :deep(pre) { background: #1e1e1e; padding: 12px; border-radius: 6px; overflow-x: auto; margin: 8px 0; }
-.user-question :deep(ul), .user-question :deep(ol) { margin: 8px 0; padding-left: 20px; }
-.user-question :deep(li) { margin: 4px 0; }
+.user-question :deep(code) { background: #27272a; padding: 2px 6px; border-radius: 4px; color: #60a5fa; font-size: 13px; }
+.user-question :deep(pre) { background: #1e1e1e; padding: 12px; border-radius: 6px; overflow-x: auto; margin: 8px 0; font-size: 13px; }
+.user-question :deep(ul), .user-question :deep(ol) { margin: 8px 0; padding-left: 20px; color: #d4d4d8; }
+.user-question :deep(li) { margin: 4px 0; color: #d4d4d8; }
 .user-question :deep(h1), .user-question :deep(h2), .user-question :deep(h3) { color: #fff; margin: 12px 0 8px 0; }
 .user-question :deep(h1) { font-size: 20px; }
 .user-question :deep(h2) { font-size: 18px; }
 .user-question :deep(h3) { font-size: 16px; }
-.user-question :deep(table) { border-collapse: collapse; margin: 8px 0; }
-.user-question :deep(th), .user-question :deep(td) { border: 1px solid #3f3f46; padding: 6px 10px; }
-.user-question :deep(th) { background: #1e1e1e; }
+.user-question :deep(table) { border-collapse: collapse; margin: 8px 0; width: 100%; }
+.user-question :deep(th), .user-question :deep(td) { border: 1px solid #3f3f46; padding: 6px 10px; color: #d4d4d8; }
+.user-question :deep(th) { background: #1e1e1e; color: #fff; }
 .user-question :deep(blockquote) { border-left: 3px solid #409EFF; padding-left: 12px; margin: 8px 0; color: #a1a1aa; }
+.user-question :deep(hr) { border: none; border-top: 1px solid #3f3f46; margin: 12px 0; }
+.ai-thought { color: #d4d4d8; margin-bottom: 16px; font-size: 14px; line-height: 1.6; }
+.ai-thought :deep(p) { margin: 0 0 8px 0; }
+.ai-thought :deep(strong) { color: #fff; }
+.ai-thought :deep(code) { background: #27272a; padding: 2px 6px; border-radius: 4px; color: #60a5fa; font-size: 13px; }
+.ai-thought :deep(pre) { background: #1e1e1e; padding: 12px; border-radius: 6px; overflow-x: auto; margin: 8px 0; }
+.ai-thought :deep(ul), .ai-thought :deep(ol) { margin: 8px 0; padding-left: 20px; }
+.ai-thought :deep(li) { margin: 4px 0; }
+.ai-thought :deep(h1), .ai-thought :deep(h2), .ai-thought :deep(h3) { color: #fff; margin: 12px 0 8px 0; }
+.ai-thought :deep(table) { border-collapse: collapse; margin: 8px 0; width: 100%; }
+.ai-thought :deep(th), .ai-thought :deep(td) { border: 1px solid #3f3f46; padding: 6px 10px; }
+.ai-thought :deep(th) { background: #1e1e1e; }
+.ai-thought :deep(blockquote) { border-left: 3px solid #409EFF; padding-left: 12px; margin: 8px 0; color: #a1a1aa; }
 .log-mute { color: #84848a; margin-bottom: 16px; white-space: pre; }
 .tool-success { color: #22c55e; }
 .tool-fail { color: #ef4444; }
