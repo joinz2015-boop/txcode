@@ -23,6 +23,7 @@ import { sessionService } from '../modules/session/index.js';
 import { memoryService } from '../modules/memory/index.js';
 import { aiService } from '../modules/ai/index.js';
 import { dbService } from '../modules/db/index.js';
+import { configService } from '../modules/config/index.js';
 import { ReActState } from '../modules/ai/ai.types.js';
 import { MessageItem } from '../cli/cli.types.js';
 
@@ -211,7 +212,7 @@ export function App() {
       for (const provider of providers) {
         const providerModels = configService.getModels(provider.id);
         for (const m of providerModels) {
-          models.push({ id: m.id, name: `${provider.name}/${m.name}` });
+          models.push({ id: m.id, name: m.name });
         }
       }
       
@@ -241,14 +242,13 @@ export function App() {
       })));
     }
     
-    const loadCurrentModel = async () => {
-      try {
-        const { configService } = await import('../modules/config/index.js');
-        const provider = configService.getDefaultProvider();
-        if (provider) {
-          setCurrentModelName(provider.name);
-        }
-      } catch {}
+    const loadCurrentModel = () => {
+      const defaultModel = configService.get<string>('defaultModel');
+      //console.log('[DEBUG] loadCurrentModel - defaultModel from config:', defaultModel);
+      if (defaultModel) {
+        setCurrentModelName(defaultModel);
+       // console.log('[DEBUG] setCurrentModelName to:', defaultModel);
+      }
     };
     loadCurrentModel();
   }, []);
@@ -558,8 +558,11 @@ export function App() {
         setModelSelectedIndex(prev => Math.min(modelList.length - 1, prev + 1));
       } else if (key.return) {
         if (modelList[modelSelectedIndex]) {
-          setCurrentModelName(modelList[modelSelectedIndex].name);
-          addMessage('system', `已切换到模型: ${modelList[modelSelectedIndex].name}`);
+          const modelName = modelList[modelSelectedIndex].name;
+          console.log('[模型切换] 准备保存模型:', modelName);
+          setCurrentModelName(modelName);
+          configService.set('defaultModel', modelName);
+          console.log('[模型切换] 已保存到 config 表');
         }
         setModelSelectMode(false);
         setModelList([]);

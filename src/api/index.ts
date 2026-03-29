@@ -15,6 +15,7 @@ import { filesystemRouter } from './filesystem.routes.js';
 import { aiLogRouter } from './ai-log.routes.js';
 import { gatewayRouter } from './gateway.routes.js';
 import { terminalRouter } from './terminal.routes.js';
+import { schedulerRouter } from './scheduler.routes.js';
 
 export const apiRouter = Router();
 
@@ -30,5 +31,6 @@ apiRouter.use('/filesystem', filesystemRouter);
 apiRouter.use('/ai-logs', aiLogRouter);
 apiRouter.use('/gateway', gatewayRouter);
 apiRouter.use('/terminal', terminalRouter);
+apiRouter.use('/tasks', schedulerRouter);
 
 export * from './api.types.js';

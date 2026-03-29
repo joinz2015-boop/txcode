@@ -191,6 +191,7 @@ export class DbService {
       () => this.migration004AddProjects(),
       () => this.migration005AddAiCallLogs(),
       () => this.migration006AddDingdingConfig(),
+      () => this.migration007AddScheduledTasks(),
     ];
 
     for (let i = 0; i < migrations.length; i++) {
@@ -494,6 +495,52 @@ export class DbService {
     `);
 
     this.db.run(`INSERT OR IGNORE INTO dingding_config (id) VALUES (1)`);
+  }
+
+  private migration007AddScheduledTasks(): void {
+    if (!this.db) return;
+
+    this.db.run(`
+      CREATE TABLE IF NOT EXISTS scheduled_tasks (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        schedule_type TEXT NOT NULL,
+        model TEXT NOT NULL,
+        content TEXT NOT NULL,
+        notify_type TEXT NOT NULL DEFAULT 'message',
+        enabled INTEGER DEFAULT 1,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    this.db.run(`
+      CREATE TABLE IF NOT EXISTS task_skills (
+        id TEXT PRIMARY KEY,
+        task_id TEXT NOT NULL,
+        skill TEXT NOT NULL,
+        skill_order INTEGER DEFAULT 0,
+        FOREIGN KEY (task_id) REFERENCES scheduled_tasks(id) ON DELETE CASCADE
+      )
+    `);
+
+    this.db.run(`
+      CREATE TABLE IF NOT EXISTS task_logs (
+        id TEXT PRIMARY KEY,
+        task_id TEXT NOT NULL,
+        status TEXT NOT NULL CHECK (status IN ('success', 'failed')),
+        prompt TEXT,
+        result TEXT,
+        error TEXT,
+        duration INTEGER,
+        executed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (task_id) REFERENCES scheduled_tasks(id) ON DELETE CASCADE
+      )
+    `);
+
+    this.db.run(`CREATE INDEX IF NOT EXISTS idx_task_skills_task_id ON task_skills(task_id)`);
+    this.db.run(`CREATE INDEX IF NOT EXISTS idx_task_logs_task_id ON task_logs(task_id)`);
+    this.db.run(`CREATE INDEX IF NOT EXISTS idx_task_logs_executed_at ON task_logs(executed_at)`);
   }
 
   private getTableColumns(tableName: string): string[] {

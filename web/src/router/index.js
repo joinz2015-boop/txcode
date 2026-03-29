@@ -67,6 +67,11 @@ const routes = [
         component: () => import('../views/AiLogsView.vue'),
       },
       {
+        path: 'tasks',
+        name: 'tasks',
+        component: () => import('../views/TasksView.vue'),
+      },
+      {
         path: 'settings',
         name: 'settings',
         component: Settings,

@@ -264,6 +264,8 @@ npm run dev
    */
   async start(): Promise<void> {
     await dbService.init();
+    const { schedulerService } = await import('../modules/scheduler/index.js');
+    schedulerService.init();
 
     return new Promise((resolve, reject) => {
       this.server = http.createServer(this.app);
@@ -339,10 +341,12 @@ npm run dev
          * - 如果 3 秒内未正常关闭，强制退出进程
          * - 防止服务挂起无法退出
          */
-        const shutdown = () => {
+        const shutdown = async () => {
           console.log('\n正在关闭服务...');
           this.wss?.close();
-          this.server?.close(() => {
+          this.server?.close(async () => {
+            const { schedulerService } = await import('../modules/scheduler/index.js');
+            schedulerService.shutdown();
             dbService.close();
             console.log('服务已关闭');
             process.exit(0);

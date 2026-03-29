@@ -229,8 +229,10 @@ export default {
 
     onModelSelected(model) {
       if (this.selectedPanel) {
-        this.selectedPanel.modelName = model.name
-        api.setConfig('defaultModel', model.name)
+        const parts = model.name.split('/')
+        const modelName = parts.length > 2 ? parts.slice(1).join('/') : model.name
+        this.selectedPanel.modelName = modelName
+        api.setConfig('defaultModel', modelName)
       }
     },
 

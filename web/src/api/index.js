@@ -393,6 +393,44 @@ export const api = {
     return request('GET', `/ai-logs/logs?page=${page}&pageSize=${pageSize}`);
   },
 
+  // ==================== 定时任务管理 ====================
+
+  getScheduledTasks() {
+    return request('GET', '/tasks');
+  },
+
+  getScheduledTask(id) {
+    return request('GET', `/tasks/${id}`);
+  },
+
+  createScheduledTask(task) {
+    return request('POST', '/tasks', task);
+  },
+
+  updateScheduledTask(id, task) {
+    return request('PUT', `/tasks/${id}`, task);
+  },
+
+  deleteScheduledTask(id) {
+    return request('DELETE', `/tasks/${id}`);
+  },
+
+  startScheduledTask(id) {
+    return request('POST', `/tasks/${id}/start`);
+  },
+
+  stopScheduledTask(id) {
+    return request('POST', `/tasks/${id}/stop`);
+  },
+
+  runTaskNow(id) {
+    return request('POST', `/tasks/${id}/run`);
+  },
+
+  getTaskLogs(taskId, limit = 50) {
+    return request('GET', `/tasks/${taskId}/logs?limit=${limit}`);
+  },
+
   // ==================== WebSocket 通信 ====================
 
   wsConnect(onMessage, onOpen, onClose, onError) {

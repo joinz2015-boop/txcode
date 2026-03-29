@@ -133,7 +133,6 @@ export default {
       activeTab: 'providers',
       tabs: [
         { name: 'providers', label: 'AI 服务商', icon: 'fa-solid fa-server' },
-        { name: 'skills', label: 'Skills', icon: 'fa-solid fa-shapes' },
         { name: 'advanced', label: '高级', icon: 'fa-solid fa-gear' },
         { name: 'gateway', label: '网关', icon: 'fa-solid fa-plug' },
       ],
