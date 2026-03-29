@@ -1,13 +1,15 @@
 <template>
   <div class="flex flex-col h-screen overflow-hidden">
     <header class="h-10 bg-sidebar border-b border-black flex items-center justify-between px-4 shrink-0 z-20">
-      <div class="flex items-center gap-4">
+<div class="flex items-center gap-4">
         <div class="font-bold text-white flex items-center gap-2">
           <i class="fa-solid fa-robot text-accent"></i>
           <span>TXCode Agent</span>
         </div>
         <div class="relative">
-          
+          <router-link to="/devWorkflow" class="hover:text-white px-3 py-1 rounded border border-transparent hover:border-accent transition-colors" :class="$route.name === 'devWorkflow' ? 'text-accent border-accent' : 'text-gray-400'">
+            <i class="fa-solid fa-laptop-code mr-1"></i> 软件研发
+          </router-link>
         </div>
       </div>
       <div class="flex items-center gap-3">

@@ -72,6 +72,11 @@ const routes = [
         component: () => import('../views/TasksView.vue'),
       },
       {
+        path: 'devWorkflow',
+        name: 'devWorkflow',
+        component: () => import('../views/DevWorkflowView.vue'),
+      },
+      {
         path: 'settings',
         name: 'settings',
         component: Settings,
