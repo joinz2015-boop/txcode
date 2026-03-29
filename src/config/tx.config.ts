@@ -25,7 +25,6 @@ export interface TxConfig {
   ai: {
     maxContextTokens: number;
     context: ContextConfig;
-    aiMode: 'react' | 'provider';
   };
 }
 
@@ -52,7 +51,6 @@ const config: TxConfig = {
       percentage: 0.95,
       autoCompact: true,
     },
-    aiMode: 'provider',
   },
 };
 

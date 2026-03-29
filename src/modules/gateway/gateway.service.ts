@@ -2,7 +2,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { configService } from '../config/index.js';
 import { sessionService } from '../session/index.js';
 import { memoryService } from '../memory/index.js';
-import { aiService } from '../ai/index.js';
+import { OpenAIProvider } from '../ai/openai.provider.js';
+import { ChatAgent } from '../ai/agents/chat/chat.agent.js';
 import { toolService } from '../tools/index.js';
 import { skillsManager } from '../skill/index.js';
 import { dingtalkAdapter } from './adapters/dingtalk.adapter.js';
@@ -237,20 +238,32 @@ export class GatewayService {
     try {
       await this.sendThinking(msg.webhook, '正在处理...');
 
-      const result = await aiService.chatWithTools(msg.content, {
+      const defaultModel = configService.getDefaultModel();
+      const providerConfig = configService.getModelProvider(defaultModel);
+      if (!providerConfig) {
+        throw new Error(`Provider not found for model: ${defaultModel}`);
+      }
+      const provider = new OpenAIProvider({
+        apiKey: providerConfig.apiKey,
+        baseUrl: providerConfig.baseUrl,
+        defaultModel: defaultModel,
+      });
+
+      const agent = new ChatAgent({
+        provider,
         sessionId,
-        projectPath: process.cwd(),
         memoryService,
-        onStep: (step: any) => {
-          if (step.actions && step.actions.length > 0) {
-            for (const action of step.actions) {
-              this.sendToolStart(msg.webhook, action.actionName, action.actionInput);
+      });
+
+      const result = await agent.run(msg.content, {
+        onStep: (step: any, iteration: number) => {
+          if (step.toolCalls && step.toolCalls.length > 0) {
+            for (const tc of step.toolCalls) {
+              this.sendToolStart(msg.webhook, tc.name, tc.arguments);
             }
           }
-          if (step.observation) {
-            const observation = typeof step.observation === 'string' 
-              ? step.observation 
-              : JSON.stringify(step.observation);
+          if (step.results && step.results.length > 0) {
+            const observation = step.results[0]?.output || '';
             this.sendToolResult(msg.webhook, observation);
           }
         },

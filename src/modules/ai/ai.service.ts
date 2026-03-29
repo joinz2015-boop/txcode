@@ -4,7 +4,7 @@
  * 本模块是 TXCode 的核心 AI 服务层，负责：
  * 1. AI Provider 管理 - 创建和管理 OpenAI/自定义 API 提供商
  * 2. 对话接口 - 提供 chat() 和 chatStream() 方法
- * 3. ReAct 集成 - 通过 ReActAgent 执行工具调用循环
+ * 3. Function Calling 集成 - 通过 OpenAIAgent 执行工具调用循环
  * 4. 上下文管理 - 加载会话历史、项目上下文
  * 5. 自动压缩 - 当 Token 达到阈值时自动压缩会话历史
  * 
@@ -15,16 +15,13 @@
 
 import { ConfigService, configService as defaultConfigService } from '../config/config.service.js';
 import { OpenAIProvider } from './openai.provider.js';
-import { ReActAgent } from './react.agent.js';
 import { OpenAIAgent } from './provider/openai/openai-agent.js';
-import { ChatMessage, ChatOptions, ChatResponse, ReActState } from './ai.types.js';
+import { ChatMessage, ChatOptions, ChatResponse } from './ai.types.js';
 import { ProviderRunResult } from './provider/base.js';
 import { ToolService, toolService as defaultToolService } from '../tools/tool.service.js';
 import { MemoryService } from '../memory/memory.service.js';
 import { ContextService } from '../context/context.service.js';
 import { SessionService, sessionService as defaultSessionService } from '../session/session.service.js';
-import { SkillsManager } from '../skill/skills.manager.js';
-import { ReActResult, ReActStep } from './react/react.types.js';
 import { SummarizerService } from './summarizer/index.js';
 import txConfig from '../../config/tx.config.js';
 
@@ -36,9 +33,7 @@ export interface AIServiceConfig {
   configService?: ConfigService;
   /** 工具服务 (内置/自定义工具) */
   toolService?: ToolService;
-  /** 技能管理器 (自定义技能) */
-  skillsManager?: SkillsManager;
-  /** ReAct Agent 最大迭代次数 */
+  /** Function Calling Agent 最大迭代次数 */
   maxToolIterations?: number;
 }
 
@@ -54,7 +49,7 @@ export interface AIServiceConfig {
  * 1. 用户发送消息 -> API 路由接收
  * 2. API 调用 aiService.chatWithTools()
  * 3. AIService 获取会话历史，构建消息列表
- * 4. 创建 ReActAgent 并执行循环
+ * 4. 创建 OpenAIAgent 并执行循环
  * 5. 返回结果给 API
  * 6. API 返回给客户端
  */
@@ -65,11 +60,9 @@ export class AIService {
   private toolService: ToolService;
   /** 会话服务实例 */
   private sessionService: SessionService;
-  /** 技能管理器实例 (可选) */
-  private skillsManager?: SkillsManager;
   /** AI Provider 实例 (延迟初始化) */
   private provider: OpenAIProvider | null = null;
-  /** ReAct Agent 最大迭代次数 */
+  /** Function Calling Agent 最大迭代次数 */
   private maxToolIterations: number;
 
   /**
@@ -77,14 +70,12 @@ export class AIService {
    * 
    * @param config - AIServiceConfig 配置对象
    *   - 如果不提供配置，使用默认服务实例
-   *   - 允许自定义 ConfigService、ToolService、SkillsManager 等
+   *   - 允许自定义 ConfigService、ToolService 等
    */
   constructor(config?: AIServiceConfig) {
     this.configService = config?.configService || defaultConfigService;
     this.toolService = config?.toolService || defaultToolService;
     this.sessionService = defaultSessionService;
-    this.skillsManager = config?.skillsManager;
-    // 从配置文件读取最大迭代次数，默认值为 txConfig.maxToolIterations
     this.maxToolIterations = config?.maxToolIterations || txConfig.maxToolIterations;
   }
 
@@ -123,7 +114,7 @@ export class AIService {
    * 简单的 AI 对话接口
    * 
    * 与 chatWithTools 的区别：
-   * - 不执行 ReAct 循环
+   * - 不执行 Function Calling 循环
    * - 不支持工具调用
    * - 适用于简单的问答场景
    * 
@@ -142,13 +133,13 @@ export class AIService {
   /**
    * 带工具调用的 AI 对话接口 (核心方法)
    * 
-   * 这是 TXCode 最核心的方法，执行 ReAct 循环来完成任务
+   * 这是 TXCode 最核心的方法，执行 Function Calling 循环来完成任务
    * 
    * 执行流程：
    * 1. 获取/创建 AI Provider
    * 2. 获取会话历史消息
-   * 3. 创建 ReActAgent
-   * 4. 执行 agent.run() 启动 ReAct 循环
+   * 3. 创建 OpenAIAgent
+   * 4. 执行 agent.run() 启动 Function Calling 循环
    * 5. 更新会话 Token 统计
    * 6. 检查是否需要压缩会话 (自动摘要)
    * 7. 返回结果
@@ -160,7 +151,7 @@ export class AIService {
    *   - memoryService: 记忆服务实例
    *   - contextService: 上下文服务实例
    *   - onStep: 每一步执行完的回调
-   * @returns {Promise<ReActResult>} ReAct 执行结果
+   * @returns {Promise<ProviderRunResult>} Function Calling 执行结果
    */
   async chatWithTools(
     userMessage: string,
@@ -174,12 +165,10 @@ export class AIService {
       abortSignal?: AbortSignal;
       modelName?: string;
     }
-  ): Promise<ReActResult | ProviderRunResult> {
+  ): Promise<ProviderRunResult> {
     const provider = this.getProvider(options?.modelName);
     const sessionId = options?.sessionId;
-    const aiMode = txConfig.ai.aiMode || 'react';
     const externalAbort = options?.abortSignal;
-    const requestStartTime = Date.now();
 
     let historyMessages: ChatMessage[] = [];
     if (sessionId && options?.memoryService) {
@@ -214,85 +203,27 @@ export class AIService {
       this.configService
     );
 
-    if (aiMode === 'provider') {
-      const agent = new OpenAIAgent({
-        provider,
-        toolService: this.toolService,
-        maxIterations: this.maxToolIterations,
-        projectPath: options?.projectPath,
-        sessionId,
-        memoryService,
-      });
-
-      const wrappedOnStep = options?.onStep
-        ? (step: any, iteration: number, usage?: any) => {
-            const reactFormatStep = {
-              thought: step.reasoning || '',
-              actions: (step.toolCalls || []).map((tc: any) => ({
-                actionName: tc.name,
-                actionInput: tc.arguments,
-              })),
-              observation: step.results?.[0]?.output || '',
-            };
-            options.onStep?.(reactFormatStep, iteration);
-
-            if (sessionId && usage && usage.promptTokens > 0) {
-              const check = summarizer.checkNeedsCompact(sessionId, usage.promptTokens);
-              if (check.needed) {
-                console.log(`[AutoCompact] ${check.reason}, triggering compaction during iteration ${iteration}...`);
-                summarizer.compact({ sessionId }).then(() => {
-                  options?.onCompact?.({ beforeTokens: check.promptTokens, afterTokens: 0 });
-                });
-              }
-            }
-          }
-        : undefined;
-
-      const abortController = new AbortController();
-      const abortHandler = () => abortController.abort();
-      if (externalAbort) {
-        externalAbort.addEventListener('abort', abortHandler);
-      }
-
-      try {
-        const result = await agent.run(userMessage, {
-          onStep: wrappedOnStep,
-          historyMessages,
-          sessionId,
-          memoryService,
-          abortSignal: abortController.signal,
-        });
-
-        if (sessionId && result.usage) {
-          this.sessionService.updateTokenUsage(
-            sessionId,
-            result.usage.promptTokens,
-            result.usage.completionTokens
-          );
-        }
-
-        return result;
-      } finally {
-        if (externalAbort) {
-          externalAbort.removeEventListener('abort', abortHandler);
-        }
-      }
-    }
-
-    const agent = new ReActAgent({
+    const agent = new OpenAIAgent({
       provider,
       toolService: this.toolService,
-      skillsManager: this.skillsManager,
-      memoryService: options?.memoryService,
       maxIterations: this.maxToolIterations,
       projectPath: options?.projectPath,
       sessionId,
+      memoryService,
     });
 
-    const wrappedOnStep = options?.onStep 
-      ? (step: ReActStep, iteration: number, usage?: { promptTokens: number; completionTokens: number; totalTokens: number }) => {
-          options.onStep?.(step as any, iteration);
-          
+    const wrappedOnStep = options?.onStep
+      ? (step: any, iteration: number, usage?: any) => {
+          const reactFormatStep = {
+            thought: step.reasoning || '',
+            actions: (step.toolCalls || []).map((tc: any) => ({
+              actionName: tc.name,
+              actionInput: tc.arguments,
+            })),
+            observation: step.results?.[0]?.output || '',
+          };
+          options.onStep?.(reactFormatStep, iteration);
+
           if (sessionId && usage && usage.promptTokens > 0) {
             const check = summarizer.checkNeedsCompact(sessionId, usage.promptTokens);
             if (check.needed) {
@@ -315,11 +246,11 @@ export class AIService {
       const result = await agent.run(userMessage, {
         onStep: wrappedOnStep,
         historyMessages,
+        sessionId,
+        memoryService,
         abortSignal: abortController.signal,
       });
 
-      // ========== 步骤 5: 更新 Token 统计 ==========
-      // 每次对话完成后，更新会话的 Token 使用量统计
       if (sessionId && result.usage) {
         this.sessionService.updateTokenUsage(
           sessionId,
@@ -328,7 +259,6 @@ export class AIService {
         );
       }
 
-      // ========== 步骤 6: 返回结果 ==========
       return result;
     } finally {
       if (externalAbort) {
@@ -352,7 +282,6 @@ export class AIService {
     options: ChatOptions = {}
   ): AsyncGenerator<string, void, unknown> {
     const provider = this.getProvider();
-    // 使用 yield* 将 provider 的生成器直接转发
     yield* provider.chatStream(messages, options);
   }
 

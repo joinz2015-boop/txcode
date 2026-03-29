@@ -31,6 +31,8 @@ const __dirname = path.dirname(__filename);
 const packageRoot = path.resolve(__dirname, '..', '..');
 import { dbService } from '../modules/db/db.service.js';
 import { aiService } from '../modules/ai/index.js';
+import { CodeAgent } from '../modules/ai/agents/code/code.agent.js';
+import { OpenAIProvider } from '../modules/ai/openai.provider.js';
 import { sessionService } from '../modules/session/index.js';
 import { memoryService } from '../modules/memory/index.js';
 import { configService } from '../modules/config/config.service.js';
@@ -425,52 +427,58 @@ resolve();
 
       console.log('[WebSocket] Chat message:', message);
 
-      console.log('[handleChat] calling chatWithTools, sessionId:', session.id, 'message:', message.substring(0, 20));
+      console.log('[handleChat] calling CodeAgent, sessionId:', session.id, 'message:', message.substring(0, 20));
 
-      const result = await aiService.chatWithTools(message, {
+      const providerConfig = configService.getDefaultProvider();
+      const models = providerConfig ? configService.getModels(providerConfig.id) : [];
+      const defaultModel = models.find(m => m.enabled) || { name: 'gpt-4' };
+
+      const provider = new OpenAIProvider({
+        baseUrl: providerConfig?.baseUrl || '',
+        apiKey: providerConfig?.apiKey || '',
+        defaultModel: defaultModel?.name || 'gpt-4',
+      });
+
+      const agent = new CodeAgent({
+        provider,
         sessionId: session.id,
         projectPath: session.projectPath || undefined,
         memoryService,
+      });
+
+      const result = await agent.run(message, {
         abortSignal: abortController.signal,
         onStep: (step, iteration) => {
-          const actions = (step.actions || []).map((a: { actionName: string; actionInput: any }) => ({
-            actionName: a.actionName,
-            input: typeof a.actionInput === 'string' 
-              ? a.actionInput 
-              : JSON.stringify(a.actionInput),
+          const actions = (step.toolCalls || []).map((tc: { name: string; arguments: any }) => ({
+            actionName: tc.name,
+            input: typeof tc.arguments === 'string'
+              ? tc.arguments
+              : JSON.stringify(tc.arguments),
           }));
+          
+          const lastResult = step.results?.[step.results.length - 1];
+          const observation = lastResult?.output || lastResult?.error;
           
           const stepData = {
             iteration,
-            thought: step.thought,
+            thought: step.reasoning || '',
             actions,
-            success: step.observation && !step.observation.error,
+            observation,
+            success: lastResult?.success !== false,
           };
           
           ws.send(JSON.stringify({ type: 'step', data: stepData }));
-
-          if (actions.some((a: any) => a.actionName === 'todowrite') && step.observation?.metadata?.todos) {
-            const todos = step.observation.metadata.todos;
-            const formattedTodos = todos.map((t: any) => ({
-              name: t.content || t.name || '',
-              status: t.status || 'pending'
-            }));
-            ws.send(JSON.stringify({ type: 'todos', data: { todos: formattedTodos } }));
-          }
         },
       });
 
       const lastStep = result.steps[result.steps.length - 1];
-      const lastThought = lastStep && 'thought' in lastStep ? (lastStep as any).thought : undefined;
-      const providerConfig = configService.getDefaultProvider();
-      const models = providerConfig ? configService.getModels(providerConfig.id) : [];
-      const defaultModel = models.find(m => m.enabled) || { name: 'gpt-4' };
+      const lastReasoning = lastStep?.reasoning;
 
       ws.send(JSON.stringify({
         type: 'done',
         data: {
           sessionId: session.id,
-          response: result.answer || lastThought,
+          response: result.answer || lastReasoning,
           iterations: result.iterations,
           success: result.success,
           modelName: defaultModel?.name || providerConfig?.name || 'unknown',

@@ -21,7 +21,7 @@
  */
 
 import { Tool, ToolContext, ToolCall, ToolCallResult } from './tool.types.js';
-import { getBuiltinToolsInstance } from './builtin/index.js';
+import { getProviderTools } from './provider/index.js';
 
 /**
  * ToolService 类
@@ -77,12 +77,12 @@ export class ToolService {
    * 内置工具包括文件操作、命令执行、搜索等功能
    * 
    * 注册流程：
-   * 1. 调用 getBuiltinToolsInstance() 获取内置工具
+   * 1. 调用 getProviderTools() 获取内置工具
    * 2. 遍历工具数组
    * 3. 将每个工具的名称作为 key，工具对象作为 value 存入 Map
    */
   private async registerBuiltinTools(): Promise<void> {
-    const builtinTools = await getBuiltinToolsInstance();
+    const builtinTools = await getProviderTools();
     for (const tool of builtinTools) {
       this.tools.set(tool.name, tool);
     }
@@ -341,7 +341,7 @@ export class ToolService {
    * - 清除临时添加的工具
    */
   async clearCustom(): Promise<void> {
-    const builtinTools = await getBuiltinToolsInstance();
+    const builtinTools = await getProviderTools();
     const builtinNames = new Set(builtinTools.map(t => t.name));
     
     for (const name of this.tools.keys()) {

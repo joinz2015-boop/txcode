@@ -26,7 +26,6 @@ import { logger } from '../modules/logger/logger.js';
 import { ApiResponse, ChatRequest } from './api.types.js';
 import { aiLogService } from '../modules/ai/ai-log.service.js';
 import { configService } from '../modules/config/config.service.js';
-import { reactParser } from '../modules/ai/react/react.parser.js';
 import txConfig from '../config/tx.config.js';
 import { executeCommand } from '../cli/commands.js';
 
@@ -397,77 +396,39 @@ chatRouter.get('/history/:sessionId', async (req: Request, res: Response) => {
 
   try {
     const messages = memoryService.getAllMessages(sessionId);
-    const aiMode = txConfig.ai.aiMode;
     
     const result: any[] = [];
 
-    if (aiMode === 'provider') {
-      for (const msg of messages) {
-        if (msg.role === 'user' && (msg as any).isOriginal) {
-          result.push({ type: 'chat', role: 'user', content: msg.content });
+    for (const msg of messages) {
+      if (msg.role === 'user' && (msg as any).isOriginal) {
+        result.push({ type: 'chat', role: 'user', content: msg.content });
+      }
+      
+      if (msg.role === 'assistant') {
+        let thought = '';
+        let actions: any[] = [];
+        
+        try {
+          const parsed = JSON.parse(msg.content);
+          if (parsed.type === 'assistant_with_tools' && parsed.toolCalls) {
+            actions = parsed.toolCalls.map((tc: any) => ({
+              actionName: tc.function.name,
+              input: typeof tc.function.arguments === 'string' 
+                ? JSON.parse(tc.function.arguments) 
+                : tc.function.arguments,
+            }));
+          }
+        } catch {
+          thought = msg.content;
         }
         
-        if (msg.role === 'assistant') {
-          let thought = '';
-          let actions: any[] = [];
-          
-          try {
-            const parsed = JSON.parse(msg.content);
-            if (parsed.type === 'assistant_with_tools' && parsed.toolCalls) {
-              actions = parsed.toolCalls.map((tc: any) => ({
-                actionName: tc.function.name,
-                input: typeof tc.function.arguments === 'string' 
-                  ? JSON.parse(tc.function.arguments) 
-                  : tc.function.arguments,
-              }));
-            }
-          } catch {
-            thought = msg.content;
-          }
-          
-          result.push({ 
-            type: 'step', 
-            role: 'assistant',
-            thought,
-            actions,
-            success: true 
-          });
-        }
-      }
-    } else {
-      for (const msg of messages) {
-        if (msg.role === 'user' && (msg as any).isOriginal) {
-          result.push({ type: 'chat', role: 'user', content: msg.content });
-          continue;
-        }
-
-        if (msg.role === 'assistant') {
-          const parsed = await reactParser.parse(msg.content);
-          
-          if (parsed.steps.length === 0) {
-            result.push({
-              type: 'step',
-              role: 'assistant',
-              thought: msg.content,
-              actions: [],
-              success: true
-            });
-          } else {
-            for (const step of parsed.steps) {
-              const actions = (step.actions || []).map((a: { actionName: string; actionInput: any }) => ({
-                actionName: a.actionName,
-                input: a.actionInput ? (typeof a.actionInput === 'string' ? a.actionInput : JSON.stringify(a.actionInput)) : '',
-              }));
-              result.push({ 
-                type: 'step', 
-                role: 'assistant',
-                thought: step.thought || '',
-                actions,
-                success: true 
-              });
-            }
-          }
-        }
+        result.push({ 
+          type: 'step', 
+          role: 'assistant',
+          thought,
+          actions,
+          success: true 
+        });
       }
     }
 
