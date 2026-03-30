@@ -216,13 +216,18 @@ export class AIService {
 
     const wrappedOnStep = options?.onStep
       ? (step: any, iteration: number, usage?: any) => {
+          const toolCalls = (step.toolCalls || []).map((tc: any) => ({
+            id: tc.id,
+            type: 'function',
+            function: {
+              name: tc.name,
+              arguments: typeof tc.arguments === 'string' ? tc.arguments : JSON.stringify(tc.arguments),
+            },
+          }));
           const reactFormatStep = {
             thought: step.reasoning || '',
-            actions: (step.toolCalls || []).map((tc: any) => ({
-              actionName: tc.name,
-              actionInput: tc.arguments,
-            })),
-            observation: step.results?.[0]?.output || '',
+            toolCalls,
+            success: step.results?.[0]?.success ?? true,
           };
           options.onStep?.(reactFormatStep, iteration);
         }

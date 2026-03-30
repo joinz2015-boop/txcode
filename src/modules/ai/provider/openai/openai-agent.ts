@@ -172,7 +172,13 @@ export class OpenAIAgent implements AIProvider {
             }],
           };
           baseMessages.push(assistantMsg);
-          this.addMessage('assistant', '', true, false, assistantMsg.toolCalls, undefined, options?.sessionId);
+          const reactData = {
+            type: 'assistant_with_tools',
+            toolCalls: assistantMsg.toolCalls,
+            thought: response.reasoning || '',
+            success: result.success,
+          };
+          this.addMessage('assistant', JSON.stringify(reactData), true, false, undefined, undefined, options?.sessionId);
 
           const toolMsg = {
             role: 'tool' as const,

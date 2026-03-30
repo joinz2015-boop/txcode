@@ -48,8 +48,8 @@ export interface ChatResponse {
 
 export interface ReActState {
   thought: string;
-  actions: { actionName: string; actionInput: any }[];
-  observation?: string;
+  toolCalls: { id?: string; type?: string; function: { name: string; arguments: string | any } }[];
+  success?: boolean;
   answer?: string;
   keepContext?: boolean;
   usage?: {

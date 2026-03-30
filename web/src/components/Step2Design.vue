@@ -28,12 +28,12 @@
             <div v-else-if="item.type === 'system'" class="system-message" v-html="renderMarkdown(item.content)"></div>
             <template v-else-if="item.type === 'step'">
               <div v-if="item.thought" class="ai-thought" v-html="renderMarkdown(item.thought)"></div>
-              <div v-for="(action, aIdx) in item.actions" :key="aIdx" class="log-mute">
+              <div v-for="(tc, aIdx) in item.toolCalls" :key="aIdx" class="log-mute">
                 <span :class="item.success !== false ? 'tool-success' : 'tool-fail'">
                   {{ item.success !== false ? '✓' : '✗' }}
                 </span>
-                {{ action.actionName }}
-                <span v-if="action.input" class="tool-input">{{ formatInput(action.actionName, action.input) }}</span>
+                {{ tc.function.name }}
+                <span v-if="tc.function.arguments" class="tool-input">{{ formatInput(tc.function.name, tc.function.arguments) }}</span>
               </div>
             </template>
           </template>
@@ -295,7 +295,7 @@ export default {
           }
           break
         case 'step':
-          if (data) this.logItems.push({ type: 'step', thought: data.thought, actions: data.actions, success: data.success })
+          if (data) this.logItems.push({ type: 'step', thought: data.thought, toolCalls: data.toolCalls, success: data.success })
           break
         case 'compact':
           this.logItems.push({ type: 'system', content: `【压缩完成】${data.summary || ''}` })

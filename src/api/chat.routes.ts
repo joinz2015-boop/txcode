@@ -282,17 +282,15 @@ chatRouter.get('/history/:sessionId', async (req: Request, res: Response) => {
       
       if (msg.role === 'assistant') {
         let thought = '';
-        let actions: any[] = [];
+        let toolCalls: any[] = [];
+        let success = true;
         
         try {
           const parsed = JSON.parse(msg.content);
           if (parsed.type === 'assistant_with_tools' && parsed.toolCalls) {
-            actions = parsed.toolCalls.map((tc: any) => ({
-              actionName: tc.function.name,
-              input: typeof tc.function.arguments === 'string' 
-                ? JSON.parse(tc.function.arguments) 
-                : tc.function.arguments,
-            }));
+            thought = parsed.thought || '';
+            success = parsed.success !== false;
+            toolCalls = parsed.toolCalls;
           }
         } catch {
           thought = msg.content;
@@ -302,8 +300,8 @@ chatRouter.get('/history/:sessionId', async (req: Request, res: Response) => {
           type: 'step', 
           role: 'assistant',
           thought,
-          actions,
-          success: true 
+          toolCalls,
+          success 
         });
       }
     }

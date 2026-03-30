@@ -363,40 +363,41 @@ export function App() {
             'question': '提问',
           };
 
-          const actions = step.actions || [];
-          for (const action of actions) {
-            const actionName = actionNames[action.name] || action.name;
+          const toolCalls = step.toolCalls || [];
+          for (const tc of toolCalls) {
+            const name = tc.function.name;
+            const actionName = actionNames[name] || name;
             
             let stepInfo = `🔧 ${actionName}`;
             
-            if (action.args) {
+            if (tc.function.arguments) {
               try {
-                const inputObj = typeof action.args === 'string' 
-                  ? JSON.parse(action.args) 
-                  : action.args;
-                if (action.name === 'read_file') {
+                const inputObj = typeof tc.function.arguments === 'string' 
+                  ? JSON.parse(tc.function.arguments) 
+                  : tc.function.arguments;
+                if (name === 'read_file') {
                   const offset = inputObj.offset ?? 1;
                   const limit = inputObj.limit ?? 300;
                   stepInfo += `: ${inputObj.file_path} offset:${offset}  limit:${limit}`;
-                } else if (action.name === 'edit_file') {
+                } else if (name === 'edit_file') {
                   stepInfo += `: ${inputObj.file_path}`;
-                } else if (action.name === 'write_file') {
+                } else if (name === 'write_file') {
                   stepInfo += `: ${inputObj.file_path}`;
-                } else if (action.name === 'execute_bash' || action.name === 'bash') {
+                } else if (name === 'execute_bash' || name === 'bash') {
                   stepInfo += `: ${inputObj.command?.slice(0, 50)}`;
-                } else if (action.name === 'find_files' || action.name === 'glob') {
+                } else if (name === 'find_files' || name === 'glob') {
                   stepInfo += `: ${inputObj.pattern}`;
-                } else if (action.name === 'grep') {
+                } else if (name === 'grep') {
                   stepInfo += `: ${inputObj.pattern}`;
-                } else if (action.name === 'loadSkill') {
+                } else if (name === 'loadSkill') {
                   stepInfo += `: ${inputObj.skillPath}`;
-                } else if (action.name === 'webfetch') {
+                } else if (name === 'webfetch') {
                   stepInfo += `: ${inputObj.url?.slice(0, 50)}`;
-                } else if (action.name === 'todowrite') {
+                } else if (name === 'todowrite') {
                   if (inputObj.todos && Array.isArray(inputObj.todos)) {
                     stepInfo += `: ${inputObj.todos.length} 个任务`;
                   }
-                } else if (action.name === 'question') {
+                } else if (name === 'question') {
                   stepInfo += `: ${inputObj.questions?.length || 0} 个问题`;
                 } else {
                   const keys = Object.keys(inputObj);
@@ -413,33 +414,15 @@ export function App() {
               } catch {}
             }
             
-            if (step.observation) {
-              const obsStr = typeof step.observation === 'string' 
-                ? step.observation 
-                : JSON.stringify(step.observation);
-              const isFailed = obsStr.startsWith('错误:') || 
-                              obsStr.startsWith('Error:') ||
-                              obsStr.includes('未找到') ||
-                              obsStr.includes('不存在');
-              if (isFailed) {
-                addMessage('system', `${stepInfo} ❌`);
-              } else {
-                addMessage('system', `${stepInfo} ✓`);
-              }
+            if (step.success === false) {
+              addMessage('system', `${stepInfo} ❌`);
             } else {
-              addMessage('system', stepInfo);
+              addMessage('system', `${stepInfo} ✓`);
             }
           }
           
-          if (actions.length === 0 && step.observation) {
-            const obsStr = typeof step.observation === 'string' 
-              ? step.observation 
-              : JSON.stringify(step.observation);
-            const isFailed = obsStr.startsWith('错误:') || 
-                            obsStr.startsWith('Error:') ||
-                            obsStr.includes('未找到') ||
-                            obsStr.includes('不存在');
-            if (isFailed) {
+          if (toolCalls.length === 0 && step.success !== undefined) {
+            if (step.success === false) {
               addMessage('system', `🔧 工具执行 ❌`);
             } else {
               addMessage('system', `🔧 工具执行 ✓`);
@@ -709,9 +692,56 @@ export function App() {
             }
             
             if (msg.role === 'assistant') {
+              let thought = '';
+              let toolCalls: any[] = [];
+              let success = true;
+              
+              try {
+                const parsed = JSON.parse(msg.content);
+                if (parsed.type === 'assistant_with_tools') {
+                  thought = parsed.thought || '';
+                  toolCalls = parsed.toolCalls || [];
+                  success = parsed.success !== false;
+                } else {
+                  thought = msg.content;
+                }
+              } catch {
+                thought = msg.content;
+              }
+              
+              const actionNames: Record<string, string> = {
+                'read': '读取文件',
+                'read_file': '读取文件',
+                'edit_file': '编辑文件',
+                'write_file': '写入文件',
+                'bash': '执行命令',
+                'execute_bash': '执行命令',
+                'find_files': '搜索文件',
+                'grep': '搜索内容',
+                'glob': '文件匹配',
+              };
+              
               return (
-                <Box key={msg.id} marginBottom={1} paddingLeft={2}>
-                  <Text color="#d4d4d8">{msg.content}</Text>
+                <Box key={msg.id} marginBottom={1} flexDirection="column">
+                  {thought && (
+                    <Box paddingLeft={2}>
+                      <Text bold color="cyan">~ {thought.slice(0, 150)}{thought.length > 150 ? '...' : ''}</Text>
+                    </Box>
+                  )}
+                  {toolCalls.map((tc: any, idx: number) => {
+                    const name = tc.function?.name || 'unknown';
+                    const actionName = actionNames[name] || name;
+                    return (
+                      <Box key={idx} paddingLeft={2}>
+                        <Text dimColor>* {actionName} {success ? '✓' : '✗'}</Text>
+                      </Box>
+                    );
+                  })}
+                  {!thought && toolCalls.length === 0 && (
+                    <Box paddingLeft={2}>
+                      <Text color="#d4d4d8">{msg.content}</Text>
+                    </Box>
+                  )}
                 </Box>
               );
             }

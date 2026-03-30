@@ -40,12 +40,8 @@ export class CodeChatService {
       onStep: (step: any, iteration: number) => {
         const reactFormatStep: Step = {
           thought: step.thought || step.reasoning || '',
-          actions: step.actions || (step.toolCalls || []).map((tc: any) => ({
-            name: tc.name || tc.actionName,
-            args: tc.arguments || tc.actionInput,
-            result: step.observation || (step.results?.[0]?.output || ''),
-          })),
-          observation: step.observation || '',
+          toolCalls: step.toolCalls || [],
+          success: step.success ?? true,
         };
         reactSteps.push({ iteration, ...reactFormatStep });
         options.onStep?.(reactFormatStep, iteration);

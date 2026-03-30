@@ -28,12 +28,15 @@ export interface ChatResult {
 
 export interface Step {
   thought?: string;
-  actions?: Action[];
-  observation?: string;
+  toolCalls?: ToolCall[];
+  success?: boolean;
 }
 
-export interface Action {
-  name: string;
-  args?: Record<string, any>;
-  result?: string;
+export interface ToolCall {
+  id?: string;
+  type?: string;
+  function: {
+    name: string;
+    arguments: string | Record<string, any>;
+  };
 }

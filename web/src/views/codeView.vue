@@ -35,15 +35,18 @@
                   <span class="todo-name">{{ todo.name }}</span>
                 </div>
               </div>
-              <p v-else-if="item.type === 'chat' || item.type === 'think'" class="user-question" v-html="renderMarkdown(item.content)"></p>
+              <div v-else-if="item.type === 'chat'" class="flex justify-end">
+                <div  class="user-question">{{ item.content }}</div>
+              </div>
+              <p v-else-if="item.type === 'think'"  v-html="renderMarkdown(item.content)"></p>
               <template v-else-if="item.type === 'step'">
                 <p v-if="item.thought" v-html="renderMarkdown(item.thought)"></p>
-                <div v-for="(action, aIdx) in item.actions" :key="aIdx" class="log-mute">
+                <div v-for="(tc, aIdx) in item.toolCalls" :key="aIdx" class="log-mute">
                   <span :class="item.success !== false ? 'tool-success' : 'tool-fail'">
                     {{ item.success !== false ? '✓' : '✗' }}
                   </span>
-                  {{ action.actionName }}
-                  <span v-if="action.input" class="tool-input">{{ formatInput(action.actionName, action.input) }}</span>
+                  {{ tc.function.name }}
+                  <span v-if="tc.function.arguments" class="tool-input">{{ formatInput(tc.function.name, tc.function.arguments) }}</span>
                 </div>
               </template>
             </template>
@@ -319,7 +322,7 @@ export default {
           if (data?.sessionId && !panel.session.id) panel.session.id = data.sessionId
           break
         case 'step':
-          if (data) panel.logItems.push({ type: 'step', thought: data.thought, actions: data.actions, success: data.success })
+          if (data) panel.logItems.push({ type: 'step', thought: data.thought, toolCalls: data.toolCalls, success: data.success })
           break
         case 'compact':
           panel.logItems.push({ type: 'system', content: `【压缩完成】${data.summary || ''}` })
@@ -625,14 +628,23 @@ export default {
 
 .log-area {
   flex: 1;
-  padding: 0 16px 16px;
+  padding: 0 60px 50px;
   overflow-y: auto;
   font-size: 14px;
   line-height: 1.6;
 }
 
 .log-area p { margin: 0 0 16px 0; color: #d4d4d8; }
-.user-question { color: #60a5fa; font-weight: bold; }
+.user-question {
+  color: #60a5fa;
+  font-weight: bold;
+  border: 1px solid #60a5fa;
+  padding: 15px;
+  margin:15px;
+  border-radius: 10px;
+  display: inline-block;
+  max-width: 60%;
+}
 .todos-list { margin-bottom: 16px; color: #d4d4d8; }
 .todo-item { display: flex; align-items: center; gap: 8px; padding: 2px 0; }
 .todo-status, .todo-name { font-size: 14px; }
