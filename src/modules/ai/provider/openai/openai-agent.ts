@@ -114,9 +114,9 @@ export class OpenAIAgent implements AIProvider {
       }
 
       if (response.usage) {
-        totalUsage.promptTokens += response.usage.promptTokens;
-        totalUsage.completionTokens += response.usage.completionTokens;
-        totalUsage.totalTokens += response.usage.totalTokens;
+        totalUsage.promptTokens = response.usage.promptTokens;
+        totalUsage.completionTokens = response.usage.completionTokens;
+        totalUsage.totalTokens = response.usage.totalTokens;
       }
 
       if (response.finishReason === 'stop' && response.content) {
