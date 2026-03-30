@@ -13,6 +13,8 @@ import {
   ProviderTokenUsage,
 } from '../base.js';
 import type { MemoryService } from '../../../memory/memory.service.js';
+import type { SummarizerService } from '../../../ai/summarizer/index.js';
+import type { SessionService } from '../../../session/session.service.js';
 
 export interface OpenAIAgentConfig {
   provider: OpenAIProvider;
@@ -21,6 +23,8 @@ export interface OpenAIAgentConfig {
   projectPath?: string;
   sessionId?: string;
   memoryService?: MemoryService;
+  summarizer?: SummarizerService;
+  sessionService?: SessionService;
 }
 
 export class OpenAIAgent implements AIProvider {
@@ -32,6 +36,9 @@ export class OpenAIAgent implements AIProvider {
   private projectPath?: string;
   private sessionId?: string;
   private memoryService?: MemoryService;
+  private summarizer?: SummarizerService;
+  private sessionService?: SessionService;
+  private userMessage: string = '';
   private providerTools: any[] = [];
   private providerToolsMap: Map<string, any> = new Map();
 
@@ -42,12 +49,15 @@ export class OpenAIAgent implements AIProvider {
     this.projectPath = config.projectPath;
     this.sessionId = config.sessionId;
     this.memoryService = config.memoryService;
+    this.summarizer = config.summarizer;
+    this.sessionService = config.sessionService;
   }
 
   async run(
     userMessage: string,
     options?: ProviderRunOptions
   ): Promise<ProviderRunResult> {
+    this.userMessage = userMessage;
     this.providerTools = await getProviderTools();
     this.providerToolsMap.clear();
     for (const t of this.providerTools) {
@@ -173,6 +183,7 @@ export class OpenAIAgent implements AIProvider {
           this.addMessage('tool', toolMsg.content, true, false, undefined, toolCall.id, options?.sessionId);
         }
 
+        await this.checkAndCompact(options, baseMessages, totalUsage);
         continue;
       }
 
@@ -232,6 +243,55 @@ export class OpenAIAgent implements AIProvider {
       }
     }
     return await getOpenAITools();
+  }
+
+  private async checkAndCompact(
+    options: ProviderRunOptions | undefined,
+    baseMessages: ChatMessage[],
+    totalUsage: ProviderTokenUsage
+  ): Promise<void> {
+    if (!this.sessionId || !this.summarizer) return;
+
+    const check = this.summarizer.checkNeedsCompact(
+      this.sessionId,
+      totalUsage.promptTokens
+    );
+
+    if (!check.needed) return;
+
+    console.log(`[AutoCompact] ${check.reason}`);
+
+    const currentToolResults = baseMessages.filter(
+      msg => msg.role === 'tool' || (msg.role === 'assistant' && msg.toolCalls)
+    );
+
+    try {
+      const result = await this.summarizer.compact({
+        sessionId: this.sessionId,
+      });
+
+      if (result.success) {
+        options?.onCompact?.({
+          beforeTokens: check.promptTokens,
+          afterTokens: result.tokensAfter,
+        });
+
+        const session = this.sessionService?.get(this.sessionId);
+        const summaryMessages = this.memoryService?.getMessagesForAI(
+          this.sessionId,
+          session?.summaryMessageId || null
+        ) || [];
+
+        baseMessages.length = 0;
+        baseMessages.push({ role: 'user', content: this.userMessage });
+        if (summaryMessages.length > 0) {
+          baseMessages.push(...summaryMessages.filter(m => m.role !== 'system'));
+        }
+        baseMessages.push(...currentToolResults);
+      }
+    } catch (error) {
+      console.error('[AutoCompact] Error:', error);
+    }
   }
 
   private addMessage(

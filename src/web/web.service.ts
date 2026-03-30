@@ -453,6 +453,9 @@ resolve();
           onStep: (step: any, iteration: number) => {
             ws.send(JSON.stringify({ type: 'step', data: { step, iteration } }));
           },
+          onCompact: (info: { beforeTokens: number; afterTokens: number }) => {
+            ws.send(JSON.stringify({ type: 'compact', data: info }));
+          },
         });
 
         ws.send(JSON.stringify({

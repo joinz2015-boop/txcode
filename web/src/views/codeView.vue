@@ -321,6 +321,14 @@ export default {
         case 'step':
           if (data) panel.logItems.push({ type: 'step', thought: data.thought, actions: data.actions, success: data.success })
           break
+        case 'compact':
+          if (data?.beforeTokens && data?.afterTokens) {
+            const ratio = Math.round((1 - data.afterTokens / data.beforeTokens) * 100)
+            panel.compactionRatio = ratio
+            this.loadSessions()
+            if (panel.session?.id) this.loadMessagesForPanel(panel, panel.session.id)
+          }
+          break
         case 'done':
           panel.disabled = false
           panel.stopping = false
@@ -370,7 +378,7 @@ export default {
         newActive.push(this.activeSessions[i] || {
           session: null, logItems: [], userQuestion: '', modelName: '',
           input: '', disabled: false, stopping: false, wsConnected: false,
-          promptTokens: 0, dotAnimation: '', dotInterval: null
+          promptTokens: 0, dotAnimation: '', dotInterval: null, compactionRatio: 0
         })
       }
       this.activeSessions = newActive
@@ -405,7 +413,7 @@ export default {
         const panel = this.activeSessions[idx]
         Object.assign(panel, {
           session, logItems: [], userQuestion: '', disabled: false,
-          stopping: false, wsConnected: false, promptTokens: 0, dotAnimation: '', dotInterval: null
+          stopping: false, wsConnected: false, promptTokens: 0, dotAnimation: '', dotInterval: null, compactionRatio: 0
         })
         this.loadMessagesForPanel(panel, session.id)
         this.initPanelWs(panel)

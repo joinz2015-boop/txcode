@@ -446,6 +446,18 @@ export function App() {
             }
           }
         },
+        onCompact: (info: { beforeTokens: number; afterTokens: number }) => {
+          setCompressionPercent(Math.round((1 - info.afterTokens / info.beforeTokens) * 100));
+          if (currentSession) {
+            const msgs = memoryService.getPermanentMessages(currentSession);
+            setMessages(msgs.map(m => ({
+              id: uuidv4(),
+              role: m.role as 'user' | 'assistant' | 'system' | 'tool',
+              content: m.content,
+              timestamp: new Date(m.createdAt),
+            })));
+          }
+        },
       });
 
       if (result.answer) {

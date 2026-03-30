@@ -210,6 +210,8 @@ export class AIService {
       projectPath: options?.projectPath,
       sessionId,
       memoryService,
+      summarizer,
+      sessionService: this.sessionService,
     });
 
     const wrappedOnStep = options?.onStep
@@ -223,16 +225,6 @@ export class AIService {
             observation: step.results?.[0]?.output || '',
           };
           options.onStep?.(reactFormatStep, iteration);
-
-          if (sessionId && usage && usage.promptTokens > 0) {
-            const check = summarizer.checkNeedsCompact(sessionId, usage.promptTokens);
-            if (check.needed) {
-              console.log(`[AutoCompact] ${check.reason}, triggering compaction during iteration ${iteration}...`);
-              summarizer.compact({ sessionId }).then(() => {
-                options?.onCompact?.({ beforeTokens: check.promptTokens, afterTokens: 0 });
-              });
-            }
-          }
         }
       : undefined;
 
@@ -245,6 +237,7 @@ export class AIService {
     try {
       const result = await agent.run(userMessage, {
         onStep: wrappedOnStep,
+        onCompact: options?.onCompact,
         historyMessages,
         sessionId,
         memoryService,

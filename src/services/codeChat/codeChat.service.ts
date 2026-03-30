@@ -15,6 +15,7 @@ export class CodeChatService {
       abortSignal: input.abortSignal,
       modelName: input.modelName,
       onStep: input.onStep,
+      onCompact: input.onCompact,
     });
   }
 
@@ -49,6 +50,7 @@ export class CodeChatService {
         reactSteps.push({ iteration, ...reactFormatStep });
         options.onStep?.(reactFormatStep, iteration);
       },
+      onCompact: options.onCompact,
     });
 
     return {
