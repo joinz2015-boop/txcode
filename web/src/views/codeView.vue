@@ -28,9 +28,9 @@
         </div>
         <div class="log-area">
           <template v-if="panel.session?.id">
-            <template v-for="(item, idx) in panel.logItems" :key="idx">
+            <template v-for="(item, idx) in panel.logItems" :key="item._id || idx">
               <div v-if="item.type === 'todos'" class="todos-list">
-                <div v-for="(todo, tIdx) in item.todos" :key="tIdx" class="todo-item">
+                <div v-for="(todo, tIdx) in item.todos" :key="`${item._id || idx}-todo-${tIdx}`" class="todo-item">
                   <span class="todo-status">{{ getTodoStatusIcon(todo.status) }}</span>
                   <span class="todo-name">{{ todo.name }}</span>
                 </div>
@@ -38,15 +38,15 @@
               <div v-else-if="item.type === 'chat'" class="flex justify-end">
                 <div  class="user-question">{{ item.content }}</div>
               </div>
-              <p v-else-if="item.type === 'think'"  v-html="renderMarkdown(item.content)"></p>
+              <p v-else-if="item.type === 'think'"  v-html="item.renderedContent || renderMarkdown(item.content)"></p>
               <template v-else-if="item.type === 'step'">
-                <p v-if="item.thought" v-html="renderMarkdown(item.thought)"></p>
-                <div v-for="(tc, aIdx) in item.toolCalls" :key="aIdx" class="log-mute">
+                <p v-if="item.thought" v-html="item.renderedThought || renderMarkdown(item.thought)"></p>
+                <div v-for="(tc, aIdx) in item.toolCalls" :key="`${item._id || idx}-tool-${aIdx}`" class="log-mute">
                   <span :class="item.success !== false ? 'tool-success' : 'tool-fail'">
                     {{ item.success !== false ? '✓' : '✗' }}
                   </span>
-                  {{ tc.function.name }}
-                  <span v-if="tc.function.arguments" class="tool-input">{{ formatInput(tc.function.name, tc.function.arguments) }}</span>
+                  {{ getToolCallName(tc) }}
+                  <span v-if="getToolCallArguments(tc)" class="tool-input">{{ formatInput(getToolCallName(tc), getToolCallArguments(tc)) }}</span>
                 </div>
               </template>
             </template>
@@ -84,9 +84,10 @@
           </el-button>
         </div>
         <div class="status-bar">
-          <span :class="panel.disabled && !panel.stopping ? 'status-thinking' : 'status-ready'">
-            {{ panel.disabled && !panel.stopping ? panel.dotAnimation + ' 思考中' : '✓ 就绪' }}
+          <span v-if="panel.disabled && !panel.stopping" class="status-thinking">
+            <span class="thinking-spinner" aria-hidden="true"></span> 思考中
           </span>
+          <span v-else class="status-ready">✓ 就绪</span>
           <span class="separator">|</span>
           <span class="model-selector" @click.stop="openModelSelector(panel)">
             模型：{{ panel.modelName || '-' }} ▾
@@ -143,6 +144,7 @@ import CommandDialog from '../components/CommandDialog.vue'
 export default {
   name: 'CodeView',
   components: { SessionsPanel, FileSelectDialog, ModelSelectDialog, CommandDialog },
+  MAX_LOG_ITEMS: 400,
 
   props: {
     sidebarVisible: { type: Boolean, default: true }
@@ -166,7 +168,8 @@ export default {
       modelSelectVisible: false,
       selectedPanel: null,
       commandDialogVisible: false,
-      dots: ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧']
+      scrollRafMap: new WeakMap(),
+      logSeq: 0
     }
   },
 
@@ -292,8 +295,70 @@ export default {
       }
     },
 
+    getToolCallName(toolCall) {
+      return toolCall?.function?.name || 'unknown_tool'
+    },
+
+    getToolCallArguments(toolCall) {
+      return toolCall?.function?.arguments || ''
+    },
+
     renderMarkdown(text) {
       return text ? marked(text) : ''
+    },
+
+    createThinkItem(content) {
+      return {
+        type: 'think',
+        content,
+        renderedContent: this.renderMarkdown(content)
+      }
+    },
+
+    createStepItem(data) {
+      const thought = data?.thought || ''
+      return {
+        type: 'step',
+        thought,
+        renderedThought: this.renderMarkdown(thought),
+        toolCalls: Array.isArray(data?.toolCalls) ? data.toolCalls.filter(Boolean) : [],
+        success: data?.success
+      }
+    },
+
+    withLogId(item) {
+      if (!item || typeof item !== 'object') return { type: 'system', content: String(item), _id: `log-${++this.logSeq}` }
+      if (item._id) return item
+      return { ...item, _id: `log-${++this.logSeq}` }
+    },
+
+    pushLogItem(panel, item) {
+      panel.logItems.push(this.withLogId(item))
+      const maxLogItems = this.$options.MAX_LOG_ITEMS || 400
+      if (panel.logItems.length > maxLogItems) {
+        panel.logItems.splice(0, panel.logItems.length - maxLogItems)
+      }
+    },
+
+    stopThinking(panel) {
+      panel.disabled = false
+      panel.stopping = false
+      clearInterval(panel.dotInterval)
+      panel.dotInterval = null
+    },
+
+    schedulePanelScroll(panel) {
+      if (this.scrollRafMap.get(panel)) return
+      const rafId = requestAnimationFrame(() => {
+        this.scrollRafMap.delete(panel)
+        const panelIdx = this.activeSessions.indexOf(panel)
+        if (panelIdx > -1) {
+          const el = this.$el?.querySelectorAll('.session-panel')?.[panelIdx]
+          const logArea = el?.querySelector('.log-area')
+          if (logArea) logArea.scrollTop = logArea.scrollHeight
+        }
+      })
+      this.scrollRafMap.set(panel, rafId)
     },
 
     initPanelWs(panel) {
@@ -316,54 +381,36 @@ export default {
       const { type, data, error } = msg
       switch (type) {
         case 'todos':
-          if (data?.todos) panel.logItems.push({ type: 'todos', todos: data.todos })
+          if (data?.todos) this.pushLogItem(panel, { type: 'todos', todos: data.todos })
           break
         case 'session':
           if (data?.sessionId && !panel.session.id) panel.session.id = data.sessionId
           break
         case 'step':
-          if (data) panel.logItems.push({ type: 'step', thought: data.thought, toolCalls: data.toolCalls, success: data.success })
+          if (data) this.pushLogItem(panel, this.createStepItem(data))
           break
         case 'compact':
-          panel.logItems.push({ type: 'system', content: `【压缩完成】${data.summary || ''}` })
+          this.pushLogItem(panel, { type: 'system', content: `【压缩完成】${data.summary || ''}` })
           this.loadSessions()
           if (panel.session?.id) this.loadMessagesForPanel(panel, panel.session.id)
           break
         case 'done':
-          panel.disabled = false
-          panel.stopping = false
-          panel.dotAnimation = ''
-          clearInterval(panel.dotInterval)
-          panel.dotInterval = null
+          this.stopThinking(panel)
           if (data?.modelName) panel.modelName = data.modelName
           if (data?.usage?.promptTokens) panel.promptTokens = data.usage.promptTokens
-          if (data?.response) panel.logItems.push({ type: 'think', content: data.response })
+          if (data?.response) this.pushLogItem(panel, this.createThinkItem(data.response))
           if (data?.sessionId) this.loadSessions()
           break
         case 'stopped':
-          panel.disabled = false
-          panel.stopping = false
-          panel.dotAnimation = ''
-          clearInterval(panel.dotInterval)
-          panel.dotInterval = null
-          panel.logItems.push({ type: 'think', content: '【已停止】' })
+          this.stopThinking(panel)
+          this.pushLogItem(panel, this.createThinkItem('【已停止】'))
           break
         case 'error':
           this.$message.error(error || '发生错误')
-          panel.disabled = false
-          panel.stopping = false
-          panel.dotAnimation = ''
-          clearInterval(panel.dotInterval)
-          panel.dotInterval = null
+          this.stopThinking(panel)
           break
       }
-      this.$nextTick(() => {
-        const panelIdx = this.activeSessions.indexOf(panel)
-        if (panelIdx > -1) {
-          const el = this.$el?.querySelectorAll('.session-panel')?.[panelIdx]
-          el?.querySelector('.log-area')?.scrollTo(0, el.querySelector('.log-area').scrollHeight)
-        }
-      })
+      this.$nextTick(() => this.schedulePanelScroll(panel))
     },
 
     setLayout(mode) {
@@ -378,7 +425,7 @@ export default {
         newActive.push(this.activeSessions[i] || {
           session: null, logItems: [], userQuestion: '', modelName: '',
           input: '', disabled: false, stopping: false, wsConnected: false,
-          promptTokens: 0, dotAnimation: '', dotInterval: null, compactionRatio: 0
+          promptTokens: 0, dotInterval: null, compactionRatio: 0
         })
       }
       this.activeSessions = newActive
@@ -399,7 +446,6 @@ export default {
       panel.stopping = false
       panel.wsConnected = false
       panel.promptTokens = 0
-      panel.dotAnimation = ''
       clearInterval(panel.dotInterval)
       panel.dotInterval = null
       this.loadMessagesForPanel(panel, this.draggedSession.id)
@@ -413,7 +459,7 @@ export default {
         const panel = this.activeSessions[idx]
         Object.assign(panel, {
           session, logItems: [], userQuestion: '', disabled: false,
-          stopping: false, wsConnected: false, promptTokens: 0, dotAnimation: '', dotInterval: null, compactionRatio: 0
+          stopping: false, wsConnected: false, promptTokens: 0, dotInterval: null, compactionRatio: 0
         })
         this.loadMessagesForPanel(panel, session.id)
         this.initPanelWs(panel)
@@ -423,7 +469,11 @@ export default {
     async loadMessagesForPanel(panel, sessionId) {
       try {
         const res = await api.getMessages(sessionId)
-        panel.logItems = res.data || []
+        panel.logItems = (res.data || []).map(item => {
+          if (item.type === 'think') return this.withLogId(this.createThinkItem(item.content || ''))
+          if (item.type === 'step') return this.withLogId(this.createStepItem(item))
+          return this.withLogId(item)
+        })
         const userItem = panel.logItems.find(item => item.type === 'chat' || item.type === 'think')
         if (userItem) panel.userQuestion = userItem.content
       } catch (e) {
@@ -503,14 +553,7 @@ export default {
       panel.disabled = true
       panel.stopping = false
       panel.userQuestion = content
-      panel.logItems.push({ type: 'chat', content: content })
-
-      let dotIdx = 0
-      panel.dotAnimation = this.dots[dotIdx]
-      panel.dotInterval = setInterval(() => {
-        dotIdx = (dotIdx + 1) % this.dots.length
-        panel.dotAnimation = this.dots[dotIdx]
-      }, 150)
+      this.pushLogItem(panel, { type: 'chat', content: content })
 
       if (api.sessionWsIsConnected(panel.session.id)) {
         api.sessionWsSend(panel.session.id, 'chat', { message: content, sessionId: panel.session?.id, modelName: panel.modelName || undefined })
@@ -693,6 +736,21 @@ export default {
 .status-ready { color: #22c55e; }
 .status-thinking { color: #60a5fa; }
 .token-warning { color: #ef4444; }
+.thinking-spinner {
+  width: 10px;
+  height: 10px;
+  border: 2px solid #3f3f46;
+  border-top-color: #60a5fa;
+  border-radius: 50%;
+  display: inline-block;
+  vertical-align: -1px;
+  margin-right: 6px;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
 
 .layout-switcher { position: fixed; right: 20px; bottom: 20px; z-index: 100; }
 .model-selector { cursor: pointer; }
