@@ -16,6 +16,7 @@ import { aiLogRouter } from './ai-log.routes.js';
 import { gatewayRouter } from './gateway.routes.js';
 import { terminalRouter } from './terminal.routes.js';
 import { schedulerRouter } from './scheduler.routes.js';
+import { emailRouter } from './email.routes.js';
 
 export const apiRouter = Router();
 
@@ -32,5 +33,6 @@ apiRouter.use('/ai-logs', aiLogRouter);
 apiRouter.use('/gateway', gatewayRouter);
 apiRouter.use('/terminal', terminalRouter);
 apiRouter.use('/tasks', schedulerRouter);
+apiRouter.use('/email', emailRouter);
 
-export * from './api.types.js';
+export type * from './api.types.js';

@@ -93,6 +93,38 @@
             </el-form-item>
           </el-form>
         </div>
+
+        <div v-show="activeTab === 'email'">
+          <h3 class="text-xl text-white mb-4">邮件配置</h3>
+          <el-form label-width="150px" class="gateway-form">
+            <el-form-item label="SMTP 服务器">
+              <el-input v-model="emailConfig.host" placeholder="smtp.example.com" @blur="saveEmailConfig" />
+            </el-form-item>
+            <el-form-item label="端口">
+              <el-input-number v-model="emailConfig.port" :min="1" :max="65535" @change="saveEmailConfig" />
+            </el-form-item>
+            <el-form-item label="使用 SSL/TLS">
+              <el-switch v-model="emailConfig.secure" @change="saveEmailConfig" />
+            </el-form-item>
+            <el-form-item label="用户名">
+              <el-input v-model="emailConfig.user" placeholder="邮箱地址" @blur="saveEmailConfig" />
+            </el-form-item>
+            <el-form-item label="密码/授权码">
+              <el-input v-model="emailConfig.password" type="password" placeholder="邮箱密码或授权码" show-password @blur="saveEmailConfig" />
+            </el-form-item>
+            <el-form-item label="发件人名称">
+              <el-input v-model="emailConfig.fromName" placeholder="显示的发件人名称（可选）" @blur="saveEmailConfig" />
+            </el-form-item>
+            <el-form-item label="运行状态">
+              <el-tag :type="emailStatus.valid ? 'success' : 'info'">
+                {{ emailStatus.valid ? '配置有效' : (emailStatus.valid === false ? '配置无效' : '未配置') }}
+              </el-tag>
+            </el-form-item>
+            <el-form-item>
+              <el-button type="primary" @click="testEmailConfig" :loading="emailLoading">测试连接</el-button>
+            </el-form-item>
+          </el-form>
+        </div>
       </div>
     </main>
 
@@ -135,6 +167,7 @@ export default {
         { name: 'providers', label: 'AI 服务商', icon: 'fa-solid fa-server' },
         { name: 'advanced', label: '高级', icon: 'fa-solid fa-gear' },
         { name: 'gateway', label: '网关', icon: 'fa-solid fa-plug' },
+        { name: 'email', label: '邮件配置', icon: 'fa-solid fa-envelope' },
       ],
       providers: [],
       models: [],
@@ -159,6 +192,18 @@ export default {
       editingProvider: null,
       showModelDialog: false,
       editingModel: null,
+      emailConfig: {
+        host: '',
+        port: 587,
+        secure: false,
+        user: '',
+        password: '',
+        fromName: '',
+      },
+      emailStatus: {
+        valid: null,
+      },
+      emailLoading: false,
     }
   },
 
@@ -183,6 +228,8 @@ export default {
       if (newTab === 'gateway') {
         this.loadGatewayConfig()
         this.loadGatewayStatus()
+      } else if (newTab === 'email') {
+        this.loadEmailConfig()
       }
     }
   },
@@ -331,6 +378,86 @@ export default {
         this.$message.error('操作失败: ' + e.message)
       } finally {
         this.gatewayLoading = false
+      }
+    },
+
+    async loadEmailConfig() {
+      try {
+        const res = await this.$api.getEmailConfigs()
+        const configs = res.data || []
+        if (configs.length > 0) {
+          const config = configs[0]
+          this.emailConfig = {
+            host: config.host || '',
+            port: config.port || 587,
+            secure: !!config.secure,
+            user: config.user || '',
+            password: config.password || '',
+            fromName: config.from_name || '',
+          }
+          this.emailStatus.valid = null
+        } else {
+          this.emailConfig = { host: '', port: 587, secure: false, user: '', password: '', fromName: '' }
+          this.emailStatus.valid = null
+        }
+      } catch (e) {
+        this.$message.error('加载邮件配置失败: ' + e.message)
+      }
+    },
+
+    async saveEmailConfig() {
+      try {
+        const configs = await this.$api.getEmailConfigs()
+        const existing = (configs.data || [])[0]
+
+        if (existing) {
+          await this.$api.updateEmailConfig(existing.id, {
+            host: this.emailConfig.host,
+            port: this.emailConfig.port,
+            secure: this.emailConfig.secure,
+            user: this.emailConfig.user,
+            password: this.emailConfig.password,
+            from_name: this.emailConfig.fromName,
+          })
+        } else {
+          await this.$api.createEmailConfig({
+            host: this.emailConfig.host,
+            port: this.emailConfig.port,
+            secure: this.emailConfig.secure,
+            user: this.emailConfig.user,
+            password: this.emailConfig.password,
+            from_name: this.emailConfig.fromName,
+            is_default: true,
+          })
+        }
+        this.$message.success('配置已保存')
+      } catch (e) {
+        this.$message.error('保存失败: ' + e.message)
+      }
+    },
+
+    async testEmailConfig() {
+      try {
+        const configs = await this.$api.getEmailConfigs()
+        const existing = (configs.data || [])[0]
+        if (!existing) {
+          this.$message.error('请先保存配置后再测试')
+          return
+        }
+        this.emailLoading = true
+        const res = await this.$api.validateEmailConfig(existing.id)
+        if (res.success) {
+          this.$message.success('连接测试成功')
+          this.emailStatus.valid = true
+        } else {
+          this.$message.error('连接测试失败: ' + res.error)
+          this.emailStatus.valid = false
+        }
+      } catch (e) {
+        this.$message.error('测试失败: ' + e.message)
+        this.emailStatus.valid = false
+      } finally {
+        this.emailLoading = false
       }
     },
   },

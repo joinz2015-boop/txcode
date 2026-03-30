@@ -593,6 +593,36 @@ export const api = {
     this.wsSend('chat', data);
   },
 
+  // ==================== 邮件管理 ====================
+
+  getEmailConfigs() {
+    return request('GET', '/email/configs');
+  },
+
+  getEmailConfig(id) {
+    return request('GET', `/email/configs/${id}`);
+  },
+
+  createEmailConfig(config) {
+    return request('POST', '/email/configs', config);
+  },
+
+  updateEmailConfig(id, config) {
+    return request('PUT', `/email/configs/${id}`, config);
+  },
+
+  deleteEmailConfig(id) {
+    return request('DELETE', `/email/configs/${id}`);
+  },
+
+  setDefaultEmailConfig(id) {
+    return request('PUT', `/email/configs/${id}/default`);
+  },
+
+  validateEmailConfig(configId) {
+    return request('POST', '/email/validate', { configId });
+  },
+
   // ==================== 网关管理 ====================
 
   getDingtalkConfig() {

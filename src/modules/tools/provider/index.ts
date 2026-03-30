@@ -18,6 +18,7 @@ import { webFetchTool } from './web_fetch.js'
 import { codeSearchTool } from './code_search.js'
 import { memoryTool } from './memory.js'
 import { skillTool } from './skill.js'
+import { emailTool } from './email.tool.js'
 
 export async function getProviderTools(): Promise<Tool[]> {
   return [
@@ -35,5 +36,6 @@ export async function getProviderTools(): Promise<Tool[]> {
     codeSearchTool,
     memoryTool,
     skillTool,
+    emailTool,
   ]
 }

@@ -208,6 +208,7 @@ export class DbService {
       () => this.migration005AddAiCallLogs(),
       () => this.migration006AddDingdingConfig(),
       () => this.migration007AddScheduledTasks(),
+      () => this.migration008AddEmailConfig(),
     ];
 
     for (let i = 0; i < migrations.length; i++) {
@@ -557,6 +558,26 @@ export class DbService {
     this.db.run(`CREATE INDEX IF NOT EXISTS idx_task_skills_task_id ON task_skills(task_id)`);
     this.db.run(`CREATE INDEX IF NOT EXISTS idx_task_logs_task_id ON task_logs(task_id)`);
     this.db.run(`CREATE INDEX IF NOT EXISTS idx_task_logs_executed_at ON task_logs(executed_at)`);
+  }
+
+  private migration008AddEmailConfig(): void {
+    if (!this.db) return
+
+    this.db.run(`
+      CREATE TABLE IF NOT EXISTS email_config (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        host TEXT NOT NULL,
+        port INTEGER DEFAULT 587,
+        secure INTEGER DEFAULT 0,
+        user TEXT NOT NULL,
+        password TEXT NOT NULL,
+        from_name TEXT,
+        is_default INTEGER DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `)
   }
 
   private getTableColumns(tableName: string): string[] {
