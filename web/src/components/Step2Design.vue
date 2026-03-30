@@ -320,7 +320,10 @@ export default {
           }
           break
         case 'step':
-          if (data) this.logItems.push({ type: 'step', thought: data.thought, toolCalls: data.toolCalls, success: data.success })
+          if (data) {
+            this.logItems.push({ type: 'step', thought: data.thought, toolCalls: data.toolCalls, success: data.success })
+            if (data.usage?.promptTokens) this.promptTokens = data.usage.promptTokens
+          }
           break
         case 'compact':
           this.logItems.push({ type: 'system', content: `【压缩完成】${data.summary || ''}` })
