@@ -446,8 +446,8 @@ export function App() {
             }
           }
         },
-        onCompact: (info: { beforeTokens: number; afterTokens: number }) => {
-          setCompressionPercent(Math.round((1 - info.afterTokens / info.beforeTokens) * 100));
+        onCompact: (info: { beforeTokens: number; afterTokens: number; summary?: string }) => {
+          addMessage('system', `【压缩完成】${info.summary || ''}`);
           if (currentSession) {
             const msgs = memoryService.getPermanentMessages(currentSession);
             setMessages(msgs.map(m => ({

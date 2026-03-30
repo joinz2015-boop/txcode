@@ -231,11 +231,8 @@ export default {
           if (data) this.logItems.push({ type: 'step', thought: data.thought, actions: data.actions, success: data.success })
           break
         case 'compact':
-          if (data?.beforeTokens && data?.afterTokens) {
-            this.compactionRatio = Math.round((1 - data.afterTokens / data.beforeTokens) * 100)
-            this.logItems.push({ type: 'system', content: `【压缩完成】${data.summary || ''}` })
-            this.loadMessages()
-          }
+          this.logItems.push({ type: 'system', content: `【压缩完成】${data.summary || ''}` })
+          this.loadMessages()
           break
         case 'done':
           this.disabled = false

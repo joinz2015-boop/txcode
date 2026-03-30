@@ -322,13 +322,9 @@ export default {
           if (data) panel.logItems.push({ type: 'step', thought: data.thought, actions: data.actions, success: data.success })
           break
         case 'compact':
-          if (data?.beforeTokens && data?.afterTokens) {
-            const ratio = Math.round((1 - data.afterTokens / data.beforeTokens) * 100)
-            panel.compactionRatio = ratio
-            panel.logItems.push({ type: 'system', content: `【压缩完成】${data.summary || ''}` })
-            this.loadSessions()
-            if (panel.session?.id) this.loadMessagesForPanel(panel, panel.session.id)
-          }
+          panel.logItems.push({ type: 'system', content: `【压缩完成】${data.summary || ''}` })
+          this.loadSessions()
+          if (panel.session?.id) this.loadMessagesForPanel(panel, panel.session.id)
           break
         case 'done':
           panel.disabled = false
