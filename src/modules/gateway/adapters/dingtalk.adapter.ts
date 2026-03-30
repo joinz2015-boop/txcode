@@ -84,12 +84,20 @@ export class DingtalkStreamAdapter implements DingtalkAdapter {
         console.error('[DingTalk] WebSocket 错误:', err?.message || err);
       });
 
-      this.client.connect();
+      try {
+        this.client.connect();
+      } catch (connectErr) {
+        console.error('[DingTalk] connect 调用异常:', connectErr);
+        this.running = false;
+        this.scheduleReconnect();
+        return;
+      }
+      
       this.running = true;
     } catch (error) {
       this.running = false;
       console.error('[DingTalk] 启动失败:', error);
-      throw new Error(`Failed to start DingTalk adapter: ${error instanceof Error ? error.message : String(error)}`);
+      this.scheduleReconnect();
     }
   }
 

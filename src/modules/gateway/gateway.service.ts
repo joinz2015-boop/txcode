@@ -24,6 +24,7 @@ export class GatewayService {
   private configLoaded: boolean = false;
   private accessToken: string | null = null;
   private accessTokenExpiry: number = 0;
+  private unhandledRejectionHandler: ((reason: any) => void) | null = null;
 
   async start(): Promise<void> {
     if (this.status.running) {
@@ -43,11 +44,21 @@ export class GatewayService {
       throw new Error('Gateway configuration is incomplete or disabled');
     }
 
+    this.unhandledRejectionHandler = (reason: any) => {
+      console.error('[Gateway] Unhandled promise rejection (non-fatal):', reason?.message || reason);
+    };
+    process.on('unhandledRejection', this.unhandledRejectionHandler);
+
     dingtalkAdapter.registerHandler(this.handleMessage.bind(this));
-    await dingtalkAdapter.start({
-      clientId: this.config.clientId,
-      clientSecret: this.config.clientSecret,
-    });
+    
+    try {
+      await dingtalkAdapter.start({
+        clientId: this.config.clientId,
+        clientSecret: this.config.clientSecret,
+      });
+    } catch (error) {
+      console.error('[Gateway] Initial connection failed, will retry in background:', error);
+    }
 
     this.status.running = true;
     this.status.connectedAt = Date.now();
@@ -57,6 +68,11 @@ export class GatewayService {
   async stop(): Promise<void> {
     if (!this.status.running) {
       return;
+    }
+
+    if (this.unhandledRejectionHandler) {
+      process.off('unhandledRejection', this.unhandledRejectionHandler);
+      this.unhandledRejectionHandler = null;
     }
 
     await dingtalkAdapter.stop();
