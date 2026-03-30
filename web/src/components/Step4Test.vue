@@ -21,6 +21,7 @@
               </div>
             </div>
             <div v-else-if="item.type === 'chat' || item.type === 'think'" class="user-question" v-html="renderMarkdown(item.content)"></div>
+            <div v-else-if="item.type === 'system'" class="system-message" v-html="renderMarkdown(item.content)"></div>
             <template v-else-if="item.type === 'step'">
               <div v-if="item.thought" class="ai-thought" v-html="renderMarkdown(item.thought)"></div>
               <div v-for="(action, aIdx) in item.actions" :key="aIdx" class="log-mute">
@@ -69,7 +70,8 @@
           <span class="separator">|</span>
           <span>会话：{{ sessionId ? sessionId.slice(0, 8) : '--------' }}</span>
           <span class="separator">|</span>
-          <span>token：(<span :class="promptTokens > 50000 ? 'token-warning' : ''">{{ promptTokens || 0 }}</span>)</span>
+          <span>token：(<span :class="promptTokens > 50000 ? 'token-warning' : ''">{{ promptTokens || 0 }}{{ promptTokens > 50000 && !compactionRatio ? ' 会话太大推荐用/compact压缩会话' : '' }}</span>)</span>
+          <span v-if="compactionRatio" class="compaction-info">{{ compactionRatio }}%压缩</span>
           <span class="separator">|</span>
           <span class="status-action" @click="openCommandDialog">命令</span>
           <span class="separator">|</span>
@@ -124,6 +126,7 @@ export default {
       stopping: false,
       wsConnected: false,
       promptTokens: 0,
+      compactionRatio: 0,
       dotAnimation: '',
       dotInterval: null,
       dots: ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧'],
@@ -226,6 +229,13 @@ export default {
           break
         case 'step':
           if (data) this.logItems.push({ type: 'step', thought: data.thought, actions: data.actions, success: data.success })
+          break
+        case 'compact':
+          if (data?.beforeTokens && data?.afterTokens) {
+            this.compactionRatio = Math.round((1 - data.afterTokens / data.beforeTokens) * 100)
+            this.logItems.push({ type: 'system', content: `【压缩完成】${data.summary || ''}` })
+            this.loadMessages()
+          }
           break
         case 'done':
           this.disabled = false
@@ -477,8 +487,10 @@ export default {
 .status-ready { color: #22c55e; }
 .status-thinking { color: #60a5fa; }
 .token-warning { color: #ef4444; }
+.compaction-info { color: #22c55e; margin-left: 8px; }
 .model-selector { cursor: pointer; }
 .model-selector:hover { color: #60a5fa; }
 .status-action { cursor: pointer; }
 .status-action:hover { color: #60a5fa; }
+.system-message { color: #a78bfa; font-size: 13px; margin-bottom: 16px; padding: 8px 12px; background: #1e1e1e; border-radius: 6px; }
 </style>

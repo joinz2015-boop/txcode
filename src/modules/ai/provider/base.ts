@@ -23,7 +23,7 @@ export interface ProviderTokenUsage {
 
 export interface ProviderRunOptions {
   onStep?: (step: ProviderStep, iteration: number, usage?: ProviderTokenUsage) => void;
-  onCompact?: (info: { beforeTokens: number; afterTokens: number }) => void;
+  onCompact?: (info: { beforeTokens: number; afterTokens: number; summary?: string }) => void;
   historyMessages?: ChatMessage[];
   memoryService?: MemoryService;
   sessionId?: string;

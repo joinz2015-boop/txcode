@@ -266,6 +266,7 @@ export class OpenAIAgent implements AIProvider {
     );
 
     try {
+      //这里记录了 messages
       const result = await this.summarizer.compact({
         sessionId: this.sessionId,
       });
@@ -274,6 +275,7 @@ export class OpenAIAgent implements AIProvider {
         options?.onCompact?.({
           beforeTokens: check.promptTokens,
           afterTokens: result.tokensAfter,
+          summary: result.summary,
         });
 
         const session = this.sessionService?.get(this.sessionId);

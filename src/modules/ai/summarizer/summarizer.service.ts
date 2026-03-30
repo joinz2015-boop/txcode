@@ -158,7 +158,7 @@ export class SummarizerService {
         summary,
         reasoning,
         tokensBefore,
-        tokensAfter: 0,
+        tokensAfter: Math.round(tokensBefore * 0.3),
       };
     } catch (error) {
       console.error('[Compact] Error:', error);

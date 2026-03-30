@@ -5,7 +5,7 @@ export interface ChatInput {
   abortSignal?: AbortSignal;
   modelName?: string;
   onStep?: (step: Step, iteration: number) => void;
-  onCompact?: (info: { beforeTokens: number; afterTokens: number }) => void;
+  onCompact?: (info: { beforeTokens: number; afterTokens: number; summary?: string }) => void;
 }
 
 export interface ChatOptions {
@@ -14,7 +14,7 @@ export interface ChatOptions {
   abortSignal?: AbortSignal;
   modelName?: string;
   onStep?: (step: Step, iteration: number) => void;
-  onCompact?: (info: { beforeTokens: number; afterTokens: number }) => void;
+  onCompact?: (info: { beforeTokens: number; afterTokens: number; summary?: string }) => void;
 }
 
 export interface ChatResult {
