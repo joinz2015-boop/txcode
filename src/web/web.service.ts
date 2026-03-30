@@ -435,6 +435,15 @@ resolve();
           sessionId: session.id,
         });
         ws.send(JSON.stringify({ type: 'command', data: result }));
+        ws.send(JSON.stringify({ 
+          type: 'done', 
+          data: { 
+            response: result.answer,
+            success: result.success,
+            commandData: result.data,
+          } 
+        }));
+        return;
       } else {
         const result = await codeChatService.handleChat({
           message,

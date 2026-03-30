@@ -314,9 +314,9 @@ registerCommand('compact', async () => {
   
   let message = `Compact completed!\n  - Before: ${tokensBefore} tokens\n  - After: ${result.tokensAfter} tokens\n\n## Summary\n${result.summary}`;
   
-  if (result.reasoning) {
-    message += `\n\n## Reasoning\n${result.reasoning}`;
-  }
+  // if (result.reasoning) {
+  //   message += `\n\n## Reasoning\n${result.reasoning}`;
+  // }
   
   return { 
     success: true, 

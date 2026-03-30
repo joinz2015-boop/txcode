@@ -61,6 +61,22 @@ export class DbService {
     this.init();
   }
 
+  async refresh(): Promise<void> {
+    this.save();
+    if (this.db) {
+      this.db.close();
+      this.db = null;
+    }
+    const SQL = await initSqlJs();
+    if (fs.existsSync(this.dbPath)) {
+      const fileBuffer = fs.readFileSync(this.dbPath);
+      this.db = new SQL.Database(fileBuffer);
+    } else {
+      this.db = new SQL.Database();
+    }
+    this.db.run('PRAGMA foreign_keys = ON');
+  }
+
   getDb(): SqlJsDatabase {
     if (!this.db) {
       throw new Error('Database not initialized. Call init() first.');
