@@ -160,6 +160,9 @@ export class OpenAIProvider {
   }
 
   private parseResponse(response: OpenAI.Chat.Completions.ChatCompletion): ChatResponse {
+    if (!response.choices || response.choices.length === 0) {
+      throw new Error('Invalid response: no choices available');
+    }
     const choice = response.choices[0];
     const message = choice.message;
 

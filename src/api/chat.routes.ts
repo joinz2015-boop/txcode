@@ -78,9 +78,6 @@ chatRouter.post('/', async (req: Request, res: Response) => {
   // 从请求体中解构聊天请求参数
   const { message, sessionId, projectPath, skill, modelName } = req.body as ChatRequest;
 
-  // 记录请求日志
-  logger.logRequest('/api/chat', { message, sessionId, projectPath });
-
   try {
     // ========== 步骤 2: 检查是否是命令 ==========
     // 以 / 开头的输入作为命令处理
@@ -215,8 +212,7 @@ chatRouter.post('/', async (req: Request, res: Response) => {
       } : undefined,
     };
 
-    // 记录响应日志
-    logger.logResponse('/api/chat', responseData);
+ 
 
     res.json({
       success: true,

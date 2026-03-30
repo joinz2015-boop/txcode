@@ -5,6 +5,7 @@
 export interface SummarizerResult {
   success: boolean;
   summary: string;
+  reasoning?: string;
   tokensBefore: number;
   tokensAfter: number;
   error?: string;

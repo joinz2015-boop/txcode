@@ -38,6 +38,7 @@ import { memoryService } from '../modules/memory/index.js';
 import { configService } from '../modules/config/config.service.js';
 import { logger } from '../modules/logger/logger.js';
 import { terminalService } from '../modules/terminal/index.js';
+import { executeCommand } from '../cli/commands.js';
 
 /**
  * WebService 类
@@ -430,6 +431,20 @@ resolve();
       ws.send(JSON.stringify({ type: 'session', data: { sessionId: session.id } }));
 
       console.log('[WebSocket] Chat message:', message);
+
+      if (message.trim().startsWith('/')) {
+        const cmdResult = await executeCommand(message.trim());
+        ws.send(JSON.stringify({ type: 'command', data: cmdResult }));
+        ws.send(JSON.stringify({ 
+          type: 'done', 
+          data: { 
+            response: cmdResult.message, 
+            success: cmdResult.success,
+            commandData: cmdResult.data 
+          } 
+        }));
+        return;
+      }
 
       console.log('[handleChat] calling CodeAgent, sessionId:', session.id, 'message:', message.substring(0, 20));
 

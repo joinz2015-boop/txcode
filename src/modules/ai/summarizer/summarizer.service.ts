@@ -76,7 +76,7 @@ export class SummarizerService {
       };
     }
 
-    const messages = this.memoryService.getAllMessages(sessionId);
+    const messages = this.memoryService.getMessagesForAI(sessionId, session.summaryMessageId);
     if (messages.length === 0) {
       return {
         success: false,
@@ -92,10 +92,27 @@ export class SummarizerService {
     onProgress?.('Generating summary...');
 
     try {
-      const chatMessages = messages.map(m => ({
-        role: m.role,
-        content: m.content,
-      }));
+      const chatMessages = messages
+        .filter(m => {
+          if (m.role === 'tool') return false;
+          try {
+            const parsed = JSON.parse(m.content);
+            if (parsed?.type === 'tool_result') return false;
+          } catch {}
+          return true;
+        })
+        .map(m => {
+          let content = m.content;
+          try {
+            const parsed = JSON.parse(m.content);
+            if (parsed?.type === 'assistant_with_tools') {
+              content = parsed.text || parsed.content || m.content;
+            } else if (parsed?.type === 'tool_result') {
+              content = parsed.output || m.content;
+            }
+          } catch {}
+          return { role: m.role, content };
+        });
 
       const summarizerMessages = buildSummarizerMessages(chatMessages);
 
@@ -105,6 +122,7 @@ export class SummarizerService {
       });
 
       const summary = response.content?.trim() || '';
+      const reasoning = response.reasoning;
 
       if (!summary) {
         return {
@@ -131,10 +149,12 @@ export class SummarizerService {
       return {
         success: true,
         summary,
+        reasoning,
         tokensBefore,
         tokensAfter: 0,
       };
     } catch (error) {
+      console.error('[Compact] Error:', error);
       return {
         success: false,
         summary: '',
