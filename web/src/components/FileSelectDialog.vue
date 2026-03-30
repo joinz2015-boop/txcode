@@ -1,9 +1,10 @@
 <template>
   <el-dialog
-    :visible.sync="visible"
+    :visible="visible"
     title="选择文件"
     width="500px"
     :close-on-click-modal="false"
+    @update:visible="handleVisibleChange"
     @close="handleClose"
   >
     <div class="file-select-content">
@@ -134,6 +135,9 @@ export default {
     },
     handleClose() {
       this.$emit('close')
+    },
+    handleVisibleChange(val) {
+      this.$emit('update:visible', val)
     },
     open() {
       this.loadFileTree('')

@@ -49,8 +49,6 @@
             placeholder="输入消息... (Enter 发送, @ 选择文件)"
             :disabled="disabled && !stopping"
             class="input-area"
-            @keydown.enter.native="handleKeydown"
-            @keydown.esc.native="cancelFileSelect"
           ></el-input>
           <div class="input-actions">
             <el-button v-if="disabled && !stopping" type="danger" @click="stopChat" class="stop-btn">
@@ -69,7 +67,7 @@
             {{ disabled && !stopping ? dotAnimation + ' 思考中' : '✓ 就绪' }}
           </span>
           <span class="separator">|</span>
-          <span class="model-selector" @click="openModelSelector">
+          <span class="model-selector" @click="openModelSelector" @mousedown.prevent>
             模型：{{ modelName || '-' }} ▾
           </span>
           <span class="separator">|</span>
@@ -78,9 +76,9 @@
           <span>token：(<span :class="promptTokens > 50000 ? 'token-warning' : ''">{{ promptTokens || 0 }}{{ promptTokens > 50000 && !compactionRatio ? ' 会话太大推荐用/compact压缩会话' : '' }}</span>)</span>
           <span v-if="compactionRatio" class="compaction-info">{{ compactionRatio }}%压缩</span>
           <span class="separator">|</span>
-          <span class="status-action" @click="openCommandDialog">命令</span>
+          <span class="status-action" @click="openCommandDialog" @mousedown.prevent>命令</span>
           <span class="separator">|</span>
-          <span class="status-action" @click="openFileSelect">选择文件</span>
+          <span class="status-action" @click="openFileSelect" @mousedown.prevent>选择文件</span>
         </div>
       </div>
     </div>
@@ -152,28 +150,28 @@ export default {
     }
   },
   computed: {
+    projectName() {
+      if (!this.projectKey) return ''
+      const parts = this.projectKey.split('/')
+      return parts[parts.length - 1] || ''
+    },
     specFilePath() {
       if (!this.projectKey) return '等待选择项目...'
-      return `E:\\ai\\txcode\\.txcode\\req\\${this.projectKey}\\方案.md`
+      return `E:\\ai\\txcode\\.txcode\\req\\${this.projectKey}\\${this.projectName}_方案.md`
     }
   },
   watch: {
     specContent: {
       immediate: true,
       handler(val) {
-        if (this.editor && val !== undefined) {
-          const currentVal = this.editor.getValue()
-          if (currentVal !== val) {
-            this.editor.setValue(val)
-          }
-        }
+        this.syncEditorContent(val)
       }
     },
     sessionId: {
       immediate: true,
       handler(val) {
         if (val) {
-          this.initWs()
+          this.initWs(val)
           this.loadMessages()
         }
       }
@@ -192,6 +190,13 @@ export default {
     }
   },
   methods: {
+    syncEditorContent(content) {
+      if (!this.editor || content === undefined || content === null) return
+      const next = String(content)
+      if (this.editor.getValue() !== next) {
+        this.editor.setValue(next)
+      }
+    },
     initMonacoEditor() {
       const loaderScript = document.createElement('script')
       loaderScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/loader.min.js'
@@ -217,6 +222,7 @@ export default {
           this.editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
             this.saveSpec()
           })
+          this.syncEditorContent(this.specContent)
         })
       }
       document.head.appendChild(loaderScript)
@@ -235,9 +241,28 @@ export default {
       const content = this.inputMessage.trim()
       if (!content || this.disabled) return
 
+      let activeSessionId = this.sessionId
+      if (!activeSessionId) {
+        try {
+          const created = await api.createSession(`[方案设计] ${this.projectKey}`)
+          activeSessionId = created.data?.id || ''
+          if (!activeSessionId) {
+            this.$message.error('创建方案会话失败')
+            return
+          }
+          this.$emit('update:sessionId', activeSessionId)
+          this.wsConnected = false
+          this.initWs(activeSessionId)
+        } catch (e) {
+          console.error('Create design session failed:', e)
+          this.$message.error('创建方案会话失败')
+          return
+        }
+      }
+
       const specPath = this.specFilePath
       const contextMsg = specPath && specPath !== '等待选择项目...'
-        ? `先参考方案文件 ${specPath} 进行修改和完善方案。\n\n用户输入: ${content}`
+        ? `先在 ${specPath} 生成方案，先不要修改代码。\n\n用户输入: ${content}`
         : content
 
       this.inputMessage = ''
@@ -252,13 +277,13 @@ export default {
         this.dotAnimation = this.dots[dotIdx]
       }, 150)
 
-      if (api.sessionWsIsConnected(this.sessionId)) {
-        api.sessionWsSend(this.sessionId, 'chat', { message: contextMsg, sessionId: this.sessionId, modelName: this.modelName || undefined })
+      if (api.sessionWsIsConnected(activeSessionId)) {
+        api.sessionWsSend(activeSessionId, 'chat', { message: contextMsg, sessionId: activeSessionId, modelName: this.modelName || undefined })
       } else {
-        this.initWs()
+        this.initWs(activeSessionId)
         setTimeout(() => {
-          if (api.sessionWsIsConnected(this.sessionId)) {
-            api.sessionWsSend(this.sessionId, 'chat', { message: contextMsg, sessionId: this.sessionId, modelName: this.modelName || undefined })
+          if (api.sessionWsIsConnected(activeSessionId)) {
+            api.sessionWsSend(activeSessionId, 'chat', { message: contextMsg, sessionId: activeSessionId, modelName: this.modelName || undefined })
           }
         }, 500)
       }
@@ -268,16 +293,16 @@ export default {
       this.stopping = true
       api.sessionWsSend(this.sessionId, 'stop', { sessionId: this.sessionId })
     },
-    initWs() {
-      if (!this.sessionId || this.wsConnected) return
+    initWs(sessionId = this.sessionId) {
+      if (!sessionId || this.wsConnected) return
       api.sessionWsConnect(
-        this.sessionId,
+        sessionId,
         (msg) => this.handleWsMessage(msg),
         () => { this.wsConnected = true },
         () => {
           this.wsConnected = false
           setTimeout(() => {
-            if (!api.sessionWsIsConnected(this.sessionId)) this.initWs()
+            if (!api.sessionWsIsConnected(sessionId)) this.initWs(sessionId)
           }, 3000)
         },
         (err) => { this.wsConnected = false; console.error(err) }
@@ -311,6 +336,7 @@ export default {
           if (data?.usage?.promptTokens) this.promptTokens = data.usage.promptTokens
           if (data?.response) this.logItems.push({ type: 'think', content: data.response })
           this.$emit('messages-updated', this.logItems)
+          this.$emit('spec-updated')
           break
         case 'stopped':
           this.disabled = false

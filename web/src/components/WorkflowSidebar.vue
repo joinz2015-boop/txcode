@@ -2,28 +2,23 @@
   <div class="workflow-sidebar">
     <div class="sidebar-header">
       <h3>当前项目</h3>
-      <el-select v-model="selectedCategory" placeholder="选择大类" size="small" @change="onCategoryChange">
-        <el-option v-for="cat in categories" :key="cat" :label="cat" :value="cat"></el-option>
-      </el-select>
-      <el-select
-        v-model="selectedProject"
-        placeholder="选择需求"
-        size="small"
-        :disabled="!selectedCategory"
-        @change="onProjectChange"
-      >
-        <el-option v-for="proj in projectList" :key="proj" :label="proj" :value="proj"></el-option>
-      </el-select>
+      <div class="project-display-row">
+        <span class="label">大类</span>
+        <span class="value">{{ currentCategory || '-' }}</span>
+      </div>
+      <div class="project-display-row">
+        <span class="label">需求</span>
+        <span class="value">{{ currentProject || '-' }}</span>
+      </div>
     </div>
 
     <div class="step-list">
       <div
-        v-for="(step, index) in steps"
+        v-for="step in visibleSteps"
         :key="step.id"
         :class="['step-item', {
           'active': currentStep === step.id,
-          'completed': isStepCompleted(step.id),
-          'locked': isStepLocked(step.id)
+          'completed': isStepCompleted(step.id)
         }]"
         @click="onStepClick(step.id)"
       >
@@ -36,7 +31,6 @@
         </div>
         <div class="step-status">
           <i v-if="isStepCompleted(step.id)" class="el-icon-circle-check" style="color: #22c55e;"></i>
-          <i v-else-if="isStepLocked(step.id)" class="el-icon-lock"></i>
         </div>
       </div>
     </div>
@@ -79,22 +73,20 @@ export default {
       steps: [
         { id: 1, title: '新建需求', desc: '创建新的需求项目', icon: 'el-icon-folder-add' },
         { id: 2, title: '方案设计', desc: '编写需求方案', icon: 'el-icon-edit' },
-        { id: 3, title: '代码生成', desc: '根据方案生成代码', icon: 'el-icon-code' },
+        { id: 3, title: '代码生成', desc: '根据方案生成代码', icon: 'el-icon-document' },
         { id: 4, title: '测试验收', desc: '测试验证功能', icon: 'el-icon-s-check' }
       ]
     }
   },
   computed: {
-    projectList() {
-      if (!this.currentCategory || this.isLoading) return []
-      const prefix = this.currentCategory + '/'
-      const list = Object.keys(this.projects)
-        .filter(key => key.startsWith(prefix))
-        .map(key => key.split('/')[1])
-      if (this.selectedProject && !list.includes(this.selectedProject)) {
-        this.selectedProject = ''
+    hasAnyProject() {
+      return Object.keys(this.projects || {}).length > 0
+    },
+    visibleSteps() {
+      if (!this.hasAnyProject) {
+        return this.steps.filter(step => step.id === 1)
       }
-      return list
+      return this.steps
     }
   },
   watch: {
@@ -114,7 +106,6 @@ export default {
       this.$emit('project-change', proj)
     },
     onStepClick(stepId) {
-      if (this.isStepLocked(stepId) && stepId !== 1) return
       this.$emit('step-change', stepId)
     },
     isStepCompleted(stepId) {
@@ -122,17 +113,6 @@ export default {
       const key = `${this.currentCategory}/${this.currentProject}`
       const project = this.projects[key]
       return project?.stepStatus?.[stepId] === true
-    },
-    isStepLocked(stepId) {
-      if (!this.currentProject) return stepId !== 1
-      if (stepId === 1) return false
-      const key = `${this.currentCategory}/${this.currentProject}`
-      const project = this.projects[key]
-      if (!project?.stepStatus) return true
-      for (let i = 1; i < stepId; i++) {
-        if (!project.stepStatus[i]) return true
-      }
-      return false
     }
   }
 }
@@ -164,6 +144,31 @@ export default {
   margin-bottom: 8px;
 }
 
+.project-display-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid #3f3f46;
+  border-radius: 6px;
+}
+
+.project-display-row .label {
+  color: #84848a;
+  font-size: 12px;
+}
+
+.project-display-row .value {
+  color: #d4d4d8;
+  font-size: 12px;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .step-list {
   flex: 1;
   overflow-y: auto;
@@ -182,7 +187,7 @@ export default {
   border: 1px solid transparent;
 }
 
-.step-item:hover:not(.locked) {
+.step-item:hover {
   background: rgba(255, 255, 255, 0.05);
 }
 
@@ -191,21 +196,12 @@ export default {
   border-color: #409EFF;
 }
 
-.step-item.locked {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
 .step-item.completed .step-icon {
   background: #22c55e;
 }
 
 .step-item.active .step-icon {
   background: #409EFF;
-}
-
-.step-item.locked .step-icon {
-  background: #84848a;
 }
 
 .step-icon {

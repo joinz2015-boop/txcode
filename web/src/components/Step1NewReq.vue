@@ -4,41 +4,38 @@
       <div class="panel-section">
         <div class="panel-section-header">
           <span><i class="el-icon-folder-add"></i> 创建新需求</span>
-          <el-button v-if="isExistingMode" type="text" @click="resetNewMode" style="color: #409EFF;">
-            <i class="el-icon-refresh"></i> 重新新建
-          </el-button>
         </div>
         <div class="panel-section-body">
           <el-form label-position="top" size="small">
             <el-form-item label="所属大类">
               <div class="flex gap-2">
-                <el-select v-model="selectedCategory" placeholder="请选择大类" style="flex: 1;" :disabled="isExistingMode">
+                <el-select v-model="selectedCategory" placeholder="请选择大类" style="flex: 1;" @change="onCategoryChange">
                   <el-option v-for="cat in categories" :key="cat" :label="cat" :value="cat"></el-option>
                 </el-select>
-                <el-button @click="showCreateCategoryDialog" :disabled="isExistingMode">
+                <el-button @click="showCreateCategoryDialog">
                   <i class="el-icon-plus"></i> 新建
                 </el-button>
               </div>
             </el-form-item>
-            <el-form-item label="需求目录名称">
-              <el-input
-                v-model="requirementName"
-                placeholder="输入需求名称，如：用户管理"
-                :disabled="isExistingMode"
-              ></el-input>
+            <el-form-item label="选择需求">
+              <div class="flex gap-2">
+                <el-select
+                  v-model="selectedProject"
+                  placeholder="选择已有需求目录"
+                  style="flex: 1;"
+                  :disabled="!selectedCategory"
+                  @change="onProjectChange"
+                >
+                  <el-option v-for="req in existingRequirementList" :key="req" :label="req" :value="req"></el-option>
+                </el-select>
+                <el-button @click="showCreateRequirementDialog" :disabled="!selectedCategory">
+                  <i class="el-icon-plus"></i> 新建
+                </el-button>
+              </div>
             </el-form-item>
-            <div class="form-hint" v-if="isExistingMode" style="color: #E6A23C;">
-              <i class="el-icon-warning"></i> 需求文件已存在，大类和需求目录已锁定。如需创建新需求，请点击"重新新建"。
+            <div class="form-hint" style="color: #84848a;">
+              {{ selectedCategory ? '可直接选择已有需求，或点击“新建”创建需求目录' : '请先选择大类' }}
             </div>
-            <div class="form-hint" v-else-if="selectedCategory && requirementName">
-              将在 <code>{{ basePath }}\{{ selectedCategory }}\{{ requirementName }}\</code> 下创建
-            </div>
-            <div class="form-hint" v-else style="color: #84848a;">
-              {{ selectedCategory && !requirementName ? '请输入需求名称' : '请选择大类并输入需求名称' }}
-            </div>
-            <el-button type="primary" @click="createRequirement" :disabled="!canCreate || isExistingMode" style="margin-top: 16px;">
-              <i class="el-icon-check"></i> 确定创建
-            </el-button>
           </el-form>
         </div>
       </div>
@@ -59,18 +56,36 @@
         <el-button type="primary" @click="handleDialogConfirm">确定</el-button>
       </span>
     </el-dialog>
+
+    <el-dialog
+      title="新建需求"
+      :visible.sync="requirementDialogVisible"
+      width="400px"
+    >
+      <el-form>
+        <el-form-item label="需求目录名称">
+          <el-input v-model="requirementDialogInput" placeholder="输入需求名称，如：用户管理"></el-input>
+        </el-form-item>
+      </el-form>
+      <span slot="footer">
+        <el-button @click="requirementDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="handleCreateRequirementConfirm">确定</el-button>
+      </span>
+    </el-dialog>
   </div>
 </template>
 
 <script>
-import { api } from '../api'
-
 export default {
   name: 'Step1NewReq',
   props: {
     categories: {
       type: Array,
       default: () => []
+    },
+    projects: {
+      type: Object,
+      default: () => ({})
     },
     basePath: {
       type: String,
@@ -88,62 +103,81 @@ export default {
   data() {
     return {
       selectedCategory: '',
-      requirementName: '',
+      selectedProject: '',
       dialogVisible: false,
       dialogInput: '',
-      isExistingMode: false
+      requirementDialogVisible: false,
+      requirementDialogInput: ''
     }
   },
   computed: {
-    canCreate() {
-      return this.selectedCategory && this.requirementName.trim()
+    existingRequirementList() {
+      if (!this.selectedCategory) return []
+      const prefix = `${this.selectedCategory}/`
+      return Object.keys(this.projects)
+        .filter(key => key.startsWith(prefix))
+        .map(key => key.split('/')[1])
+        .sort()
     }
   },
   watch: {
-    selectedCategory(val) {
-      this.$emit('category-change', val)
-    },
-    currentCategory(val) {
-      if (val) {
-        this.selectedCategory = val
-        this.checkExistingRequirement()
+    currentCategory: {
+      immediate: true,
+      handler(val) {
+        this.selectedCategory = val || ''
       }
     },
-    currentProject(val) {
-      if (val) {
-        this.requirementName = val
-        this.checkExistingRequirement()
+    currentProject: {
+      immediate: true,
+      handler(val) {
+        this.selectedProject = val || ''
+      }
+    },
+    selectedCategory(val) {
+      if (!val) {
+        this.selectedProject = ''
+      }
+    },
+    existingRequirementList(list) {
+      if (!this.selectedProject) return
+      if (!Array.isArray(list) || list.length === 0) return
+      if (!list.includes(this.selectedProject)) {
+        this.selectedProject = ''
       }
     }
   },
   methods: {
-    async checkExistingRequirement() {
-      if (!this.selectedCategory || !this.requirementName) {
-        this.isExistingMode = false
+    onCategoryChange() {
+      this.selectedProject = ''
+      this.$emit('category-change', this.selectedCategory || '')
+      this.$emit('project-change', '')
+    },
+    onProjectChange() {
+      this.$emit('project-change', this.selectedProject || '')
+    },
+    showCreateRequirementDialog() {
+      if (!this.selectedCategory) {
+        this.$message.warning('请先选择大类')
         return
       }
-      const reqPath = `${this.basePath}\\${this.selectedCategory}\\${this.requirementName}`
-      try {
-        await api.browseFilesystem(reqPath)
-        this.isExistingMode = true
-      } catch (e) {
-        this.isExistingMode = false
+      this.requirementDialogInput = ''
+      this.requirementDialogVisible = true
+    },
+    handleCreateRequirementConfirm() {
+      const name = this.requirementDialogInput.trim()
+      if (!name) {
+        this.$message.warning('需求名称不能为空')
+        return
       }
-    },
-    resetNewMode() {
-      this.isExistingMode = false
-      this.selectedCategory = ''
-      this.requirementName = ''
-      this.$emit('category-change', '')
-    },
-    createRequirement() {
-      if (!this.canCreate) return
+      if (this.existingRequirementList.includes(name)) {
+        this.$message.warning('该需求已存在')
+        return
+      }
       this.$emit('create-requirement', {
         category: this.selectedCategory,
-        name: this.requirementName.trim()
+        name
       })
-      this.requirementName = ''
-      this.isExistingMode = false
+      this.requirementDialogVisible = false
     },
     showCreateCategoryDialog() {
       this.dialogInput = ''

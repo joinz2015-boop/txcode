@@ -1,8 +1,9 @@
 <template>
   <el-dialog
-    :visible.sync="visible"
+    :visible="visible"
     title="选择模型"
     width="400px"
+    @update:visible="handleVisibleChange"
     @close="handleClose"
   >
     <div class="model-list">
@@ -54,6 +55,9 @@ export default {
     }
   },
   methods: {
+    open() {
+      this.loadModels()
+    },
     async loadModels() {
       this.loading = true
       try {
@@ -68,10 +72,13 @@ export default {
     },
     handleSelect(model) {
       this.$emit('select', model)
-      this.visible = false
+      this.$emit('update:visible', false)
     },
     handleClose() {
       this.$emit('close')
+    },
+    handleVisibleChange(val) {
+      this.$emit('update:visible', val)
     }
   }
 }

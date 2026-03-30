@@ -23,6 +23,9 @@
             <el-button type="primary" plain @click="saveSpec">
               <i class="el-icon-save"></i> 保存方案
             </el-button>
+            <el-button type="info" plain @click="refreshSpec">
+              <i class="el-icon-refresh"></i> 刷新方案
+            </el-button>
             <el-button type="success" @click="completeStep2">
               <i class="el-icon-check"></i> 方案完成，进入代码生成
             </el-button>
@@ -44,42 +47,40 @@
         <Step1NewReq
           v-show="currentStep === 1"
           :categories="categories"
+          :projects="projects"
           :base-path="reqBasePath"
           :current-category="currentCategory"
           :current-project="currentProject"
-          @category-change="val => currentCategory = val"
+          @category-change="onCategoryChange"
+          @project-change="onProjectChange"
           @create-category="createCategory"
           @create-requirement="createRequirement"
         />
 
         <Step2Design
-          v-show="currentStep === 2"
+          v-show="currentStep === 2 && hasSelectedProject"
           :project-key="projectKey"
           :spec-content="currentSpecContent"
           :session-id="currentSessionId"
+          @update:sessionId="updateDesignSessionId"
           @save-spec="onSaveSpec"
+          @spec-updated="refreshSpec"
           ref="step2Ref"
         />
 
         <Step3CodeGen
-          v-show="currentStep === 3"
+          v-show="currentStep === 3 && hasSelectedProject"
           :project-key="projectKey"
           :session-id="currentCodeSessionId"
+          @update:sessionId="updateCodeSessionId"
           ref="step3Ref"
         />
 
         <Step4Test
-          v-show="currentStep === 4"
+          v-show="currentStep === 4 && hasSelectedProject"
           :project-key="projectKey"
           :session-id="currentTestSessionId"
-          ref="step4Ref"
-        />
-
-        <Step4Test
-          v-show="currentStep === 4"
-          :project-key="projectKey"
-          :chat-messages="currentChatMessages"
-          @send-message="onSendMessage"
+          @update:sessionId="updateTestSessionId"
           ref="step4Ref"
         />
       </div>
@@ -137,6 +138,9 @@ export default {
     currentProjectData() {
       return this.projects[this.projectKey] || null
     },
+    hasSelectedProject() {
+      return !!this.currentProjectData
+    },
     currentSpecContent() {
       return this.currentProjectData?.specFile || ''
     },
@@ -182,6 +186,39 @@ export default {
     this.loadCategories()
   },
   methods: {
+    getSpecPath(category, project) {
+      return `${REQ_BASE_PATH}\\${category}\\${project}\\${project}_方案.md`
+    },
+    getLegacySpecPath(category, project) {
+      return `${REQ_BASE_PATH}\\${category}\\${project}\\方案.md`
+    },
+    getSessionPath(category, project) {
+      return `${REQ_BASE_PATH}\\${category}\\${project}\\session.json`
+    },
+    async readSessionConfig(category, project) {
+      const sessionPath = this.getSessionPath(category, project)
+      try {
+        const sessionRes = await api.getFileContent(sessionPath)
+        return JSON.parse(sessionRes.content || '{}')
+      } catch (e) {
+        return {}
+      }
+    },
+    async writeSessionConfig(category, project, sessionData) {
+      const sessionPath = this.getSessionPath(category, project)
+      await api.writeFile(sessionPath, JSON.stringify(sessionData, null, 2))
+    },
+    async persistProjectSessionsByKey(projectKey, overrides = {}) {
+      if (!projectKey) return
+      const [cat, proj] = projectKey.split('/')
+      const current = this.projects[projectKey] || {}
+      const nextSessionData = {
+        designSessionId: overrides.designSessionId ?? current.designSessionId ?? '',
+        codeSessionId: overrides.codeSessionId ?? current.codeSessionId ?? '',
+        testSessionId: overrides.testSessionId ?? current.testSessionId ?? ''
+      }
+      await this.writeSessionConfig(cat, proj, nextSessionData)
+    },
     loadState() {
       const saved = localStorage.getItem(STORAGE_KEY)
       if (saved) {
@@ -200,6 +237,13 @@ export default {
         currentStep: this.currentStep
       }))
     },
+    generateSessionId() {
+      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        const r = Math.random() * 16 | 0
+        const v = c === 'x' ? r : (r & 0x3 | 0x8)
+        return v.toString(16)
+      })
+    },
     async loadCategories() {
       try {
         const res = await api.browseFilesystem(REQ_BASE_PATH)
@@ -209,10 +253,38 @@ export default {
           .map(item => item.name)
         this.categories.sort()
         await this.loadAllRequirements()
+        this.ensureValidSelection()
       } catch (e) {
         console.error('Load categories failed:', e)
         this.categories = []
       }
+    },
+    ensureValidSelection() {
+      if (!this.categories.length) {
+        this.currentCategory = ''
+        this.currentProject = ''
+        this.currentStep = 1
+        this.saveState()
+        return
+      }
+
+      if (!this.currentCategory || !this.categories.includes(this.currentCategory)) {
+        this.currentCategory = this.categories[0]
+      }
+
+      const projectList = Object.keys(this.projects)
+        .filter(key => key.startsWith(`${this.currentCategory}/`))
+        .map(key => key.split('/')[1])
+        .sort()
+
+      if (!projectList.length) {
+        this.currentProject = ''
+        this.currentStep = 1
+      } else if (!this.currentProject || !projectList.includes(this.currentProject)) {
+        this.currentProject = projectList[0]
+      }
+
+      this.saveState()
     },
     async loadAllRequirements() {
       const existingProjects = { ...this.projects }
@@ -230,29 +302,66 @@ export default {
         
         for (const req of reqDirs) {
           const key = `${category}/${req.name}`
-          const specPath = `${catPath}\\${req.name}\\方案.md`
+          const reqPath = `${catPath}\\${req.name}`
+          const specPath = this.getSpecPath(category, req.name)
+          const legacySpecPath = this.getLegacySpecPath(category, req.name)
+          const sessionPath = this.getSessionPath(category, req.name)
+          let reqItems = []
+          try {
+            const reqRes = await api.browseFilesystem(reqPath)
+            reqItems = reqRes.data?.items || []
+          } catch {
+            reqItems = []
+          }
+          const reqItemNames = new Set(reqItems.map(item => item.name))
+          const hasNamedSpec = reqItemNames.has(`${req.name}_方案.md`)
+          const hasLegacySpec = reqItemNames.has('方案.md')
+          const hasSessionFile = reqItemNames.has('session.json')
           
           let specContent = ''
-          try {
-            const specRes = await api.getFileContent(specPath)
-            specContent = specRes.content || ''
-          } catch (e) {
-            specContent = ''
+          if (hasNamedSpec) {
+            try {
+              const specRes = await api.getFileContent(specPath)
+              specContent = specRes.content || ''
+            } catch {
+              specContent = ''
+            }
+          } else if (hasLegacySpec) {
+            try {
+              const legacyRes = await api.getFileContent(legacySpecPath)
+              specContent = legacyRes.content || ''
+              // Auto migrate old spec filename to new naming convention.
+              await api.writeFile(specPath, specContent)
+            } catch {
+              specContent = ''
+            }
+          }
+
+          let sessionData = {}
+          if (hasSessionFile) {
+            sessionData = await this.readSessionConfig(category, req.name)
+          } else {
+            sessionData = { designSessionId: '', codeSessionId: '', testSessionId: '' }
+            try {
+              await api.writeFile(sessionPath, JSON.stringify(sessionData, null, 2))
+            } catch {
+              // Keep in-memory fallback when write fails.
+            }
           }
           
           const existing = existingProjects[key]
-          this.projects[key] = {
+          this.$set(this.projects, key, {
             category,
             name: req.name,
             specFile: specContent,
-            designSessionId: existing?.designSessionId || this.generateSessionId(),
-            codeSessionId: existing?.codeSessionId || this.generateSessionId(),
-            testSessionId: existing?.testSessionId || this.generateSessionId(),
+            designSessionId: sessionData.designSessionId || existing?.designSessionId || '',
+            codeSessionId: sessionData.codeSessionId || existing?.codeSessionId || '',
+            testSessionId: sessionData.testSessionId || existing?.testSessionId || '',
             designChatHistory: existing?.designChatHistory || [],
             codeChatHistory: existing?.codeChatHistory || [],
             testChatHistory: existing?.testChatHistory || [],
             stepStatus: existing?.stepStatus || { 1: true, 2: false, 3: false, 4: false }
-          }
+          })
         }
       } catch (e) {
         console.error(`Load requirements for ${category} failed:`, e)
@@ -261,6 +370,10 @@ export default {
     async onCategoryChange(cat) {
       this.currentCategory = cat
       this.currentProject = ''
+      if (!cat) {
+        this.saveState()
+        return
+      }
       this.isLoadingProjects = true
       await this.loadRequirementsForCategory(cat, this.projects)
       this.isLoadingProjects = false
@@ -268,11 +381,53 @@ export default {
     },
     onProjectChange(proj) {
       this.currentProject = proj
+      if (!this.currentProject && this.currentStep > 1) {
+        this.currentStep = 1
+      }
       this.saveState()
     },
     onStepChange(step) {
+      if (!this.currentProjectData && step > 1) {
+        return
+      }
       this.currentStep = step
       this.saveState()
+    },
+    async updateDesignSessionId(sessionId) {
+      if (!sessionId || !this.projectKey) return
+      const key = this.projectKey
+      const current = this.projects[key] || {}
+      this.$set(this.projects, key, { ...current, designSessionId: sessionId })
+      this.saveState()
+      try {
+        await this.persistProjectSessionsByKey(key, { designSessionId: sessionId })
+      } catch (e) {
+        console.error('Persist design session failed:', e)
+      }
+    },
+    async updateCodeSessionId(sessionId) {
+      if (!sessionId || !this.projectKey) return
+      const key = this.projectKey
+      const current = this.projects[key] || {}
+      this.$set(this.projects, key, { ...current, codeSessionId: sessionId })
+      this.saveState()
+      try {
+        await this.persistProjectSessionsByKey(key, { codeSessionId: sessionId })
+      } catch (e) {
+        console.error('Persist code session failed:', e)
+      }
+    },
+    async updateTestSessionId(sessionId) {
+      if (!sessionId || !this.projectKey) return
+      const key = this.projectKey
+      const current = this.projects[key] || {}
+      this.$set(this.projects, key, { ...current, testSessionId: sessionId })
+      this.saveState()
+      try {
+        await this.persistProjectSessionsByKey(key, { testSessionId: sessionId })
+      } catch (e) {
+        console.error('Persist test session failed:', e)
+      }
     },
     async createCategory(name) {
       if (this.categories.includes(name)) {
@@ -378,7 +533,7 @@ export default {
 `
 
       try {
-        const specPath = `${reqDirPath}\\方案.md`
+        const specPath = this.getSpecPath(category, name)
         await api.writeFile(specPath, specContent)
       } catch (e) {
         console.error('Write spec file failed:', e)
@@ -388,25 +543,18 @@ export default {
       let codeSessionId = ''
       let testSessionId = ''
       try {
-        const designRes = await api.createSession(`[方案设计] ${category}/${name}`)
-        designSessionId = designRes.data?.id || ''
+        await this.writeSessionConfig(category, name, {
+          designSessionId,
+          codeSessionId,
+          testSessionId
+        })
       } catch (e) {
-        console.error('Create design session failed:', e)
-      }
-      try {
-        const codeRes = await api.createSession(`[代码生成] ${category}/${name}`)
-        codeSessionId = codeRes.data?.id || ''
-      } catch (e) {
-        console.error('Create code session failed:', e)
-      }
-      try {
-        const testRes = await api.createSession(`[测试验收] ${category}/${name}`)
-        testSessionId = testRes.data?.id || ''
-      } catch (e) {
-        console.error('Create test session failed:', e)
+        console.error('Write session.json failed:', e)
+        this.$message.error('session.json 创建失败')
+        return
       }
 
-      this.projects[key] = {
+      this.$set(this.projects, key, {
         category,
         name,
         specFile: specContent,
@@ -417,7 +565,7 @@ export default {
         codeChatHistory: [],
         testChatHistory: [],
         stepStatus: { 1: true, 2: false, 3: false, 4: false }
-      }
+      })
 
       this.currentCategory = category
       this.currentProject = name
@@ -435,7 +583,7 @@ export default {
       this.saveState()
       
       const [cat, proj] = this.projectKey.split('/')
-      const specPath = `${REQ_BASE_PATH}\\${cat}\\${proj}\\方案.md`
+      const specPath = this.getSpecPath(cat, proj)
       try {
         await api.writeFile(specPath, content)
         this.$message.success('方案已保存')
@@ -447,6 +595,42 @@ export default {
     saveSpec() {
       if (this.$refs.step2Ref) {
         this.$refs.step2Ref.saveSpec()
+      }
+    },
+    async refreshSpec() {
+      if (!this.projectKey) return
+      const [cat, proj] = this.projectKey.split('/')
+      const specPath = this.getSpecPath(cat, proj)
+      const legacySpecPath = this.getLegacySpecPath(cat, proj)
+      try {
+        let newContent = ''
+        try {
+          const res = await api.getFileContent(specPath)
+          newContent = res.content ?? res.data?.content ?? ''
+        } catch {
+          const legacyRes = await api.getFileContent(legacySpecPath)
+          newContent = legacyRes.content ?? legacyRes.data?.content ?? ''
+        }
+        const current = this.projects[this.projectKey]
+        if (current) {
+          // Reassign root object to guarantee reactive update propagation.
+          this.projects = {
+            ...this.projects,
+            [this.projectKey]: {
+              ...current,
+              specFile: newContent
+            }
+          }
+          this.saveState()
+        }
+        // Force-sync editor view to eliminate stale content in Monaco.
+        if (this.currentStep === 2 && this.$refs.step2Ref?.syncEditorContent) {
+          this.$refs.step2Ref.syncEditorContent(newContent)
+        }
+        this.$message.success('方案已刷新')
+      } catch (e) {
+        console.error('Refresh spec failed:', e)
+        this.$message.error('刷新方案失败')
       }
     },
     completeStep2() {

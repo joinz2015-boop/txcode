@@ -1,9 +1,10 @@
 <template>
   <el-dialog
-    :visible.sync="visible"
+    :visible="visible"
     title="命令"
     width="500px"
     :close-on-click-modal="false"
+    @update:visible="handleVisibleChange"
     @close="handleClose"
   >
     <div class="command-list">
@@ -45,12 +46,18 @@ export default {
     }
   },
   methods: {
+    open() {
+      // 无需加载，直接打开
+    },
     handleExecute(cmd) {
         this.$emit('execute', cmd.name)
         this.$emit('update:visible', false)
     },
     handleClose() {
       this.$emit('close')
+    },
+    handleVisibleChange(val) {
+      this.$emit('update:visible', val)
     }
   }
 }
