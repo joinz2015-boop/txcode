@@ -30,15 +30,12 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const packageRoot = path.resolve(__dirname, '..', '..');
 import { dbService } from '../modules/db/db.service.js';
-import { aiService } from '../modules/ai/index.js';
-import { CodeAgent } from '../modules/ai/agents/code/code.agent.js';
-import { OpenAIProvider } from '../modules/ai/openai.provider.js';
 import { sessionService } from '../modules/session/index.js';
-import { memoryService } from '../modules/memory/index.js';
 import { configService } from '../modules/config/config.service.js';
 import { logger } from '../modules/logger/logger.js';
 import { terminalService } from '../modules/terminal/index.js';
-import { executeCommand } from '../cli/commands.js';
+import { codeChatService } from '../services/codeChat/index.js';
+import { commandChatService } from '../services/commandChat/index.js';
 
 /**
  * WebService 类
@@ -433,81 +430,37 @@ resolve();
       console.log('[WebSocket] Chat message:', message);
 
       if (message.trim().startsWith('/')) {
-        const cmdResult = await executeCommand(message.trim());
-        ws.send(JSON.stringify({ type: 'command', data: cmdResult }));
-        ws.send(JSON.stringify({ 
-          type: 'done', 
-          data: { 
-            response: cmdResult.message, 
-            success: cmdResult.success,
-            commandData: cmdResult.data 
-          } 
-        }));
-        return;
-      }
-
-      console.log('[handleChat] calling CodeAgent, sessionId:', session.id, 'message:', message.substring(0, 20));
-
-      const providerConfig = configService.getDefaultProvider();
-      const models = providerConfig ? configService.getModels(providerConfig.id) : [];
-      const defaultModel = models.find(m => m.enabled) || { name: 'gpt-4' };
-
-      const provider = new OpenAIProvider({
-        baseUrl: providerConfig?.baseUrl || '',
-        apiKey: providerConfig?.apiKey || '',
-        defaultModel: defaultModel?.name || 'gpt-4',
-      });
-
-      const agent = new CodeAgent({
-        provider,
-        sessionId: session.id,
-        projectPath: session.projectPath || undefined,
-        memoryService,
-      });
-
-      const result = await agent.run(message, {
-        abortSignal: abortController.signal,
-        onStep: (step, iteration) => {
-          const actions = (step.toolCalls || []).map((tc: { name: string; arguments: any }) => ({
-            actionName: tc.name,
-            input: typeof tc.arguments === 'string'
-              ? tc.arguments
-              : JSON.stringify(tc.arguments),
-          }));
-          
-          const lastResult = step.results?.[step.results.length - 1];
-          const observation = lastResult?.output || lastResult?.error;
-          
-          const stepData = {
-            iteration,
-            thought: step.reasoning || '',
-            actions,
-            observation,
-            success: lastResult?.success !== false,
-          };
-          
-          ws.send(JSON.stringify({ type: 'step', data: stepData }));
-        },
-      });
-
-      const lastStep = result.steps[result.steps.length - 1];
-      const lastReasoning = lastStep?.reasoning;
-
-      ws.send(JSON.stringify({
-        type: 'done',
-        data: {
+        const result = await commandChatService.handleCommand({
+          message,
           sessionId: session.id,
-          response: result.answer || lastReasoning,
-          iterations: result.iterations,
-          success: result.success,
-          modelName: defaultModel?.name || providerConfig?.name || 'unknown',
-          usage: result.usage ? {
-            promptTokens: result.usage.promptTokens,
-            completionTokens: result.usage.completionTokens,
-            totalTokens: result.usage.totalTokens,
-          } : undefined,
-        }
-      }));
+        });
+        ws.send(JSON.stringify({ type: 'command', data: result }));
+      } else {
+        const result = await codeChatService.handleChat({
+          message,
+          sessionId: session.id,
+          projectPath: session.projectPath ?? undefined,
+          abortSignal: abortController.signal,
+          onStep: (step: any, iteration: number) => {
+            ws.send(JSON.stringify({ type: 'step', data: { step, iteration } }));
+          },
+        });
+
+        ws.send(JSON.stringify({
+          type: 'done',
+          data: {
+            sessionId: session.id,
+            response: result.answer,
+            iterations: result.iterations,
+            success: result.success,
+            usage: result.usage ? {
+              promptTokens: result.usage.promptTokens,
+              completionTokens: result.usage.completionTokens,
+              totalTokens: result.usage.totalTokens,
+            } : undefined,
+          }
+        }));
+      }
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : 'Unknown error';
       const isAbort = error instanceof Error && (

@@ -21,12 +21,10 @@ import { Router, Request, Response } from 'express';
 import { aiService } from '../modules/ai/index.js';
 import { sessionService } from '../modules/session/index.js';
 import { memoryService } from '../modules/memory/index.js';
-import { skillsManager } from '../modules/skill/index.js';
 import { logger } from '../modules/logger/logger.js';
 import { ApiResponse, ChatRequest } from './api.types.js';
-import { aiLogService } from '../modules/ai/ai-log.service.js';
-import { configService } from '../modules/config/config.service.js';
-import txConfig from '../config/tx.config.js';
+import { codeChatService } from '../services/codeChat/index.js';
+import { commandChatService } from '../services/commandChat/index.js';
 import { executeCommand } from '../cli/commands.js';
 
 function calculateCost(usage?: { promptTokens?: number; completionTokens?: number }): number {
@@ -74,156 +72,38 @@ export const chatRouter = Router();
  *     }
  */
 chatRouter.post('/', async (req: Request, res: Response) => {
-  // ========== 步骤 1: 接收请求参数 ==========
-  // 从请求体中解构聊天请求参数
-  const { message, sessionId, projectPath, skill, modelName } = req.body as ChatRequest;
+  const { message, sessionId, projectPath, modelName } = req.body as ChatRequest;
 
   try {
-    // ========== 步骤 2: 检查是否是命令 ==========
-    // 以 / 开头的输入作为命令处理
     if (message && message.trim().startsWith('/')) {
-      const cmdResult = await executeCommand(message.trim());
-      
-      // 命令执行结果通过 WebSocket 发送 'think' 类型消息返回给前端
-      // 前端会将其显示在 logItems 中
-      if (sessionId) {
-        memoryService.addMessage(sessionId, 'user', message, true);
-        memoryService.addMessage(sessionId, 'assistant', cmdResult.message || '命令已执行', true);
-      }
-      
+      const result = await commandChatService.handleCommand({
+        message,
+        sessionId,
+      });
       return res.json({
         success: true,
-        data: {
-          sessionId: cmdResult.data?.id || sessionId,
-          response: cmdResult.message || '命令已执行',
-          success: cmdResult.success,
-        },
+        data: result,
       });
     }
 
-    // ========== 步骤 3: 检查或创建会话 ==========
-    /**
-     * 会话管理逻辑：
-     * - 如果提供了 sessionId，尝试获取已存在的会话
-     * - 如果会话不存在或未提供 sessionId，创建新会话
-     * 
-     * 会话创建时传入 projectPath，用于：
-     * - 加载项目的 .gitignore、node_modules 等配置
-     * - 提供更准确的项目上下文给 AI
-     */
-    let session = sessionId ? sessionService.get(sessionId) : null;
-    
-    if (!session) {
-      // 创建新会话，标题为 'New Chat'
-      session = sessionService.create('New Chat', projectPath);
-    }
-
-    // ========== 步骤 3: 切换到当前会话 ==========
-    // 设置当前会话为活跃状态，后续操作都基于此会话
-    sessionService.switchTo(session.id);
-
-    // ========== 记录请求开始时间 ==========
-    const requestStartTime = Date.now();
-
-    // ========== 步骤 4: 准备 ReAct 执行 ==========
-    // 创建数组存储 ReAct 执行过程中的每一步
-    // 用于返回给客户端，便于调试和展示思考过程
-    const reactSteps: any[] = [];
-
-    /**
-     * 调用 AI 服务处理消息
-     * 
-     * chatWithReAct 是核心方法，执行 ReAct 循环：
-     * 1. 构建系统提示词 (包含工具定义)
-     * 2. 添加用户消息和历史消息
-     * 3. 循环调用 AI：
-     *    - AI 返回 Thought + Action
-     *    - 执行工具 (如 read_file)
-     *    - 将结果返回给 AI
-     *    - 重复直到得到最终答案
-     * 
-     * @param message - 用户输入的问题
-     * @param options - 配置选项
-     *   - sessionId: 会话 ID
-     *   - projectPath: 项目路径
-     *   - memoryService: 记忆服务
-     *   - onStep: 每一步执行完的回调 (用于收集步骤)
-     */
-    const result = await aiService.chatWithTools(message, {
-      sessionId: session.id,
-      projectPath: session.projectPath || undefined,
-      memoryService,
+    const result = await codeChatService.handleChat({
+      message,
+      sessionId,
+      projectPath,
       modelName,
-      // onStep 回调：在 ReAct 循环的每一步执行后调用
-      // 收集 Thought、Action、ActionInput、Observation 等信息
-      onStep: (step, iteration) => {
-        const actions = (step.actions || []).map((a: { actionName: string; actionInput: any }) => ({
-          actionName: a.actionName,
-          actionInput: typeof a.actionInput === 'string'
-            ? a.actionInput
-            : JSON.stringify(a.actionInput),
-        }));
-        
-        reactSteps.push({
-          iteration,                             // 当前迭代次数
-          thought: step.thought,                 // AI 的思考过程
-          actions,                               // 要执行的工具列表
-          observation: step.observation,         // 工具执行结果
-          keepContext: step.keepContext,         // 是否保留到长期记忆
-        });
-      },
     });
-
-    // ========== 记录 AI 调用日志 ==========
-    const requestEndTime = Date.now();
-    const durationMs = requestEndTime - requestStartTime;
-
-    const providerConfig = configService.getDefaultProvider();
-    const models = providerConfig ? configService.getModels(providerConfig.id) : [];
-    const defaultModel = models.find(m => m.enabled) || { name: 'gpt-4' };
-
-    aiLogService.logAiCall({
-      model_address: providerConfig?.baseUrl || '',
-      model_name: defaultModel?.name || '',
-      request_time: new Date(requestStartTime),
-      response_time: new Date(requestEndTime),
-      duration_ms: durationMs,
-      input_tokens: (result as any).usage?.promptTokens || 0,
-      output_tokens: (result as any).usage?.completionTokens || 0,
-      cost: calculateCost((result as any).usage),
-      call_type: reactSteps.length > 0 ? 'tool_call' : 'normal',
-      session_id: session.id,
-    });
-
-    // ========== 步骤 5: 返回响应 ==========
-    const lastStep = result.steps[result.steps.length - 1];
-    const lastThought = lastStep && 'thought' in lastStep ? (lastStep as any).thought : undefined;
-    const responseData = {
-      sessionId: session.id,
-      response: result.answer || lastThought,
-      reactSteps: reactSteps.length > 0 ? reactSteps : undefined,
-      iterations: result.iterations,
-      success: result.success,
-      error: result.error,
-      usage: result.usage ? {
-        promptTokens: result.usage.promptTokens,
-        completionTokens: result.usage.completionTokens,
-        totalTokens: result.usage.totalTokens,
-      } : undefined,
-    };
-
- 
 
     res.json({
       success: true,
-      data: responseData,
+      data: {
+        sessionId: result.sessionId,
+        response: result.answer,
+        reactSteps: result.reactSteps,
+        iterations: result.iterations,
+      },
     });
   } catch (error) {
-    // ========== 错误处理 ==========
-    // 记录错误日志
     logger.logResponse('/api/chat/error', { error: error instanceof Error ? error.message : 'Unknown error' });
-    
-    // 捕获异常，返回 500 错误
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',

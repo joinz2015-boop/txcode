@@ -18,13 +18,12 @@ import { Box, Text, useInput, useApp, Static } from 'ink';
 import { v4 as uuidv4 } from 'uuid';
 import * as fs from 'fs';
 import * as path from 'path';
-import { executeCommand } from '../cli/commands.js';
 import { sessionService } from '../modules/session/index.js';
 import { memoryService } from '../modules/memory/index.js';
-import { aiService } from '../modules/ai/index.js';
 import { dbService } from '../modules/db/index.js';
 import { configService } from '../modules/config/index.js';
-import { ReActState } from '../modules/ai/ai.types.js';
+import { codeChatService } from '../services/codeChat/index.js';
+import { commandChatService } from '../services/commandChat/index.js';
 import { MessageItem } from '../cli/cli.types.js';
 
 /**
@@ -309,63 +308,42 @@ export function App() {
     // ========== 命令处理 ==========
     // 以 / 开头的输入作为命令处理
     if (trimmedInput.startsWith('/')) {
-      // 🔍 断点1: 确认 trimmedInput 是 '/help' 或 '/help xxx'
-      // const result = await executeCommand(trimmedInput);
-      
-      let result;
       try {
-        result = await executeCommand(trimmedInput);
+        const result = await commandChatService.handleCommand({
+          message: trimmedInput,
+          sessionId: currentSession || undefined,
+        });
+        
+        if (result.answer) {
+          addMessage('system', result.answer);
+        }
+        if (result.sessionId && result.success) {
+          setCurrentSession(result.sessionId);
+        }
       } catch (err) {
-        // 🔍 断点2: 如果 executeCommand 抛出异常，会在这里捕获
-        console.error('[DEBUG] executeCommand 异常:', err);
+        console.error('[DEBUG] 命令执行异常:', err);
         addMessage('system', `命令执行异常: ${err instanceof Error ? err.message : String(err)}`);
         return;
-      }
-      
-      // 🔍 断点3: 检查 result 对象的内容
-      // if (!result) {
-      //   console.error('[DEBUG] executeCommand 返回 null/undefined');
-      //   return;
-      // }
-      
-      if (result.message) {
-        // 🔍 断点4: 确认消息被添加到 messages 数组
-        addMessage('system', result.message);
-      }
-      if (result.data?.exit) {
-        dbService.close();
-        exit();
-      }
-      if (result.data?.id && result.success) {
-        setCurrentSession(result.data.id);
       }
       return;
     }
 
     addMessage('user', trimmedInput);
 
-    let sessionId = currentSession;
-    if (!sessionId) {
-      const session = sessionService.create('Chat Session');
-      sessionId = session.id;
-      setCurrentSession(sessionId);
-      sessionService.switchTo(sessionId);
-    }
-
     setStatus('thinking');
 
     abortControllerRef.current = new AbortController();
 
     try {
-      const result = await aiService.chatWithTools(trimmedInput, {
-        sessionId: sessionId,
-        memoryService,
+      const result = await codeChatService.handleChat({
+        message: trimmedInput,
+        sessionId: currentSession || undefined,
         abortSignal: abortControllerRef.current.signal,
-        onStep: (state: ReActState, iteration: number) => {
-          if (state.thought) {
-            const thoughtPreview = state.thought.length > 150 
-              ? state.thought.slice(0, 150) + '...' 
-              : state.thought;
+        onStep: (step: any, iteration: number) => {
+          if (step.thought) {
+            const thoughtPreview = step.thought.length > 150 
+              ? step.thought.slice(0, 150) + '...' 
+              : step.thought;
             addMessage('system', `💭 ${thoughtPreview}`);
           }
           
@@ -385,40 +363,40 @@ export function App() {
             'question': '提问',
           };
 
-          const actions = state.actions || [];
+          const actions = step.actions || [];
           for (const action of actions) {
-            const actionName = actionNames[action.actionName] || action.actionName;
+            const actionName = actionNames[action.name] || action.name;
             
             let stepInfo = `🔧 ${actionName}`;
             
-            if (action.actionInput) {
+            if (action.args) {
               try {
-                const inputObj = typeof action.actionInput === 'string' 
-                  ? JSON.parse(action.actionInput) 
-                  : action.actionInput;
-                if (action.actionName === 'read_file') {
+                const inputObj = typeof action.args === 'string' 
+                  ? JSON.parse(action.args) 
+                  : action.args;
+                if (action.name === 'read_file') {
                   const offset = inputObj.offset ?? 1;
                   const limit = inputObj.limit ?? 300;
                   stepInfo += `: ${inputObj.file_path} offset:${offset}  limit:${limit}`;
-                } else if (action.actionName === 'edit_file') {
+                } else if (action.name === 'edit_file') {
                   stepInfo += `: ${inputObj.file_path}`;
-                } else if (action.actionName === 'write_file') {
+                } else if (action.name === 'write_file') {
                   stepInfo += `: ${inputObj.file_path}`;
-                } else if (action.actionName === 'execute_bash' || action.actionName === 'bash') {
+                } else if (action.name === 'execute_bash' || action.name === 'bash') {
                   stepInfo += `: ${inputObj.command?.slice(0, 50)}`;
-                } else if (action.actionName === 'find_files' || action.actionName === 'glob') {
+                } else if (action.name === 'find_files' || action.name === 'glob') {
                   stepInfo += `: ${inputObj.pattern}`;
-                } else if (action.actionName === 'grep') {
+                } else if (action.name === 'grep') {
                   stepInfo += `: ${inputObj.pattern}`;
-                } else if (action.actionName === 'loadSkill') {
+                } else if (action.name === 'loadSkill') {
                   stepInfo += `: ${inputObj.skillPath}`;
-                } else if (action.actionName === 'webfetch') {
+                } else if (action.name === 'webfetch') {
                   stepInfo += `: ${inputObj.url?.slice(0, 50)}`;
-                } else if (action.actionName === 'todowrite') {
+                } else if (action.name === 'todowrite') {
                   if (inputObj.todos && Array.isArray(inputObj.todos)) {
                     stepInfo += `: ${inputObj.todos.length} 个任务`;
                   }
-                } else if (action.actionName === 'question') {
+                } else if (action.name === 'question') {
                   stepInfo += `: ${inputObj.questions?.length || 0} 个问题`;
                 } else {
                   const keys = Object.keys(inputObj);
@@ -435,10 +413,10 @@ export function App() {
               } catch {}
             }
             
-            if (state.observation) {
-              const obsStr = typeof state.observation === 'string' 
-                ? state.observation 
-                : JSON.stringify(state.observation);
+            if (step.observation) {
+              const obsStr = typeof step.observation === 'string' 
+                ? step.observation 
+                : JSON.stringify(step.observation);
               const isFailed = obsStr.startsWith('错误:') || 
                               obsStr.startsWith('Error:') ||
                               obsStr.includes('未找到') ||
@@ -453,10 +431,10 @@ export function App() {
             }
           }
           
-          if (actions.length === 0 && state.observation) {
-            const obsStr = typeof state.observation === 'string' 
-              ? state.observation 
-              : JSON.stringify(state.observation);
+          if (actions.length === 0 && step.observation) {
+            const obsStr = typeof step.observation === 'string' 
+              ? step.observation 
+              : JSON.stringify(step.observation);
             const isFailed = obsStr.startsWith('错误:') || 
                             obsStr.startsWith('Error:') ||
                             obsStr.includes('未找到') ||
@@ -472,19 +450,19 @@ export function App() {
 
       if (result.answer) {
         addMessage('assistant', result.answer);
-        memoryService.addMessage(sessionId, 'assistant', result.answer, true);
       }
       
       if (result.usage) {
         setTokenStats({
-          promptTokens: result.usage.promptTokens,
-          completionTokens: result.usage.completionTokens,
-          totalTokens: result.usage.totalTokens,
+          promptTokens: result.usage.promptTokens || 0,
+          completionTokens: result.usage.completionTokens || 0,
+          totalTokens: result.usage.totalTokens || 0,
         });
       }
 
-      if (sessionId) {
-        const stats = memoryService.getSessionStats(sessionId);
+      if (result.sessionId) {
+        setCurrentSession(result.sessionId);
+        const stats = memoryService.getSessionStats(result.sessionId);
         if (stats.totalMessages > 0) {
           const compressPercent = Math.round((stats.compressedCount / stats.totalMessages) * 100);
           setCompressionPercent(compressPercent);
@@ -502,7 +480,7 @@ export function App() {
       abortControllerRef.current = null;
       setStatus('idle');
     }
-  }, [input, status, currentSession, addMessage, exit]);
+  }, [input, status, currentSession, addMessage]);
 
   // ========== 键盘输入处理 ==========
 

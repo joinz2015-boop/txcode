@@ -86,6 +86,13 @@ export class SummarizerService {
         error: 'No messages to compact',
       };
     }
+    const summaryMessageId = this.memoryService.addMessage(
+      sessionId,
+      'user',
+      '/compact',
+      true
+    );
+
 
     const tokensBefore = session.promptTokens + session.completionTokens;
 
@@ -98,7 +105,7 @@ export class SummarizerService {
           try {
             const parsed = JSON.parse(m.content);
             if (parsed?.type === 'tool_result') return false;
-          } catch {}
+          } catch { }
           return true;
         })
         .map(m => {
@@ -110,7 +117,7 @@ export class SummarizerService {
             } else if (parsed?.type === 'tool_result') {
               content = parsed.output || m.content;
             }
-          } catch {}
+          } catch { }
           return { role: m.role, content };
         });
 
@@ -136,7 +143,7 @@ export class SummarizerService {
 
       onProgress?.('Saving summary...');
 
-      const summaryMessageId = this.memoryService.addMessage(
+      this.memoryService.addMessage(
         sessionId,
         'assistant',
         summary,
