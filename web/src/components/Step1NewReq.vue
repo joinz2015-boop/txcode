@@ -4,15 +4,18 @@
       <div class="panel-section">
         <div class="panel-section-header">
           <span><i class="el-icon-folder-add"></i> 创建新需求</span>
+          <el-button v-if="isExistingMode" type="text" @click="resetNewMode" style="color: #409EFF;">
+            <i class="el-icon-refresh"></i> 重新新建
+          </el-button>
         </div>
         <div class="panel-section-body">
           <el-form label-position="top" size="small">
             <el-form-item label="所属大类">
               <div class="flex gap-2">
-                <el-select v-model="selectedCategory" placeholder="请选择大类" style="flex: 1;">
+                <el-select v-model="selectedCategory" placeholder="请选择大类" style="flex: 1;" :disabled="isExistingMode">
                   <el-option v-for="cat in categories" :key="cat" :label="cat" :value="cat"></el-option>
                 </el-select>
-                <el-button @click="showCreateCategoryDialog">
+                <el-button @click="showCreateCategoryDialog" :disabled="isExistingMode">
                   <i class="el-icon-plus"></i> 新建
                 </el-button>
               </div>
@@ -21,15 +24,19 @@
               <el-input
                 v-model="requirementName"
                 placeholder="输入需求名称，如：用户管理"
+                :disabled="isExistingMode"
               ></el-input>
             </el-form-item>
-            <div class="form-hint" v-if="selectedCategory && requirementName">
+            <div class="form-hint" v-if="isExistingMode" style="color: #E6A23C;">
+              <i class="el-icon-warning"></i> 需求文件已存在，大类和需求目录已锁定。如需创建新需求，请点击"重新新建"。
+            </div>
+            <div class="form-hint" v-else-if="selectedCategory && requirementName">
               将在 <code>{{ basePath }}\{{ selectedCategory }}\{{ requirementName }}\</code> 下创建
             </div>
             <div class="form-hint" v-else style="color: #84848a;">
               {{ selectedCategory && !requirementName ? '请输入需求名称' : '请选择大类并输入需求名称' }}
             </div>
-            <el-button type="primary" @click="createRequirement" :disabled="!canCreate" style="margin-top: 16px;">
+            <el-button type="primary" @click="createRequirement" :disabled="!canCreate || isExistingMode" style="margin-top: 16px;">
               <i class="el-icon-check"></i> 确定创建
             </el-button>
           </el-form>
@@ -56,6 +63,8 @@
 </template>
 
 <script>
+import { api } from '../api'
+
 export default {
   name: 'Step1NewReq',
   props: {
@@ -81,7 +90,8 @@ export default {
       selectedCategory: '',
       requirementName: '',
       dialogVisible: false,
-      dialogInput: ''
+      dialogInput: '',
+      isExistingMode: false
     }
   },
   computed: {
@@ -96,15 +106,36 @@ export default {
     currentCategory(val) {
       if (val) {
         this.selectedCategory = val
+        this.checkExistingRequirement()
       }
     },
     currentProject(val) {
       if (val) {
         this.requirementName = val
+        this.checkExistingRequirement()
       }
     }
   },
   methods: {
+    async checkExistingRequirement() {
+      if (!this.selectedCategory || !this.requirementName) {
+        this.isExistingMode = false
+        return
+      }
+      const reqPath = `${this.basePath}\\${this.selectedCategory}\\${this.requirementName}`
+      try {
+        await api.browseFilesystem(reqPath)
+        this.isExistingMode = true
+      } catch (e) {
+        this.isExistingMode = false
+      }
+    },
+    resetNewMode() {
+      this.isExistingMode = false
+      this.selectedCategory = ''
+      this.requirementName = ''
+      this.$emit('category-change', '')
+    },
     createRequirement() {
       if (!this.canCreate) return
       this.$emit('create-requirement', {
@@ -112,6 +143,7 @@ export default {
         name: this.requirementName.trim()
       })
       this.requirementName = ''
+      this.isExistingMode = false
     },
     showCreateCategoryDialog() {
       this.dialogInput = ''
@@ -149,17 +181,22 @@ export default {
   overflow: hidden;
 }
 
-.panel-section-header {
-  background: #121212;
-  border-bottom: 1px solid #1e1e1e;
-  padding: 12px 16px;
-  font-size: 14px;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  color: #f4f4f5;
-}
+  .panel-section-header {
+    background: #121212;
+    border-bottom: 1px solid #1e1e1e;
+    padding: 12px 16px;
+    font-size: 14px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: #f4f4f5;
+  }
+
+  .panel-section-header .el-button {
+    padding: 4px 8px;
+    font-size: 12px;
+  }
 
 .panel-section-body {
   padding: 24px;

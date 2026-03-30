@@ -66,6 +66,10 @@ export default {
     currentStep: {
       type: Number,
       default: 1
+    },
+    isLoading: {
+      type: Boolean,
+      default: false
     }
   },
   data() {
@@ -82,11 +86,15 @@ export default {
   },
   computed: {
     projectList() {
-      if (!this.currentCategory) return []
+      if (!this.currentCategory || this.isLoading) return []
       const prefix = this.currentCategory + '/'
-      return Object.keys(this.projects)
+      const list = Object.keys(this.projects)
         .filter(key => key.startsWith(prefix))
         .map(key => key.split('/')[1])
+      if (this.selectedProject && !list.includes(this.selectedProject)) {
+        this.selectedProject = ''
+      }
+      return list
     }
   },
   watch: {
@@ -99,6 +107,7 @@ export default {
   },
   methods: {
     onCategoryChange(cat) {
+      this.selectedProject = ''
       this.$emit('category-change', cat)
     },
     onProjectChange(proj) {

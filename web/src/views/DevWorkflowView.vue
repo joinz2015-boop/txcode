@@ -1,17 +1,19 @@
 <template>
   <div class="dev-workflow-view">
-    <WorkflowSidebar
-      :categories="categories"
-      :projects="projects"
-      :current-category="currentCategory"
-      :current-project="currentProject"
-      :current-step="currentStep"
-      @category-change="onCategoryChange"
-      @project-change="onProjectChange"
-      @step-change="onStepChange"
-      @delete-category="deleteCategory"
-      @rename-category="renameCategory"
-    />
+      <WorkflowSidebar
+        ref="sidebar"
+        :categories="categories"
+        :projects="projects"
+        :current-category="currentCategory"
+        :current-project="currentProject"
+        :current-step="currentStep"
+        :is-loading="isLoadingProjects"
+        @category-change="onCategoryChange"
+        @project-change="onProjectChange"
+        @step-change="onStepChange"
+        @delete-category="deleteCategory"
+        @rename-category="renameCategory"
+      />
 
     <div class="main-content">
       <div class="panel-header">
@@ -123,7 +125,8 @@ export default {
       categories: [],
       projects: {},
       currentStep: 1,
-      reqBasePath: REQ_BASE_PATH
+      reqBasePath: REQ_BASE_PATH,
+      isLoadingProjects: false
     }
   },
   computed: {
@@ -258,7 +261,9 @@ export default {
     async onCategoryChange(cat) {
       this.currentCategory = cat
       this.currentProject = ''
+      this.isLoadingProjects = true
       await this.loadRequirementsForCategory(cat, this.projects)
+      this.isLoadingProjects = false
       this.saveState()
     },
     onProjectChange(proj) {
