@@ -160,7 +160,7 @@ export class AIService {
       projectPath?: string;
       memoryService?: MemoryService;
       contextService?: ContextService;
-      onStep?: (step: any, iteration: number) => void;
+      onStep?: (step: any, iteration: number, usage?: any) => void;
       onCompact?: (info: { beforeTokens: number; afterTokens: number }) => void;
       abortSignal?: AbortSignal;
       modelName?: string;
@@ -229,7 +229,7 @@ export class AIService {
             toolCalls,
             success: step.results?.[0]?.success ?? true,
           };
-          options.onStep?.(reactFormatStep, iteration);
+          options.onStep?.(reactFormatStep, iteration, usage);
         }
       : undefined;
 

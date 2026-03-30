@@ -339,7 +339,10 @@ export function App() {
         message: trimmedInput,
         sessionId: currentSession || undefined,
         abortSignal: abortControllerRef.current.signal,
-        onStep: (step: any, iteration: number) => {
+        onStep: (step: any, iteration: number, usage?: any) => {
+          if (usage?.promptTokens) {
+            setTokenStats(prev => ({ ...prev, promptTokens: usage.promptTokens }));
+          }
           if (step.thought) {
             const thoughtPreview = step.thought.length > 150 
               ? step.thought.slice(0, 150) + '...' 

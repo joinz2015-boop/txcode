@@ -387,7 +387,10 @@ export default {
           if (data?.sessionId && !panel.session.id) panel.session.id = data.sessionId
           break
         case 'step':
-          if (data) this.pushLogItem(panel, this.createStepItem(data))
+          if (data) {
+            this.pushLogItem(panel, this.createStepItem(data))
+            if (data.usage?.promptTokens) panel.promptTokens = data.usage.promptTokens
+          }
           break
         case 'compact':
           this.pushLogItem(panel, { type: 'system', content: `【压缩完成】${data.summary || ''}` })

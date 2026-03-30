@@ -4,7 +4,7 @@ export interface ChatInput {
   projectPath?: string;
   abortSignal?: AbortSignal;
   modelName?: string;
-  onStep?: (step: Step, iteration: number) => void;
+  onStep?: (step: Step, iteration: number, usage?: any) => void;
   onCompact?: (info: { beforeTokens: number; afterTokens: number; summary?: string }) => void;
 }
 
@@ -13,7 +13,7 @@ export interface ChatOptions {
   projectPath?: string;
   abortSignal?: AbortSignal;
   modelName?: string;
-  onStep?: (step: Step, iteration: number) => void;
+  onStep?: (step: Step, iteration: number, usage?: any) => void;
   onCompact?: (info: { beforeTokens: number; afterTokens: number; summary?: string }) => void;
 }
 

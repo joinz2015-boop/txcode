@@ -451,8 +451,12 @@ resolve();
           sessionId: session.id,
           projectPath: session.projectPath ?? undefined,
           abortSignal: abortController.signal,
-          onStep: (step: any, iteration: number) => {
-            ws.send(JSON.stringify({ type: 'step', data: { ...step, iteration } }));
+          onStep: (step: any, iteration: number, usage?: any) => {
+            ws.send(JSON.stringify({ type: 'step', data: { ...step, iteration, usage: usage ? {
+              promptTokens: usage.promptTokens,
+              completionTokens: usage.completionTokens,
+              totalTokens: usage.totalTokens,
+            } : undefined } }));
           },
           onCompact: (info: { beforeTokens: number; afterTokens: number; summary?: string }) => {
             ws.send(JSON.stringify({ type: 'compact', data: info }));

@@ -37,14 +37,14 @@ export class CodeChatService {
       abortSignal: options.abortSignal,
       modelName: options.modelName,
       memoryService,
-      onStep: (step: any, iteration: number) => {
+      onStep: (step: any, iteration: number, usage?: any) => {
         const reactFormatStep: Step = {
           thought: step.thought || step.reasoning || '',
           toolCalls: step.toolCalls || [],
           success: step.success ?? true,
         };
         reactSteps.push({ iteration, ...reactFormatStep });
-        options.onStep?.(reactFormatStep, iteration);
+        options.onStep?.(reactFormatStep, iteration, usage);
       },
       onCompact: options.onCompact,
     });
