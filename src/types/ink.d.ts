@@ -16,6 +16,7 @@ declare module 'ink' {
     items: T[];
     children: (item: T, index: number) => React.ReactNode;
     style?: React.CSSProperties;
+    key?: string | number;
   }
   
   export const Static: <T>(props: StaticProps<T>) => React.ReactElement | null;

@@ -13,11 +13,12 @@
  * 7. 状态显示 - 显示 Token 使用量、压缩比例等
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { Box, Text, useInput, useApp, Static } from 'ink';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { Box, Text, useInput, useApp, useStdout } from 'ink';
 import { v4 as uuidv4 } from 'uuid';
 import * as fs from 'fs';
 import * as path from 'path';
+import ansiEscapes from 'ansi-escapes';
 import { sessionService } from '../modules/session/index.js';
 import { memoryService } from '../modules/memory/index.js';
 import { dbService } from '../modules/db/index.js';
@@ -25,6 +26,7 @@ import { configService } from '../modules/config/index.js';
 import { codeChatService } from '../services/codeChat/index.js';
 import { commandChatService } from '../services/commandChat/index.js';
 import { MessageItem } from '../cli/cli.types.js';
+import { MainContent } from './MainContent.js';
 
 /**
  * 文件信息接口
@@ -57,6 +59,34 @@ export function App() {
   // ========== Hooks ==========
   // useApp() 提供 Ink 应用的上下文，包含 exit() 方法用于退出程序
   const { exit } = useApp();
+  // useStdout 提供终端输出流，用于监听 resize 事件
+  const { stdout } = useStdout();
+
+  // Static 组件重新挂载的 key，用于窗口 resize 后刷新显示
+  const [historyRemountKey, setHistoryRemountKey] = useState(0);
+  
+  // 记录上一次的终端尺寸
+  const lastSizeRef = React.useRef({ width: stdout.columns, height: stdout.rows });
+
+  // refreshStatic - 清除终端并重新挂载 Static 组件
+  const refreshStatic = useCallback(() => {
+    stdout.write(ansiEscapes.clearTerminal);
+    setHistoryRemountKey(prev => prev + 1);
+  }, [stdout]);
+
+  // ========== 终端 resize 监听 ==========
+  useEffect(() => {
+    const onResize = () => {
+      const newWidth = stdout.columns;
+      const newHeight = stdout.rows;
+      if (newWidth !== lastSizeRef.current.width || newHeight !== lastSizeRef.current.height) {
+        lastSizeRef.current = { width: newWidth, height: newHeight };
+        refreshStatic();
+      }
+    };
+    stdout.on('resize', onResize);
+    return () => { stdout.off('resize', onResize); };
+  }, [stdout, refreshStatic]);
 
   // ========== 输入相关状态 ==========
   /** 用户输入的文本 */
@@ -255,7 +285,7 @@ export function App() {
   // ========== 消息管理 ==========
 
   /**
-   * 添加消息到列表 - 防止重复添加相同的消息
+   * 添加消息到列表 - 防止重复添加相同的消息，并限制消息数量
    * @param role - 消息角色
    * @param content - 消息内容
    */
@@ -273,7 +303,13 @@ export function App() {
         content,
         timestamp: new Date(),
       };
-      return [...prev, msg];
+      // 限制消息数量，防止内存溢出
+      const maxMessages = 500;
+      const newMessages = [...prev, msg];
+      if (newMessages.length > maxMessages) {
+        return newMessages.slice(-maxMessages);
+      }
+      return newMessages;
     });
   }, []);
 
@@ -643,233 +679,95 @@ export function App() {
   // ========== UI 渲染 ==========
   
   const sessionText = currentSession ? `${currentSession.slice(0, 8)}` : '无会话';
-
-  const isToolCall = (content: string) => {
-    return content.startsWith('🔧') || 
-           content.startsWith('✓') ||
-           content.startsWith('* ');
-  };
-
-  const isThought = (content: string) => {
-    return content.startsWith('💭') || content.startsWith('~ ');
-  };
-
-  const formatToolCall = (content: string) => {
-    if (content.startsWith('🔧 ')) {
-      return content.replace('🔧 ', '* ').replace(' ✓', '').replace(' ❌', '');
-    }
-    return content;
-  };
-
-  const formatThought = (content: string) => {
-    if (content.startsWith('💭 ')) {
-      return content.replace('💭 ', '~ ');
-    }
-    return content;
-  };
+  
+  // 获取终端尺寸，参考 gemini-cli 的布局
+  const terminalWidth = stdout.columns || 80;
+  const terminalHeight = stdout.rows || 24;
 
   return (
-    <Box flexDirection="column" padding={1}>
-      {/* ========== 日志输出区 ========== */}
-      <Box flexDirection="column">
-        <Static items={messages}>
-          {(msg: MessageItem) => {
-            const isError = msg.role === 'system' && msg.content.startsWith('错误:');
-            const isTool = msg.role === 'system' && isToolCall(msg.content);
-            const isThoughtMsg = msg.role === 'system' && isThought(msg.content);
-            
-            if (msg.role === 'user') {
-              return (
-                <Box 
-                  key={msg.id} 
-                  backgroundColor="#121212"
-                  paddingX={2}
-                  paddingY={1}
-                  borderLeft="2"
-                  borderColor="#27272a"
-                  marginBottom={1}
-                >
-                  <Text bold color="#f4f4f5"># {msg.content}</Text>
-                </Box>
-              );
-            }
-            
-            if (msg.role === 'assistant') {
-              let thought = '';
-              let toolCalls: any[] = [];
-              let success = true;
-              
-              try {
-                const parsed = JSON.parse(msg.content);
-                if (parsed.type === 'assistant_with_tools') {
-                  thought = parsed.thought || '';
-                  toolCalls = parsed.toolCalls || [];
-                  success = parsed.success !== false;
-                } else {
-                  thought = msg.content;
-                }
-              } catch {
-                thought = msg.content;
-              }
-              
-              const actionNames: Record<string, string> = {
-                'read': '读取文件',
-                'read_file': '读取文件',
-                'edit_file': '编辑文件',
-                'write_file': '写入文件',
-                'bash': '执行命令',
-                'execute_bash': '执行命令',
-                'find_files': '搜索文件',
-                'grep': '搜索内容',
-                'glob': '文件匹配',
-              };
-              
-              return (
-                <Box key={msg.id} marginBottom={1} flexDirection="column">
-                  {thought && (
-                    <Box paddingLeft={2}>
-                      <Text bold color="cyan">~ {thought.slice(0, 150)}{thought.length > 150 ? '...' : ''}</Text>
-                    </Box>
-                  )}
-                  {toolCalls.map((tc: any, idx: number) => {
-                    const name = tc.function?.name || 'unknown';
-                    const actionName = actionNames[name] || name;
-                    return (
-                      <Box key={idx} paddingLeft={2}>
-                        <Text dimColor>* {actionName} {success ? '✓' : '✗'}</Text>
-                      </Box>
-                    );
-                  })}
-                  {!thought && toolCalls.length === 0 && (
-                    <Box paddingLeft={2}>
-                      <Text color="#d4d4d8">{msg.content}</Text>
-                    </Box>
-                  )}
-                </Box>
-              );
-            }
-            
-            if (isThoughtMsg) {
-              return (
-                <Box key={msg.id} marginBottom={1} paddingLeft={2}>
-                  <Text bold color="cyan">{formatThought(msg.content)}</Text>
-                </Box>
-              );
-            }
-            
-            if (isTool) {
-              return (
-                <Box key={msg.id} marginBottom={1} paddingLeft={2}>
-                  <Text dimColor>{formatToolCall(msg.content)}</Text>
-                </Box>
-              );
-            }
-            
-            if (isError) {
-              return (
-                <Box key={msg.id} marginBottom={1} paddingLeft={2}>
-                  <Text color="red">{msg.content}</Text>
-                </Box>
-              );
-            }
-            
-            // 显示其他 system 消息（如命令结果）
-            if (msg.role === 'system') {
-              return (
-                <Box key={msg.id} marginBottom={1} paddingLeft={2}>
-                  <Text dimColor>{msg.content}</Text>
-                </Box>
-              );
-            }
-            
-            return null;
-          }}
-        </Static>
+    <Box 
+      flexDirection="column" 
+      width={terminalWidth}
+      overflow="hidden"
+    >
+      {/* ========== 消息区域 ========== */}
+      <MainContent 
+        messages={messages} 
+        status={status} 
+        currentModelName={currentModelName} 
+        historyRemountKey={historyRemountKey}
+      />
 
-        {/* ========== 思考状态 ========== */}
-        {status === 'thinking' && (
-          <Box marginBottom={1} paddingLeft={2}>
-            <Text bold color="cyan">▣ Build</Text>
-            <Text dimColor> · {currentModelName}</Text>
-            <Text dimColor> · 按 ESC 停止...</Text>
+      {/* ========== 底部控制区域（固定高度） ========== */}
+      <Box flexDirection="column" flexShrink={0} flexGrow={0} width={terminalWidth}>
+        {/* ========== 输入框 ========== */}
+        <Box borderStyle="single" borderColor="gray" paddingX={1}>
+          <Text dimColor>{'> '}</Text>
+          <Text>{status === 'stopping' ? '等待停止...' : input.slice(0, cursorPosition)}</Text>
+          <Text color="cyan">▋</Text>
+          <Text>{status === 'stopping' ? '' : input.slice(cursorPosition)}</Text>
+        </Box>
+
+        {/* ========== 文件选择列表 ========== */}
+        {fileSelectMode && (
+          <Box flexDirection="column" paddingX={1}>
+            <Text dimColor>{currentDir || '/'} (↑↓ 选择, Enter 确认, ESC 取消)</Text>
+            {fileList.slice(0, 10).map((file, index) => (
+              <Box key={file.path}>
+                <Text>
+                  {index === selectedIndex ? (
+                    <Text bold color="green">{`▶ ${file.name}${file.isDirectory ? '/' : ''}`}</Text>
+                  ) : (
+                    <Text dimColor>{`  ${file.name}${file.isDirectory ? '/' : ''}`}</Text>
+                  )}
+                </Text>
+              </Box>
+            ))}
+            {fileList.length === 0 && (
+              <Text dimColor>空目录...</Text>
+            )}
           </Box>
         )}
 
-        {/* ========== 停止状态 ========== */}
-        {status === 'stopping' && (
-          <Box marginBottom={1} paddingLeft={2}>
-            <Text bold color="yellow">■ 正在停止...</Text>
+        {/* ========== 模型选择列表 ========== */}
+        {modelSelectMode && (
+          <Box flexDirection="column" paddingX={1}>
+            <Text dimColor>选择模型 (↑↓ 选择, Enter 确认, ESC 取消):</Text>
+            {modelList.slice(0, 10).map((model, index) => (
+              <Box key={model.id}>
+                <Text>
+                  {index === modelSelectedIndex ? (
+                    <Text bold color="green">{`▶ ${model.name}`}</Text>
+                  ) : (
+                    <Text dimColor>{`  ${model.name}`}</Text>
+                  )}
+                </Text>
+              </Box>
+            ))}
+            {modelList.length === 0 && (
+              <Text dimColor>未找到模型...</Text>
+            )}
+          </Box>
+        )}
+
+        {/* ========== 底部状态栏 ========== */}
+        <Box paddingX={2}>
+          <Text dimColor>
+            {status === 'thinking' ? `${dotAnimation} 思考中` : '✓ 就绪'}
+            {` | 模型：${currentModelName}`}
+            {` | 会话：${sessionText}`}
+            {` | token：(${tokenStats.promptTokens}${tokenStats.promptTokens > 50000 ? ' 会话太大推荐用/compact压缩会话' : ''})`}
+            {` | 帮助 /help | 退出 ctrl+c`}
+          </Text>
+        </Box>
+
+        {/* ========== 错误提示 ========== */}
+        {error && (
+          <Box>
+            <Text color="red">错误: {error}</Text>
           </Box>
         )}
       </Box>
-
-      {/* ========== 输入框 ========== */}
-      <Box borderStyle="single" borderColor="gray" paddingX={1} marginBottom={1}>
-        <Text dimColor>{'> '}</Text>
-        <Text>{status === 'stopping' ? '等待停止...' : input.slice(0, cursorPosition)}</Text>
-        <Text color="cyan">▋</Text>
-        <Text>{status === 'stopping' ? '' : input.slice(cursorPosition)}</Text>
-      </Box>
-
-      {/* ========== 文件选择列表 ========== */}
-      {fileSelectMode && (
-        <Box flexDirection="column" marginBottom={1} paddingX={1}>
-          <Text dimColor>{currentDir || '/'} (↑↓ 选择, Enter 确认, ESC 取消)</Text>
-          {fileList.slice(0, 15).map((file, index) => (
-            <Box key={file.path}>
-              <Text>
-                {index === selectedIndex ? (
-                  <Text bold color="green">{`▶ ${file.name}${file.isDirectory ? '/' : ''}`}</Text>
-                ) : (
-                  <Text dimColor>{`  ${file.name}${file.isDirectory ? '/' : ''}`}</Text>
-                )}
-              </Text>
-            </Box>
-          ))}
-          {fileList.length === 0 && (
-            <Text dimColor>空目录...</Text>
-          )}
-        </Box>
-      )}
-
-      {/* ========== 模型选择列表 ========== */}
-      {modelSelectMode && (
-        <Box flexDirection="column" marginBottom={1} paddingX={1}>
-          <Text dimColor>选择模型 (↑↓ 选择, Enter 确认, ESC 取消):</Text>
-          {modelList.map((model, index) => (
-            <Box key={model.id}>
-              <Text>
-                {index === modelSelectedIndex ? (
-                  <Text bold color="green">{`▶ ${model.name}`}</Text>
-                ) : (
-                  <Text dimColor>{`  ${model.name}`}</Text>
-                )}
-              </Text>
-            </Box>
-          ))}
-          {modelList.length === 0 && (
-            <Text dimColor>未找到模型...</Text>
-          )}
-        </Box>
-      )}
-
-      {/* ========== 底部状态栏 ========== */}
-      <Box paddingX={2}>
-        <Text dimColor>
-          {status === 'thinking' ? `${dotAnimation} 思考中` : '✓ 就绪'}
-          {` | 模型：${currentModelName}`}
-          {` | 会话：${sessionText}`}
-          {` | token：(${tokenStats.promptTokens}${tokenStats.promptTokens > 50000 ? ' 会话太大推荐用/compact压缩会话' : ''})`}
-          {` | 帮助 /help | 退出 ctrl+c`}
-        </Text>
-      </Box>
-
-      {/* ========== 错误提示 ========== */}
-      {error && (
-        <Box marginTop={1}>
-          <Text color="red">错误: {error}</Text>
-        </Box>
-      )}
     </Box>
   );
 }
