@@ -22,7 +22,38 @@ function getLineStartPositions(input: string): number[] {
 	return positions;
 }
 
-export function useInputHandler(messages: Message[], setMessages: React.Dispatch<React.SetStateAction<Message[]>>, contentHeight: number) {
+interface UseInputHandlerProps {
+	onSubmit: (input: string) => void;
+	onEscape: () => void;
+	onFileSelect: () => void;
+	onModelSelect: () => void;
+	fileSelectMode: boolean;
+	modelSelectMode: boolean;
+	onFileSelectConfirm: () => void;
+	onFileSelectCancel: () => void;
+	onModelSelectConfirm: () => void;
+	onModelSelectCancel: () => void;
+	onFileSelectUp: () => void;
+	onFileSelectDown: () => void;
+	onModelSelectUp: () => void;
+	onModelSelectDown: () => void;
+	onFileSelected?: (filePath: string) => void;
+}
+
+export function useInputHandler(
+	messages: Message[], 
+	setMessages: React.Dispatch<React.SetStateAction<Message[]>>, 
+	contentHeight: number,
+	props: UseInputHandlerProps
+) {
+	const { 
+		onSubmit, onEscape, onFileSelect, onModelSelect,
+		fileSelectMode, modelSelectMode,
+		onFileSelectConfirm, onFileSelectCancel, onModelSelectConfirm, onModelSelectCancel,
+		onFileSelectUp, onFileSelectDown, onModelSelectUp, onModelSelectDown,
+		onFileSelected
+	} = props;
+
 	const [input, setInput] = useState('');
 	const [cursorPosition, setCursorPosition] = useState(0);
 	const [scrollTop, setScrollTop] = useState(0);
@@ -39,9 +70,36 @@ export function useInputHandler(messages: Message[], setMessages: React.Dispatch
 		setInput('');
 		setCursorPosition(0);
 		setScrollTop(0);
+		onSubmit(input);
 	};
 
 	useInkInput((char, key) => {
+		if (fileSelectMode) {
+			if (key.upArrow) {
+				onFileSelectUp();
+			} else if (key.downArrow) {
+				onFileSelectDown();
+			} else if (key.return) {
+				onFileSelectConfirm();
+			} else if (key.escape) {
+				onFileSelectCancel();
+			}
+			return;
+		}
+
+		if (modelSelectMode) {
+			if (key.upArrow) {
+				onModelSelectUp();
+			} else if (key.downArrow) {
+				onModelSelectDown();
+			} else if (key.return) {
+				onModelSelectConfirm();
+			} else if (key.escape) {
+				onModelSelectCancel();
+			}
+			return;
+		}
+
 		const lineStarts = getLineStartPositions(input);
 		const currentLineIndex = lineStarts.findIndex((pos, i) => 
 			pos <= cursorPosition && (i === lineStarts.length - 1 || lineStarts[i + 1] > cursorPosition)
@@ -78,6 +136,9 @@ export function useInputHandler(messages: Message[], setMessages: React.Dispatch
 		if (key.rightArrow) {
 			setCursorPosition(prev => Math.min(input.length, prev + 1));
 		}
+		if (key.escape) {
+			onEscape();
+		}
 		if (key.return && !key.ctrl) {
 			handleSubmit();
 		}
@@ -97,8 +158,15 @@ export function useInputHandler(messages: Message[], setMessages: React.Dispatch
 			const newInput = input.slice(0, cursorPosition) + char + input.slice(cursorPosition);
 			setInput(newInput);
 			setCursorPosition(prev => prev + char.length);
+			
+			if (char === '@') {
+				onFileSelect();
+			}
+			if (newInput === '/model') {
+				onModelSelect();
+			}
 		}
 	});
 
-	return { input, cursorPosition, scrollTop, handleSubmit };
+	return { input, cursorPosition, scrollTop, handleSubmit, setInput, setCursorPosition };
 }
