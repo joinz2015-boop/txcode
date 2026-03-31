@@ -22,16 +22,10 @@ export function MainContent({ messages, status, currentModelName, historyRemount
     return messages;
   }, [messages]);
 
-  const renderedMessages = useMemo(() => {
-    return visibleMessages.map((msg) => (
-      <MessageItemView key={msg.id} msg={msg} />
-    ));
-  }, [visibleMessages]);
-
   return (
     <Box flexDirection="column" flexGrow={1} flexShrink={1}>
-      <Static key={historyRemountKey} items={renderedMessages}>
-        {(item) => item}
+      <Static key={historyRemountKey} items={visibleMessages}>
+        {(msg) => <MessageItemView key={msg.id} msg={msg} />}
       </Static>
 
       {status === 'thinking' && (

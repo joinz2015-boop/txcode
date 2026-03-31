@@ -13,7 +13,6 @@
  */
 
 import { parseArgs } from './cli/args.js';
-import ansiEscapes from 'ansi-escapes';
 
 /**
  * 程序主入口函数
@@ -78,7 +77,6 @@ async function main() {
     const { App } = await import('./components/App.js');
     const { dbService } = await import('./modules/db/index.js');
     await dbService.init();
-    process.stdout.write(ansiEscapes.enterAlternativeScreen);
     render(React.createElement(App));
   }
 }
