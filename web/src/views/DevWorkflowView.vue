@@ -26,19 +26,6 @@
             <el-button type="info" plain @click="refreshSpec">
               <i class="el-icon-refresh"></i> 刷新方案
             </el-button>
-            <el-button type="success" @click="completeStep2">
-              <i class="el-icon-check"></i> 方案完成，进入代码生成
-            </el-button>
-          </template>
-          <template v-else-if="currentStep === 3">
-            <el-button type="success" @click="completeStep3">
-              <i class="el-icon-check"></i> 代码完成，进入测试验收
-            </el-button>
-          </template>
-          <template v-else-if="currentStep === 4">
-            <el-button type="success" @click="completeStep4">
-              <i class="el-icon-success"></i> 验收完成，流程结束
-            </el-button>
           </template>
         </div>
       </div>
@@ -634,30 +621,6 @@ export default {
         console.error('Refresh spec failed:', e)
         this.$message.error('刷新方案失败')
       }
-    },
-    completeStep2() {
-      if (!this.projectKey) return
-      this.projects[this.projectKey].stepStatus[2] = true
-      this.projects[this.projectKey].stepStatus[3] = true
-      this.saveState()
-      this.$message.success('方案设计完成')
-      this.currentStep = 3
-      this.saveState()
-    },
-    completeStep3() {
-      if (!this.projectKey) return
-      this.projects[this.projectKey].stepStatus[3] = true
-      this.projects[this.projectKey].stepStatus[4] = true
-      this.saveState()
-      this.$message.success('代码生成完成')
-      this.currentStep = 4
-      this.saveState()
-    },
-    completeStep4() {
-      if (!this.projectKey) return
-      this.projects[this.projectKey].stepStatus[4] = true
-      this.saveState()
-      this.$message.success('验收完成！流程结束')
     }
   }
 }
