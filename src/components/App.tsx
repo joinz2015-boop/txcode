@@ -354,17 +354,12 @@ export function App() {
 
 	return (
 		<Box flexDirection="column" width={stdout.columns || 80}>
-	<Static key={`all-${remountKey}`} items={items as any}>
-				{(item) => (
-					<Box key={item.id}>
-						{item.isHeader ? <Header /> : (
-							<Box paddingX={1}>
-								<Text dimColor>{item.content}</Text>
-							</Box>
-						)}
-					</Box>
-				)}
-			</Static>
+			<MessageList 
+				messages={messages}
+				status={status}
+				currentModelName={currentModelName}
+				historyRemountKey={remountKey}
+			/>
 			<InputArea 
 				key={`input-${messages.length}`}
 				messages={messages}
