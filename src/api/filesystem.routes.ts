@@ -131,10 +131,20 @@ filesystemRouter.get('/browse', (req: Request, res: Response) => {
   }
 });
 
-/**
- * GET /api/filesystem/drives
- * 获取 Windows 驱动器列表
- */
+filesystemRouter.get('/cwd', (req: Request, res: Response) => {
+  const cwd = process.cwd();
+  const isWindows = os.platform() === 'win32';
+  const basePath = path.join(cwd, '.txcode', 'req');
+  return res.json({
+    success: true,
+    data: {
+      cwd,
+      basePath,
+      isWindows
+    }
+  });
+});
+
 filesystemRouter.get('/drives', (req: Request, res: Response) => {
   const isWindows = os.platform() === 'win32';
   

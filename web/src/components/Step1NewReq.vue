@@ -89,7 +89,7 @@ export default {
     },
     basePath: {
       type: String,
-      default: 'E:\\ai\\txcode\\.txcode\\req'
+      default: ''
     },
     currentCategory: {
       type: String,

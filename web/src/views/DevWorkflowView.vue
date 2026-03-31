@@ -105,7 +105,6 @@ import Step4Test from '../components/Step4Test.vue'
 import { api } from '../api'
 
 const STORAGE_KEY = 'software_dev_workflow'
-const REQ_BASE_PATH = 'E:\\ai\\txcode\\.txcode\\req'
 
 export default {
   name: 'DevWorkflowView',
@@ -126,7 +125,7 @@ export default {
       categories: [],
       projects: {},
       currentStep: 1,
-      reqBasePath: REQ_BASE_PATH,
+      reqBasePath: '',
       isLoadingProjects: false
     }
   },
@@ -187,13 +186,13 @@ export default {
   },
   methods: {
     getSpecPath(category, project) {
-      return `${REQ_BASE_PATH}\\${category}\\${project}\\${project}_方案.md`
+      return `${this.reqBasePath}\\${category}\\${project}\\${project}_方案.md`
     },
     getLegacySpecPath(category, project) {
-      return `${REQ_BASE_PATH}\\${category}\\${project}\\方案.md`
+      return `${this.reqBasePath}\\${category}\\${project}\\方案.md`
     },
     getSessionPath(category, project) {
-      return `${REQ_BASE_PATH}\\${category}\\${project}\\session.json`
+      return `${this.reqBasePath}\\${category}\\${project}\\session.json`
     },
     async readSessionConfig(category, project) {
       const sessionPath = this.getSessionPath(category, project)
@@ -246,7 +245,10 @@ export default {
     },
     async loadCategories() {
       try {
-        const res = await api.browseFilesystem(REQ_BASE_PATH)
+        const cwdRes = await api.getCwd()
+        this.reqBasePath = cwdRes.data?.basePath || ''
+        
+        const res = await api.browseFilesystem(this.reqBasePath)
         const items = res.data?.items || []
         this.categories = items
           .filter(item => item.is_directory)
@@ -295,7 +297,7 @@ export default {
     },
     async loadRequirementsForCategory(category, existingProjects = {}) {
       try {
-        const catPath = `${REQ_BASE_PATH}\\${category}`
+        const catPath = `${this.reqBasePath}\\${category}`
         const res = await api.browseFilesystem(catPath)
         const items = res.data?.items || []
         const reqDirs = items.filter(item => item.is_directory)
@@ -435,7 +437,7 @@ export default {
         return
       }
       try {
-        const newPath = `${REQ_BASE_PATH}\\${name}`
+        const newPath = `${this.reqBasePath}\\${name}`
         await api.createDirectory(newPath)
         this.categories.push(name)
         this.categories.sort()
@@ -451,7 +453,7 @@ export default {
         return
       }
       try {
-        const oldPath = `${REQ_BASE_PATH}\\${oldName}`
+        const oldPath = `${this.reqBasePath}\\${oldName}`
         await api.renameFile(oldPath, newName)
         
         const index = this.categories.indexOf(oldName)
@@ -484,7 +486,7 @@ export default {
     },
     async deleteCategory(catName) {
       try {
-        const deletePath = `${REQ_BASE_PATH}\\${catName}`
+        const deletePath = `${this.reqBasePath}\\${catName}`
         await api.deleteFile(deletePath)
 
         this.categories = this.categories.filter(c => c !== catName)
@@ -516,7 +518,7 @@ export default {
       }
 
       try {
-        const reqDirPath = `${REQ_BASE_PATH}\\${category}\\${name}`
+        const reqDirPath = `${this.reqBasePath}\\${category}\\${name}`
         await api.createDirectory(reqDirPath)
       } catch (e) {
         console.error('Create requirement directory failed:', e)

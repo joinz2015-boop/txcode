@@ -340,6 +340,10 @@ export const api = {
     return request('GET', `/filesystem/browse?path=${encodeURIComponent(path)}`);
   },
 
+  getCwd() {
+    return request('GET', '/filesystem/cwd');
+  },
+
   // ==================== 数据库管理 ====================
 
   /**
