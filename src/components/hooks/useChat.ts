@@ -157,6 +157,7 @@ export function useChat(options: UseChatOptions) {
 
 		// 命令模式：以 / 开头
 		if (trimmedInput.startsWith('/')) {
+			setStatus('thinking');
 			try {
 				const result = await commandChatService.handleCommand({
 					message: trimmedInput,
@@ -171,6 +172,8 @@ export function useChat(options: UseChatOptions) {
 				}
 			} catch (err) {
 				addMessage('system', `命令执行异常: ${err instanceof Error ? err.message : String(err)}`);
+			} finally {
+				setStatus('idle');
 			}
 			return;
 		}
