@@ -106,7 +106,7 @@ function MessageItemView({ msg }: { msg: MessageItem }) {
 			<Box marginBottom={1} flexDirection="column">
 				{thought && (
 					<Box paddingLeft={2}>
-						<Text bold color="cyan">~ {thought.slice(0, 150)}{thought.length > 150 ? '...' : ''}</Text>
+						<Text bold color="cyan">~ {thought}</Text>
 					</Box>
 				)}
 				{toolCalls.map((tc: any, idx: number) => {

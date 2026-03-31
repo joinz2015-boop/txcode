@@ -196,17 +196,18 @@ export function useChat(options: UseChatOptions) {
 				 * @param usage - token 使用情况
 				 */
 				onStep: (step: any, iteration: number, usage?: any) => {
-					// 更新 prompt tokens
+					// 更新 prompt tokens 和 totalTokens
 					if (usage?.promptTokens) {
-						setTokenStats(prev => ({ ...prev, promptTokens: usage.promptTokens }));
+						setTokenStats(prev => ({ 
+							...prev, 
+							promptTokens: usage.promptTokens,
+							totalTokens: usage.totalTokens
+						}));
 					}
 					
 					// 显示 AI 的思考过程
 					if (step.thought) {
-						const thoughtPreview = step.thought.length > 150 
-							? step.thought.slice(0, 150) + '...' 
-							: step.thought;
-						addMessage('system', `💭 ${thoughtPreview}`);
+						addMessage('system', `💭 ${step.thought}`);
 					}
 					
 					// 工具名称映射表
