@@ -43,18 +43,11 @@ export function MessageList({ messages, status, currentModelName, historyRemount
 
 function MessageItemView({ msg }: { msg: MessageItem }) {
 	const isToolCall = (content: string) => {
-		return content.startsWith('🔧') || content.startsWith('✓') || content.startsWith('* ');
+		return content.startsWith('🔧');
 	};
 
 	const isThought = (content: string) => {
 		return content.startsWith('💭') || content.startsWith('~ ');
-	};
-
-	const formatToolCall = (content: string) => {
-		if (content.startsWith('🔧 ')) {
-			return content.replace('🔧 ', '* ').replace(' ✓', '').replace(' ❌', '');
-		}
-		return content;
 	};
 
 	const formatThought = (content: string) => {
@@ -117,11 +110,29 @@ function MessageItemView({ msg }: { msg: MessageItem }) {
 					</Box>
 				)}
 				{toolCalls.map((tc: any, idx: number) => {
-					const name = tc.function?.name || 'unknown';
+					const name = tc.function?.name || tc.name || 'unknown';
 					const actionName = actionNames[name] || name;
+					const args = tc.function?.arguments || tc.arguments;
+					let argsStr = '';
+					if (args) {
+						if (typeof args === 'string') {
+							try {
+								const parsed = JSON.parse(args);
+								argsStr = JSON.stringify(parsed, null, 2).slice(0, 200);
+							} catch {
+								argsStr = args.slice(0, 200);
+							}
+						} else if (typeof args === 'object') {
+							argsStr = JSON.stringify(args, null, 2).slice(0, 200);
+						}
+					}
+					console.log('[DEBUG] toolCall:', JSON.stringify(tc, null, 2));
 					return (
-						<Box key={idx} paddingLeft={2}>
+						<Box key={idx} flexDirection="column" paddingLeft={2}>
 							<Text dimColor>* {actionName} {success ? '✓' : '✗'}</Text>
+							{argsStr && (
+								<Text dimColor color="gray">{argsStr}</Text>
+							)}
 						</Box>
 					);
 				})}
@@ -134,22 +145,23 @@ function MessageItemView({ msg }: { msg: MessageItem }) {
 		);
 	}
 
-	const isThoughtMsg = msg.role === 'system' && isThought(msg.content);
+const isThoughtMsg = msg.role === 'system' && isThought(msg.content);
 	const isTool = msg.role === 'system' && isToolCall(msg.content);
 	const isError = msg.role === 'system' && msg.content.startsWith('错误:');
 	
-	if (isThoughtMsg) {
+if (isThoughtMsg) {
 		return (
 			<Box marginBottom={1} paddingLeft={2}>
-				<Text bold color="cyan">{formatThought(msg.content)}</Text>
+				<Text bold color="cyan">~ {formatThought(msg.content)}</Text>
 			</Box>
 		);
 	}
 	
 	if (isTool) {
+		const content = msg.content.replace('🔧', '*');
 		return (
 			<Box marginBottom={1} paddingLeft={2}>
-				<Text dimColor>{formatToolCall(msg.content)}</Text>
+				<Text dimColor>{content}</Text>
 			</Box>
 		);
 	}

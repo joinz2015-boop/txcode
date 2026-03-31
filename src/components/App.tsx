@@ -212,6 +212,13 @@ export function App() {
 						setTokenStats(prev => ({ ...prev, promptTokens: usage.promptTokens }));
 					}
 					
+					if (step.thought) {
+						const thoughtPreview = step.thought.length > 150 
+							? step.thought.slice(0, 150) + '...' 
+							: step.thought;
+						addMessage('system', `💭 ${thoughtPreview}`);
+					}
+					
 					const actionNames: Record<string, string> = {
 						'read_file': '读取文件',
 						'write_file': '创建文件',
@@ -227,7 +234,34 @@ export function App() {
 					for (const tc of toolCalls) {
 						const name = tc.function.name;
 						const actionName = actionNames[name] || name;
+						
 						let stepInfo = `🔧 ${actionName}`;
+						
+						if (tc.function.arguments) {
+							try {
+								const inputObj = typeof tc.function.arguments === 'string' 
+									? JSON.parse(tc.function.arguments) 
+									: tc.function.arguments;
+								if (name === 'read_file') {
+									const offset = inputObj.offset ?? 1;
+									const limit = inputObj.limit ?? 300;
+									stepInfo += `: ${inputObj.file_path} offset:${offset}  limit:${limit}`;
+								} else if (name === 'edit_file') {
+									stepInfo += `: ${inputObj.file_path}`;
+								} else if (name === 'write_file') {
+									stepInfo += `: ${inputObj.file_path}`;
+								} else if (name === 'execute_bash' || name === 'bash') {
+									stepInfo += `: ${inputObj.command?.slice(0, 50)}`;
+								} else if (name === 'find_files' || name === 'glob') {
+									stepInfo += `: ${inputObj.pattern}`;
+								} else if (name === 'grep') {
+									stepInfo += `: ${inputObj.pattern}`;
+								} else {
+									const keys = Object.keys(inputObj).slice(0, 2);
+									stepInfo += ': ' + keys.map(k => `${k}: ${String(inputObj[k]).slice(0, 30)}`).join(' ');
+								}
+							} catch {}
+						}
 						
 						if (step.success === false) {
 							addMessage('system', `${stepInfo} ❌`);
