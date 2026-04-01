@@ -14,7 +14,7 @@ interface Props {
 
 export function MessageList({ messages, status, currentModelName, historyRemountKey }: Props) {
 	const visibleMessages = useMemo(() => {
-		const maxVisible = 200;
+		const maxVisible = 8000;
 		if (messages.length > maxVisible) {
 			return messages.slice(-maxVisible);
 		}

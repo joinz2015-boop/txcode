@@ -103,7 +103,7 @@ export function useChat(options: UseChatOptions) {
 				content,
 				timestamp: new Date(),
 			};
-			const maxMessages = 500;
+			const maxMessages = 8000;
 			const newMessages = [...prev, msg];
 			// 超过最大消息数时，移除最早的
 			if (newMessages.length > maxMessages) {
