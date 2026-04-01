@@ -128,6 +128,10 @@ export default {
     sessionId: {
       type: String,
       default: ''
+    },
+    reqBasePath: {
+      type: String,
+      default: ''
     }
   },
   data() {
@@ -157,7 +161,7 @@ export default {
     },
     specFilePath() {
       if (!this.projectKey) return '等待选择项目...'
-      return `E:\\ai\\txcode\\.txcode\\req\\${this.projectKey}\\${this.projectName}_方案.md`
+      return `${this.reqBasePath}\\${this.projectKey}\\${this.projectName}_方案.md`
     }
   },
   watch: {

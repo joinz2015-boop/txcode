@@ -49,6 +49,7 @@
           :project-key="projectKey"
           :spec-content="currentSpecContent"
           :session-id="currentSessionId"
+          :req-base-path="reqBasePath"
           @update:sessionId="updateDesignSessionId"
           @save-spec="onSaveSpec"
           @spec-updated="refreshSpec"
@@ -59,6 +60,7 @@
           v-show="currentStep === 3 && hasSelectedProject"
           :project-key="projectKey"
           :session-id="currentCodeSessionId"
+          :req-base-path="reqBasePath"
           @update:sessionId="updateCodeSessionId"
           ref="step3Ref"
         />
@@ -67,6 +69,7 @@
           v-show="currentStep === 4 && hasSelectedProject"
           :project-key="projectKey"
           :session-id="currentTestSessionId"
+          :req-base-path="reqBasePath"
           @update:sessionId="updateTestSessionId"
           ref="step4Ref"
         />
