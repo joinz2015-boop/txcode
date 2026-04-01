@@ -1,6 +1,6 @@
 {
   "name": "tianxincode",
-  "version": "1.0.12",
+  "version": "1.0.15",
   "type": "module",
   "description": "AI Coding Assistant",
   "main": "dist/index.js",
