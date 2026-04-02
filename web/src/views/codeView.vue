@@ -411,6 +411,7 @@ export default {
           this.loadMessagesForPanel(panel, panel.session.id)
         },
         done: (data) => {
+          if (data?.sessionId && panel.session?.id && data.sessionId !== panel.session.id) return
           this.stopThinking(panel)
           panel.sessionStatus = 'completed'
           if (data?.modelName) panel.modelName = data.modelName

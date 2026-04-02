@@ -190,30 +190,12 @@ export default {
       if (!content || this.disabled) return
 
       if (!this.sessionId) {
-        try {
-          const created = await api.createSession(`workflow:${this.category}/${this.name}:test`)
-          this.sessionId = created.data?.id || ''
-          if (!this.sessionId) {
-            this.$message.error('创建测试会话失败')
-            return
-          }
-          const sessionFilePath = `${this.reqBasePath}\\${this.category}\\${this.name}\\session.json`
-          let sessionData = {}
-          try {
-            const fileRes = await api.getFileContent(sessionFilePath)
-            if (fileRes && fileRes.content) {
-              sessionData = JSON.parse(fileRes.content)
-            }
-          } catch (e) {}
-          sessionData.testSessionId = this.sessionId
-          await api.writeFile(sessionFilePath, JSON.stringify(sessionData, null, 2))
-          this.$emit('update:sessionId', this.sessionId)
-          this.subscribeSession()
-        } catch (e) {
-          console.error('Create test session failed:', e)
-          this.$message.error('创建测试会话失败')
-          return
-        }
+        this.$message.error('会话不存在，请刷新页面')
+        return
+      }
+
+      if (!this.wsUnsubscribe) {
+        this.subscribeSession()
       }
 
       this.inputMessage = ''

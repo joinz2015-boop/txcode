@@ -7,6 +7,7 @@
 
 import { WebSocket } from 'ws';
 import { sessionService } from '../../modules/session/index.js';
+import { Session } from '../../modules/session/session.types.js';
 import { codeChatService } from '../../services/codeChat/index.js';
 import { commandChatService } from '../../services/commandChat/index.js';
 
@@ -85,6 +86,17 @@ export class CodeWebSocketHandler {
   private async handleChat(data: any): Promise<void> {
     const { message, sessionId, projectPath } = data;
 
+    if (!sessionId) {
+      this.broadcast({ type: 'error', error: 'sessionId is required' });
+      return;
+    }
+
+    const session = sessionService.get(sessionId);
+    if (!session) {
+      this.broadcast({ type: 'error', error: `Session not found: ${sessionId}` });
+      return;
+    }
+
     const existingController = this.abortControllers.get(sessionId);
     if (existingController) {
       existingController.abort();
@@ -94,19 +106,8 @@ export class CodeWebSocketHandler {
     this.abortControllers.set(sessionId, abortController);
 
     try {
-      let session = sessionId ? sessionService.get(sessionId) : null;
-      if (!session) {
-        session = sessionService.create('New Chat', projectPath);
-      }
       sessionService.switchTo(session.id);
-
-      if (session.title === 'New Chat') {
-        const chatTitle = message.length > 10 ? message.substring(0, 10) + '...' : message;
-        sessionService.update(session.id, { title: chatTitle, status: 'processing' });
-        this.broadcast({ type: 'session', data: { sessionId: session.id, title: chatTitle } });
-      } else {
-        sessionService.setProcessing(session.id);
-      }
+      sessionService.setProcessing(session.id);
 
       console.log('[CodeWebSocket] Chat message:', message);
 
@@ -116,7 +117,7 @@ export class CodeWebSocketHandler {
           sessionId: session.id,
         });
 
-        this.broadcast({ type: 'command', data: result });
+        this.broadcast({ type: 'command', data: { ...result, sessionId: session.id } });
         this.broadcast({
           type: 'done',
           data: {
@@ -129,20 +130,21 @@ export class CodeWebSocketHandler {
         sessionService.setCompleted(session.id);
         return;
       } else {
+        const currentSession = session;
         const result = await codeChatService.handleChat({
           message,
           sessionId: session.id,
           projectPath: session.projectPath ?? undefined,
           abortSignal: abortController.signal,
           onStep: (step: any, iteration: number, usage?: any) => {
-            this.broadcast({ type: 'step', data: { ...step, iteration, usage: usage ? {
+            this.broadcast({ type: 'step', data: { ...step, iteration, sessionId: currentSession.id, usage: usage ? {
               promptTokens: usage.promptTokens,
               completionTokens: usage.completionTokens,
               totalTokens: usage.totalTokens,
             } : undefined } });
           },
           onCompact: (info: { beforeTokens: number; afterTokens: number; summary?: string }) => {
-            this.broadcast({ type: 'compact', data: info });
+            this.broadcast({ type: 'compact', data: { ...info, sessionId: currentSession.id } });
           },
         });
 
@@ -170,9 +172,9 @@ export class CodeWebSocketHandler {
         errorMsg.toLowerCase().includes('abort')
       );
       if (isAbort) {
-        this.broadcast({ type: 'stopped', sessionId, reason: 'user_cancelled' });
+        this.broadcast({ type: 'stopped', sessionId: session?.id || sessionId, reason: 'user_cancelled' });
       } else {
-        this.broadcast({ type: 'error', sessionId, error: errorMsg });
+        this.broadcast({ type: 'error', sessionId: session?.id || sessionId, error: errorMsg });
       }
       sessionService.setIdle(sessionId);
     } finally {

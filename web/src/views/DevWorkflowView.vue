@@ -317,6 +317,24 @@ export default {
         console.error('Write spec file failed:', e)
       }
 
+      let sessionData = { designSessionId: '', codeSessionId: '', testSessionId: '' }
+      try {
+        const [designRes, codeRes, testRes] = await Promise.all([
+          api.createSession(`workflow:${category}/${name}:design`),
+          api.createSession(`workflow:${category}/${name}:code`),
+          api.createSession(`workflow:${category}/${name}:test`)
+        ])
+        sessionData = {
+          designSessionId: designRes.data?.id || '',
+          codeSessionId: codeRes.data?.id || '',
+          testSessionId: testRes.data?.id || ''
+        }
+        const sessionPath = `${this.reqBasePath}\\${category}\\${name}\\session.json`
+        await api.writeFile(sessionPath, JSON.stringify(sessionData, null, 2))
+      } catch (e) {
+        console.error('Create sessions failed:', e)
+      }
+
       const key = `${category}/${name}`
       this.$set(this.projects, key, { name, stepStatus: {} })
       this.currentCategory = category

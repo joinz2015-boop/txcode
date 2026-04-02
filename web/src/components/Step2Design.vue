@@ -104,6 +104,7 @@
 <script>
 import { api } from '../api'
 import { marked } from 'marked'
+import * as monaco from 'monaco-editor'
 import ModelSelectDialog from './ModelSelectDialog.vue'
 import CommandDialog from './CommandDialog.vue'
 import FileSelectDialog from './FileSelectDialog.vue'
@@ -219,25 +220,10 @@ export default {
       }
     },
     initMonacoEditor() {
-      if (window.monaco) {
+      if (this.editor) return
+      this.$nextTick(() => {
         this.createEditor()
-        return
-      }
-      if (window.require) {
-        this.createEditor()
-        return
-      }
-      const loaderScript = document.createElement('script')
-      loaderScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/loader.min.js'
-      loaderScript.onload = () => {
-        window.require.config({
-          paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs' }
-        })
-        window.require(['vs/editor/editor.main'], () => {
-          this.createEditor()
-        })
-      }
-      document.head.appendChild(loaderScript)
+      })
     },
     createEditor() {
       if (this.editor) return
@@ -269,30 +255,12 @@ export default {
       if (!content || this.disabled) return
 
       if (!this.sessionId) {
-        try {
-          const created = await api.createSession(`workflow:${this.category}/${this.name}:design`)
-          this.sessionId = created.data?.id || ''
-          if (!this.sessionId) {
-            this.$message.error('创建方案会话失败')
-            return
-          }
-          const sessionFilePath = `${this.reqBasePath}\\${this.category}\\${this.name}\\session.json`
-          let sessionData = {}
-          try {
-            const fileRes = await api.getFileContent(sessionFilePath)
-            if (fileRes && fileRes.content) {
-              sessionData = JSON.parse(fileRes.content)
-            }
-          } catch (e) {}
-          sessionData.designSessionId = this.sessionId
-          await api.writeFile(sessionFilePath, JSON.stringify(sessionData, null, 2))
-          this.$emit('update:sessionId', this.sessionId)
-          this.subscribeSession()
-        } catch (e) {
-          console.error('Create design session failed:', e)
-          this.$message.error('创建方案会话失败')
-          return
-        }
+        this.$message.error('会话不存在，请刷新页面')
+        return
+      }
+
+      if (!this.wsUnsubscribe) {
+        this.subscribeSession()
       }
 
       const contextMsg = `先在 ${this.specFilePath} 生成方案，先不要修改代码。\n\n用户输入: ${content}`
