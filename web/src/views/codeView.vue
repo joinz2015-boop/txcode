@@ -66,7 +66,7 @@
             v-model="panel.input"
             type="textarea"
             :rows="2"
-            placeholder="输入消息... (Enter 发送, @ 选择文件)"
+            placeholder="输入消息... (Enter 发送, Ctrl+Enter 换行, @ 选择文件)"
             :disabled="panel.disabled || !panel.session?.id"
             class="input-area"
             @input="onInputChange($event, panel)"
@@ -543,9 +543,20 @@ export default {
     },
 
     handleKeydown(e, panel) {
-      if (e.key === 'Enter' && e.ctrlKey) {
-        e.preventDefault()
-        this.sendToPanel(panel)
+      if (e.key === 'Enter') {
+        if (e.ctrlKey) {
+          const textarea = e.target
+          const start = textarea.selectionStart
+          const end = textarea.selectionEnd
+          const value = panel.input
+          panel.input = value.substring(0, start) + '\n' + value.substring(end)
+          this.$nextTick(() => {
+            textarea.selectionStart = textarea.selectionEnd = start + 1
+          })
+        } else {
+          e.preventDefault()
+          this.sendToPanel(panel)
+        }
       }
     },
 

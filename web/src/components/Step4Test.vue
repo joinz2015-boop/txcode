@@ -42,9 +42,10 @@
             v-model="inputMessage"
             type="textarea"
             :rows="3"
-            placeholder="输入测试要求... (Enter 发送, @ 选择文件)"
+            placeholder="输入测试要求... (Enter 发送, Ctrl+Enter 换行, @ 选择文件)"
             :disabled="disabled && !stopping"
             class="input-area"
+            @keydown.enter.native="handleKeydown"
           ></el-input>
           <div class="input-actions">
             <el-button v-if="disabled && !stopping" type="danger" @click="stopChat" class="stop-btn">
@@ -155,6 +156,23 @@ export default {
     }
   },
   methods: {
+    handleKeydown(e) {
+      if (e.key === 'Enter') {
+        if (e.ctrlKey) {
+          const textarea = e.target
+          const start = textarea.selectionStart
+          const end = textarea.selectionEnd
+          const value = this.inputMessage
+          this.inputMessage = value.substring(0, start) + '\n' + value.substring(end)
+          this.$nextTick(() => {
+            textarea.selectionStart = textarea.selectionEnd = start + 1
+          })
+        } else {
+          e.preventDefault()
+          this.sendMessage()
+        }
+      }
+    },
     async loadSession() {
       if (!this.category || !this.name) {
         this.sessionId = ''
