@@ -64,7 +64,8 @@
         </div>
         <div class="status-bar">
           <span :class="sessionStatus === 'processing' ? 'status-thinking' : 'status-ready'">
-            {{ sessionStatus === 'processing' ? dotAnimation + ' 思考中' : '✓ 就绪' }}
+            <span v-if="sessionStatus === 'processing'" class="thinking-spinner"></span>
+            {{ sessionStatus === 'processing' ? '思考中' : '✓ 就绪' }}
           </span>
           <span class="separator">|</span>
           <span class="model-selector" @click="openModelSelector" @mousedown.prevent>
@@ -125,9 +126,6 @@ export default {
       disabled: false,
       stopping: false,
       promptTokens: 0,
-      dotAnimation: '',
-      dotInterval: null,
-      dots: ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧'],
       logItems: [],
       modelName: '',
       modelSelectVisible: false,
@@ -157,9 +155,6 @@ export default {
     if (this.editor) {
       this.editor.dispose()
       this.editor = null
-    }
-    if (this.dotInterval) {
-      clearInterval(this.dotInterval)
     }
     if (this.wsUnsubscribe) {
       this.wsUnsubscribe()
@@ -270,13 +265,6 @@ export default {
       this.stopping = false
       this.logItems.push({ type: 'chat', content: content })
 
-      let dotIdx = 0
-      this.dotAnimation = this.dots[dotIdx]
-      this.dotInterval = setInterval(() => {
-        dotIdx = (dotIdx + 1) % this.dots.length
-        this.dotAnimation = this.dots[dotIdx]
-      }, 150)
-
       api.sessionWsSend(this.sessionId, 'chat', { message: contextMsg, sessionId: this.sessionId, modelName: this.modelName || undefined })
     },
     stopChat() {
@@ -314,9 +302,6 @@ export default {
         done: (data) => {
           this.disabled = false
           this.stopping = false
-          this.dotAnimation = ''
-          clearInterval(this.dotInterval)
-          this.dotInterval = null
           this.sessionStatus = 'completed'
           if (data?.modelName) this.modelName = data.modelName
           if (data?.usage?.promptTokens) this.promptTokens = data.usage.promptTokens
@@ -327,9 +312,6 @@ export default {
         stopped: () => {
           this.disabled = false
           this.stopping = false
-          this.dotAnimation = ''
-          clearInterval(this.dotInterval)
-          this.dotInterval = null
           this.sessionStatus = 'idle'
           this.logItems.push({ type: 'think', content: '【已停止】' })
           this.scrollToBottom()
@@ -338,9 +320,6 @@ export default {
           this.$message.error(data?.error || '发生错误')
           this.disabled = false
           this.stopping = false
-          this.dotAnimation = ''
-          clearInterval(this.dotInterval)
-          this.dotInterval = null
           this.sessionStatus = 'idle'
         }
       })
@@ -469,6 +448,18 @@ export default {
 .status-bar .separator { color: #3f3f46; }
 .status-ready { color: #22c55e; }
 .status-thinking { color: #60a5fa; }
+.thinking-spinner {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 2px solid #60a5fa;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
 .model-selector { cursor: pointer; }
 .model-selector:hover { color: #60a5fa; }
 </style>

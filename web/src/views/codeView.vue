@@ -357,8 +357,10 @@ export default {
     stopThinking(panel) {
       panel.disabled = false
       panel.stopping = false
+      panel.sessionStatus = 'idle'
       clearInterval(panel.dotInterval)
       panel.dotInterval = null
+      panel.dotIndex = 0
     },
 
     schedulePanelScroll(panel) {
@@ -484,8 +486,6 @@ export default {
       panel.disabled = false
       panel.stopping = false
       panel.promptTokens = 0
-      clearInterval(panel.dotInterval)
-      panel.dotInterval = null
       panel.sessionStatus = this.draggedSession.status || 'idle'
       if (panel.sessionStatus === 'processing') {
         panel.disabled = true
@@ -499,14 +499,12 @@ export default {
       const idx = panelIndex !== null ? panelIndex : this.focusedPanelIndex
       if (idx >= 0 && idx < this.activeSessions.length) {
         const panel = this.activeSessions[idx]
+        const isProcessing = session.status === 'processing'
         Object.assign(panel, {
-          session, logItems: [], userQuestion: '', disabled: false,
-          stopping: false, promptTokens: 0, dotInterval: null, compactionRatio: 0,
+          session, logItems: [], userQuestion: '', disabled: isProcessing,
+          stopping: false, promptTokens: 0, compactionRatio: 0,
           sessionStatus: session.status || 'idle'
         })
-        if (panel.sessionStatus === 'processing') {
-          panel.disabled = true
-        }
         this.loadMessagesForPanel(panel, session.id)
         this.subscribePanel(panel)
       }
@@ -545,9 +543,10 @@ export default {
     },
 
     handleKeydown(e, panel) {
-      if (e.shiftKey) return
-      e.preventDefault()
-      this.sendToPanel(panel)
+      if (e.key === 'Enter' && e.ctrlKey) {
+        e.preventDefault()
+        this.sendToPanel(panel)
+      }
     },
 
     loadMore() {
