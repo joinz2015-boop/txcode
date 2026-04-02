@@ -582,4 +582,14 @@ export const api = {
     const ws = terminalWsInstances.get(sessionId);
     return ws && ws.readyState === WebSocket.OPEN;
   },
+
+  // ==================== 工作流状态管理 ====================
+
+  getWorkflowState() {
+    return request('GET', '/workflow/state');
+  },
+
+  updateWorkflowState(currentCategory, currentProject, currentStep) {
+    return request('PUT', '/workflow/state', { currentCategory, currentProject, currentStep });
+  },
 };

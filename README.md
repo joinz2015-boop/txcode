@@ -21,7 +21,8 @@ npm install -g tianxincode
 txcode web
 ```
 
-访问http://localhost:4000 页面设置里配置模型提供商和模型，然后可以web端交互，也可以ctrl+c 关闭后启动命令行方式
+访问http://localhost:4000 页面 设置里配置模型提供商和模型，然后可以web端交互，也可以ctrl+c 关闭后启动命令行方式
+![配置提供商和模型](./doc/001.png)
 
 ```bash
 txcode

@@ -4,7 +4,7 @@
       <div class="editor-panel">
         <div class="editor-header">
           <i class="el-icon-document"></i>
-          <span id="spec-file-path">{{ specFilePath }}</span>
+          <span>{{ specFilePath }}</span>
         </div>
         <div class="editor-container" ref="editorContainer"></div>
       </div>
@@ -73,8 +73,7 @@
           <span class="separator">|</span>
           <span>会话：{{ sessionId ? sessionId.slice(0, 8) : '--------' }}</span>
           <span class="separator">|</span>
-          <span>token：(<span :class="promptTokens > 50000 ? 'token-warning' : ''">{{ promptTokens || 0 }}{{ promptTokens > 50000 && !compactionRatio ? ' 会话太大推荐用/compact压缩会话' : '' }}</span>)</span>
-          <span v-if="compactionRatio" class="compaction-info">{{ compactionRatio }}%压缩</span>
+          <span>token：{{ promptTokens || 0 }}</span>
           <span class="separator">|</span>
           <span class="status-action" @click="openCommandDialog" @mousedown.prevent>命令</span>
           <span class="separator">|</span>
@@ -113,35 +112,18 @@ export default {
   name: 'Step2Design',
   components: { ModelSelectDialog, CommandDialog, FileSelectDialog },
   props: {
-    projectKey: {
-      type: String,
-      default: ''
-    },
-    specContent: {
-      type: String,
-      default: ''
-    },
-    chatMessages: {
-      type: Array,
-      default: () => []
-    },
-    sessionId: {
-      type: String,
-      default: ''
-    },
-    reqBasePath: {
-      type: String,
-      default: ''
-    }
+    category: { type: String, default: '' },
+    name: { type: String, default: '' },
+    reqBasePath: { type: String, default: '' }
   },
   data() {
     return {
       editor: null,
+      specContent: '',
       inputMessage: '',
       disabled: false,
       stopping: false,
       promptTokens: 0,
-      compactionRatio: 0,
       dotAnimation: '',
       dotInterval: null,
       dots: ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧'],
@@ -150,46 +132,30 @@ export default {
       modelSelectVisible: false,
       commandDialogVisible: false,
       fileSelectVisible: false,
-      wsUnsubscribers: [],
+      sessionId: '',
       sessionStatus: 'idle'
     }
   },
   computed: {
-    projectName() {
-      if (!this.projectKey) return ''
-      const parts = this.projectKey.split('/')
-      return parts[parts.length - 1] || ''
-    },
     specFilePath() {
-      if (!this.projectKey) return '等待选择项目...'
-      return `${this.reqBasePath}\\${this.projectKey}\\${this.projectName}_方案.md`
+      if (!this.category || !this.name) return '等待选择需求...'
+      return `${this.reqBasePath}\\${this.category}\\${this.name}\\${this.name}_方案.md`
     }
   },
   watch: {
-    specContent: {
-      immediate: true,
-      handler(val) {
-        this.syncEditorContent(val)
-      }
-    },
-    sessionId: {
-      immediate: true,
-      handler(val) {
-        if (val) {
-          this.loadMessages()
-          this.subscribeSession()
-        }
-      }
-    }
+    category: { handler() { this.loadData() } },
+    name: { handler() { this.loadData() } }
   },
-  mounted() {
+  async mounted() {
     this.initMonacoEditor()
-    this.loadDefaultModel()
+    await this.loadData()
+    await this.loadDefaultModel()
     api.ws.init()
   },
   beforeDestroy() {
     if (this.editor) {
       this.editor.dispose()
+      this.editor = null
     }
     if (this.dotInterval) {
       clearInterval(this.dotInterval)
@@ -199,6 +165,52 @@ export default {
     }
   },
   methods: {
+    async loadData() {
+      await Promise.all([this.loadSpec(), this.loadSession()])
+    },
+    async loadSpec() {
+      if (!this.category || !this.name) {
+        this.specContent = '# 选择或创建需求项目开始设计\n'
+        this.syncEditorContent(this.specContent)
+        return
+      }
+      try {
+        const specPath = this.specFilePath
+        const res = await api.getFileContent(specPath)
+        this.specContent = res.content || ''
+        this.syncEditorContent(this.specContent)
+      } catch (e) {
+        console.error('Load spec failed:', e)
+        this.specContent = ''
+        this.syncEditorContent('')
+      }
+    },
+    async loadSession() {
+      if (!this.category || !this.name) {
+        this.sessionId = ''
+        return
+      }
+      try {
+        const sessionFilePath = `${this.reqBasePath}\\${this.category}\\${this.name}\\session.json`
+        const fileRes = await api.getFileContent(sessionFilePath)
+        if (fileRes && fileRes.content) {
+          const sessionData = JSON.parse(fileRes.content)
+          this.sessionId = sessionData.designSessionId || ''
+        } else {
+          this.sessionId = ''
+        }
+        if (this.sessionId) {
+          await this.loadMessages()
+          this.subscribeSession()
+        } else {
+          this.logItems = []
+        }
+      } catch (e) {
+        console.error('Load session failed:', e)
+        this.sessionId = ''
+        this.logItems = []
+      }
+    },
     syncEditorContent(content) {
       if (!this.editor || content === undefined || content === null) return
       const next = String(content)
@@ -242,7 +254,6 @@ export default {
         automaticLayout: true,
         padding: { top: 16 }
       })
-
       this.editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
         this.saveSpec()
       })
@@ -253,27 +264,30 @@ export default {
       const content = this.editor.getValue()
       this.$emit('save-spec', content)
     },
-    handleKeydown(e) {
-      if (e.shiftKey) return
-      e.preventDefault()
-      this.sendMessage()
-    },
     async sendMessage() {
       const content = this.inputMessage.trim()
       if (!content || this.disabled) return
 
-      let activeSessionId = this.sessionId
-      if (!activeSessionId) {
+      if (!this.sessionId) {
         try {
-          const created = await api.createSession(`[方案设计] ${this.projectKey}`)
-          activeSessionId = created.data?.id || ''
-          if (!activeSessionId) {
+          const created = await api.createSession(`workflow:${this.category}/${this.name}:design`)
+          this.sessionId = created.data?.id || ''
+          if (!this.sessionId) {
             this.$message.error('创建方案会话失败')
             return
           }
-          this.$emit('update:sessionId', activeSessionId)
-          this.wsConnected = false
-          this.initWs(activeSessionId)
+          const sessionFilePath = `${this.reqBasePath}\\${this.category}\\${this.name}\\session.json`
+          let sessionData = {}
+          try {
+            const fileRes = await api.getFileContent(sessionFilePath)
+            if (fileRes && fileRes.content) {
+              sessionData = JSON.parse(fileRes.content)
+            }
+          } catch (e) {}
+          sessionData.designSessionId = this.sessionId
+          await api.writeFile(sessionFilePath, JSON.stringify(sessionData, null, 2))
+          this.$emit('update:sessionId', this.sessionId)
+          this.subscribeSession()
         } catch (e) {
           console.error('Create design session failed:', e)
           this.$message.error('创建方案会话失败')
@@ -281,10 +295,7 @@ export default {
         }
       }
 
-      const specPath = this.specFilePath
-      const contextMsg = specPath && specPath !== '等待选择项目...'
-        ? `先在 ${specPath} 生成方案，先不要修改代码。\n\n用户输入: ${content}`
-        : content
+      const contextMsg = `先在 ${this.specFilePath} 生成方案，先不要修改代码。\n\n用户输入: ${content}`
 
       this.inputMessage = ''
       this.disabled = true
@@ -298,7 +309,7 @@ export default {
         this.dotAnimation = this.dots[dotIdx]
       }, 150)
 
-      api.sessionWsSend(activeSessionId, 'chat', { message: contextMsg, sessionId: activeSessionId, modelName: this.modelName || undefined })
+      api.sessionWsSend(this.sessionId, 'chat', { message: contextMsg, sessionId: this.sessionId, modelName: this.modelName || undefined })
     },
     stopChat() {
       if (!this.sessionId || this.stopping) return
@@ -323,11 +334,6 @@ export default {
           if (data?.todos) this.logItems.push({ type: 'todos', todos: data.todos })
           this.scrollToBottom()
         },
-        session: (data) => {
-          if (data?.sessionId && !this.sessionId) {
-            this.$emit('update:sessionId', data.sessionId)
-          }
-        },
         step: (data) => {
           this.logItems.push({ type: 'step', thought: data.thought, toolCalls: data.toolCalls, success: data.success })
           if (data.usage?.promptTokens) this.promptTokens = data.usage.promptTokens
@@ -347,7 +353,6 @@ export default {
           if (data?.modelName) this.modelName = data.modelName
           if (data?.usage?.promptTokens) this.promptTokens = data.usage.promptTokens
           if (data?.response) this.logItems.push({ type: 'think', content: data.response })
-          this.$emit('messages-updated', this.logItems)
           this.$emit('spec-updated')
           this.scrollToBottom()
         },
@@ -385,7 +390,6 @@ export default {
       try {
         const res = await api.getMessages(this.sessionId)
         this.logItems = res.data || []
-        this.$emit('messages-updated', this.logItems)
       } catch (e) {
         console.error('Load messages failed:', e)
       }
@@ -470,164 +474,33 @@ export default {
 </script>
 
 <style scoped>
-.step2-container {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-}
-
-.step2-main {
-  display: flex;
-  flex: 1;
-  gap: 16px;
-  overflow: hidden;
-  padding: 16px;
-}
-
-.editor-panel {
-  flex: 1;
-  min-width: 300px;
-  background: #121212;
-  border: 1px solid #1e1e1e;
-  border-radius: 8px;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
-.editor-header {
-  background: #121212;
-  border-bottom: 1px solid #1e1e1e;
-  padding: 12px 16px;
-  font-size: 13px;
-  color: #84848a;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.editor-container {
-  flex: 1;
-  min-height: 0;
-}
-
-.chat-panel {
-  width: 480px;
-  background: #121212;
-  border: 1px solid #1e1e1e;
-  border-radius: 8px;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  flex-shrink: 0;
-}
-
-.panel-header {
-  background: #121212;
-  border-bottom: 1px solid #1e1e1e;
-  padding: 12px 16px;
-  font-size: 14px;
-  font-weight: 500;
-  color: #f4f4f5;
-  flex-shrink: 0;
-}
-
-.chat-messages {
-  flex: 1;
-  overflow-y: auto;
-  padding: 0 16px 16px;
-  font-size: 14px;
-  line-height: 1.6;
-}
-
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  color: #84848a;
-}
-
-.empty-state i {
-  font-size: 48px;
-  margin-bottom: 16px;
-  opacity: 0.5;
-}
-
+.step2-container { height: 100%; display: flex; flex-direction: column; }
+.step2-main { display: flex; flex: 1; gap: 16px; overflow: hidden; padding: 16px; }
+.editor-panel { flex: 1; min-width: 300px; background: #121212; border: 1px solid #1e1e1e; border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; }
+.editor-header { background: #121212; border-bottom: 1px solid #1e1e1e; padding: 12px 16px; font-size: 13px; color: #84848a; display: flex; align-items: center; gap: 8px; }
+.editor-container { flex: 1; min-height: 0; }
+.chat-panel { width: 480px; background: #121212; border: 1px solid #1e1e1e; border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; flex-shrink: 0; }
+.panel-header { background: #121212; border-bottom: 1px solid #1e1e1e; padding: 12px 16px; font-size: 14px; font-weight: 500; color: #f4f4f5; flex-shrink: 0; }
+.chat-messages { flex: 1; overflow-y: auto; padding: 0 16px 16px; font-size: 14px; line-height: 1.6; }
+.empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #84848a; }
+.empty-state i { font-size: 48px; margin-bottom: 16px; opacity: 0.5; }
 .todos-list { margin-bottom: 16px; color: #d4d4d8; }
 .todo-item { display: flex; align-items: center; gap: 8px; padding: 2px 0; }
-.todo-status, .todo-name { font-size: 14px; }
 .user-question { color: #60a5fa; font-weight: bold; margin-bottom: 16px; }
-.user-question :deep(p) { color: #d4d4d8; font-weight: normal; margin: 0 0 8px 0; font-size: 14px; line-height: 1.6; }
-.user-question :deep(strong) { color: #fff; }
-.user-question :deep(code) { background: #27272a; padding: 2px 6px; border-radius: 4px; color: #60a5fa; font-size: 13px; }
-.user-question :deep(pre) { background: #1e1e1e; padding: 12px; border-radius: 6px; overflow-x: auto; margin: 8px 0; font-size: 13px; }
-.user-question :deep(ul), .user-question :deep(ol) { margin: 8px 0; padding-left: 20px; color: #d4d4d8; }
-.user-question :deep(li) { margin: 4px 0; color: #d4d4d8; }
-.user-question :deep(h1), .user-question :deep(h2), .user-question :deep(h3) { color: #fff; margin: 12px 0 8px 0; }
-.user-question :deep(h1) { font-size: 20px; }
-.user-question :deep(h2) { font-size: 18px; }
-.user-question :deep(h3) { font-size: 16px; }
-.user-question :deep(table) { border-collapse: collapse; margin: 8px 0; width: 100%; }
-.user-question :deep(th), .user-question :deep(td) { border: 1px solid #3f3f46; padding: 6px 10px; color: #d4d4d8; }
-.user-question :deep(th) { background: #1e1e1e; color: #fff; }
-.user-question :deep(blockquote) { border-left: 3px solid #409EFF; padding-left: 12px; margin: 8px 0; color: #a1a1aa; }
-.user-question :deep(hr) { border: none; border-top: 1px solid #3f3f46; margin: 12px 0; }
-.ai-thought { color: #d4d4d8; margin-bottom: 16px; font-size: 14px; line-height: 1.6; }
-.ai-thought :deep(p) { margin: 0 0 8px 0; }
-.ai-thought :deep(strong) { color: #fff; }
-.ai-thought :deep(code) { background: #27272a; padding: 2px 6px; border-radius: 4px; color: #60a5fa; font-size: 13px; }
-.ai-thought :deep(pre) { background: #1e1e1e; padding: 12px; border-radius: 6px; overflow-x: auto; margin: 8px 0; }
-.ai-thought :deep(ul), .ai-thought :deep(ol) { margin: 8px 0; padding-left: 20px; }
-.ai-thought :deep(li) { margin: 4px 0; }
-.ai-thought :deep(h1), .ai-thought :deep(h2), .ai-thought :deep(h3) { color: #fff; margin: 12px 0 8px 0; }
-.ai-thought :deep(table) { border-collapse: collapse; margin: 8px 0; width: 100%; }
-.ai-thought :deep(th), .ai-thought :deep(td) { border: 1px solid #3f3f46; padding: 6px 10px; }
-.ai-thought :deep(th) { background: #1e1e1e; }
-.ai-thought :deep(blockquote) { border-left: 3px solid #409EFF; padding-left: 12px; margin: 8px 0; color: #a1a1aa; }
+.user-question :deep(p) { color: #d4d4d8; font-weight: normal; margin: 0 0 8px 0; }
+.ai-thought { color: #d4d4d8; margin-bottom: 16px; }
 .log-mute { color: #84848a; margin-bottom: 16px; white-space: pre; }
 .tool-success { color: #22c55e; }
 .tool-fail { color: #ef4444; }
 .tool-input { color: #60a5fa; margin-left: 8px; }
 .build-info { color: #84848a; display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
-.build-info .icon { color: #60a5fa; font-size: 12px; }
-
-.chat-input-area {
-  border-top: 1px solid #1e1e1e;
-  padding: 12px 16px;
-  background: #121212;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  flex-shrink: 0;
-}
-
+.chat-input-area { border-top: 1px solid #1e1e1e; padding: 12px 16px; background: #121212; display: flex; flex-direction: column; gap: 8px; flex-shrink: 0; }
 .input-area { width: 100%; }
 .input-actions { display: flex; justify-content: flex-end; gap: 8px; }
-.send-btn, .stop-btn { height: auto; }
-
-.status-bar {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  padding: 6px 16px;
-  font-size: 12px;
-  color: #84848a;
-  border-top: 1px solid #1e1e1e;
-  flex-shrink: 0;
-  flex-wrap: wrap;
-  background: #0a0a09;
-}
-
+.status-bar { display: flex; gap: 8px; align-items: center; padding: 6px 16px; font-size: 12px; color: #84848a; border-top: 1px solid #1e1e1e; flex-shrink: 0; flex-wrap: wrap; background: #0a0a09; }
 .status-bar .separator { color: #3f3f46; }
 .status-ready { color: #22c55e; }
 .status-thinking { color: #60a5fa; }
-.token-warning { color: #ef4444; }
-.compaction-info { color: #22c55e; margin-left: 8px; }
 .model-selector { cursor: pointer; }
 .model-selector:hover { color: #60a5fa; }
-.status-action { cursor: pointer; }
-.status-action:hover { color: #60a5fa; }
-.system-message { color: #a78bfa; font-size: 13px; margin-bottom: 16px; padding: 8px 12px; background: #1e1e1e; border-radius: 6px; }
 </style>
