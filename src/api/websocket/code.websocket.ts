@@ -91,10 +91,10 @@ export class CodeWebSocketHandler {
       return;
     }
 
-    const session = sessionService.get(sessionId);
+    let session = sessionService.get(sessionId);
     if (!session) {
-      this.broadcast({ type: 'error', error: `Session not found: ${sessionId}` });
-      return;
+      const title = message.length > 10 ? message.slice(0, 10) + '...' : message;
+      session = sessionService.createWithId(sessionId, title);
     }
 
     const existingController = this.abortControllers.get(sessionId);

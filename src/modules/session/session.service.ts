@@ -83,25 +83,16 @@ export class SessionService {
    * @returns {Session} 创建的会话对象
    */
   create(title: string, projectPath?: string): Session {
-    // ========== 生成会话 ID ==========
-    // 使用 uuid 库生成全局唯一标识符
-    const id = uuidv4();
-    
-    // ========== 插入数据库 ==========
-    // 执行 INSERT 语句，将会话信息存入数据库
+    return this.createWithId(uuidv4(), title, projectPath);
+  }
+
+  createWithId(id: string, title: string, projectPath?: string): Session {
     this.db.run(
       'INSERT INTO sessions (id, title, project_path) VALUES (?, ?, ?)',
-      [id, title, projectPath || null]  // projectPath 为 null 如果未提供
+      [id, title, projectPath || null]
     );
-    
-    // ========== 获取会话对象 ==========
-    // 从数据库读取刚创建的会话，确保数据一致性
     const session = this.get(id)!;
-    
-    // ========== 更新内存缓存 ==========
-    // unshift 将新会话添加到数组最前面 (最新的会话排在前面)
     this.state.sessions.unshift(session);
-    
     return session;
   }
 
