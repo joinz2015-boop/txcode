@@ -16,9 +16,9 @@ let terminalWsInstances = new Map();
 function getWsUrl(sessionId = null) {
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   if (sessionId) {
-    return `${protocol}//${window.location.host}/ws/${sessionId}`;
+    return `${protocol}//${window.location.host}/ws/code`;
   }
-  return `${protocol}//${window.location.host}/ws`;
+  return `${protocol}//${window.location.host}/ws/code`;
 }
 
 async function request(method, path, data = null) {
@@ -517,7 +517,7 @@ export const api = {
       }
     }
 
-    const wsUrl = getWsUrl(sessionId);
+    const wsUrl = getWsUrl();
     const ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {
