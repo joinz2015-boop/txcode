@@ -134,12 +134,14 @@
 </template>
 
 <script>
-import { api } from '../api'
 import { marked } from 'marked'
 import SessionsPanel from '../components/SessionsPanel.vue'
 import FileSelectDialog from '../components/FileSelectDialog.vue'
 import ModelSelectDialog from '../components/ModelSelectDialog.vue'
 import CommandDialog from '../components/CommandDialog.vue'
+import { ws } from '../api/websocket/websocket_client.js'
+import * as sessions from '../api/sessions.js'
+import * as config from '../api/config.js'
 
 export default {
   name: 'CodeView',
@@ -195,11 +197,10 @@ export default {
   },
 
   async mounted() {
-    await this.loadSessionStatuses()
+    // 会话状态通过 WebSocket running_sessions 消息自动更新，无需额外请求
   },
 
   activated() {
-    api.ws.init()
     this.activeSessions.forEach(panel => {
       if (panel.session?.id) {
         this.subscribePanel(panel)
@@ -251,7 +252,7 @@ export default {
         const parts = model.name.split('/')
         const modelName = parts.length > 2 ? parts.slice(1).join('/') : model.name
         this.selectedPanel.modelName = modelName
-        api.setConfig('defaultModel', modelName)
+        config.setConfig('defaultModel', modelName)
       }
     },
 
@@ -375,7 +376,7 @@ export default {
     },
 
     initGlobalWs() {
-      api.ws.init()
+      ws.init()
     },
 
     subscribePanel(panel) {
@@ -385,7 +386,11 @@ export default {
         panel.wsUnsubscribe()
       }
 
-      panel.wsUnsubscribe = api.wsSubscribe(panel.session.id, {
+      panel.wsUnsubscribe = ws.subscribe(panel.session.id, {
+        running_sessions: (data) => {
+          const runningIds = data?.runningSessionIds || []
+          this.updateSessionStatusesFromRunning(runningIds)
+        },
         todos: (data) => {
           this.pushLogItem(panel, { type: 'todos', todos: data.todos })
           this.$nextTick(() => this.schedulePanelScroll(panel))
@@ -447,6 +452,23 @@ export default {
       this.activeSessions = newActive
     },
 
+    updateSessionStatusesFromRunning(runningSessionIds) {
+      const runningSet = new Set(runningSessionIds || [])
+      
+      for (const session of this.sessions) {
+        const isRunning = runningSet.has(session.id)
+        session.status = isRunning ? 'processing' : 'idle'
+      }
+      
+      for (const panel of this.activeSessions) {
+        if (panel.session?.id) {
+          const isRunning = runningSet.has(panel.session.id)
+          panel.sessionStatus = isRunning ? 'processing' : 'idle'
+          panel.disabled = isRunning
+        }
+      }
+    },
+
     onDragStart(event, session) {
       this.draggedSession = session
       event.dataTransfer.effectAllowed = 'move'
@@ -491,7 +513,7 @@ export default {
 
     async loadMessagesForPanel(panel, sessionId) {
       try {
-        const res = await api.getMessages(sessionId)
+        const res = await sessions.getMessages(sessionId)
         panel.logItems = (res.data || []).map(item => {
           if (item.type === 'think') return this.withLogId(this.createThinkItem(item.content || ''))
           if (item.type === 'step') return this.withLogId(this.createStepItem(item))
@@ -510,7 +532,7 @@ export default {
 
     async loadSessions() {
       try {
-        const res = await api.getSessions()
+        const res = await sessions.getSessions()
         this.sessions = res.data || []
         this.page = 1
         this.displayedSessions = this.sessions.slice(0, this.pageSize)
@@ -518,28 +540,6 @@ export default {
         this.updateActiveSessions()
       } catch (e) {
         console.error('加载会话失败:', e)
-      }
-    },
-
-    async loadSessionStatuses() {
-      const sessionIds = this.sessions.map(s => s.id)
-      if (sessionIds.length === 0) return
-      try {
-        const res = await api.getSessionStatuses(sessionIds)
-        const statusMap = new Map((res.data || []).map(item => [item.sessionId, item.status]))
-        for (const session of this.sessions) {
-          session.status = statusMap.get(session.id) || 'idle'
-        }
-        for (const panel of this.activeSessions) {
-          if (panel.session?.id) {
-            panel.sessionStatus = statusMap.get(panel.session.id) || 'idle'
-            if (panel.sessionStatus === 'processing') {
-              panel.disabled = true
-            }
-          }
-        }
-      } catch (e) {
-        console.error('加载会话状态失败:', e)
       }
     },
 
@@ -560,7 +560,7 @@ export default {
 
     async createSession() {
       try {
-        const res = await api.createSession('新会话')
+        const res = await sessions.createSession('新会话')
         this.sessions.unshift(res.data)
         this.page = 1
         this.displayedSessions = this.sessions.slice(0, this.pageSize)
@@ -582,7 +582,7 @@ export default {
 
     async loadDefaultModel(session) {
       try {
-        const configRes = await api.getConfig('defaultModel')
+        const configRes = await config.getConfig('defaultModel')
         if (configRes.data?.value) {
           const panel = this.activeSessions[this.focusedPanelIndex]
           if (panel && panel.session?.id === session.id) {
@@ -604,13 +604,13 @@ export default {
       panel.userQuestion = content
       this.pushLogItem(panel, { type: 'chat', content: content })
 
-      api.sessionWsSend(panel.session.id, 'chat', { message: content, sessionId: panel.session?.id, modelName: panel.modelName || undefined })
+      ws.send('chat', { message: content, sessionId: panel.session?.id, modelName: panel.modelName || undefined })
     },
 
     stopPanel(panel) {
       if (!panel.session?.id || panel.stopping) return
       panel.stopping = true
-      api.sessionWsSend(panel.session.id, 'stop', { sessionId: panel.session.id })
+      ws.send('stop', { sessionId: panel.session.id })
     },
 
     async handleSessionCommand(cmd, session) {
@@ -623,7 +623,7 @@ export default {
           inputErrorMessage: '名称不能为空'
         }).then(async ({ value }) => {
           try {
-            await api.updateSession(session.id, { title: value })
+            await sessions.updateSession(session.id, { title: value })
             session.title = value
             if (this.currentSession?.id === session.id) this.currentSession.title = value
             this.$message.success('重命名成功')
@@ -638,7 +638,7 @@ export default {
           type: 'warning'
         }).then(async () => {
           try {
-            await api.deleteSession(session.id)
+            await sessions.deleteSession(session.id)
             const idx = this.sessions.findIndex(s => s.id === session.id)
             if (idx > -1) this.sessions.splice(idx, 1)
             const displayIdx = this.displayedSessions.findIndex(s => s.id === session.id)

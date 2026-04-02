@@ -160,14 +160,13 @@ export default {
         if (val) {
           this.subscribeSession()
           this.loadMessages()
-          this.loadSessionStatus()
         }
       }
     }
   },
   mounted() {
     this.loadDefaultModel()
-    api.ws.connect()
+    api.ws.init()
   },
   beforeDestroy() {
     if (this.dotInterval) {
@@ -240,6 +239,12 @@ export default {
       }
       if (!this.sessionId) return
       this.wsUnsubscribe = api.ws.subscribe(this.sessionId, {
+        running_sessions: (data) => {
+          const runningIds = data?.runningSessionIds || []
+          const isRunning = runningIds.includes(this.sessionId)
+          this.sessionStatus = isRunning ? 'processing' : 'idle'
+          this.disabled = isRunning
+        },
         todos: (data) => {
           if (data?.todos) this.logItems.push({ type: 'todos', todos: data.todos })
         },
@@ -307,21 +312,6 @@ export default {
         this.logItems = res.data || []
       } catch (e) {
         console.error('Load messages failed:', e)
-      }
-    },
-    async loadSessionStatus() {
-      if (!this.sessionId) return
-      try {
-        const res = await api.getSessionStatuses([this.sessionId])
-        const item = (res.data || []).find(s => s.sessionId === this.sessionId)
-        if (item) {
-          this.sessionStatus = item.status
-          if (item.status === 'processing') {
-            this.disabled = true
-          }
-        }
-      } catch (e) {
-        console.error('Load session status failed:', e)
       }
     },
     async loadDefaultModel() {

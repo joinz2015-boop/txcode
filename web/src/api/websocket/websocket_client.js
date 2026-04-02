@@ -1,12 +1,3 @@
-/**
- * WebSocket 管理模块
- * 
- * 职责：
- * - 管理全局 WebSocket 连接
- * - 维护消息订阅者列表
- * - 根据 sessionId 分发消息到对应订阅者
- */
-
 const WS_URL = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws/code`;
 
 let wsInstance = null;
@@ -16,6 +7,11 @@ const MAX_RECONNECT_ATTEMPTS = 10;
 const BASE_RECONNECT_DELAY = 1000;
 
 const listeners = new Map();
+
+let sessionSubscriptions = new Map();
+
+let statusPollTimer = null;
+const STATUS_POLL_INTERVAL = 5000;
 
 function getListeners(type) {
   if (!listeners.has(type)) {
@@ -52,6 +48,7 @@ function connect() {
         clearTimeout(reconnectTimer);
         reconnectTimer = null;
       }
+      startStatusPoll();
     };
 
     wsInstance.onmessage = (e) => {
@@ -66,6 +63,7 @@ function connect() {
     wsInstance.onclose = () => {
       console.log('[WS] Closed');
       wsInstance = null;
+      stopStatusPoll();
       scheduleReconnect();
     };
 
@@ -96,6 +94,7 @@ function scheduleReconnect() {
 }
 
 function disconnect() {
+  stopStatusPoll();
   if (reconnectTimer) {
     clearTimeout(reconnectTimer);
     reconnectTimer = null;
@@ -116,6 +115,27 @@ function send(type, data) {
 
 function isConnected() {
   return wsInstance && wsInstance.readyState === WebSocket.OPEN;
+}
+
+function startStatusPoll() {
+  if (statusPollTimer) return;
+  
+  statusPollTimer = setInterval(() => {
+    if (wsInstance && wsInstance.readyState === WebSocket.OPEN) {
+      wsInstance.send(JSON.stringify({ type: 'get_running_sessions', data: {} }));
+    }
+  }, STATUS_POLL_INTERVAL);
+  
+  if (wsInstance && wsInstance.readyState === WebSocket.OPEN) {
+    wsInstance.send(JSON.stringify({ type: 'get_running_sessions', data: {} }));
+  }
+}
+
+function stopStatusPoll() {
+  if (statusPollTimer) {
+    clearInterval(statusPollTimer);
+    statusPollTimer = null;
+  }
 }
 
 export const wsManager = {
@@ -145,10 +165,16 @@ export const wsManager = {
   },
 
   subscribe(sessionId, handlers) {
-    const unsubscribers = [];
-    const messageTypes = ['todos', 'session', 'step', 'compact', 'done', 'stopped', 'error'];
+    console.log(`[WS] Subscribing to session ${sessionId} with handlers:`, Object.keys(handlers));
+    if (sessionSubscriptions.has(sessionId)) {
+      sessionSubscriptions.get(sessionId)();
+    }
 
-    for (const msgType of messageTypes) {
+    const unsubscribers = [];
+    const sessionMessageTypes = ['todos', 'session', 'step', 'compact', 'done', 'stopped', 'error'];
+    const globalMessageTypes = ['running_sessions'];
+
+    for (const msgType of sessionMessageTypes) {
       const handler = handlers[msgType];
       if (handler) {
         unsubscribers.push(
@@ -162,9 +188,29 @@ export const wsManager = {
       }
     }
 
-    return () => {
+    for (const msgType of globalMessageTypes) {
+      const handler = handlers[msgType];
+      if (handler) {
+        unsubscribers.push(
+          this.on(msgType, (msg) => {
+            handler(msg.data || msg, msg);
+          })
+        );
+      }
+    }
+
+    if (handlers.running_sessions && isConnected()) {
+      send('get_running_sessions', {});
+    }
+
+    const unsubscribe = () => {
       unsubscribers.forEach(fn => fn());
+      sessionSubscriptions.delete(sessionId);
     };
+
+    sessionSubscriptions.set(sessionId, unsubscribe);
+
+    return unsubscribe;
   },
 
   init() {
@@ -173,3 +219,4 @@ export const wsManager = {
 };
 
 export default wsManager;
+export { wsManager as ws };

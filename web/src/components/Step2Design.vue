@@ -177,7 +177,7 @@ export default {
       handler(val) {
         if (val) {
           this.loadMessages()
-          this.loadSessionStatus()
+          this.subscribeSession()
         }
       }
     }
@@ -185,7 +185,7 @@ export default {
   mounted() {
     this.initMonacoEditor()
     this.loadDefaultModel()
-    this.initGlobalWs()
+    api.ws.init()
   },
   beforeDestroy() {
     if (this.editor) {
@@ -207,6 +207,14 @@ export default {
       }
     },
     initMonacoEditor() {
+      if (window.monaco) {
+        this.createEditor()
+        return
+      }
+      if (window.require) {
+        this.createEditor()
+        return
+      }
       const loaderScript = document.createElement('script')
       loaderScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/loader.min.js'
       loaderScript.onload = () => {
@@ -214,27 +222,31 @@ export default {
           paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs' }
         })
         window.require(['vs/editor/editor.main'], () => {
-          this.editor = monaco.editor.create(this.$refs.editorContainer, {
-            value: this.specContent || '# 选择或创建需求项目开始设计\n',
-            language: 'markdown',
-            theme: 'vs-dark',
-            fontSize: 14,
-            fontFamily: "ui-monospace, SFMono-Regular, 'JetBrains Mono', Menlo, Monaco, Consolas, monospace",
-            minimap: { enabled: false },
-            lineNumbers: 'on',
-            wordWrap: 'on',
-            scrollBeyondLastLine: false,
-            automaticLayout: true,
-            padding: { top: 16 }
-          })
-
-          this.editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
-            this.saveSpec()
-          })
-          this.syncEditorContent(this.specContent)
+          this.createEditor()
         })
       }
       document.head.appendChild(loaderScript)
+    },
+    createEditor() {
+      if (this.editor) return
+      this.editor = monaco.editor.create(this.$refs.editorContainer, {
+        value: this.specContent || '# 选择或创建需求项目开始设计\n',
+        language: 'markdown',
+        theme: 'vs-dark',
+        fontSize: 14,
+        fontFamily: "ui-monospace, SFMono-Regular, 'JetBrains Mono', Menlo, Monaco, Consolas, monospace",
+        minimap: { enabled: false },
+        lineNumbers: 'on',
+        wordWrap: 'on',
+        scrollBeyondLastLine: false,
+        automaticLayout: true,
+        padding: { top: 16 }
+      })
+
+      this.editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
+        this.saveSpec()
+      })
+      this.syncEditorContent(this.specContent)
     },
     saveSpec() {
       if (!this.editor) return
@@ -293,10 +305,6 @@ export default {
       this.stopping = true
       api.sessionWsSend(this.sessionId, 'stop', { sessionId: this.sessionId })
     },
-    initGlobalWs() {
-      api.ws.init()
-      this.subscribeSession()
-    },
     subscribeSession() {
       if (!this.sessionId) return
       
@@ -305,6 +313,12 @@ export default {
       }
 
       this.wsUnsubscribe = api.wsSubscribe(this.sessionId, {
+        running_sessions: (data) => {
+          const runningIds = data?.runningSessionIds || []
+          const isRunning = runningIds.includes(this.sessionId)
+          this.sessionStatus = isRunning ? 'processing' : 'idle'
+          this.disabled = isRunning
+        },
         todos: (data) => {
           if (data?.todos) this.logItems.push({ type: 'todos', todos: data.todos })
           this.scrollToBottom()
@@ -374,21 +388,6 @@ export default {
         this.$emit('messages-updated', this.logItems)
       } catch (e) {
         console.error('Load messages failed:', e)
-      }
-    },
-    async loadSessionStatus() {
-      if (!this.sessionId) return
-      try {
-        const res = await api.getSessionStatuses([this.sessionId])
-        const item = (res.data || []).find(s => s.sessionId === this.sessionId)
-        if (item) {
-          this.sessionStatus = item.status
-          if (item.status === 'processing') {
-            this.disabled = true
-          }
-        }
-      } catch (e) {
-        console.error('Load session status failed:', e)
       }
     },
     async loadDefaultModel() {

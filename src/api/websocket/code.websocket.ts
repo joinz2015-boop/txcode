@@ -54,9 +54,20 @@ export class CodeWebSocketHandler {
       case 'ping':
         ws.send(JSON.stringify({ type: 'pong' }));
         break;
+      case 'get_running_sessions':
+        this.handleGetRunningSessions(ws);
+        break;
       default:
         ws.send(JSON.stringify({ type: 'error', error: 'Unknown message type' }));
     }
+  }
+
+  private handleGetRunningSessions(ws: WebSocket): void {
+    const sessions = sessionService.getAll();
+    const runningSessionIds = sessions
+      .filter(s => s.status === 'processing')
+      .map(s => s.id);
+    ws.send(JSON.stringify({ type: 'running_sessions', data: { runningSessionIds } }));
   }
 
   private handleStop(data: any): void {

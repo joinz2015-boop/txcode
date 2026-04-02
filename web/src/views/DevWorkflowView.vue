@@ -45,7 +45,7 @@
         />
 
         <Step2Design
-          v-show="currentStep === 2 && hasSelectedProject"
+          v-if="currentStep === 2 && hasSelectedProject"
           :project-key="projectKey"
           :spec-content="currentSpecContent"
           :session-id="currentSessionId"
@@ -57,7 +57,7 @@
         />
 
         <Step3CodeGen
-          v-show="currentStep === 3 && hasSelectedProject"
+          v-if="currentStep === 3 && hasSelectedProject"
           :project-key="projectKey"
           :session-id="currentCodeSessionId"
           :req-base-path="reqBasePath"
@@ -66,7 +66,7 @@
         />
 
         <Step4Test
-          v-show="currentStep === 4 && hasSelectedProject"
+          v-if="currentStep === 4 && hasSelectedProject"
           :project-key="projectKey"
           :session-id="currentTestSessionId"
           :req-base-path="reqBasePath"
