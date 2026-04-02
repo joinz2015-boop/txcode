@@ -18,6 +18,7 @@ import { terminalRouter } from './terminal.routes.js';
 import { schedulerRouter } from './scheduler.routes.js';
 import { emailRouter } from './email.routes.js';
 import { workflowRouter } from './workflow.routes.js';
+import { gitRouter } from './git.routes.js';
 
 export const apiRouter = Router();
 
@@ -36,5 +37,6 @@ apiRouter.use('/terminal', terminalRouter);
 apiRouter.use('/tasks', schedulerRouter);
 apiRouter.use('/email', emailRouter);
 apiRouter.use('/workflow', workflowRouter);
+apiRouter.use('/git', gitRouter);
 
 export type * from './api.types.js';

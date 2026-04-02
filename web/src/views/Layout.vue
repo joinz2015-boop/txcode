@@ -28,6 +28,9 @@
           <router-link to="/files" class="w-10 h-10 mb-2 rounded flex items-center justify-center" :class="$route.name === 'files' ? 'text-white border-l-2 border-accent bg-sidebar' : 'text-textMuted hover:text-white border-l-2 border-transparent'" title="文件">
             <i class="fa-solid fa-folder-open text-xl"></i>
           </router-link>
+          <router-link to="/git-changes" class="w-10 h-10 mb-2 rounded flex items-center justify-center" :class="$route.name === 'gitChanges' ? 'text-white border-l-2 border-accent bg-sidebar' : 'text-textMuted hover:text-white border-l-2 border-transparent'" title="Git 变更">
+            <i class="fa-brands fa-git-alt text-xl"></i>
+          </router-link>
           <router-link to="/terminal" class="w-10 h-10 mb-2 rounded flex items-center justify-center" :class="$route.name === 'terminal' || $route.name === 'terminal-session' ? 'text-white border-l-2 border-accent bg-sidebar' : 'text-textMuted hover:text-white border-l-2 border-transparent'" title="终端">
             <i class="fa-solid fa-terminal text-xl"></i>
           </router-link>

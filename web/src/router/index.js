@@ -81,6 +81,11 @@ const routes = [
         name: 'settings',
         component: Settings,
       },
+      {
+        path: 'git-changes',
+        name: 'gitChanges',
+        component: () => import('../views/GitChanges.vue'),
+      },
     ],
   },
 ];

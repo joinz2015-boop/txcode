@@ -592,4 +592,34 @@ export const api = {
   updateWorkflowState(currentCategory, currentProject, currentStep) {
     return request('PUT', '/workflow/state', { currentCategory, currentProject, currentStep });
   },
+
+  // ==================== Git 变更管理 ====================
+
+  gitIsRepo() {
+    return request('GET', '/git/is-repo');
+  },
+
+  gitStatus() {
+    return request('GET', '/git/status');
+  },
+
+  gitDiff(filePath) {
+    return request('GET', `/git/diff/${encodeURIComponent(filePath)}`);
+  },
+
+  gitRevert(filePath) {
+    return request('POST', `/git/revert/${encodeURIComponent(filePath)}`);
+  },
+
+  gitRevertAll() {
+    return request('POST', '/git/revert-all');
+  },
+
+  gitDeleteFile(filePath) {
+    return request('POST', `/git/delete-file/${encodeURIComponent(filePath)}`);
+  },
+
+  gitDiscardUntracked() {
+    return request('POST', '/git/discard-untracked');
+  },
 };
