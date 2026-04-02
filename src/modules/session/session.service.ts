@@ -83,25 +83,16 @@ export class SessionService {
    * @returns {Session} 创建的会话对象
    */
   create(title: string, projectPath?: string): Session {
-    // ========== 生成会话 ID ==========
-    // 使用 uuid 库生成全局唯一标识符
-    const id = uuidv4();
-    
-    // ========== 插入数据库 ==========
-    // 执行 INSERT 语句，将会话信息存入数据库
+    return this.createWithId(uuidv4(), title, projectPath);
+  }
+
+  createWithId(id: string, title: string, projectPath?: string): Session {
     this.db.run(
       'INSERT INTO sessions (id, title, project_path) VALUES (?, ?, ?)',
-      [id, title, projectPath || null]  // projectPath 为 null 如果未提供
+      [id, title, projectPath || null]
     );
-    
-    // ========== 获取会话对象 ==========
-    // 从数据库读取刚创建的会话，确保数据一致性
     const session = this.get(id)!;
-    
-    // ========== 更新内存缓存 ==========
-    // unshift 将新会话添加到数组最前面 (最新的会话排在前面)
     this.state.sessions.unshift(session);
-    
     return session;
   }
 
@@ -146,7 +137,7 @@ export class SessionService {
    * @param id - 会话 ID
    * @param data - 要更新的字段
    */
-  update(id: string, data: Partial<Pick<Session, 'title' | 'projectPath'>>): void {
+  update(id: string, data: Partial<Pick<Session, 'title' | 'projectPath' | 'status'>>): void {
     const updates: string[] = [];
     const values: unknown[] = [];
 
@@ -158,6 +149,10 @@ export class SessionService {
     if (data.projectPath !== undefined) {
       updates.push('project_path = ?');
       values.push(data.projectPath);
+    }
+    if (data.status !== undefined) {
+      updates.push('status = ?');
+      values.push(data.status);
     }
 
     // 如果有需要更新的字段
@@ -396,6 +391,18 @@ export class SessionService {
     );
   }
 
+  setProcessing(sessionId: string): void {
+    this.update(sessionId, { status: 'processing' });
+  }
+
+  setCompleted(sessionId: string): void {
+    this.update(sessionId, { status: 'completed' });
+  }
+
+  setIdle(sessionId: string): void {
+    this.update(sessionId, { status: 'idle' });
+  }
+
   /**
    * 获取会话统计信息
    * 
@@ -451,6 +458,7 @@ export class SessionService {
       cost: row.cost || 0,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
+      status: row.status || 'idle',
     };
   }
 }

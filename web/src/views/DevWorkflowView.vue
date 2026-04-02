@@ -1,19 +1,19 @@
 <template>
   <div class="dev-workflow-view">
-      <WorkflowSidebar
-        ref="sidebar"
-        :categories="categories"
-        :projects="projects"
-        :current-category="currentCategory"
-        :current-project="currentProject"
-        :current-step="currentStep"
-        :is-loading="isLoadingProjects"
-        @category-change="onCategoryChange"
-        @project-change="onProjectChange"
-        @step-change="onStepChange"
-        @delete-category="deleteCategory"
-        @rename-category="renameCategory"
-      />
+    <WorkflowSidebar
+      ref="sidebar"
+      :categories="categories"
+      :projects="projects"
+      :current-category="currentCategory"
+      :current-project="currentProject"
+      :current-step="currentStep"
+      :is-loading="isLoadingProjects"
+      @category-change="onCategoryChange"
+      @project-change="onProjectChange"
+      @step-change="onStepChange"
+      @delete-category="deleteCategory"
+      @rename-category="renameCategory"
+    />
 
     <div class="main-content">
       <div class="panel-header">
@@ -45,10 +45,9 @@
         />
 
         <Step2Design
-          v-show="currentStep === 2 && hasSelectedProject"
-          :project-key="projectKey"
-          :spec-content="currentSpecContent"
-          :session-id="currentSessionId"
+          v-if="currentStep === 2 && hasSelectedProject"
+          :category="currentCategory"
+          :name="currentProject"
           :req-base-path="reqBasePath"
           @update:sessionId="updateDesignSessionId"
           @save-spec="onSaveSpec"
@@ -57,18 +56,18 @@
         />
 
         <Step3CodeGen
-          v-show="currentStep === 3 && hasSelectedProject"
-          :project-key="projectKey"
-          :session-id="currentCodeSessionId"
+          v-if="currentStep === 3 && hasSelectedProject"
+          :category="currentCategory"
+          :name="currentProject"
           :req-base-path="reqBasePath"
           @update:sessionId="updateCodeSessionId"
           ref="step3Ref"
         />
 
         <Step4Test
-          v-show="currentStep === 4 && hasSelectedProject"
-          :project-key="projectKey"
-          :session-id="currentTestSessionId"
+          v-if="currentStep === 4 && hasSelectedProject"
+          :category="currentCategory"
+          :name="currentProject"
           :req-base-path="reqBasePath"
           @update:sessionId="updateTestSessionId"
           ref="step4Ref"
@@ -94,8 +93,6 @@ import Step3CodeGen from '../components/Step3CodeGen.vue'
 import Step4Test from '../components/Step4Test.vue'
 import { api } from '../api'
 
-const STORAGE_KEY = 'software_dev_workflow'
-
 export default {
   name: 'DevWorkflowView',
   components: {
@@ -112,9 +109,9 @@ export default {
     return {
       currentCategory: '',
       currentProject: '',
+      currentStep: 1,
       categories: [],
       projects: {},
-      currentStep: 1,
       reqBasePath: '',
       isLoadingProjects: false
     }
@@ -124,35 +121,8 @@ export default {
       if (!this.currentCategory || !this.currentProject) return ''
       return `${this.currentCategory}/${this.currentProject}`
     },
-    currentProjectData() {
-      return this.projects[this.projectKey] || null
-    },
     hasSelectedProject() {
-      return !!this.currentProjectData
-    },
-    currentSpecContent() {
-      return this.currentProjectData?.specFile || ''
-    },
-    currentChatMessages() {
-      if (!this.currentProjectData) return []
-      switch (this.currentStep) {
-        case 2: return this.currentProjectData.designChatHistory || []
-        case 3: return this.currentProjectData.codeChatHistory || []
-        case 4: return this.currentProjectData.testChatHistory || []
-        default: return []
-      }
-    },
-    currentSessionId() {
-      if (!this.currentProjectData) return ''
-      return this.currentProjectData.designSessionId || ''
-    },
-    currentCodeSessionId() {
-      if (!this.currentProjectData) return ''
-      return this.currentProjectData.codeSessionId || ''
-    },
-    currentTestSessionId() {
-      if (!this.currentProjectData) return ''
-      return this.currentProjectData.testSessionId || ''
+      return !!this.currentProject
     },
     stepTitle() {
       const titles = {
@@ -175,63 +145,25 @@ export default {
     this.loadCategories()
   },
   methods: {
-    getSpecPath(category, project) {
-      return `${this.reqBasePath}\\${category}\\${project}\\${project}_方案.md`
-    },
-    getLegacySpecPath(category, project) {
-      return `${this.reqBasePath}\\${category}\\${project}\\方案.md`
-    },
-    getSessionPath(category, project) {
-      return `${this.reqBasePath}\\${category}\\${project}\\session.json`
-    },
-    async readSessionConfig(category, project) {
-      const sessionPath = this.getSessionPath(category, project)
+    async loadState() {
       try {
-        const sessionRes = await api.getFileContent(sessionPath)
-        return JSON.parse(sessionRes.content || '{}')
+        const res = await api.getWorkflowState()
+        const state = res.data
+        if (state) {
+          this.currentCategory = state.currentCategory || ''
+          this.currentProject = state.currentProject || ''
+          this.currentStep = state.currentStep || 1
+        }
       } catch (e) {
-        return {}
+        console.error('Load workflow state failed:', e)
       }
     },
-    async writeSessionConfig(category, project, sessionData) {
-      const sessionPath = this.getSessionPath(category, project)
-      await api.writeFile(sessionPath, JSON.stringify(sessionData, null, 2))
-    },
-    async persistProjectSessionsByKey(projectKey, overrides = {}) {
-      if (!projectKey) return
-      const [cat, proj] = projectKey.split('/')
-      const current = this.projects[projectKey] || {}
-      const nextSessionData = {
-        designSessionId: overrides.designSessionId ?? current.designSessionId ?? '',
-        codeSessionId: overrides.codeSessionId ?? current.codeSessionId ?? '',
-        testSessionId: overrides.testSessionId ?? current.testSessionId ?? ''
+    async saveState() {
+      try {
+        await api.updateWorkflowState(this.currentCategory, this.currentProject, this.currentStep)
+      } catch (e) {
+        console.error('Save workflow state failed:', e)
       }
-      await this.writeSessionConfig(cat, proj, nextSessionData)
-    },
-    loadState() {
-      const saved = localStorage.getItem(STORAGE_KEY)
-      if (saved) {
-        const state = JSON.parse(saved)
-        this.projects = state.projects || {}
-        this.currentCategory = state.currentCategory || ''
-        this.currentProject = state.currentProject || ''
-        this.currentStep = state.currentStep || 1
-      }
-    },
-    saveState() {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({
-        currentCategory: this.currentCategory,
-        currentProject: this.currentProject,
-        projects: this.projects,
-        currentStep: this.currentStep
-      }))
-    },
-    generateSessionId() {
-      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-        const r = Math.random() * 16 | 0
-        const v = c === 'x' ? r : (r & 0x3 | 0x8)
-        return v.toString(16)
-      })
     },
     async loadCategories() {
       try {
@@ -244,182 +176,54 @@ export default {
           .filter(item => item.is_directory)
           .map(item => item.name)
         this.categories.sort()
-        await this.loadAllRequirements()
-        this.ensureValidSelection()
+
+        if (this.currentCategory && this.categories.includes(this.currentCategory)) {
+          await this.loadProjectsForCategory(this.currentCategory)
+        }
       } catch (e) {
         console.error('Load categories failed:', e)
         this.categories = []
       }
     },
-    ensureValidSelection() {
-      if (!this.categories.length) {
-        this.currentCategory = ''
-        this.currentProject = ''
-        this.currentStep = 1
-        this.saveState()
-        return
-      }
-
-      if (!this.currentCategory || !this.categories.includes(this.currentCategory)) {
-        this.currentCategory = this.categories[0]
-      }
-
-      const projectList = Object.keys(this.projects)
-        .filter(key => key.startsWith(`${this.currentCategory}/`))
-        .map(key => key.split('/')[1])
-        .sort()
-
-      if (!projectList.length) {
-        this.currentProject = ''
-        this.currentStep = 1
-      } else if (!this.currentProject || !projectList.includes(this.currentProject)) {
-        this.currentProject = projectList[0]
-      }
-
-      this.saveState()
-    },
-    async loadAllRequirements() {
-      const existingProjects = { ...this.projects }
-      this.projects = {}
-      for (const cat of this.categories) {
-        await this.loadRequirementsForCategory(cat, existingProjects)
-      }
-    },
-    async loadRequirementsForCategory(category, existingProjects = {}) {
+    async loadProjectsForCategory(category) {
+      if (!category) return
+      this.isLoadingProjects = true
       try {
         const catPath = `${this.reqBasePath}\\${category}`
         const res = await api.browseFilesystem(catPath)
         const items = res.data?.items || []
-        const reqDirs = items.filter(item => item.is_directory)
-        
-        for (const req of reqDirs) {
-          const key = `${category}/${req.name}`
-          const reqPath = `${catPath}\\${req.name}`
-          const specPath = this.getSpecPath(category, req.name)
-          const legacySpecPath = this.getLegacySpecPath(category, req.name)
-          const sessionPath = this.getSessionPath(category, req.name)
-          let reqItems = []
-          try {
-            const reqRes = await api.browseFilesystem(reqPath)
-            reqItems = reqRes.data?.items || []
-          } catch {
-            reqItems = []
-          }
-          const reqItemNames = new Set(reqItems.map(item => item.name))
-          const hasNamedSpec = reqItemNames.has(`${req.name}_方案.md`)
-          const hasLegacySpec = reqItemNames.has('方案.md')
-          const hasSessionFile = reqItemNames.has('session.json')
-          
-          let specContent = ''
-          if (hasNamedSpec) {
-            try {
-              const specRes = await api.getFileContent(specPath)
-              specContent = specRes.content || ''
-            } catch {
-              specContent = ''
-            }
-          } else if (hasLegacySpec) {
-            try {
-              const legacyRes = await api.getFileContent(legacySpecPath)
-              specContent = legacyRes.content || ''
-              // Auto migrate old spec filename to new naming convention.
-              await api.writeFile(specPath, specContent)
-            } catch {
-              specContent = ''
-            }
-          }
-
-          let sessionData = {}
-          if (hasSessionFile) {
-            sessionData = await this.readSessionConfig(category, req.name)
-          } else {
-            sessionData = { designSessionId: '', codeSessionId: '', testSessionId: '' }
-            try {
-              await api.writeFile(sessionPath, JSON.stringify(sessionData, null, 2))
-            } catch {
-              // Keep in-memory fallback when write fails.
-            }
-          }
-          
-          const existing = existingProjects[key]
-          this.$set(this.projects, key, {
-            category,
-            name: req.name,
-            specFile: specContent,
-            designSessionId: sessionData.designSessionId || existing?.designSessionId || '',
-            codeSessionId: sessionData.codeSessionId || existing?.codeSessionId || '',
-            testSessionId: sessionData.testSessionId || existing?.testSessionId || '',
-            designChatHistory: existing?.designChatHistory || [],
-            codeChatHistory: existing?.codeChatHistory || [],
-            testChatHistory: existing?.testChatHistory || [],
-            stepStatus: existing?.stepStatus || { 1: true, 2: false, 3: false, 4: false }
-          })
-        }
+        this.projects = {}
+        items.filter(item => item.is_directory).forEach(item => {
+          const key = `${category}/${item.name}`
+          this.projects[key] = { name: item.name, stepStatus: {} }
+        })
       } catch (e) {
-        console.error(`Load requirements for ${category} failed:`, e)
+        console.error('Load projects failed:', e)
+      } finally {
+        this.isLoadingProjects = false
       }
     },
     async onCategoryChange(cat) {
       this.currentCategory = cat
       this.currentProject = ''
-      if (!cat) {
-        this.saveState()
-        return
+      this.currentStep = 1
+      if (cat) {
+        await this.loadProjectsForCategory(cat)
+      } else {
+        this.projects = {}
       }
-      this.isLoadingProjects = true
-      await this.loadRequirementsForCategory(cat, this.projects)
-      this.isLoadingProjects = false
-      this.saveState()
     },
     onProjectChange(proj) {
       this.currentProject = proj
       if (!this.currentProject && this.currentStep > 1) {
         this.currentStep = 1
       }
-      this.saveState()
     },
     onStepChange(step) {
-      if (!this.currentProjectData && step > 1) {
+      if (!this.currentProject && step > 1) {
         return
       }
       this.currentStep = step
-      this.saveState()
-    },
-    async updateDesignSessionId(sessionId) {
-      if (!sessionId || !this.projectKey) return
-      const key = this.projectKey
-      const current = this.projects[key] || {}
-      this.$set(this.projects, key, { ...current, designSessionId: sessionId })
-      this.saveState()
-      try {
-        await this.persistProjectSessionsByKey(key, { designSessionId: sessionId })
-      } catch (e) {
-        console.error('Persist design session failed:', e)
-      }
-    },
-    async updateCodeSessionId(sessionId) {
-      if (!sessionId || !this.projectKey) return
-      const key = this.projectKey
-      const current = this.projects[key] || {}
-      this.$set(this.projects, key, { ...current, codeSessionId: sessionId })
-      this.saveState()
-      try {
-        await this.persistProjectSessionsByKey(key, { codeSessionId: sessionId })
-      } catch (e) {
-        console.error('Persist code session failed:', e)
-      }
-    },
-    async updateTestSessionId(sessionId) {
-      if (!sessionId || !this.projectKey) return
-      const key = this.projectKey
-      const current = this.projects[key] || {}
-      this.$set(this.projects, key, { ...current, testSessionId: sessionId })
-      this.saveState()
-      try {
-        await this.persistProjectSessionsByKey(key, { testSessionId: sessionId })
-      } catch (e) {
-        console.error('Persist test session failed:', e)
-      }
     },
     async createCategory(name) {
       if (this.categories.includes(name)) {
@@ -452,22 +256,11 @@ export default {
         }
         this.categories.sort()
 
-        const newProjects = {}
-        for (const key in this.projects) {
-          const [cat, proj] = key.split('/')
-          if (cat === oldName) {
-            const newKey = `${newName}/${proj}`
-            newProjects[newKey] = { ...this.projects[key], category: newName }
-          } else {
-            newProjects[key] = this.projects[key]
-          }
-        }
-        this.projects = newProjects
-
         if (this.currentCategory === oldName) {
           this.currentCategory = newName
+          await this.loadProjectsForCategory(newName)
         }
-        this.saveState()
+        await this.saveState()
         this.$message.success(`已重命名为「${newName}」`)
       } catch (e) {
         console.error('Rename category failed:', e)
@@ -481,19 +274,13 @@ export default {
 
         this.categories = this.categories.filter(c => c !== catName)
 
-        const keysToDelete = []
-        for (const key in this.projects) {
-          if (key.startsWith(catName + '/')) {
-            keysToDelete.push(key)
-          }
-        }
-        keysToDelete.forEach(key => delete this.projects[key])
-
         if (this.currentCategory === catName) {
           this.currentCategory = ''
           this.currentProject = ''
+          this.currentStep = 1
+          this.projects = {}
         }
-        this.saveState()
+        await this.saveState()
         this.$message.success(`大类「${catName}」已删除`)
       } catch (e) {
         console.error('Delete category failed:', e)
@@ -501,8 +288,7 @@ export default {
       }
     },
     async createRequirement({ category, name }) {
-      const key = `${category}/${name}`
-      if (this.projects[key]) {
+      if (this.projects[name]) {
         this.$message.warning('需求已存在')
         return
       }
@@ -525,62 +311,47 @@ export default {
 `
 
       try {
-        const specPath = this.getSpecPath(category, name)
+        const specPath = `${this.reqBasePath}\\${category}\\${name}\\${name}_方案.md`
         await api.writeFile(specPath, specContent)
       } catch (e) {
         console.error('Write spec file failed:', e)
       }
 
-      let designSessionId = ''
-      let codeSessionId = ''
-      let testSessionId = ''
+      let sessionData = { designSessionId: '', codeSessionId: '', testSessionId: '' }
       try {
-        await this.writeSessionConfig(category, name, {
-          designSessionId,
-          codeSessionId,
-          testSessionId
-        })
+        const [designRes, codeRes, testRes] = await Promise.all([
+          api.createSession(`workflow:${category}/${name}:design`),
+          api.createSession(`workflow:${category}/${name}:code`),
+          api.createSession(`workflow:${category}/${name}:test`)
+        ])
+        sessionData = {
+          designSessionId: designRes.data?.id || '',
+          codeSessionId: codeRes.data?.id || '',
+          testSessionId: testRes.data?.id || ''
+        }
+        const sessionPath = `${this.reqBasePath}\\${category}\\${name}\\session.json`
+        await api.writeFile(sessionPath, JSON.stringify(sessionData, null, 2))
       } catch (e) {
-        console.error('Write session.json failed:', e)
-        this.$message.error('session.json 创建失败')
-        return
+        console.error('Create sessions failed:', e)
       }
 
-      this.$set(this.projects, key, {
-        category,
-        name,
-        specFile: specContent,
-        designSessionId,
-        codeSessionId,
-        testSessionId,
-        designChatHistory: [],
-        codeChatHistory: [],
-        testChatHistory: [],
-        stepStatus: { 1: true, 2: false, 3: false, 4: false }
-      })
-
+      const key = `${category}/${name}`
+      this.$set(this.projects, key, { name, stepStatus: {} })
       this.currentCategory = category
       this.currentProject = name
-      this.saveState()
-
       this.$message.success(`需求「${name}」创建成功`)
       this.$nextTick(() => {
         this.currentStep = 2
-        this.saveState()
       })
     },
     async onSaveSpec(content) {
       if (!this.projectKey) return
-      this.projects[this.projectKey].specFile = content
-      this.saveState()
-      
-      const [cat, proj] = this.projectKey.split('/')
-      const specPath = this.getSpecPath(cat, proj)
+      const specPath = `${this.reqBasePath}\\${this.currentCategory}\\${this.currentProject}\\${this.currentProject}_方案.md`
       try {
         await api.writeFile(specPath, content)
         this.$message.success('方案已保存')
       } catch (e) {
-        console.error('Save spec to filesystem failed:', e)
+        console.error('Save spec failed:', e)
         this.$message.error('保存方案失败')
       }
     },
@@ -590,40 +361,10 @@ export default {
       }
     },
     async refreshSpec() {
-      if (!this.projectKey) return
-      const [cat, proj] = this.projectKey.split('/')
-      const specPath = this.getSpecPath(cat, proj)
-      const legacySpecPath = this.getLegacySpecPath(cat, proj)
-      try {
-        let newContent = ''
-        try {
-          const res = await api.getFileContent(specPath)
-          newContent = res.content ?? res.data?.content ?? ''
-        } catch {
-          const legacyRes = await api.getFileContent(legacySpecPath)
-          newContent = legacyRes.content ?? legacyRes.data?.content ?? ''
-        }
-        const current = this.projects[this.projectKey]
-        if (current) {
-          // Reassign root object to guarantee reactive update propagation.
-          this.projects = {
-            ...this.projects,
-            [this.projectKey]: {
-              ...current,
-              specFile: newContent
-            }
-          }
-          this.saveState()
-        }
-        // Force-sync editor view to eliminate stale content in Monaco.
-        if (this.currentStep === 2 && this.$refs.step2Ref?.syncEditorContent) {
-          this.$refs.step2Ref.syncEditorContent(newContent)
-        }
-        this.$message.success('方案已刷新')
-      } catch (e) {
-        console.error('Refresh spec failed:', e)
-        this.$message.error('刷新方案失败')
+      if (this.$refs.step2Ref?.loadSpec) {
+        await this.$refs.step2Ref.loadSpec()
       }
+      this.$message.success('方案已刷新')
     }
   }
 }

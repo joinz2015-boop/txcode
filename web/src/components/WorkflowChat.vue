@@ -77,9 +77,12 @@ export default {
   },
   methods: {
     handleKeydown(e) {
-      if (e.shiftKey) return
-      e.preventDefault()
-      this.sendMessage()
+      if (e.key === 'Enter') {
+        if (e.ctrlKey) {
+          e.preventDefault()
+          this.sendMessage()
+        }
+      }
     },
     sendMessage() {
       const msg = this.inputMessage.trim()

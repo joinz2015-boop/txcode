@@ -3,23 +3,14 @@
  * 
  * 提供与后端 API 交互的所有方法
  * 包括：会话管理、消息管理、提供商配置、模型配置、AI 聊天
- * 支持：HTTP REST API、SSE 流式响应、WebSocket 实时通信
+ * 支持：HTTP REST API、SSE 流式响应
  */
+
+import { wsManager } from './websocket/websocket_client.js';
 
 const API_BASE = '/api';
 
-let wsInstance = null;
-let wsListeners = new Map();
-let sessionWsInstances = new Map();
 let terminalWsInstances = new Map();
-
-function getWsUrl(sessionId = null) {
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  if (sessionId) {
-    return `${protocol}//${window.location.host}/ws/${sessionId}`;
-  }
-  return `${protocol}//${window.location.host}/ws`;
-}
 
 async function request(method, path, data = null) {
   const options = {
@@ -90,6 +81,14 @@ export const api = {
    */
   deleteSession(id) {
     return request('DELETE', `/sessions/${id}`);
+  },
+
+  /**
+   * 获取多个会话的状态
+   * @param {string[]} sessionIds - 会话 ID 数组
+   */
+  getSessionStatuses(sessionIds) {
+    return request('POST', '/sessions/status', { sessionIds });
   },
 
   /**
@@ -437,164 +436,18 @@ export const api = {
 
   // ==================== WebSocket 通信 ====================
 
-  wsConnect(onMessage, onOpen, onClose, onError) {
-    if (wsInstance && wsInstance.readyState === WebSocket.OPEN) {
-      return wsInstance;
-    }
+  ws: wsManager,
 
-    const wsUrl = getWsUrl();
-    wsInstance = new WebSocket(wsUrl);
-
-    wsInstance.onopen = () => {
-      console.log('WebSocket connected');
-      if (onOpen) onOpen();
-    };
-
-    wsInstance.onmessage = (e) => {
-      try {
-        const msg = JSON.parse(e.data);
-        if (onMessage) onMessage(msg);
-        
-        const listeners = wsListeners.get(msg.type) || [];
-        listeners.forEach(cb => cb(msg.data));
-      } catch (err) {
-        console.error('WebSocket parse error:', err);
-      }
-    };
-
-    wsInstance.onclose = () => {
-      console.log('WebSocket closed');
-      wsInstance = null;
-      if (onClose) onClose();
-    };
-
-    wsInstance.onerror = (err) => {
-      console.error('WebSocket error:', err);
-      if (onError) onError(err);
-    };
-
-    return wsInstance;
-  },
-
-  wsDisconnect() {
-    if (wsInstance) {
-      wsInstance.close();
-      wsInstance = null;
-    }
-    wsListeners.clear();
-  },
-
-  wsOn(type, callback) {
-    if (!wsListeners.has(type)) {
-      wsListeners.set(type, []);
-    }
-    wsListeners.get(type).push(callback);
-    
-    return () => {
-      const listeners = wsListeners.get(type) || [];
-      const idx = listeners.indexOf(callback);
-      if (idx > -1) listeners.splice(idx, 1);
-    };
-  },
-
-  wsSend(type, data) {
-    if (wsInstance && wsInstance.readyState === WebSocket.OPEN) {
-      wsInstance.send(JSON.stringify({ type, data }));
-      return true;
-    }
-    return false;
+  sessionWsSend(sessionId, type, data) {
+    return wsManager.send(type, data);
   },
 
   wsIsConnected() {
-    return wsInstance && wsInstance.readyState === WebSocket.OPEN;
+    return wsManager.isConnected();
   },
 
-  sessionWsConnect(sessionId, onMessage, onOpen, onClose, onError) {
-    if (sessionWsInstances.has(sessionId)) {
-      const existing = sessionWsInstances.get(sessionId);
-      if (existing.readyState === WebSocket.OPEN) {
-        return existing;
-      }
-    }
-
-    const wsUrl = getWsUrl(sessionId);
-    const ws = new WebSocket(wsUrl);
-
-    ws.onopen = () => {
-      console.log(`WebSocket [${sessionId}] connected`);
-      if (onOpen) onOpen();
-    };
-
-    ws.onmessage = (e) => {
-      try {
-        const msg = JSON.parse(e.data);
-        if (onMessage) onMessage(msg);
-      } catch (err) {
-        console.error('WebSocket parse error:', err);
-      }
-    };
-
-    ws.onclose = () => {
-      console.log(`WebSocket [${sessionId}] closed`);
-      sessionWsInstances.delete(sessionId);
-      if (onClose) onClose();
-    };
-
-    ws.onerror = (err) => {
-      console.error(`WebSocket [${sessionId}] error:`, err);
-      if (onError) onError(err);
-    };
-
-    sessionWsInstances.set(sessionId, ws);
-    return ws;
-  },
-
-  sessionWsDisconnect(sessionId) {
-    const ws = sessionWsInstances.get(sessionId);
-    if (ws) {
-      ws.close();
-      sessionWsInstances.delete(sessionId);
-    }
-  },
-
-  sessionWsSend(sessionId, type, data) {
-    const ws = sessionWsInstances.get(sessionId);
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ type, data }));
-      return true;
-    }
-    return false;
-  },
-
-  sessionWsIsConnected(sessionId) {
-    const ws = sessionWsInstances.get(sessionId);
-    return ws && ws.readyState === WebSocket.OPEN;
-  },
-
-  wsChat(data, callbacks) {
-    const { onSession, onStep, onDone, onError } = callbacks || {};
-
-    const unsubSession = this.wsOn('session', (data) => {
-      if (onSession) onSession(data);
-    });
-
-    const unsubStep = this.wsOn('step', (data) => {
-      if (onStep) onStep(data);
-    });
-
-    const unsubDone = this.wsOn('done', (data) => {
-      unsubSession();
-      unsubStep();
-      unsubDone();
-      unsubError();
-      if (onDone) onDone(data);
-    });
-
-    const unsubError = this.wsOn('error', (err) => {
-      if (onError) onError(err);
-    });
-
-    this.wsSend('chat', data);
+  wsSubscribe(sessionId, handlers) {
+    return wsManager.subscribe(sessionId, handlers);
   },
 
   // ==================== 邮件管理 ====================
@@ -728,5 +581,15 @@ export const api = {
   terminalWsIsConnected(sessionId) {
     const ws = terminalWsInstances.get(sessionId);
     return ws && ws.readyState === WebSocket.OPEN;
+  },
+
+  // ==================== 工作流状态管理 ====================
+
+  getWorkflowState() {
+    return request('GET', '/workflow/state');
+  },
+
+  updateWorkflowState(currentCategory, currentProject, currentStep) {
+    return request('PUT', '/workflow/state', { currentCategory, currentProject, currentStep });
   },
 };

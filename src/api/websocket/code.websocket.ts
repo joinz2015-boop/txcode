@@ -1,0 +1,186 @@
+/**
+ * Code WebSocket 处理器
+ * 
+ * 处理 /ws/code 路径的 WebSocket 消息
+ * 所有消息广播给所有连接的客户端，前端根据 sessionId 决定是否显示
+ */
+
+import { WebSocket } from 'ws';
+import { sessionService } from '../../modules/session/index.js';
+import { Session } from '../../modules/session/session.types.js';
+import { codeChatService } from '../../services/codeChat/index.js';
+import { commandChatService } from '../../services/commandChat/index.js';
+
+export class CodeWebSocketHandler {
+  private wsClients: Set<WebSocket> = new Set();
+  private abortControllers: Map<string, AbortController> = new Map();
+
+  handle(ws: WebSocket): void {
+    this.wsClients.add(ws);
+    ws.send(JSON.stringify({ type: 'connected', message: 'WebSocket connected' }));
+
+    ws.on('message', async (data: Buffer) => {
+      try {
+        const msg = JSON.parse(data.toString());
+        await this.handleMessage(ws, msg);
+      } catch (e) {
+        ws.send(JSON.stringify({ type: 'error', error: 'Invalid message format' }));
+      }
+    });
+
+    ws.on('close', () => {
+      this.wsClients.delete(ws);
+    });
+  }
+
+  private broadcast(message: any): void {
+    const data = JSON.stringify(message);
+    for (const client of this.wsClients) {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(data);
+      }
+    }
+  }
+
+  private async handleMessage(ws: WebSocket, msg: any): Promise<void> {
+    const { type, data } = msg;
+
+    switch (type) {
+      case 'chat':
+        await this.handleChat(data);
+        break;
+      case 'stop':
+        this.handleStop(data);
+        break;
+      case 'ping':
+        ws.send(JSON.stringify({ type: 'pong' }));
+        break;
+      case 'get_running_sessions':
+        this.handleGetRunningSessions(ws);
+        break;
+      default:
+        ws.send(JSON.stringify({ type: 'error', error: 'Unknown message type' }));
+    }
+  }
+
+  private handleGetRunningSessions(ws: WebSocket): void {
+    const sessions = sessionService.getAll();
+    const runningSessionIds = sessions
+      .filter(s => s.status === 'processing')
+      .map(s => s.id);
+    ws.send(JSON.stringify({ type: 'running_sessions', data: { runningSessionIds } }));
+  }
+
+  private handleStop(data: any): void {
+    const { sessionId } = data;
+    if (!sessionId) return;
+
+    const controller = this.abortControllers.get(sessionId);
+    if (controller) {
+      controller.abort();
+      this.abortControllers.delete(sessionId);
+      sessionService.setIdle(sessionId);
+    }
+  }
+
+  private async handleChat(data: any): Promise<void> {
+    const { message, sessionId, projectPath } = data;
+
+    if (!sessionId) {
+      this.broadcast({ type: 'error', error: 'sessionId is required' });
+      return;
+    }
+
+    let session = sessionService.get(sessionId);
+    if (!session) {
+      const title = message.length > 10 ? message.slice(0, 10) + '...' : message;
+      session = sessionService.createWithId(sessionId, title);
+    }
+
+    const existingController = this.abortControllers.get(sessionId);
+    if (existingController) {
+      existingController.abort();
+    }
+
+    const abortController = new AbortController();
+    this.abortControllers.set(sessionId, abortController);
+
+    try {
+      sessionService.switchTo(session.id);
+      sessionService.setProcessing(session.id);
+
+      console.log('[CodeWebSocket] Chat message:', message);
+
+      if (message.trim().startsWith('/')) {
+        const result = await commandChatService.handleCommand({
+          message,
+          sessionId: session.id,
+        });
+
+        this.broadcast({ type: 'command', data: { ...result, sessionId: session.id } });
+        this.broadcast({
+          type: 'done',
+          data: {
+            sessionId: session.id,
+            response: result.answer,
+            success: result.success,
+            commandData: result.data,
+          }
+        });
+        sessionService.setCompleted(session.id);
+        return;
+      } else {
+        const currentSession = session;
+        const result = await codeChatService.handleChat({
+          message,
+          sessionId: session.id,
+          projectPath: session.projectPath ?? undefined,
+          abortSignal: abortController.signal,
+          onStep: (step: any, iteration: number, usage?: any) => {
+            this.broadcast({ type: 'step', data: { ...step, iteration, sessionId: currentSession.id, usage: usage ? {
+              promptTokens: usage.promptTokens,
+              completionTokens: usage.completionTokens,
+              totalTokens: usage.totalTokens,
+            } : undefined } });
+          },
+          onCompact: (info: { beforeTokens: number; afterTokens: number; summary?: string }) => {
+            this.broadcast({ type: 'compact', data: { ...info, sessionId: currentSession.id } });
+          },
+        });
+
+        this.broadcast({
+          type: 'done',
+          data: {
+            sessionId: session.id,
+            response: result.answer,
+            iterations: result.iterations,
+            success: result.success,
+            usage: result.usage ? {
+              promptTokens: result.usage.promptTokens,
+              completionTokens: result.usage.completionTokens,
+              totalTokens: result.usage.totalTokens,
+            } : undefined,
+          }
+        });
+        sessionService.setCompleted(session.id);
+      }
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+      const isAbort = error instanceof Error && (
+        error.name === 'AbortError' ||
+        errorMsg === 'ABORTED' ||
+        errorMsg.toLowerCase().includes('abort')
+      );
+      if (isAbort) {
+        this.broadcast({ type: 'stopped', sessionId: session?.id || sessionId, reason: 'user_cancelled' });
+      } else {
+        this.broadcast({ type: 'error', sessionId: session?.id || sessionId, error: errorMsg });
+      }
+      sessionService.setIdle(sessionId);
+    } finally {
+      this.abortControllers.delete(sessionId);
+    }
+  }
+}
+
+export const codeWebSocketHandler = new CodeWebSocketHandler();

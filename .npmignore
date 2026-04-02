@@ -44,7 +44,6 @@ coverage/
 temp/
 .cluade
 nul
-opencode
 
 # Config files (but keep package.json, README, LICENSE)
 jest.config.mjs

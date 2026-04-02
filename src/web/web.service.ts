@@ -22,8 +22,8 @@ import * as fs from 'fs';
 import * as readline from 'readline';
 import * as http from 'http';
 import { exec } from 'child_process';
-import { WebSocketServer, WebSocket } from 'ws';
 import { apiRouter } from '../api/index.js';
+import { webSocketService } from '../api/websocket/websocket.service.js';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -33,9 +33,6 @@ import { dbService } from '../modules/db/db.service.js';
 import { sessionService } from '../modules/session/index.js';
 import { configService } from '../modules/config/config.service.js';
 import { logger } from '../modules/logger/logger.js';
-import { terminalService } from '../modules/terminal/index.js';
-import { codeChatService } from '../services/codeChat/index.js';
-import { commandChatService } from '../services/commandChat/index.js';
 
 /**
  * WebService 类
@@ -50,9 +47,6 @@ export class WebService {
   private app: Express;
   private port: number;
   private server: http.Server | null = null;
-  private wss: WebSocketServer | null = null;
-  private wsClients: Set<WebSocket> = new Set();
-  private abortControllers: Map<string, AbortController> = new Map();
 
   /**
    * 构造函数
@@ -267,38 +261,7 @@ npm run dev
 
     return new Promise((resolve, reject) => {
       this.server = http.createServer(this.app);
-      
-      this.wss = new WebSocketServer({ server: this.server });
-      
-      this.wss.on('connection', (ws: WebSocket, req: http.IncomingMessage) => {
-        const url = req.url || '';
-        
-        if (url.startsWith('/ws/terminal/')) {
-          const sessionId = url.replace('/ws/terminal/', '');
-          this.handleTerminalWs(ws, sessionId);
-          return;
-        }
-        
-        this.wsClients.add(ws);
-        ws.send(JSON.stringify({ type: 'connected', message: 'WebSocket connected' }));
-        
-        ws.on('message', async (data: Buffer) => {
-          try {
-            const msg = JSON.parse(data.toString());
-            await this.handleWsMessage(ws, msg);
-          } catch (e) {
-            ws.send(JSON.stringify({ type: 'error', error: 'Invalid message format' }));
-          }
-        });
-        
-        ws.on('close', () => {
-          this.wsClients.delete(ws);
-          for (const [sessionId, controller] of this.abortControllers.entries()) {
-            controller.abort();
-            this.abortControllers.delete(sessionId);
-          }
-        });
-      });
+      webSocketService.initialize(this.server);
 
       this.server.listen(this.port, () => {
         // ========== 步骤 3: 打印服务信息 ==========
@@ -341,7 +304,7 @@ npm run dev
          */
         const shutdown = async () => {
           console.log('\n正在关闭服务...');
-          this.wss?.close();
+          webSocketService.close();
           this.server?.close(async () => {
             const { schedulerService } = await import('../modules/scheduler/index.js');
             schedulerService.shutdown();
@@ -375,193 +338,6 @@ npm run dev
 
 resolve();
       });
-    });
-  }
-
-  private async handleWsMessage(ws: WebSocket, msg: any): Promise<void> {
-    const { type, data } = msg;
-
-    switch (type) {
-      case 'chat':
-        await this.handleChat(ws, data);
-        break;
-      case 'stop':
-        this.handleStop(data);
-        break;
-      case 'ping':
-        ws.send(JSON.stringify({ type: 'pong' }));
-        break;
-      default:
-        ws.send(JSON.stringify({ type: 'error', error: 'Unknown message type' }));
-    }
-  }
-
-  private handleStop(data: any): void {
-    const { sessionId } = data;
-    if (!sessionId) return;
-    
-    const controller = this.abortControllers.get(sessionId);
-    if (controller) {
-      controller.abort();
-      this.abortControllers.delete(sessionId);
-    }
-  }
-
-  private async handleChat(ws: WebSocket, data: any): Promise<void> {
-    const { message, sessionId, projectPath } = data;
-
-    const existingController = this.abortControllers.get(sessionId);
-    if (existingController) {
-      existingController.abort();
-    }
-
-    const abortController = new AbortController();
-    this.abortControllers.set(sessionId, abortController);
-
-    try {
-      let session = sessionId ? sessionService.get(sessionId) : null;
-      if (!session) {
-        session = sessionService.create('New Chat', projectPath);
-      }
-      sessionService.switchTo(session.id);
-
-      ws.send(JSON.stringify({ type: 'session', data: { sessionId: session.id } }));
-
-      console.log('[WebSocket] Chat message:', message);
-
-      if (message.trim().startsWith('/')) {
-        const result = await commandChatService.handleCommand({
-          message,
-          sessionId: session.id,
-        });
-        
-        ws.send(JSON.stringify({ type: 'command', data: result }));
-        ws.send(JSON.stringify({ 
-          type: 'done', 
-          data: { 
-            response: result.answer,
-            success: result.success,
-            commandData: result.data,
-          } 
-        }));
-        return;
-      } else {
-        const result = await codeChatService.handleChat({
-          message,
-          sessionId: session.id,
-          projectPath: session.projectPath ?? undefined,
-          abortSignal: abortController.signal,
-          onStep: (step: any, iteration: number, usage?: any) => {
-            ws.send(JSON.stringify({ type: 'step', data: { ...step, iteration, usage: usage ? {
-              promptTokens: usage.promptTokens,
-              completionTokens: usage.completionTokens,
-              totalTokens: usage.totalTokens,
-            } : undefined } }));
-          },
-          onCompact: (info: { beforeTokens: number; afterTokens: number; summary?: string }) => {
-            ws.send(JSON.stringify({ type: 'compact', data: info }));
-          },
-        });
-
-        ws.send(JSON.stringify({
-          type: 'done',
-          data: {
-            sessionId: session.id,
-            response: result.answer,
-            iterations: result.iterations,
-            success: result.success,
-            usage: result.usage ? {
-              promptTokens: result.usage.promptTokens,
-              completionTokens: result.usage.completionTokens,
-              totalTokens: result.usage.totalTokens,
-            } : undefined,
-          }
-        }));
-      }
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-      const isAbort = error instanceof Error && (
-        error.name === 'AbortError' || 
-        errorMsg === 'ABORTED' ||
-        errorMsg.toLowerCase().includes('abort')
-      );
-      if (isAbort) {
-        ws.send(JSON.stringify({
-          type: 'stopped',
-          reason: 'user_cancelled'
-        }));
-      } else {
-        ws.send(JSON.stringify({
-          type: 'error',
-          error: errorMsg
-        }));
-      }
-    } finally {
-      this.abortControllers.delete(sessionId);
-    }
-  }
-
-  public broadcast(message: any): void {
-    const data = JSON.stringify(message);
-    this.wsClients.forEach(client => {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(data);
-      }
-    });
-  }
-
-  private handleTerminalWs(ws: WebSocket, sessionId: string): void {
-    if (!terminalService.isSessionAlive(sessionId)) {
-      ws.send(JSON.stringify({ type: 'error', message: 'Terminal session not found' }));
-      ws.close();
-      return;
-    }
-
-    const platform = terminalService.getPlatform(sessionId);
-    ws.send(JSON.stringify({ type: 'platform', data: { platform } }));
-
-    terminalService.setCallbacks(
-      sessionId,
-      (data: string) => {
-        if (ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify({ type: 'output', data }));
-        }
-      },
-      (code: number) => {
-        if (ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify({ type: 'exit', code }));
-        }
-      }
-    );
-
-    ws.on('message', (data: Buffer) => {
-      try {
-        const msg = JSON.parse(data.toString());
-        const { type, data: msgData } = msg;
-
-        switch (type) {
-          case 'input':
-            terminalService.write(sessionId, msgData);
-            break;
-          case 'resize':
-            terminalService.resize(sessionId, msgData.cols, msgData.rows);
-            break;
-          case 'close':
-            terminalService.deleteSession(sessionId);
-            ws.close();
-            break;
-        }
-      } catch (e) {
-        ws.send(JSON.stringify({ type: 'error', message: 'Invalid message format' }));
-      }
-    });
-
-    ws.on('close', () => {
-      console.log(`Terminal WebSocket [${sessionId}] closed`);
-    });
-
-    ws.on('error', (err) => {
-      console.error(`Terminal WebSocket [${sessionId}] error:`, err);
     });
   }
 

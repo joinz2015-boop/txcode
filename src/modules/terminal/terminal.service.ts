@@ -48,7 +48,7 @@ async function loadNodePty() {
   if (nodePty) return nodePty;
   
   try {
-    nodePty = await import('node-pty');
+    nodePty = await import('@lydell/node-pty');
     return nodePty;
   } catch (e) {
     nodePtyLoadFailed = true;

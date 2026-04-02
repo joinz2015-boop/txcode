@@ -7,9 +7,9 @@
           <span>TXCode Agent</span>
         </div>
         <div class="relative">
-          <router-link to="/devWorkflow" class="hover:text-white px-3 py-1 rounded border border-transparent hover:border-accent transition-colors" :class="$route.name === 'devWorkflow' ? 'text-accent border-accent' : 'text-gray-400'">
+          <a href="/devWorkflow" target="_blank" @click.prevent="openDevWorkflow" class="hover:text-white px-3 py-1 rounded border border-transparent hover:border-accent transition-colors cursor-pointer" :class="$route.name === 'devWorkflow' ? 'text-accent border-accent' : 'text-gray-400'">
             <i class="fa-solid fa-laptop-code mr-1"></i> 软件研发
-          </router-link>
+          </a>
         </div>
       </div>
       <div class="flex items-center gap-3">
@@ -83,6 +83,9 @@ export default {
     }
   },
   methods: {
+    openDevWorkflow() {
+      window.open('/devWorkflow', '_blank')
+    },
     toggleSidebar() {
       this.sidebarVisible = !this.sidebarVisible
     },

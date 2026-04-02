@@ -84,7 +84,7 @@
           </el-button>
         </div>
         <div class="status-bar">
-          <span v-if="panel.disabled && !panel.stopping" class="status-thinking">
+          <span v-if="panel.sessionStatus === 'processing' || (panel.disabled && !panel.stopping)" class="status-thinking">
             <span class="thinking-spinner" aria-hidden="true"></span> 思考中
           </span>
           <span v-else class="status-ready">✓ 就绪</span>
@@ -134,12 +134,14 @@
 </template>
 
 <script>
-import { api } from '../api'
 import { marked } from 'marked'
 import SessionsPanel from '../components/SessionsPanel.vue'
 import FileSelectDialog from '../components/FileSelectDialog.vue'
 import ModelSelectDialog from '../components/ModelSelectDialog.vue'
 import CommandDialog from '../components/CommandDialog.vue'
+import { ws } from '../api/websocket/websocket_client.js'
+import * as sessions from '../api/sessions.js'
+import * as config from '../api/config.js'
 
 export default {
   name: 'CodeView',
@@ -169,7 +171,8 @@ export default {
       selectedPanel: null,
       commandDialogVisible: false,
       scrollRafMap: new WeakMap(),
-      logSeq: 0
+      logSeq: 0,
+      wsUnsubscribers: []
     }
   },
 
@@ -189,18 +192,29 @@ export default {
   },
 
   created() {
+    this.initGlobalWs()
     this.loadSessions()
+  },
+
+  async mounted() {
+    // 会话状态通过 WebSocket running_sessions 消息自动更新，无需额外请求
   },
 
   activated() {
     this.activeSessions.forEach(panel => {
-      if (panel.session?.id && !panel.wsConnected) {
-        this.initPanelWs(panel, panel.session.id)
+      if (panel.session?.id) {
+        this.subscribePanel(panel)
       }
     })
   },
 
   deactivated() {
+    this.activeSessions.forEach(panel => {
+      if (panel.wsUnsubscribe) {
+        panel.wsUnsubscribe()
+        panel.wsUnsubscribe = null
+      }
+    })
   },
 
   methods: {
@@ -238,7 +252,7 @@ export default {
         const parts = model.name.split('/')
         const modelName = parts.length > 2 ? parts.slice(1).join('/') : model.name
         this.selectedPanel.modelName = modelName
-        api.setConfig('defaultModel', modelName)
+        config.setConfig('defaultModel', modelName)
       }
     },
 
@@ -343,8 +357,10 @@ export default {
     stopThinking(panel) {
       panel.disabled = false
       panel.stopping = false
+      panel.sessionStatus = 'idle'
       clearInterval(panel.dotInterval)
       panel.dotInterval = null
+      panel.dotIndex = 0
     },
 
     schedulePanelScroll(panel) {
@@ -361,59 +377,63 @@ export default {
       this.scrollRafMap.set(panel, rafId)
     },
 
-    initPanelWs(panel) {
-      if (!panel.session?.id || panel.wsConnected) return
-      api.sessionWsConnect(
-        panel.session.id,
-        (msg) => this.handlePanelWsMessage(panel, msg),
-        () => { panel.wsConnected = true },
-        () => {
-          panel.wsConnected = false
-          setTimeout(() => {
-            if (!api.sessionWsIsConnected(panel.session.id)) this.initPanelWs(panel)
-          }, 3000)
-        },
-        (err) => { panel.wsConnected = false; console.error(err) }
-      )
+    initGlobalWs() {
+      ws.init()
     },
 
-    handlePanelWsMessage(panel, msg) {
-      const { type, data, error } = msg
-      switch (type) {
-        case 'todos':
-          if (data?.todos) this.pushLogItem(panel, { type: 'todos', todos: data.todos })
-          break
-        case 'session':
-          if (data?.sessionId && !panel.session.id) panel.session.id = data.sessionId
-          break
-        case 'step':
-          if (data) {
-            this.pushLogItem(panel, this.createStepItem(data))
-            if (data.usage?.promptTokens) panel.promptTokens = data.usage.promptTokens
+    subscribePanel(panel) {
+      if (!panel.session?.id) return
+      
+      if (panel.wsUnsubscribe) {
+        panel.wsUnsubscribe()
+      }
+
+      panel.wsUnsubscribe = ws.subscribe(panel.session.id, {
+        running_sessions: (data) => {
+          const runningIds = data?.runningSessionIds || []
+          this.updateSessionStatusesFromRunning(runningIds)
+        },
+        todos: (data) => {
+          this.pushLogItem(panel, { type: 'todos', todos: data.todos })
+          this.$nextTick(() => this.schedulePanelScroll(panel))
+        },
+        session: (data) => {
+          if (data?.sessionId && !panel.session?.id) {
+            panel.session = { ...panel.session, id: data.sessionId }
           }
-          break
-        case 'compact':
+        },
+        step: (data) => {
+          this.pushLogItem(panel, this.createStepItem(data))
+          if (data?.usage?.promptTokens) panel.promptTokens = data.usage.promptTokens
+          this.$nextTick(() => this.schedulePanelScroll(panel))
+        },
+        compact: (data) => {
           this.pushLogItem(panel, { type: 'system', content: `【压缩完成】${data.summary || ''}` })
           this.loadSessions()
-          if (panel.session?.id) this.loadMessagesForPanel(panel, panel.session.id)
-          break
-        case 'done':
+          this.loadMessagesForPanel(panel, panel.session.id)
+        },
+        done: (data) => {
+          if (data?.sessionId && panel.session?.id && data.sessionId !== panel.session.id) return
           this.stopThinking(panel)
+          panel.sessionStatus = 'completed'
           if (data?.modelName) panel.modelName = data.modelName
           if (data?.usage?.promptTokens) panel.promptTokens = data.usage.promptTokens
           if (data?.response) this.pushLogItem(panel, this.createThinkItem(data.response))
-          if (data?.sessionId) this.loadSessions()
-          break
-        case 'stopped':
+          this.loadSessions()
+          this.$nextTick(() => this.schedulePanelScroll(panel))
+        },
+        stopped: (data) => {
           this.stopThinking(panel)
+          panel.sessionStatus = 'idle'
           this.pushLogItem(panel, this.createThinkItem('【已停止】'))
-          break
-        case 'error':
-          this.$message.error(error || '发生错误')
+          this.$nextTick(() => this.schedulePanelScroll(panel))
+        },
+        error: (data) => {
+          this.$message.error(data?.error || '发生错误')
           this.stopThinking(panel)
-          break
-      }
-      this.$nextTick(() => this.schedulePanelScroll(panel))
+          panel.sessionStatus = 'idle'
+        }
+      })
     },
 
     setLayout(mode) {
@@ -428,10 +448,28 @@ export default {
         newActive.push(this.activeSessions[i] || {
           session: null, logItems: [], userQuestion: '', modelName: '',
           input: '', disabled: false, stopping: false, wsConnected: false,
-          promptTokens: 0, dotInterval: null, compactionRatio: 0
+          promptTokens: 0, dotInterval: null, compactionRatio: 0,
+          sessionStatus: 'idle'
         })
       }
       this.activeSessions = newActive
+    },
+
+    updateSessionStatusesFromRunning(runningSessionIds) {
+      const runningSet = new Set(runningSessionIds || [])
+      
+      for (const session of this.sessions) {
+        const isRunning = runningSet.has(session.id)
+        session.status = isRunning ? 'processing' : 'idle'
+      }
+      
+      for (const panel of this.activeSessions) {
+        if (panel.session?.id) {
+          const isRunning = runningSet.has(panel.session.id)
+          panel.sessionStatus = isRunning ? 'processing' : 'idle'
+          panel.disabled = isRunning
+        }
+      }
     },
 
     onDragStart(event, session) {
@@ -447,12 +485,13 @@ export default {
       panel.userQuestion = ''
       panel.disabled = false
       panel.stopping = false
-      panel.wsConnected = false
       panel.promptTokens = 0
-      clearInterval(panel.dotInterval)
-      panel.dotInterval = null
+      panel.sessionStatus = this.draggedSession.status || 'idle'
+      if (panel.sessionStatus === 'processing') {
+        panel.disabled = true
+      }
       this.loadMessagesForPanel(panel, this.draggedSession.id)
-      this.initPanelWs(panel)
+      this.subscribePanel(panel)
       this.draggedSession = null
     },
 
@@ -460,18 +499,20 @@ export default {
       const idx = panelIndex !== null ? panelIndex : this.focusedPanelIndex
       if (idx >= 0 && idx < this.activeSessions.length) {
         const panel = this.activeSessions[idx]
+        const isProcessing = session.status === 'processing'
         Object.assign(panel, {
-          session, logItems: [], userQuestion: '', disabled: false,
-          stopping: false, wsConnected: false, promptTokens: 0, dotInterval: null, compactionRatio: 0
+          session, logItems: [], userQuestion: '', disabled: isProcessing,
+          stopping: false, promptTokens: 0, compactionRatio: 0,
+          sessionStatus: session.status || 'idle'
         })
         this.loadMessagesForPanel(panel, session.id)
-        this.initPanelWs(panel)
+        this.subscribePanel(panel)
       }
     },
 
     async loadMessagesForPanel(panel, sessionId) {
       try {
-        const res = await api.getMessages(sessionId)
+        const res = await sessions.getMessages(sessionId)
         panel.logItems = (res.data || []).map(item => {
           if (item.type === 'think') return this.withLogId(this.createThinkItem(item.content || ''))
           if (item.type === 'step') return this.withLogId(this.createStepItem(item))
@@ -479,6 +520,10 @@ export default {
         })
         const userItem = panel.logItems.find(item => item.type === 'chat' || item.type === 'think')
         if (userItem) panel.userQuestion = userItem.content
+        const session = this.sessions.find(s => s.id === sessionId)
+        if (session) {
+          panel.sessionStatus = session.status || 'idle'
+        }
       } catch (e) {
         panel.logItems = []
       }
@@ -486,7 +531,7 @@ export default {
 
     async loadSessions() {
       try {
-        const res = await api.getSessions()
+        const res = await sessions.getSessions()
         this.sessions = res.data || []
         this.page = 1
         this.displayedSessions = this.sessions.slice(0, this.pageSize)
@@ -498,9 +543,10 @@ export default {
     },
 
     handleKeydown(e, panel) {
-      if (e.shiftKey) return
-      e.preventDefault()
-      this.sendToPanel(panel)
+      if (e.key === 'Enter' && e.ctrlKey) {
+        e.preventDefault()
+        this.sendToPanel(panel)
+      }
     },
 
     loadMore() {
@@ -514,7 +560,7 @@ export default {
 
     async createSession() {
       try {
-        const res = await api.createSession('新会话')
+        const res = await sessions.createSession('新会话')
         this.sessions.unshift(res.data)
         this.page = 1
         this.displayedSessions = this.sessions.slice(0, this.pageSize)
@@ -536,7 +582,7 @@ export default {
 
     async loadDefaultModel(session) {
       try {
-        const configRes = await api.getConfig('defaultModel')
+        const configRes = await config.getConfig('defaultModel')
         if (configRes.data?.value) {
           const panel = this.activeSessions[this.focusedPanelIndex]
           if (panel && panel.session?.id === session.id) {
@@ -558,22 +604,13 @@ export default {
       panel.userQuestion = content
       this.pushLogItem(panel, { type: 'chat', content: content })
 
-      if (api.sessionWsIsConnected(panel.session.id)) {
-        api.sessionWsSend(panel.session.id, 'chat', { message: content, sessionId: panel.session?.id, modelName: panel.modelName || undefined })
-      } else {
-        this.initPanelWs(panel)
-        setTimeout(() => {
-          if (api.sessionWsIsConnected(panel.session.id)) {
-            api.sessionWsSend(panel.session.id, 'chat', { message: content, sessionId: panel.session?.id, modelName: panel.modelName || undefined })
-          }
-        }, 500)
-      }
+      ws.send('chat', { message: content, sessionId: panel.session?.id, modelName: panel.modelName || undefined })
     },
 
     stopPanel(panel) {
       if (!panel.session?.id || panel.stopping) return
       panel.stopping = true
-      api.sessionWsSend(panel.session.id, 'stop', { sessionId: panel.session.id })
+      ws.send('stop', { sessionId: panel.session.id })
     },
 
     async handleSessionCommand(cmd, session) {
@@ -586,7 +623,7 @@ export default {
           inputErrorMessage: '名称不能为空'
         }).then(async ({ value }) => {
           try {
-            await api.updateSession(session.id, { title: value })
+            await sessions.updateSession(session.id, { title: value })
             session.title = value
             if (this.currentSession?.id === session.id) this.currentSession.title = value
             this.$message.success('重命名成功')
@@ -601,7 +638,7 @@ export default {
           type: 'warning'
         }).then(async () => {
           try {
-            await api.deleteSession(session.id)
+            await sessions.deleteSession(session.id)
             const idx = this.sessions.findIndex(s => s.id === session.id)
             if (idx > -1) this.sessions.splice(idx, 1)
             const displayIdx = this.displayedSessions.findIndex(s => s.id === session.id)

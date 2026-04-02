@@ -86,13 +86,13 @@ export class SummarizerService {
         error: 'No messages to compact',
       };
     }
+
     const summaryMessageId = this.memoryService.addMessage(
       sessionId,
       'user',
       '/compact',
       true
     );
-
 
     const tokensBefore = session.promptTokens + session.completionTokens;
 
@@ -143,14 +143,17 @@ export class SummarizerService {
 
       onProgress?.('Saving summary...');
 
-      this.memoryService.addMessage(
+      const assistantMsgId = this.memoryService.addMessage(
         sessionId,
         'assistant',
         summary,
         true
       );
 
-      this.sessionService.updateSummary(sessionId, summaryMessageId);
+      console.log(`[Compact] /compact msgId=${summaryMessageId}, summary msgId=${assistantMsgId}`);
+      
+      this.sessionService.updateSummary(sessionId, assistantMsgId);
+      this.memoryService.deleteMessagesBefore(sessionId, assistantMsgId);
       this.sessionService.resetTokens(sessionId);
 
       return {
