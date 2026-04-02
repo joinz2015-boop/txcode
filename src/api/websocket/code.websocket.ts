@@ -99,9 +99,14 @@ export class CodeWebSocketHandler {
         session = sessionService.create('New Chat', projectPath);
       }
       sessionService.switchTo(session.id);
-      sessionService.setProcessing(session.id);
 
-      this.broadcast({ type: 'session', data: { sessionId: session.id } });
+      if (session.title === 'New Chat') {
+        const chatTitle = message.length > 10 ? message.substring(0, 10) + '...' : message;
+        sessionService.update(session.id, { title: chatTitle, status: 'processing' });
+        this.broadcast({ type: 'session', data: { sessionId: session.id, title: chatTitle } });
+      } else {
+        sessionService.setProcessing(session.id);
+      }
 
       console.log('[CodeWebSocket] Chat message:', message);
 
