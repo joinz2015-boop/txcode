@@ -84,7 +84,7 @@
           </el-button>
         </div>
         <div class="status-bar">
-          <span v-if="panel.disabled && !panel.stopping" class="status-thinking">
+          <span v-if="panel.sessionStatus === 'processing' || (panel.disabled && !panel.stopping)" class="status-thinking">
             <span class="thinking-spinner" aria-hidden="true"></span> 思考中
           </span>
           <span v-else class="status-ready">✓ 就绪</span>
@@ -169,7 +169,8 @@ export default {
       selectedPanel: null,
       commandDialogVisible: false,
       scrollRafMap: new WeakMap(),
-      logSeq: 0
+      logSeq: 0,
+      wsUnsubscribers: []
     }
   },
 
@@ -189,18 +190,30 @@ export default {
   },
 
   created() {
+    this.initGlobalWs()
     this.loadSessions()
   },
 
+  async mounted() {
+    await this.loadSessionStatuses()
+  },
+
   activated() {
+    api.ws.init()
     this.activeSessions.forEach(panel => {
-      if (panel.session?.id && !panel.wsConnected) {
-        this.initPanelWs(panel, panel.session.id)
+      if (panel.session?.id) {
+        this.subscribePanel(panel)
       }
     })
   },
 
   deactivated() {
+    this.activeSessions.forEach(panel => {
+      if (panel.wsUnsubscribe) {
+        panel.wsUnsubscribe()
+        panel.wsUnsubscribe = null
+      }
+    })
   },
 
   methods: {
@@ -361,59 +374,58 @@ export default {
       this.scrollRafMap.set(panel, rafId)
     },
 
-    initPanelWs(panel) {
-      if (!panel.session?.id || panel.wsConnected) return
-      api.sessionWsConnect(
-        panel.session.id,
-        (msg) => this.handlePanelWsMessage(panel, msg),
-        () => { panel.wsConnected = true },
-        () => {
-          panel.wsConnected = false
-          setTimeout(() => {
-            if (!api.sessionWsIsConnected(panel.session.id)) this.initPanelWs(panel)
-          }, 3000)
-        },
-        (err) => { panel.wsConnected = false; console.error(err) }
-      )
+    initGlobalWs() {
+      api.ws.init()
     },
 
-    handlePanelWsMessage(panel, msg) {
-      const { type, data, error } = msg
-      switch (type) {
-        case 'todos':
-          if (data?.todos) this.pushLogItem(panel, { type: 'todos', todos: data.todos })
-          break
-        case 'session':
-          if (data?.sessionId && !panel.session.id) panel.session.id = data.sessionId
-          break
-        case 'step':
-          if (data) {
-            this.pushLogItem(panel, this.createStepItem(data))
-            if (data.usage?.promptTokens) panel.promptTokens = data.usage.promptTokens
+    subscribePanel(panel) {
+      if (!panel.session?.id) return
+      
+      if (panel.wsUnsubscribe) {
+        panel.wsUnsubscribe()
+      }
+
+      panel.wsUnsubscribe = api.wsSubscribe(panel.session.id, {
+        todos: (data) => {
+          this.pushLogItem(panel, { type: 'todos', todos: data.todos })
+          this.$nextTick(() => this.schedulePanelScroll(panel))
+        },
+        session: (data) => {
+          if (data?.sessionId && !panel.session?.id) {
+            panel.session = { ...panel.session, id: data.sessionId }
           }
-          break
-        case 'compact':
+        },
+        step: (data) => {
+          this.pushLogItem(panel, this.createStepItem(data))
+          if (data?.usage?.promptTokens) panel.promptTokens = data.usage.promptTokens
+          this.$nextTick(() => this.schedulePanelScroll(panel))
+        },
+        compact: (data) => {
           this.pushLogItem(panel, { type: 'system', content: `【压缩完成】${data.summary || ''}` })
           this.loadSessions()
-          if (panel.session?.id) this.loadMessagesForPanel(panel, panel.session.id)
-          break
-        case 'done':
+          this.loadMessagesForPanel(panel, panel.session.id)
+        },
+        done: (data) => {
           this.stopThinking(panel)
+          panel.sessionStatus = 'completed'
           if (data?.modelName) panel.modelName = data.modelName
           if (data?.usage?.promptTokens) panel.promptTokens = data.usage.promptTokens
           if (data?.response) this.pushLogItem(panel, this.createThinkItem(data.response))
-          if (data?.sessionId) this.loadSessions()
-          break
-        case 'stopped':
+          this.loadSessions()
+          this.$nextTick(() => this.schedulePanelScroll(panel))
+        },
+        stopped: (data) => {
           this.stopThinking(panel)
+          panel.sessionStatus = 'idle'
           this.pushLogItem(panel, this.createThinkItem('【已停止】'))
-          break
-        case 'error':
-          this.$message.error(error || '发生错误')
+          this.$nextTick(() => this.schedulePanelScroll(panel))
+        },
+        error: (data) => {
+          this.$message.error(data?.error || '发生错误')
           this.stopThinking(panel)
-          break
-      }
-      this.$nextTick(() => this.schedulePanelScroll(panel))
+          panel.sessionStatus = 'idle'
+        }
+      })
     },
 
     setLayout(mode) {
@@ -428,7 +440,8 @@ export default {
         newActive.push(this.activeSessions[i] || {
           session: null, logItems: [], userQuestion: '', modelName: '',
           input: '', disabled: false, stopping: false, wsConnected: false,
-          promptTokens: 0, dotInterval: null, compactionRatio: 0
+          promptTokens: 0, dotInterval: null, compactionRatio: 0,
+          sessionStatus: 'idle'
         })
       }
       this.activeSessions = newActive
@@ -447,12 +460,15 @@ export default {
       panel.userQuestion = ''
       panel.disabled = false
       panel.stopping = false
-      panel.wsConnected = false
       panel.promptTokens = 0
       clearInterval(panel.dotInterval)
       panel.dotInterval = null
+      panel.sessionStatus = this.draggedSession.status || 'idle'
+      if (panel.sessionStatus === 'processing') {
+        panel.disabled = true
+      }
       this.loadMessagesForPanel(panel, this.draggedSession.id)
-      this.initPanelWs(panel)
+      this.subscribePanel(panel)
       this.draggedSession = null
     },
 
@@ -462,10 +478,14 @@ export default {
         const panel = this.activeSessions[idx]
         Object.assign(panel, {
           session, logItems: [], userQuestion: '', disabled: false,
-          stopping: false, wsConnected: false, promptTokens: 0, dotInterval: null, compactionRatio: 0
+          stopping: false, promptTokens: 0, dotInterval: null, compactionRatio: 0,
+          sessionStatus: session.status || 'idle'
         })
+        if (panel.sessionStatus === 'processing') {
+          panel.disabled = true
+        }
         this.loadMessagesForPanel(panel, session.id)
-        this.initPanelWs(panel)
+        this.subscribePanel(panel)
       }
     },
 
@@ -479,6 +499,10 @@ export default {
         })
         const userItem = panel.logItems.find(item => item.type === 'chat' || item.type === 'think')
         if (userItem) panel.userQuestion = userItem.content
+        const session = this.sessions.find(s => s.id === sessionId)
+        if (session) {
+          panel.sessionStatus = session.status || 'idle'
+        }
       } catch (e) {
         panel.logItems = []
       }
@@ -494,6 +518,28 @@ export default {
         this.updateActiveSessions()
       } catch (e) {
         console.error('加载会话失败:', e)
+      }
+    },
+
+    async loadSessionStatuses() {
+      const sessionIds = this.sessions.map(s => s.id)
+      if (sessionIds.length === 0) return
+      try {
+        const res = await api.getSessionStatuses(sessionIds)
+        const statusMap = new Map((res.data || []).map(item => [item.sessionId, item.status]))
+        for (const session of this.sessions) {
+          session.status = statusMap.get(session.id) || 'idle'
+        }
+        for (const panel of this.activeSessions) {
+          if (panel.session?.id) {
+            panel.sessionStatus = statusMap.get(panel.session.id) || 'idle'
+            if (panel.sessionStatus === 'processing') {
+              panel.disabled = true
+            }
+          }
+        }
+      } catch (e) {
+        console.error('加载会话状态失败:', e)
       }
     },
 
@@ -558,16 +604,7 @@ export default {
       panel.userQuestion = content
       this.pushLogItem(panel, { type: 'chat', content: content })
 
-      if (api.sessionWsIsConnected(panel.session.id)) {
-        api.sessionWsSend(panel.session.id, 'chat', { message: content, sessionId: panel.session?.id, modelName: panel.modelName || undefined })
-      } else {
-        this.initPanelWs(panel)
-        setTimeout(() => {
-          if (api.sessionWsIsConnected(panel.session.id)) {
-            api.sessionWsSend(panel.session.id, 'chat', { message: content, sessionId: panel.session?.id, modelName: panel.modelName || undefined })
-          }
-        }, 500)
-      }
+      api.sessionWsSend(panel.session.id, 'chat', { message: content, sessionId: panel.session?.id, modelName: panel.modelName || undefined })
     },
 
     stopPanel(panel) {

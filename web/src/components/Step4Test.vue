@@ -60,8 +60,8 @@
           </div>
         </div>
         <div class="status-bar">
-          <span :class="disabled && !stopping ? 'status-thinking' : 'status-ready'">
-            {{ disabled && !stopping ? dotAnimation + ' 思考中' : '✓ 就绪' }}
+          <span :class="sessionStatus === 'processing' ? 'status-thinking' : 'status-ready'">
+            {{ sessionStatus === 'processing' ? dotAnimation + ' 思考中' : '✓ 就绪' }}
           </span>
           <span class="separator">|</span>
           <span class="model-selector" @click="openModelSelector" @mousedown.prevent>
@@ -128,7 +128,6 @@ export default {
       inputMessage: '',
       disabled: false,
       stopping: false,
-      wsConnected: false,
       promptTokens: 0,
       compactionRatio: 0,
       dotAnimation: '',
@@ -138,7 +137,9 @@ export default {
       modelName: '',
       modelSelectVisible: false,
       commandDialogVisible: false,
-      fileSelectVisible: false
+      fileSelectVisible: false,
+      wsUnsubscribe: null,
+      sessionStatus: 'idle'
     }
   },
   computed: {
@@ -157,18 +158,24 @@ export default {
       immediate: true,
       handler(val) {
         if (val) {
-          this.initWs()
+          this.subscribeSession()
           this.loadMessages()
+          this.loadSessionStatus()
         }
       }
     }
   },
   mounted() {
     this.loadDefaultModel()
+    api.ws.connect()
   },
   beforeDestroy() {
     if (this.dotInterval) {
       clearInterval(this.dotInterval)
+    }
+    if (this.wsUnsubscribe) {
+      this.wsUnsubscribe()
+      this.wsUnsubscribe = null
     }
   },
   methods: {
@@ -196,8 +203,6 @@ export default {
             return
           }
           this.$emit('update:sessionId', activeSessionId)
-          this.wsConnected = false
-          this.initWs(activeSessionId)
         } catch (e) {
           console.error('Create test session failed:', e)
           this.$message.error('创建测试会话失败')
@@ -222,85 +227,72 @@ export default {
         this.dotAnimation = this.dots[dotIdx]
       }, 150)
 
-      if (api.sessionWsIsConnected(activeSessionId)) {
-        api.sessionWsSend(activeSessionId, 'chat', { message: contextMsg, sessionId: activeSessionId, modelName: this.modelName || undefined })
-      } else {
-        this.initWs(activeSessionId)
-        setTimeout(() => {
-          if (api.sessionWsIsConnected(activeSessionId)) {
-            api.sessionWsSend(activeSessionId, 'chat', { message: contextMsg, sessionId: activeSessionId, modelName: this.modelName || undefined })
-          }
-        }, 500)
-      }
+      api.ws.send(activeSessionId, 'chat', { message: contextMsg, sessionId: activeSessionId, modelName: this.modelName || undefined })
     },
     stopChat() {
       if (!this.sessionId || this.stopping) return
       this.stopping = true
-      api.sessionWsSend(this.sessionId, 'stop', { sessionId: this.sessionId })
+      api.ws.send(this.sessionId, 'stop', { sessionId: this.sessionId })
     },
-    initWs(sessionId = this.sessionId) {
-      if (!sessionId || this.wsConnected) return
-      api.sessionWsConnect(
-        sessionId,
-        (msg) => this.handleWsMessage(msg),
-        () => { this.wsConnected = true },
-        () => {
-          this.wsConnected = false
-          setTimeout(() => {
-            if (!api.sessionWsIsConnected(sessionId)) this.initWs(sessionId)
-          }, 3000)
-        },
-        (err) => { this.wsConnected = false; console.error(err) }
-      )
-    },
-    handleWsMessage(msg) {
-      const { type, data, error } = msg
-      switch (type) {
-        case 'todos':
+    subscribeSession() {
+      if (this.wsUnsubscribe) {
+        this.wsUnsubscribe()
+      }
+      if (!this.sessionId) return
+      this.wsUnsubscribe = api.ws.subscribe(this.sessionId, {
+        todos: (data) => {
           if (data?.todos) this.logItems.push({ type: 'todos', todos: data.todos })
-          break
-        case 'session':
+        },
+        session: (data) => {
           if (data?.sessionId && !this.sessionId) {
             this.$emit('update:sessionId', data.sessionId)
           }
-          break
-        case 'step':
+        },
+        step: (data) => {
           if (data) {
             this.logItems.push({ type: 'step', thought: data.thought, toolCalls: data.toolCalls, success: data.success })
             if (data.usage?.promptTokens) this.promptTokens = data.usage.promptTokens
+            this.scrollToBottom()
           }
-          break
-        case 'compact':
+        },
+        compact: (data) => {
           this.logItems.push({ type: 'system', content: `【压缩完成】${data.summary || ''}` })
           this.loadMessages()
-          break
-        case 'done':
+        },
+        done: (data) => {
           this.disabled = false
           this.stopping = false
           this.dotAnimation = ''
           clearInterval(this.dotInterval)
           this.dotInterval = null
+          this.sessionStatus = 'completed'
           if (data?.modelName) this.modelName = data.modelName
           if (data?.usage?.promptTokens) this.promptTokens = data.usage.promptTokens
           if (data?.response) this.logItems.push({ type: 'think', content: data.response })
-          break
-        case 'stopped':
+          this.scrollToBottom()
+        },
+        stopped: () => {
           this.disabled = false
           this.stopping = false
           this.dotAnimation = ''
           clearInterval(this.dotInterval)
           this.dotInterval = null
+          this.sessionStatus = 'idle'
           this.logItems.push({ type: 'think', content: '【已停止】' })
-          break
-        case 'error':
-          this.$message.error(error || '发生错误')
+          this.scrollToBottom()
+        },
+        error: (data) => {
+          this.$message.error(data?.error || '发生错误')
           this.disabled = false
           this.stopping = false
           this.dotAnimation = ''
           clearInterval(this.dotInterval)
           this.dotInterval = null
-          break
-      }
+          this.sessionStatus = 'idle'
+        }
+      })
+    },
+    scrollToBottom() {
       this.$nextTick(() => {
         const container = this.$refs.messagesContainer
         if (container) {
@@ -315,6 +307,21 @@ export default {
         this.logItems = res.data || []
       } catch (e) {
         console.error('Load messages failed:', e)
+      }
+    },
+    async loadSessionStatus() {
+      if (!this.sessionId) return
+      try {
+        const res = await api.getSessionStatuses([this.sessionId])
+        const item = (res.data || []).find(s => s.sessionId === this.sessionId)
+        if (item) {
+          this.sessionStatus = item.status
+          if (item.status === 'processing') {
+            this.disabled = true
+          }
+        }
+      } catch (e) {
+        console.error('Load session status failed:', e)
       }
     },
     async loadDefaultModel() {

@@ -155,6 +155,7 @@ export class OpenAIAgent implements AIProvider {
         steps.push(step);
         options?.onStep?.(step, iteration, response.usage);
 
+        const newMessagesStartIndex = baseMessages.length;
         for (let i = 0; i < toolCalls.length; i++) {
           const toolCall = toolCalls[i];
           const result = results[i];
@@ -189,7 +190,7 @@ export class OpenAIAgent implements AIProvider {
           this.addMessage('tool', toolMsg.content, true, false, undefined, toolCall.id, options?.sessionId);
         }
 
-        await this.checkAndCompact(options, baseMessages, totalUsage);
+        await this.checkAndCompact(options, baseMessages, totalUsage, newMessagesStartIndex);
         continue;
       }
 
@@ -254,7 +255,8 @@ export class OpenAIAgent implements AIProvider {
   private async checkAndCompact(
     options: ProviderRunOptions | undefined,
     baseMessages: ChatMessage[],
-    totalUsage: ProviderTokenUsage
+    totalUsage: ProviderTokenUsage,
+    newMessagesStartIndex: number
   ): Promise<void> {
     if (!this.sessionId || !this.summarizer) return;
 
@@ -265,14 +267,11 @@ export class OpenAIAgent implements AIProvider {
 
     if (!check.needed) return;
 
-    console.log(`[AutoCompact] ${check.reason}`);
-
-    const currentToolResults = baseMessages.filter(
+    const currentToolResults = baseMessages.slice(newMessagesStartIndex).filter(
       msg => msg.role === 'tool' || (msg.role === 'assistant' && msg.toolCalls)
     );
 
     try {
-      //这里记录了 messages
       const result = await this.summarizer.compact({
         sessionId: this.sessionId,
       });
@@ -285,6 +284,7 @@ export class OpenAIAgent implements AIProvider {
         });
 
         const session = this.sessionService?.get(this.sessionId);
+        
         const summaryMessages = this.memoryService?.getMessagesForAI(
           this.sessionId,
           session?.summaryMessageId || null

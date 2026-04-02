@@ -37,6 +37,23 @@ sessionRouter.get('/', (req: Request, res: Response) => {
 });
 
 /**
+ * POST /api/sessions/status
+ * 获取多个会话的状态
+ * Body: { sessionIds: string[] }
+ */
+sessionRouter.post('/status', (req: Request, res: Response) => {
+  const { sessionIds } = req.body as { sessionIds?: string[] };
+  if (!sessionIds || !Array.isArray(sessionIds)) {
+    return res.status(400).json({ success: false, error: 'sessionIds array required' });
+  }
+  const statuses = sessionIds.map(id => {
+    const session = sessionService.get(id);
+    return { sessionId: id, status: session?.status || 'idle' };
+  });
+  res.json({ success: true, data: statuses });
+});
+
+/**
  * GET /api/sessions/current
  * 获取当前活跃的会话
  */

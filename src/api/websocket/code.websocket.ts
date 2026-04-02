@@ -2,6 +2,7 @@
  * Code WebSocket 处理器
  * 
  * 处理 /ws/code 路径的 WebSocket 消息
+ * 所有消息广播给所有连接的客户端，前端根据 sessionId 决定是否显示
  */
 
 import { WebSocket } from 'ws';
@@ -28,11 +29,16 @@ export class CodeWebSocketHandler {
 
     ws.on('close', () => {
       this.wsClients.delete(ws);
-      for (const [sessionId, controller] of this.abortControllers.entries()) {
-        controller.abort();
-        this.abortControllers.delete(sessionId);
-      }
     });
+  }
+
+  private broadcast(message: any): void {
+    const data = JSON.stringify(message);
+    for (const client of this.wsClients) {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(data);
+      }
+    }
   }
 
   private async handleMessage(ws: WebSocket, msg: any): Promise<void> {
@@ -40,7 +46,7 @@ export class CodeWebSocketHandler {
 
     switch (type) {
       case 'chat':
-        await this.handleChat(ws, data);
+        await this.handleChat(data);
         break;
       case 'stop':
         this.handleStop(data);
@@ -61,10 +67,11 @@ export class CodeWebSocketHandler {
     if (controller) {
       controller.abort();
       this.abortControllers.delete(sessionId);
+      sessionService.setIdle(sessionId);
     }
   }
 
-  private async handleChat(ws: WebSocket, data: any): Promise<void> {
+  private async handleChat(data: any): Promise<void> {
     const { message, sessionId, projectPath } = data;
 
     const existingController = this.abortControllers.get(sessionId);
@@ -81,8 +88,9 @@ export class CodeWebSocketHandler {
         session = sessionService.create('New Chat', projectPath);
       }
       sessionService.switchTo(session.id);
+      sessionService.setProcessing(session.id);
 
-      ws.send(JSON.stringify({ type: 'session', data: { sessionId: session.id } }));
+      this.broadcast({ type: 'session', data: { sessionId: session.id } });
 
       console.log('[CodeWebSocket] Chat message:', message);
 
@@ -92,15 +100,17 @@ export class CodeWebSocketHandler {
           sessionId: session.id,
         });
 
-        ws.send(JSON.stringify({ type: 'command', data: result }));
-        ws.send(JSON.stringify({
+        this.broadcast({ type: 'command', data: result });
+        this.broadcast({
           type: 'done',
           data: {
+            sessionId: session.id,
             response: result.answer,
             success: result.success,
             commandData: result.data,
           }
-        }));
+        });
+        sessionService.setCompleted(session.id);
         return;
       } else {
         const result = await codeChatService.handleChat({
@@ -109,18 +119,18 @@ export class CodeWebSocketHandler {
           projectPath: session.projectPath ?? undefined,
           abortSignal: abortController.signal,
           onStep: (step: any, iteration: number, usage?: any) => {
-            ws.send(JSON.stringify({ type: 'step', data: { ...step, iteration, usage: usage ? {
+            this.broadcast({ type: 'step', data: { ...step, iteration, usage: usage ? {
               promptTokens: usage.promptTokens,
               completionTokens: usage.completionTokens,
               totalTokens: usage.totalTokens,
-            } : undefined } }));
+            } : undefined } });
           },
           onCompact: (info: { beforeTokens: number; afterTokens: number; summary?: string }) => {
-            ws.send(JSON.stringify({ type: 'compact', data: info }));
+            this.broadcast({ type: 'compact', data: info });
           },
         });
 
-        ws.send(JSON.stringify({
+        this.broadcast({
           type: 'done',
           data: {
             sessionId: session.id,
@@ -133,7 +143,8 @@ export class CodeWebSocketHandler {
               totalTokens: result.usage.totalTokens,
             } : undefined,
           }
-        }));
+        });
+        sessionService.setCompleted(session.id);
       }
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : 'Unknown error';
@@ -143,28 +154,14 @@ export class CodeWebSocketHandler {
         errorMsg.toLowerCase().includes('abort')
       );
       if (isAbort) {
-        ws.send(JSON.stringify({
-          type: 'stopped',
-          reason: 'user_cancelled'
-        }));
+        this.broadcast({ type: 'stopped', sessionId, reason: 'user_cancelled' });
       } else {
-        ws.send(JSON.stringify({
-          type: 'error',
-          error: errorMsg
-        }));
+        this.broadcast({ type: 'error', sessionId, error: errorMsg });
       }
+      sessionService.setIdle(sessionId);
     } finally {
       this.abortControllers.delete(sessionId);
     }
-  }
-
-  broadcast(message: any): void {
-    const data = JSON.stringify(message);
-    this.wsClients.forEach(client => {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(data);
-      }
-    });
   }
 }
 

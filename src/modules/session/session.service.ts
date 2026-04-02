@@ -146,7 +146,7 @@ export class SessionService {
    * @param id - 会话 ID
    * @param data - 要更新的字段
    */
-  update(id: string, data: Partial<Pick<Session, 'title' | 'projectPath'>>): void {
+  update(id: string, data: Partial<Pick<Session, 'title' | 'projectPath' | 'status'>>): void {
     const updates: string[] = [];
     const values: unknown[] = [];
 
@@ -158,6 +158,10 @@ export class SessionService {
     if (data.projectPath !== undefined) {
       updates.push('project_path = ?');
       values.push(data.projectPath);
+    }
+    if (data.status !== undefined) {
+      updates.push('status = ?');
+      values.push(data.status);
     }
 
     // 如果有需要更新的字段
@@ -396,6 +400,18 @@ export class SessionService {
     );
   }
 
+  setProcessing(sessionId: string): void {
+    this.update(sessionId, { status: 'processing' });
+  }
+
+  setCompleted(sessionId: string): void {
+    this.update(sessionId, { status: 'completed' });
+  }
+
+  setIdle(sessionId: string): void {
+    this.update(sessionId, { status: 'idle' });
+  }
+
   /**
    * 获取会话统计信息
    * 
@@ -451,6 +467,7 @@ export class SessionService {
       cost: row.cost || 0,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
+      status: row.status || 'idle',
     };
   }
 }

@@ -2,6 +2,8 @@
  * Session 模块类型定义
  */
 
+export type SessionStatus = 'idle' | 'processing' | 'completed';
+
 export interface Session {
   id: string;
   title: string;
@@ -12,6 +14,7 @@ export interface Session {
   cost: number;
   createdAt: string;
   updatedAt: string;
+  status?: SessionStatus;
 }
 
 export interface SessionState {

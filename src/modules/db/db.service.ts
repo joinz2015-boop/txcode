@@ -209,6 +209,7 @@ export class DbService {
       () => this.migration006AddDingdingConfig(),
       () => this.migration007AddScheduledTasks(),
       () => this.migration008AddEmailConfig(),
+      () => this.migration009AddSessionStatus(),
     ];
 
     for (let i = 0; i < migrations.length; i++) {
@@ -578,6 +579,15 @@ export class DbService {
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )
     `)
+  }
+
+  private migration009AddSessionStatus(): void {
+    if (!this.db) return
+
+    const columns = this.getTableColumns('sessions')
+    if (!columns.includes('status')) {
+      this.db.run(`ALTER TABLE sessions ADD COLUMN status TEXT DEFAULT 'idle'`)
+    }
   }
 
   private getTableColumns(tableName: string): string[] {
