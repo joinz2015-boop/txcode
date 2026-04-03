@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>软件研发 - txcode操作文档</title>
+    <script src="../tailwindcss.js"></script>
+    <link rel="stylesheet" href="../font-awesome/css/all.min.css">
+    <link rel="stylesheet" href="../fonts/inter.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                            900: '#1e3a8a',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Inter', system-ui, sans-serif; }
+        details > summary { list-style: none; }
+        details > summary::-webkit-details-marker { display: none; }
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+    </style>
+    <link rel="stylesheet" href="../zihao_doc.css">
+</head>
+<body class="bg-white text-slate-800 antialiased flex flex-col h-screen overflow-hidden selection:bg-brand-500 selection:text-white">
+
+    <header class="flex-shrink-0 relative z-50 bg-white/80 backdrop-blur-md border-b border-slate-200 h-16 flex items-center justify-between px-4 sm:px-6 lg:px-8">
+        <div class="flex items-center">
+            <button id="mobile-menu-btn" class="md:hidden mr-4 text-slate-500 hover:text-slate-900 transition-colors">
+                <i class="fa-solid fa-bars text-xl"></i>
+            </button>
+            
+            <a href="index.html" class="flex items-center group cursor-pointer mr-6">
+                <div class="w-7 h-7 bg-gradient-to-br from-brand-500 to-indigo-600 rounded flex items-center justify-center mr-2 text-white shadow-sm">
+                    <i class="fa-solid fa-shield-halved text-xs"></i>
+                </div>
+                <span class="font-bold text-lg tracking-tight text-slate-900 mr-2 border-r border-slate-300 pr-2">txcode操作文档</span>
+                <span class="text-slate-500 font-medium">文档中心</span>
+            </a>
+        </div>
+        
+        <div class="flex items-center space-x-4 text-sm font-medium">
+            <div class="relative">
+                <input type="text" id="search-input" placeholder="搜索文档..." 
+                    class="w-48 lg:w-64 px-3 py-1.5 pl-9 text-sm bg-slate-100 border border-transparent rounded-lg focus:outline-none focus:bg-white focus:border-brand-500 focus:ring-2 focus:ring-brand-200 transition-all">
+                <i class="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                <div id="search-results" class="hidden absolute top-full right-0 mt-2 w-80 max-h-96 overflow-y-auto bg-white rounded-lg shadow-xl border border-slate-200 z-50"></div>
+            </div>
+            <a href="https://gitee.com/homecommunity/zihao_doc" target="_blank" class="text-slate-400 hover:text-slate-900 transition-colors">
+                <i class="fa-brands fa-github text-xl"></i>
+            </a>
+        </div>
+    </header>
+
+    <div class="flex flex-1 overflow-hidden relative">
+        
+        <aside id="sidebar" class="w-72 flex-shrink-0 bg-slate-50/50 border-r border-slate-200 overflow-y-auto hidden md:block transition-transform duration-300 absolute md:relative z-40 h-full flex flex-col">
+            <nav class="px-4 py-6 space-y-1 flex-1 overflow-y-auto min-h-0">
+                <a href="/getting-started/index.html" class="flex items-center px-3 py-2 text-sm font-semibold text-slate-700 bg-transparent hover:bg-slate-100 rounded-lg cursor-pointer select-none transition-colors mt-2"><i class="fa-solid fa-rocket w-6 text-center text-slate-400"></i><span>如何开始</span></a><a href="/configuration/model.html" class="flex items-center px-3 py-2 text-sm font-semibold text-slate-700 bg-transparent hover:bg-slate-100 rounded-lg cursor-pointer select-none transition-colors mt-2"><i class="fa-solid fa-gear w-6 text-center text-slate-400"></i><span>配置模型</span></a><a href="/cli/commands.html" class="flex items-center px-3 py-2 text-sm font-semibold text-slate-700 bg-transparent hover:bg-slate-100 rounded-lg cursor-pointer select-none transition-colors mt-2"><i class="fa-solid fa-terminal w-6 text-center text-slate-400"></i><span>命令介绍</span></a><a href="/workflow/workflow.html" class="flex items-center px-3 py-2 text-sm font-semibold text-slate-700 bg-transparent hover:bg-slate-100 rounded-lg cursor-pointer select-none transition-colors mt-2"><i class="fa-solid fa-code w-6 text-center text-slate-400"></i><span>软件研发</span></a><a href="/tasks/schedule.html" class="flex items-center px-3 py-2 text-sm font-semibold text-slate-700 bg-transparent hover:bg-slate-100 rounded-lg cursor-pointer select-none transition-colors mt-2"><i class="fa-solid fa-clock w-6 text-center text-slate-400"></i><span>定时任务</span></a><a href="/files/files.html" class="flex items-center px-3 py-2 text-sm font-semibold text-slate-700 bg-transparent hover:bg-slate-100 rounded-lg cursor-pointer select-none transition-colors mt-2"><i class="fa-solid fa-folder-open w-6 text-center text-slate-400"></i><span>文件操作</span></a><a href="/terminal/terminal.html" class="flex items-center px-3 py-2 text-sm font-semibold text-slate-700 bg-transparent hover:bg-slate-100 rounded-lg cursor-pointer select-none transition-colors mt-2"><i class="fa-solid fa-square-terminal w-6 text-center text-slate-400"></i><span>命令终端</span></a><a href="/logs/ai-logs.html" class="flex items-center px-3 py-2 text-sm font-semibold text-slate-700 bg-transparent hover:bg-slate-100 rounded-lg cursor-pointer select-none transition-colors mt-2"><i class="fa-solid fa-file-lines w-6 text-center text-slate-400"></i><span>AI 日志</span></a><a href="/skills/skills.html" class="flex items-center px-3 py-2 text-sm font-semibold text-slate-700 bg-transparent hover:bg-slate-100 rounded-lg cursor-pointer select-none transition-colors mt-2"><i class="fa-solid fa-brain w-6 text-center text-slate-400"></i><span>技能与记忆</span></a><a href="/gateway/config.html" class="flex items-center px-3 py-2 text-sm font-semibold text-slate-700 bg-transparent hover:bg-slate-100 rounded-lg cursor-pointer select-none transition-colors mt-2"><i class="fa-solid fa-plug w-6 text-center text-slate-400"></i><span>网关配置</span></a>
+            </nav>
+            <div class="px-4 py-4 border-t border-slate-200 flex-shrink-0">
+                <a href="https://gitee.com/homecommunity/zihao_doc" target="_blank" class="flex items-center justify-center px-3 py-2 text-xs text-slate-400 hover:text-brand-500 transition-colors">
+                    <span>本文档由</span>
+                    <span class="mx-1 font-medium">梓豪doc</span>
+                    <span>创建</span>
+                </a>
+            </div>
+        </aside>
+
+        <div id="mobile-overlay" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-30 hidden md:hidden"></div>
+
+        <main class="flex-1 overflow-y-auto bg-white scroll-smooth relative w-full">
+            <div class="max-w-4xl mx-auto px-6 py-10 lg:px-12 lg:py-14">
+                
+                <div class="flex items-center justify-between mb-8">
+                    <div class="flex items-center text-sm text-slate-500" id="breadcrumb">
+                        <a href="index.html" class="hover:text-brand-600 transition-colors">txcode操作文档</a>
+                        <i class="fa-solid fa-chevron-right text-[10px] mx-2"></i>
+                        <span class="text-slate-900 font-medium">软件研发</span>
+                    </div>
+                    <button id="copy-link" class="flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-500 hover:text-brand-600 hover:bg-slate-100 rounded-lg transition-colors" title="复制链接">
+                        <i class="fa-regular fa-copy"></i>
+                        <span class="copy-text">复制链接</span>
+                    </button>
+                </div>
+
+                <article class="prose prose-slate prose-brand max-w-none 
+                                prose-headings:font-bold prose-headings:tracking-tight 
+                                prose-a:text-brand-600 prose-a:font-medium prose-a:no-underline hover:prose-a:underline
+                                prose-pre:bg-slate-900 prose-pre:shadow-lg prose-pre:border prose-pre:border-slate-800"
+                                id="article-content">
+                    <h1>软件研发</h1><p>软件研发模块提供完整的需求分析、方案设计、代码生成和测试验收工作流程。</p>
+<h2 id="进入研发页面">进入研发页面</h2><ol>
+<li>启动 txCode Web 服务：</li>
+</ol>
+<pre><code class="language-bash">txcode web
+</code></pre>
+<ol start="2">
+<li>浏览器打开 <code>http://localhost:40000</code></li>
+<li>点击顶部导航的 <strong>研发</strong> 进入工作流页面</li>
+</ol>
+<h2 id="工作流程概览">工作流程概览</h2><p>研发模块分为 4 个步骤：</p>
+<table>
+<thead>
+<tr>
+<th>步骤</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1. 新建需求</td>
+<td>创建和管理需求项目</td>
+</tr>
+<tr>
+<td>2. 方案设计</td>
+<td>与 AI 协作编写方案文档</td>
+</tr>
+<tr>
+<td>3. 代码生成</td>
+<td>根据方案生成代码</td>
+</tr>
+<tr>
+<td>4. 测试验收</td>
+<td>测试功能是否按方案实现</td>
+</tr>
+</tbody></table>
+<h2 id="步骤一-新建需求">步骤一：新建需求</h2><h3>创建大类</h3><p>大类用于对需求进行分类管理：</p>
+<ol>
+<li>点击 <strong>&quot;新建&quot;</strong> 按钮</li>
+<li>输入大类名称（如：用户管理、订单系统）</li>
+<li>点击 <strong>&quot;确定&quot;</strong></li>
+</ol>
+<h3>创建需求</h3><ol>
+<li>选择所属大类</li>
+<li>点击 <strong>&quot;新建&quot;</strong> 按钮</li>
+<li>输入需求名称（如：用户登录、订单查询）</li>
+<li>点击 <strong>&quot;确定&quot;</strong></li>
+</ol>
+<p>创建需求后，系统会自动：</p>
+<ul>
+<li>创建需求目录</li>
+<li>生成 <code>{需求名}_方案.md</code> 方案文档</li>
+<li>创建 3 个独立会话（设计/代码/测试）</li>
+</ul>
+<h2 id="步骤二-方案设计">步骤二：方案设计</h2><h3>界面说明</h3><ul>
+<li><strong>左侧</strong>：Monaco Editor 编辑器，用于编写和查看方案文档</li>
+<li><strong>右侧</strong>：AI 对话面板，与 AI 协作完善方案</li>
+</ul>
+<h3>操作步骤</h3><ol>
+<li><p><strong>编写方案</strong></p>
+<p>在左侧编辑器中编写方案，方案文档包含：</p>
+<pre><code class="language-markdown"># 用户登录方案
+
+&gt; 所属大类：用户管理
+
+## 业务目标
+
+## 功能点
+</code></pre>
+</li>
+<li><p><strong>与 AI 协作</strong></p>
+<p>在右侧输入框描述需求，AI 会：</p>
+<ul>
+<li>分析需求并给出建议</li>
+<li>更新方案文档</li>
+<li>使用工具完成文件操作</li>
+</ul>
+</li>
+<li><p><strong>保存方案</strong></p>
+<ul>
+<li>点击 <strong>&quot;保存方案&quot;</strong> 按钮</li>
+<li>或按 <code>Ctrl+S</code> 保存</li>
+</ul>
+</li>
+<li><p><strong>刷新方案</strong></p>
+<p>点击 <strong>&quot;刷新方案&quot;</strong> 重新加载方案文档</p>
+</li>
+</ol>
+<h3>快捷操作</h3><table>
+<thead>
+<tr>
+<th>功能</th>
+<th>操作</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>发送消息</td>
+<td>Enter</td>
+</tr>
+<tr>
+<td>换行</td>
+<td>Ctrl+Enter</td>
+</tr>
+<tr>
+<td>选择文件</td>
+<td>@ 触发文件选择器</td>
+</tr>
+<tr>
+<td>保存方案</td>
+<td>Ctrl+S</td>
+</tr>
+</tbody></table>
+<h3>状态栏信息</h3><ul>
+<li><strong>状态</strong>：思考中 / 就绪</li>
+<li><strong>模型</strong>：当前使用的 AI 模型</li>
+<li><strong>会话</strong>：会话 ID</li>
+<li><strong>token</strong>：当前 prompt 消耗</li>
+</ul>
+<h2 id="步骤三-代码生成">步骤三：代码生成</h2><h3>操作步骤</h3><ol>
+<li>点击 <strong>&quot;根据方案生成代码&quot;</strong> 按钮</li>
+<li>AI 会自动读取方案文档并开始生成代码</li>
+<li>在对话面板中查看生成进度</li>
+<li>可以随时输入额外要求</li>
+</ol>
+<h3>快速开始</h3><pre><code class="language-bash"># 自动填入生成命令
+根据 {方案路径} 方案开发相应功能，先不要修改方案文档。
+</code></pre>
+<h3>功能按钮</h3><table>
+<thead>
+<tr>
+<th>按钮</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>根据方案生成代码</td>
+<td>自动读取方案生成代码</td>
+</tr>
+<tr>
+<td>动作配置</td>
+<td>配置自定义动作</td>
+</tr>
+</tbody></table>
+<h3>自定义动作</h3><p>可以配置预设的指令：</p>
+<ol>
+<li>点击 <strong>&quot;动作配置&quot;</strong></li>
+<li>添加自定义动作名称和提示词</li>
+<li>勾选 <strong>&quot;自动发送&quot;</strong> 可一键执行</li>
+</ol>
+<h2 id="步骤四-测试验收">步骤四：测试验收</h2><h3>操作步骤</h3><ol>
+<li>点击 <strong>&quot;根据方案测试&quot;</strong> 按钮</li>
+<li>AI 会根据方案测试已生成的代码</li>
+<li>查看测试结果</li>
+<li>如有问题，描述问题返回代码生成步骤修改</li>
+</ol>
+<h3>快速开始</h3><pre><code class="language-bash">根据 {方案路径} 方案测试相应功能是否实现。
+</code></pre>
+<h2 id="通用操作">通用操作</h2><h3>模型选择</h3><ol>
+<li>点击状态栏的 <strong>模型：xxx ▾</strong></li>
+<li>在弹出的对话框中选择模型</li>
+<li>选择后自动保存为默认模型</li>
+</ol>
+<h3>文件选择</h3><ol>
+<li>在输入框输入 <code>@</code></li>
+<li>弹出文件选择器</li>
+<li>选择文件后路径自动填入</li>
+</ol>
+<h3>命令快捷输入</h3><ol>
+<li>点击状态栏的 <strong>&quot;命令&quot;</strong></li>
+<li>输入常用命令</li>
+<li>命令自动填入输入框</li>
+</ol>
+<h3>停止生成</h3><p>如果 AI 生成时间过长或不需要继续：</p>
+<ol>
+<li>点击 <strong>&quot;■ 停止&quot;</strong> 按钮</li>
+<li>AI 会在当前步骤完成后停止</li>
+</ol>
+<h2 id="目录结构">目录结构</h2><p>每个需求项目会生成以下结构：</p>
+<pre><code>{大类}/
+└── {需求名}/
+    ├── {需求名}_方案.md    # 方案文档
+    └── session.json       # 会话 ID 配置
+</code></pre>
+<h3>session.json 示例</h3><pre><code class="language-json">{
+  &quot;designSessionId&quot;: &quot;xxx-design-id&quot;,
+  &quot;codeSessionId&quot;: &quot;xxx-code-id&quot;,
+  &quot;testSessionId&quot;: &quot;xxx-test-id&quot;
+}
+</code></pre>
+<h2 id="最佳实践">最佳实践</h2><h3>方案设计</h3><ol>
+<li><strong>明确业务目标</strong>：先描述要解决的问题</li>
+<li><strong>细化功能点</strong>：列出具体的功能需求</li>
+<li><strong>考虑边界情况</strong>：异常处理、数据校验</li>
+<li><strong>多次迭代</strong>：与 AI 多轮讨论完善方案</li>
+</ol>
+<h3>代码生成</h3><ol>
+<li><strong>方案先行</strong>：确保方案完整再生成代码</li>
+<li><strong>分步生成</strong>：大功能拆分成小功能逐步生成</li>
+<li><strong>边生成边测试</strong>：不要等全部完成再测试</li>
+</ol>
+<h3>测试验收</h3><ol>
+<li><strong>功能测试</strong>：验证功能是否按方案实现</li>
+<li><strong>边界测试</strong>：测试异常输入</li>
+<li><strong>回归测试</strong>：确保修改没有破坏已有功能</li>
+</ol>
+<h2 id="常见问题">常见问题</h2><p><strong>Q: 如何切换需求项目？</strong><br>A: 在左侧边栏点击不同的大类或需求名称。</p>
+<p><strong>Q: 三个会话有什么区别？</strong><br>A: design 会话用于方案设计，code 会话用于代码生成，test 会话用于测试。各自独立，不会互相干扰。</p>
+<p><strong>Q: 方案文档保存在哪里？</strong><br>A: 保存在 <code>{大类}/{需求名}/{需求名}_方案.md</code>。</p>
+<p><strong>Q: 如何重新开始一个需求？</strong><br>A: 在大类中新建需求，系统会创建全新的目录和会话。</p>
+
+                </article>
+
+                <div class="mt-16 pt-8 border-t border-slate-200 flex justify-between items-center gap-4 text-sm font-medium" id="pagination">
+                </div>
+            </div>
+
+            <aside id="toc" class="hidden lg:block w-56 flex-shrink-0 fixed right-8 top-32 h-fit max-h-[calc(100vh-8rem)] overflow-y-auto">
+                <div class="text-sm font-semibold text-slate-800 mb-4">目录</div>
+                <nav id="toc-nav" class="space-y-1 text-sm"></nav>
+            </aside>
+        </main>
+    </div>
+
+    <div id="image-preview" class="fixed inset-0 z-[100] bg-black/90 hidden items-center justify-center cursor-zoom-out">
+        <img id="preview-img" class="max-w-[90vw] max-h-[90vh] object-contain" src="" alt="预览">
+    </div>
+
+    <script src="../zihao_doc.js"></script>
+</body>
+</html>

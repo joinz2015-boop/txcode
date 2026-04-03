@@ -9,6 +9,9 @@ nav:
   - title: 命令介绍
     icon: fa-solid fa-terminal
     url: /cli/commands.html
+  - title: 软件研发
+    icon: fa-solid fa-code
+    url: /workflow/workflow.html
   - title: 定时任务
     icon: fa-solid fa-clock
     url: /tasks/schedule.html
@@ -21,6 +24,9 @@ nav:
   - title: AI 日志
     icon: fa-solid fa-file-lines
     url: /logs/ai-logs.html
+  - title: 技能与记忆
+    icon: fa-solid fa-brain
+    url: /skills/skills.html
   - title: 网关配置
     icon: fa-solid fa-plug
     url: /gateway/config.html

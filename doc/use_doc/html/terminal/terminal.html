@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>命令终端 - txcode操作文档</title>
+    <script src="../tailwindcss.js"></script>
+    <link rel="stylesheet" href="../font-awesome/css/all.min.css">
+    <link rel="stylesheet" href="../fonts/inter.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                            900: '#1e3a8a',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Inter', system-ui, sans-serif; }
+        details > summary { list-style: none; }
+        details > summary::-webkit-details-marker { display: none; }
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+    </style>
+    <link rel="stylesheet" href="../zihao_doc.css">
+</head>
+<body class="bg-white text-slate-800 antialiased flex flex-col h-screen overflow-hidden selection:bg-brand-500 selection:text-white">
+
+    <header class="flex-shrink-0 relative z-50 bg-white/80 backdrop-blur-md border-b border-slate-200 h-16 flex items-center justify-between px-4 sm:px-6 lg:px-8">
+        <div class="flex items-center">
+            <button id="mobile-menu-btn" class="md:hidden mr-4 text-slate-500 hover:text-slate-900 transition-colors">
+                <i class="fa-solid fa-bars text-xl"></i>
+            </button>
+            
+            <a href="index.html" class="flex items-center group cursor-pointer mr-6">
+                <div class="w-7 h-7 bg-gradient-to-br from-brand-500 to-indigo-600 rounded flex items-center justify-center mr-2 text-white shadow-sm">
+                    <i class="fa-solid fa-shield-halved text-xs"></i>
+                </div>
+                <span class="font-bold text-lg tracking-tight text-slate-900 mr-2 border-r border-slate-300 pr-2">txcode操作文档</span>
+                <span class="text-slate-500 font-medium">文档中心</span>
+            </a>
+        </div>
+        
+        <div class="flex items-center space-x-4 text-sm font-medium">
+            <div class="relative">
+                <input type="text" id="search-input" placeholder="搜索文档..." 
+                    class="w-48 lg:w-64 px-3 py-1.5 pl-9 text-sm bg-slate-100 border border-transparent rounded-lg focus:outline-none focus:bg-white focus:border-brand-500 focus:ring-2 focus:ring-brand-200 transition-all">
+                <i class="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                <div id="search-results" class="hidden absolute top-full right-0 mt-2 w-80 max-h-96 overflow-y-auto bg-white rounded-lg shadow-xl border border-slate-200 z-50"></div>
+            </div>
+            <a href="https://gitee.com/homecommunity/zihao_doc" target="_blank" class="text-slate-400 hover:text-slate-900 transition-colors">
+                <i class="fa-brands fa-github text-xl"></i>
+            </a>
+        </div>
+    </header>
+
+    <div class="flex flex-1 overflow-hidden relative">
+        
+        <aside id="sidebar" class="w-72 flex-shrink-0 bg-slate-50/50 border-r border-slate-200 overflow-y-auto hidden md:block transition-transform duration-300 absolute md:relative z-40 h-full flex flex-col">
+            <nav class="px-4 py-6 space-y-1 flex-1 overflow-y-auto min-h-0">
+                <a href="/getting-started/index.html" class="flex items-center px-3 py-2 text-sm font-semibold text-slate-700 bg-transparent hover:bg-slate-100 rounded-lg cursor-pointer select-none transition-colors mt-2"><i class="fa-solid fa-rocket w-6 text-center text-slate-400"></i><span>如何开始</span></a><a href="/configuration/model.html" class="flex items-center px-3 py-2 text-sm font-semibold text-slate-700 bg-transparent hover:bg-slate-100 rounded-lg cursor-pointer select-none transition-colors mt-2"><i class="fa-solid fa-gear w-6 text-center text-slate-400"></i><span>配置模型</span></a><a href="/cli/commands.html" class="flex items-center px-3 py-2 text-sm font-semibold text-slate-700 bg-transparent hover:bg-slate-100 rounded-lg cursor-pointer select-none transition-colors mt-2"><i class="fa-solid fa-terminal w-6 text-center text-slate-400"></i><span>命令介绍</span></a><a href="/workflow/workflow.html" class="flex items-center px-3 py-2 text-sm font-semibold text-slate-700 bg-transparent hover:bg-slate-100 rounded-lg cursor-pointer select-none transition-colors mt-2"><i class="fa-solid fa-code w-6 text-center text-slate-400"></i><span>软件研发</span></a><a href="/tasks/schedule.html" class="flex items-center px-3 py-2 text-sm font-semibold text-slate-700 bg-transparent hover:bg-slate-100 rounded-lg cursor-pointer select-none transition-colors mt-2"><i class="fa-solid fa-clock w-6 text-center text-slate-400"></i><span>定时任务</span></a><a href="/files/files.html" class="flex items-center px-3 py-2 text-sm font-semibold text-slate-700 bg-transparent hover:bg-slate-100 rounded-lg cursor-pointer select-none transition-colors mt-2"><i class="fa-solid fa-folder-open w-6 text-center text-slate-400"></i><span>文件操作</span></a><a href="/terminal/terminal.html" class="flex items-center px-3 py-2 text-sm font-semibold text-slate-700 bg-transparent hover:bg-slate-100 rounded-lg cursor-pointer select-none transition-colors mt-2"><i class="fa-solid fa-square-terminal w-6 text-center text-slate-400"></i><span>命令终端</span></a><a href="/logs/ai-logs.html" class="flex items-center px-3 py-2 text-sm font-semibold text-slate-700 bg-transparent hover:bg-slate-100 rounded-lg cursor-pointer select-none transition-colors mt-2"><i class="fa-solid fa-file-lines w-6 text-center text-slate-400"></i><span>AI 日志</span></a><a href="/skills/skills.html" class="flex items-center px-3 py-2 text-sm font-semibold text-slate-700 bg-transparent hover:bg-slate-100 rounded-lg cursor-pointer select-none transition-colors mt-2"><i class="fa-solid fa-brain w-6 text-center text-slate-400"></i><span>技能与记忆</span></a><a href="/gateway/config.html" class="flex items-center px-3 py-2 text-sm font-semibold text-slate-700 bg-transparent hover:bg-slate-100 rounded-lg cursor-pointer select-none transition-colors mt-2"><i class="fa-solid fa-plug w-6 text-center text-slate-400"></i><span>网关配置</span></a>
+            </nav>
+            <div class="px-4 py-4 border-t border-slate-200 flex-shrink-0">
+                <a href="https://gitee.com/homecommunity/zihao_doc" target="_blank" class="flex items-center justify-center px-3 py-2 text-xs text-slate-400 hover:text-brand-500 transition-colors">
+                    <span>本文档由</span>
+                    <span class="mx-1 font-medium">梓豪doc</span>
+                    <span>创建</span>
+                </a>
+            </div>
+        </aside>
+
+        <div id="mobile-overlay" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-30 hidden md:hidden"></div>
+
+        <main class="flex-1 overflow-y-auto bg-white scroll-smooth relative w-full">
+            <div class="max-w-4xl mx-auto px-6 py-10 lg:px-12 lg:py-14">
+                
+                <div class="flex items-center justify-between mb-8">
+                    <div class="flex items-center text-sm text-slate-500" id="breadcrumb">
+                        <a href="index.html" class="hover:text-brand-600 transition-colors">txcode操作文档</a>
+                        <i class="fa-solid fa-chevron-right text-[10px] mx-2"></i>
+                        <span class="text-slate-900 font-medium">命令终端</span>
+                    </div>
+                    <button id="copy-link" class="flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-500 hover:text-brand-600 hover:bg-slate-100 rounded-lg transition-colors" title="复制链接">
+                        <i class="fa-regular fa-copy"></i>
+                        <span class="copy-text">复制链接</span>
+                    </button>
+                </div>
+
+                <article class="prose prose-slate prose-brand max-w-none 
+                                prose-headings:font-bold prose-headings:tracking-tight 
+                                prose-a:text-brand-600 prose-a:font-medium prose-a:no-underline hover:prose-a:underline
+                                prose-pre:bg-slate-900 prose-pre:shadow-lg prose-pre:border prose-pre:border-slate-800"
+                                id="article-content">
+                    <h1>命令终端</h1><p>txCode 内置了 Web 终端功能，可以在浏览器中直接执行命令行操作。</p>
+<h2 id="进入终端">进入终端</h2><ol>
+<li>启动 txCode Web 服务：</li>
+</ol>
+<pre><code class="language-bash">txcode web
+</code></pre>
+<ol start="2">
+<li>浏览器打开 <code>http://localhost:40000</code></li>
+<li>点击顶部导航的 <strong>终端</strong> 进入终端页面</li>
+</ol>
+<h2 id="界面说明">界面说明</h2><h3>标签栏</h3><ul>
+<li>显示当前打开的终端会话标签</li>
+<li>点击标签切换终端</li>
+<li>点击 <code>×</code> 关闭标签</li>
+<li>点击 <code>+</code> 创建新终端标签</li>
+</ul>
+<h3>状态栏</h3><p>底部状态栏显示：</p>
+<ul>
+<li><strong>连接状态</strong>：● 已连接 / ○ 未连接</li>
+<li><strong>会话 ID</strong>：当前会话的标识</li>
+<li><strong>清屏</strong>：点击清除终端内容</li>
+</ul>
+<h2 id="基本操作">基本操作</h2><h3>创建新终端</h3><p>点击标签栏的 <code>+</code> 按钮，创建新的终端标签页。</p>
+<h3>切换终端</h3><p>点击不同的标签页切换终端会话。</p>
+<h3>关闭窗口</h3><p>点击标签右侧的 <code>×</code> 关闭该终端会话。</p>
+<h3>清屏</h3><p>点击状态栏的 <strong>清屏</strong> 按钮清除当前终端显示内容。</p>
+<h2 id="终端功能">终端功能</h2><h3>WebSocket 通信</h3><p>终端通过 WebSocket 与服务器实时通信，支持：</p>
+<ul>
+<li>命令输入即时响应</li>
+<li>自动检测窗口大小变化</li>
+<li>会话保持连接</li>
+</ul>
+<h3>多标签支持</h3><ul>
+<li>可同时打开多个终端标签</li>
+<li>每个标签独立运行，互不影响</li>
+<li>标签页之间可以快速切换</li>
+</ul>
+<h3>自动重连</h3><p>当 WebSocket 连接断开时，终端会自动尝试重连。</p>
+<h2 id="快捷键">快捷键</h2><p>终端支持标准的终端快捷键：</p>
+<table>
+<thead>
+<tr>
+<th>快捷键</th>
+<th>功能</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>Ctrl+C</code></td>
+<td>中断当前进程</td>
+</tr>
+<tr>
+<td><code>Ctrl+Z</code></td>
+<td>挂起当前进程</td>
+</tr>
+<tr>
+<td><code>Ctrl+L</code></td>
+<td>清屏</td>
+</tr>
+<tr>
+<td><code>Ctrl+D</code></td>
+<td>退出当前会话（EOF）</td>
+</tr>
+<tr>
+<td><code>Tab</code></td>
+<td>自动补全</td>
+</tr>
+<tr>
+<td><code>↑/↓</code></td>
+<td>历史命令</td>
+</tr>
+</tbody></table>
+<h2 id="注意事项">注意事项</h2><ol>
+<li><strong>权限</strong>：终端权限与运行 txCode 的用户权限相同</li>
+<li><strong>平台检测</strong>：状态栏会显示当前操作系统（Windows/macOS/Linux）</li>
+<li><strong>窗口大小</strong>：终端会自动适应窗口大小，调整窗口时终端会重新适配</li>
+<li><strong>会话持久</strong>：终端会话在关闭标签页时终止</li>
+</ol>
+
+                </article>
+
+                <div class="mt-16 pt-8 border-t border-slate-200 flex justify-between items-center gap-4 text-sm font-medium" id="pagination">
+                </div>
+            </div>
+
+            <aside id="toc" class="hidden lg:block w-56 flex-shrink-0 fixed right-8 top-32 h-fit max-h-[calc(100vh-8rem)] overflow-y-auto">
+                <div class="text-sm font-semibold text-slate-800 mb-4">目录</div>
+                <nav id="toc-nav" class="space-y-1 text-sm"></nav>
+            </aside>
+        </main>
+    </div>
+
+    <div id="image-preview" class="fixed inset-0 z-[100] bg-black/90 hidden items-center justify-center cursor-zoom-out">
+        <img id="preview-img" class="max-w-[90vw] max-h-[90vh] object-contain" src="" alt="预览">
+    </div>
+
+    <script src="../zihao_doc.js"></script>
+</body>
+</html>

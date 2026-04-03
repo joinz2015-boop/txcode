@@ -1,0 +1,46 @@
+[
+  {
+    "title": "命令介绍",
+    "url": "cli\\commands.html"
+  },
+  {
+    "title": "配置模型",
+    "url": "configuration\\model.html"
+  },
+  {
+    "title": "文件操作",
+    "url": "files\\files.html"
+  },
+  {
+    "title": "网关配置",
+    "url": "gateway\\config.html"
+  },
+  {
+    "title": "如何开始",
+    "url": "getting-started\\index.html"
+  },
+  {
+    "title": "txCode 文档",
+    "url": "index.html"
+  },
+  {
+    "title": "AI 日志",
+    "url": "logs\\ai-logs.html"
+  },
+  {
+    "title": "技能 (Skills)",
+    "url": "skills\\skills.html"
+  },
+  {
+    "title": "定时任务",
+    "url": "tasks\\schedule.html"
+  },
+  {
+    "title": "命令终端",
+    "url": "terminal\\terminal.html"
+  },
+  {
+    "title": "软件研发",
+    "url": "workflow\\workflow.html"
+  }
+]

@@ -1,0 +1,14 @@
+/* 自定义额外样式 */
+#toc-nav a {
+    display: block;
+    padding: 0.25rem 0;
+    color: #64748b;
+    transition: color 0.2s;
+}
+#toc-nav a:hover {
+    color: #2563eb;
+}
+#toc-nav a.active {
+    color: #2563eb;
+    font-weight: 500;
+}

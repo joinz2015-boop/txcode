@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>技能 (Skills) - txcode操作文档</title>
+    <script src="../tailwindcss.js"></script>
+    <link rel="stylesheet" href="../font-awesome/css/all.min.css">
+    <link rel="stylesheet" href="../fonts/inter.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                            900: '#1e3a8a',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Inter', system-ui, sans-serif; }
+        details > summary { list-style: none; }
+        details > summary::-webkit-details-marker { display: none; }
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+    </style>
+    <link rel="stylesheet" href="../zihao_doc.css">
+</head>
+<body class="bg-white text-slate-800 antialiased flex flex-col h-screen overflow-hidden selection:bg-brand-500 selection:text-white">
+
+    <header class="flex-shrink-0 relative z-50 bg-white/80 backdrop-blur-md border-b border-slate-200 h-16 flex items-center justify-between px-4 sm:px-6 lg:px-8">
+        <div class="flex items-center">
+            <button id="mobile-menu-btn" class="md:hidden mr-4 text-slate-500 hover:text-slate-900 transition-colors">
+                <i class="fa-solid fa-bars text-xl"></i>
+            </button>
+            
+            <a href="index.html" class="flex items-center group cursor-pointer mr-6">
+                <div class="w-7 h-7 bg-gradient-to-br from-brand-500 to-indigo-600 rounded flex items-center justify-center mr-2 text-white shadow-sm">
+                    <i class="fa-solid fa-shield-halved text-xs"></i>
+                </div>
+                <span class="font-bold text-lg tracking-tight text-slate-900 mr-2 border-r border-slate-300 pr-2">txcode操作文档</span>
+                <span class="text-slate-500 font-medium">文档中心</span>
+            </a>
+        </div>
+        
+        <div class="flex items-center space-x-4 text-sm font-medium">
+            <div class="relative">
+                <input type="text" id="search-input" placeholder="搜索文档..." 
+                    class="w-48 lg:w-64 px-3 py-1.5 pl-9 text-sm bg-slate-100 border border-transparent rounded-lg focus:outline-none focus:bg-white focus:border-brand-500 focus:ring-2 focus:ring-brand-200 transition-all">
+                <i class="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                <div id="search-results" class="hidden absolute top-full right-0 mt-2 w-80 max-h-96 overflow-y-auto bg-white rounded-lg shadow-xl border border-slate-200 z-50"></div>
+            </div>
+            <a href="https://gitee.com/homecommunity/zihao_doc" target="_blank" class="text-slate-400 hover:text-slate-900 transition-colors">
+                <i class="fa-brands fa-github text-xl"></i>
+            </a>
+        </div>
+    </header>
+
+    <div class="flex flex-1 overflow-hidden relative">
+        
+        <aside id="sidebar" class="w-72 flex-shrink-0 bg-slate-50/50 border-r border-slate-200 overflow-y-auto hidden md:block transition-transform duration-300 absolute md:relative z-40 h-full flex flex-col">
+            <nav class="px-4 py-6 space-y-1 flex-1 overflow-y-auto min-h-0">
+                <a href="/getting-started/index.html" class="flex items-center px-3 py-2 text-sm font-semibold text-slate-700 bg-transparent hover:bg-slate-100 rounded-lg cursor-pointer select-none transition-colors mt-2"><i class="fa-solid fa-rocket w-6 text-center text-slate-400"></i><span>如何开始</span></a><a href="/configuration/model.html" class="flex items-center px-3 py-2 text-sm font-semibold text-slate-700 bg-transparent hover:bg-slate-100 rounded-lg cursor-pointer select-none transition-colors mt-2"><i class="fa-solid fa-gear w-6 text-center text-slate-400"></i><span>配置模型</span></a><a href="/cli/commands.html" class="flex items-center px-3 py-2 text-sm font-semibold text-slate-700 bg-transparent hover:bg-slate-100 rounded-lg cursor-pointer select-none transition-colors mt-2"><i class="fa-solid fa-terminal w-6 text-center text-slate-400"></i><span>命令介绍</span></a><a href="/workflow/workflow.html" class="flex items-center px-3 py-2 text-sm font-semibold text-slate-700 bg-transparent hover:bg-slate-100 rounded-lg cursor-pointer select-none transition-colors mt-2"><i class="fa-solid fa-code w-6 text-center text-slate-400"></i><span>软件研发</span></a><a href="/tasks/schedule.html" class="flex items-center px-3 py-2 text-sm font-semibold text-slate-700 bg-transparent hover:bg-slate-100 rounded-lg cursor-pointer select-none transition-colors mt-2"><i class="fa-solid fa-clock w-6 text-center text-slate-400"></i><span>定时任务</span></a><a href="/files/files.html" class="flex items-center px-3 py-2 text-sm font-semibold text-slate-700 bg-transparent hover:bg-slate-100 rounded-lg cursor-pointer select-none transition-colors mt-2"><i class="fa-solid fa-folder-open w-6 text-center text-slate-400"></i><span>文件操作</span></a><a href="/terminal/terminal.html" class="flex items-center px-3 py-2 text-sm font-semibold text-slate-700 bg-transparent hover:bg-slate-100 rounded-lg cursor-pointer select-none transition-colors mt-2"><i class="fa-solid fa-square-terminal w-6 text-center text-slate-400"></i><span>命令终端</span></a><a href="/logs/ai-logs.html" class="flex items-center px-3 py-2 text-sm font-semibold text-slate-700 bg-transparent hover:bg-slate-100 rounded-lg cursor-pointer select-none transition-colors mt-2"><i class="fa-solid fa-file-lines w-6 text-center text-slate-400"></i><span>AI 日志</span></a><a href="/skills/skills.html" class="flex items-center px-3 py-2 text-sm font-semibold text-slate-700 bg-transparent hover:bg-slate-100 rounded-lg cursor-pointer select-none transition-colors mt-2"><i class="fa-solid fa-brain w-6 text-center text-slate-400"></i><span>技能与记忆</span></a><a href="/gateway/config.html" class="flex items-center px-3 py-2 text-sm font-semibold text-slate-700 bg-transparent hover:bg-slate-100 rounded-lg cursor-pointer select-none transition-colors mt-2"><i class="fa-solid fa-plug w-6 text-center text-slate-400"></i><span>网关配置</span></a>
+            </nav>
+            <div class="px-4 py-4 border-t border-slate-200 flex-shrink-0">
+                <a href="https://gitee.com/homecommunity/zihao_doc" target="_blank" class="flex items-center justify-center px-3 py-2 text-xs text-slate-400 hover:text-brand-500 transition-colors">
+                    <span>本文档由</span>
+                    <span class="mx-1 font-medium">梓豪doc</span>
+                    <span>创建</span>
+                </a>
+            </div>
+        </aside>
+
+        <div id="mobile-overlay" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-30 hidden md:hidden"></div>
+
+        <main class="flex-1 overflow-y-auto bg-white scroll-smooth relative w-full">
+            <div class="max-w-4xl mx-auto px-6 py-10 lg:px-12 lg:py-14">
+                
+                <div class="flex items-center justify-between mb-8">
+                    <div class="flex items-center text-sm text-slate-500" id="breadcrumb">
+                        <a href="index.html" class="hover:text-brand-600 transition-colors">txcode操作文档</a>
+                        <i class="fa-solid fa-chevron-right text-[10px] mx-2"></i>
+                        <span class="text-slate-900 font-medium">技能 (Skills)</span>
+                    </div>
+                    <button id="copy-link" class="flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-500 hover:text-brand-600 hover:bg-slate-100 rounded-lg transition-colors" title="复制链接">
+                        <i class="fa-regular fa-copy"></i>
+                        <span class="copy-text">复制链接</span>
+                    </button>
+                </div>
+
+                <article class="prose prose-slate prose-brand max-w-none 
+                                prose-headings:font-bold prose-headings:tracking-tight 
+                                prose-a:text-brand-600 prose-a:font-medium prose-a:no-underline hover:prose-a:underline
+                                prose-pre:bg-slate-900 prose-pre:shadow-lg prose-pre:border prose-pre:border-slate-800"
+                                id="article-content">
+                    <h1>技能 (Skills)</h1><p>技能（Skills）是 txCode 的扩展功能模块，可以为 AI 提供特定领域的专业知识和工作流程。</p>
+<h2 id="什么是技能">什么是技能</h2><p>技能是一组预定义的指令和工作流程，通过 YAML frontmatter 和 Markdown 内容组成。当 AI 需要执行特定任务时，可以加载对应的技能来获得更专业的指导。</p>
+<h2 id="技能目录">技能目录</h2><p>技能文件存放在以下目录中：</p>
+<pre><code>.txcode/skills/           # 项目目录（优先加载）
+.claude/skills/
+.agents/skills/
+~/.txcode/skills/         # 用户目录
+~/.claude/skills/
+~/.agents/skills/
+</code></pre>
+<p>系统会按顺序搜索这些目录，加载所有找到的技能。</p>
+<h2 id="技能文件结构">技能文件结构</h2><p>每个技能是一个目录，目录中包含 <code>SKILL.md</code> 文件：</p>
+<pre><code>my-skill/
+└── SKILL.md
+</code></pre>
+<h3>SKILL.md 格式</h3><pre><code class="language-markdown">---
+name: my-skill
+description: 技能描述
+license: MIT
+compatibility: txcode &gt;= 1.0.0
+---
+
+技能内容...
+
+## 工作流程
+
+1. 步骤一
+2. 步骤二
+
+## 资源
+
+- 脚本: `scripts/run.sh`
+- 模板: `templates/xxx.yaml`
+</code></pre>
+<h3>Frontmatter 字段</h3><table>
+<thead>
+<tr>
+<th>字段</th>
+<th>必填</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>name</code></td>
+<td>是</td>
+<td>技能名称（需与目录名一致）</td>
+</tr>
+<tr>
+<td><code>description</code></td>
+<td>是</td>
+<td>技能描述</td>
+</tr>
+<tr>
+<td><code>license</code></td>
+<td>否</td>
+<td>许可证</td>
+</tr>
+<tr>
+<td><code>compatibility</code></td>
+<td>否</td>
+<td>兼容性要求</td>
+</tr>
+</tbody></table>
+<h3>命名规范</h3><ul>
+<li>目录名和 <code>name</code> 必须一致</li>
+<li>只能使用小写字母、数字和连字符</li>
+<li>不能以连字符开头或结尾</li>
+<li>不能包含连续的点号</li>
+<li>最多 64 个字符</li>
+</ul>
+<p>正确示例：<code>git-release</code>、<code>code-review</code>、<code>api-doc-generator</code></p>
+<h2 id="在-cli-中使用">在 CLI 中使用</h2><h3>查看可用技能</h3><pre><code>/skills
+</code></pre>
+<p>显示所有已加载的技能列表。</p>
+<h3>激活技能</h3><pre><code>/use &lt;技能名&gt;
+</code></pre>
+<p>激活指定技能，将技能内容注入当前对话上下文。</p>
+<h2 id="在代码中调用">在代码中调用</h2><pre><code class="language-typescript">import { skillsManager } from &#39;./modules/skill/index.js&#39;;
+
+// 加载所有技能
+await skillsManager.loadAll();
+
+// 获取技能
+const skill = skillsManager.getSkill(&#39;git-release&#39;);
+
+// 获取可用技能列表
+const available = skillsManager.getAvailableSkills();
+</code></pre>
+<h2 id="技能工具">技能工具</h2><p>txCode 提供 <code>skill</code> 工具供 AI 调用：</p>
+<pre><code class="language-xml">&lt;skill&gt;
+  &lt;name&gt;code-review&lt;/name&gt;
+&lt;/skill&gt;
+</code></pre>
+<p>AI 可以识别任务需求后自动加载对应的技能。</p>
+<h2 id="内置技能">内置技能</h2><h3>git-release</h3><p>用于创建标准化版本发布和更新日志。</p>
+<pre><code class="language-markdown">---
+name: git-release
+description: Create consistent releases and changelogs
+---
+</code></pre>
+<h2 id="记忆功能">记忆功能</h2><h3>会话消息管理</h3><p>txCode 自动管理会话中的所有消息，包括：</p>
+<ul>
+<li><strong>用户消息</strong> (<code>user</code>)：用户输入</li>
+<li><strong>助手消息</strong> (<code>assistant</code>)：AI 回复</li>
+<li><strong>系统消息</strong> (<code>system</code>)：系统指令</li>
+<li><strong>工具消息</strong> (<code>tool</code>)：工具执行结果</li>
+</ul>
+<h3>消息类型</h3><h4>永久消息 (keepContext = true)</h4><ul>
+<li>保留在会话历史中</li>
+<li>发送给 AI 作为上下文</li>
+<li>可以被压缩但不会被删除</li>
+</ul>
+<h4>临时消息 (keepContext = false)</h4><ul>
+<li>仅用于当前对话轮次</li>
+<li>不会被发送给 AI</li>
+<li>压缩时会被删除</li>
+</ul>
+<h3>会话压缩</h3><p>当会话消息过多时，系统会自动压缩：</p>
+<ul>
+<li>生成摘要消息记录压缩点</li>
+<li>删除旧的永久消息</li>
+<li>保留最近的 N 条消息</li>
+<li>后续消息从摘要点之后开始</li>
+</ul>
+<h3>CLI 命令</h3><pre><code>/compact    # 手动压缩当前会话
+/token      # 显示 Token 统计
+/clear      # 清除当前会话
+</code></pre>
+<h2 id="创建自定义技能">创建自定义技能</h2><h3>步骤 1：创建技能目录</h3><pre><code class="language-bash">mkdir -p .txcode/skills/my-custom-skill
+</code></pre>
+<h3>步骤 2：编写 SKILL.md</h3><pre><code class="language-markdown">---
+name: my-custom-skill
+description: 我的自定义技能
+---
+
+# 我的自定义技能
+
+## 用途
+描述技能的用途...
+
+## 使用方法
+1. 第一步
+2. 第二步
+
+## 注意事项
+- 注意点一
+- 注意点二
+</code></pre>
+<h3>步骤 3：验证技能</h3><p>在 CLI 中运行：</p>
+<pre><code>/skills
+</code></pre>
+<p>确认技能已出现在列表中。</p>
+<h2 id="技能开发建议">技能开发建议</h2><ol>
+<li><strong>描述清晰</strong>：frontmatter 中的 description 要准确描述技能用途</li>
+<li><strong>结构化内容</strong>：使用 Markdown 标题组织内容</li>
+<li><strong>示例代码</strong>：提供具体的使用示例</li>
+<li><strong>错误处理</strong>：说明常见的错误场景和处理方式</li>
+<li><strong>资源路径</strong>：相对路径是相对于技能的基础目录</li>
+</ol>
+
+                </article>
+
+                <div class="mt-16 pt-8 border-t border-slate-200 flex justify-between items-center gap-4 text-sm font-medium" id="pagination">
+                </div>
+            </div>
+
+            <aside id="toc" class="hidden lg:block w-56 flex-shrink-0 fixed right-8 top-32 h-fit max-h-[calc(100vh-8rem)] overflow-y-auto">
+                <div class="text-sm font-semibold text-slate-800 mb-4">目录</div>
+                <nav id="toc-nav" class="space-y-1 text-sm"></nav>
+            </aside>
+        </main>
+    </div>
+
+    <div id="image-preview" class="fixed inset-0 z-[100] bg-black/90 hidden items-center justify-center cursor-zoom-out">
+        <img id="preview-img" class="max-w-[90vw] max-h-[90vh] object-contain" src="" alt="预览">
+    </div>
+
+    <script src="../zihao_doc.js"></script>
+</body>
+</html>
