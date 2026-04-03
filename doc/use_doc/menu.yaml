@@ -14,7 +14,7 @@ nav:
     url: /txcode/workflow/workflow.html
   - title: 定时任务
     icon: fa-solid fa-clock
-    url: /tasks/schedule.html
+    url: /txcode/tasks/schedule.html
   - title: 文件操作
     icon: fa-solid fa-folder-open
     url: /txcode/files/files.html
