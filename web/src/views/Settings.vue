@@ -92,6 +92,29 @@
               </el-button>
             </el-form-item>
           </el-form>
+
+          <h3 class="text-xl text-white mb-4 mt-8">梓豪WAF网关配置</h3>
+          <el-form label-width="150px" class="gateway-form">
+            <el-form-item label="服务器IP">
+              <el-input v-model="wafGateway.serverIp" placeholder="请输入服务器IP地址" @blur="saveWafConfig" />
+            </el-form-item>
+            <el-form-item label="秘钥">
+              <el-input v-model="wafGateway.secretKey" type="password" placeholder="请输入秘钥" show-password @blur="saveWafConfig" />
+            </el-form-item>
+            <el-form-item label="运行状态">
+              <div class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full" :class="wafStatus.status === 'running' ? 'bg-green-500' : 'bg-gray-400'"></span>
+                <el-tag :type="wafStatus.status === 'running' ? 'success' : 'info'">
+                  {{ wafStatus.status === 'running' ? '运行中' : '已停止' }}
+                </el-tag>
+              </div>
+            </el-form-item>
+            <el-form-item>
+              <el-button type="primary" @click="toggleWafGateway" :loading="wafGatewayLoading" :disabled="!wafStatus.configured">
+                {{ wafStatus.status === 'running' ? '停止' : '启动' }}
+              </el-button>
+            </el-form-item>
+          </el-form>
         </div>
 
         <div v-show="activeTab === 'email'">
@@ -204,6 +227,15 @@ export default {
         valid: null,
       },
       emailLoading: false,
+      wafGateway: {
+        serverIp: '',
+        secretKey: '',
+      },
+      wafStatus: {
+        status: 'stopped',
+        configured: false,
+      },
+      wafGatewayLoading: false,
     }
   },
 
@@ -228,6 +260,8 @@ export default {
       if (newTab === 'gateway') {
         this.loadGatewayConfig()
         this.loadGatewayStatus()
+        this.loadWafConfig()
+        this.loadWafStatus()
       } else if (newTab === 'email') {
         this.loadEmailConfig()
       }
@@ -378,6 +412,74 @@ export default {
         this.$message.error('操作失败: ' + e.message)
       } finally {
         this.gatewayLoading = false
+      }
+    },
+
+    async loadWafConfig() {
+      try {
+        const res = await this.$api.getWafConfig()
+        if (res.data) {
+          this.wafGateway = {
+            serverIp: res.data.server_ip || '',
+            secretKey: res.data.secret_key || '',
+          }
+        }
+      } catch (e) {
+        console.error('Failed to load WAF config:', e)
+      }
+    },
+
+    async loadWafStatus() {
+      try {
+        const res = await this.$api.getWafStatus()
+        if (res.data) {
+          this.wafStatus = {
+            status: res.data.status || 'stopped',
+            configured: res.data.configured || false,
+          }
+        }
+      } catch (e) {
+        console.error('Failed to load WAF status:', e)
+      }
+    },
+
+    async saveWafConfig() {
+      try {
+        await this.$api.updateWafConfig({
+          server_ip: this.wafGateway.serverIp,
+          secret_key: this.wafGateway.secretKey,
+        })
+        this.$message.success('WAF网关配置已保存')
+        this.loadWafStatus()
+      } catch (e) {
+        this.$message.error('保存失败: ' + e.message)
+      }
+    },
+
+    async toggleWafGateway() {
+      this.wafGatewayLoading = true
+      try {
+        if (this.wafStatus.status === 'running') {
+          await this.$api.stopWaf()
+          this.$message.success('WAF网关已停止')
+        } else {
+          if (!this.wafGateway.serverIp || !this.wafGateway.secretKey) {
+            this.$message.error('请先配置服务器IP和秘钥')
+            this.wafGatewayLoading = false
+            return
+          }
+          await this.$api.updateWafConfig({
+            server_ip: this.wafGateway.serverIp,
+            secret_key: this.wafGateway.secretKey,
+          })
+          await this.$api.startWaf()
+          this.$message.success('WAF网关已启动')
+        }
+        await this.loadWafStatus()
+      } catch (e) {
+        this.$message.error('操作失败: ' + e.message)
+      } finally {
+        this.wafGatewayLoading = false
       }
     },
 

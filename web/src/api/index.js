@@ -506,6 +506,28 @@ export const api = {
     return request('GET', '/gateway/queue/status');
   },
 
+  // ==================== WAF 网关管理 ====================
+
+  getWafConfig() {
+    return request('GET', '/gateway/waf/config');
+  },
+
+  updateWafConfig(config) {
+    return request('PUT', '/gateway/waf/config', config);
+  },
+
+  startWaf() {
+    return request('POST', '/gateway/waf/start');
+  },
+
+  stopWaf() {
+    return request('POST', '/gateway/waf/stop');
+  },
+
+  getWafStatus() {
+    return request('GET', '/gateway/waf/status');
+  },
+
   // ==================== 终端会话管理 ====================
 
   getTerminalSessions() {

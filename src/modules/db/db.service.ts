@@ -211,6 +211,7 @@ export class DbService {
       () => this.migration008AddEmailConfig(),
       () => this.migration009AddSessionStatus(),
       () => this.migration010AddCustomActions(),
+      () => this.migration011AddWafGatewayConfig(),
     ];
 
     for (let i = 0; i < migrations.length; i++) {
@@ -605,6 +606,23 @@ export class DbService {
         created_at TEXT DEFAULT (datetime('now'))
       )
     `)
+  }
+
+  private migration011AddWafGatewayConfig(): void {
+    if (!this.db) return
+
+    this.db.run(`
+      CREATE TABLE IF NOT EXISTS waf_gateway_config (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        secret_key TEXT DEFAULT '',
+        server_ip TEXT DEFAULT '',
+        status TEXT DEFAULT 'stopped',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `)
+
+    this.db.run(`INSERT OR IGNORE INTO waf_gateway_config (id) VALUES (1)`)
   }
 
   private getTableColumns(tableName: string): string[] {
