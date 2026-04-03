@@ -2,31 +2,31 @@ site_name: txcode操作文档
 nav:
   - title: 如何开始
     icon: fa-solid fa-rocket
-    url: /getting-started/index.html
+    url: /txcode/getting-started/index.html
   - title: 配置模型
     icon: fa-solid fa-gear
-    url: /configuration/model.html
+    url: /txcode/configuration/model.html
   - title: 命令介绍
     icon: fa-solid fa-terminal
-    url: /cli/commands.html
+    url: /txcode/cli/commands.html
   - title: 软件研发
     icon: fa-solid fa-code
-    url: /workflow/workflow.html
+    url: /txcode/workflow/workflow.html
   - title: 定时任务
     icon: fa-solid fa-clock
     url: /tasks/schedule.html
   - title: 文件操作
     icon: fa-solid fa-folder-open
-    url: /files/files.html
+    url: /txcode/files/files.html
   - title: 命令终端
     icon: fa-solid fa-square-terminal
-    url: /terminal/terminal.html
+    url: /txcode/terminal/terminal.html
   - title: AI 日志
     icon: fa-solid fa-file-lines
-    url: /logs/ai-logs.html
+    url: /txcode/logs/ai-logs.html
   - title: 技能与记忆
     icon: fa-solid fa-brain
-    url: /skills/skills.html
+    url: /txcode/skills/skills.html
   - title: 网关配置
     icon: fa-solid fa-plug
-    url: /gateway/config.html
+    url: /txcode/gateway/config.html
