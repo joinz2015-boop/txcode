@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文档构建工具 - 使用说明</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; max-width: 800px; margin: 0 auto; padding: 40px 20px; line-height: 1.8; }
+        h1 { color: #1a1a2e; border-bottom: 2px solid #4fc3f7; padding-bottom: 10px; }
+        h2 { color: #333; margin-top: 30px; }
+        code { background: #f5f5f5; padding: 2px 6px; border-radius: 3px; color: #e91e63; }
+        pre { background: #1a1a2e; color: #ccc; padding: 20px; border-radius: 8px; overflow-x: auto; }
+        pre code { background: none; color: #ccc; }
+        ul { margin: 15px 0; }
+        li { margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+    <h1>文档构建工具使用说明</h1>
+    
+    <h2>安装</h2>
+    <pre><code>npm install -g zihaodoc</code></pre>
+    
+    <h2>创建新文档项目</h2>
+    <pre><code>zihaodoc create api_doc</code></pre>
+    <p>这会创建以下结构：</p>
+    <ul>
+        <li><code>api_doc/docs/</code> - Markdown 源文件目录</li>
+        <li><code>api_doc/dist/</code> - 生成的 HTML 输出目录</li>
+        <li><code>api_doc/base.html</code> - HTML 模板</li>
+        <li><code>api_doc/zihao_doc.css</code> - 样式文件</li>
+        <li><code>api_doc/zihao_doc.js</code> - JavaScript 文件</li>
+        <li><code>api_doc/menu.yaml</code> - 菜单配置</li>
+    </ul>
+    
+    <h2>构建文档</h2>
+    <pre><code>zihaodoc build api_doc</code></pre>
+    <p>将 <code>docs/</code> 目录下的 Markdown 文件转换为 HTML，并输出到 <code>dist/</code> 目录。</p>
+    
+    <h2>启动开发服务器</h2>
+    <pre><code>zihaodoc run api_doc</code></pre>
+    <p>启动开发服务器并监听文件变动，自动增量构建。</p>
+    <pre><code>zihaodoc run api_doc -p 8080</code></pre>
+    <p>指定端口启动。</p>
+    
+    <h2>离线资源</h2>
+    <p>构建时会自动检查并下载以下离线资源到 dist 目录：</p>
+    <ul>
+        <li>Tailwind CSS</li>
+        <li>Font Awesome</li>
+        <li>Google Fonts (Inter)</li>
+    </ul>
+    <p>首次构建时会下载，之后会使用本地缓存。</p>
+    
+    <h2>目录结构说明</h2>
+    <pre><code>api_doc/
+├── docs/           # Markdown 源文件
+│   ├── index.md
+│   └── guide/
+│       └── getting-started.md
+├── dist/           # 生成的 HTML（可部署）
+│   ├── index.html
+│   ├── zihao_doc.css
+│   ├── zihao_doc.js
+│   ├── tailwindcss.js
+│   ├── font-awesome/
+│   └── fonts/
+├── base.html       # HTML 模板（可自定义）
+├── zihao_doc.css        # 样式文件（可自定义）
+├── zihao_doc.js         # JS 文件（可自定义）
+└── menu.yaml       # 菜单配置
+</code></pre>
+    
+    <h2>菜单配置 (menu.yaml)</h2>
+    <pre><code>site_name: 文档中心
+nav:
+  - title: 首页
+    icon: fa-solid fa-house
+    url: index.html
+  - title: 快速入门
+    icon: fa-solid fa-rocket
+    children:
+      - title: 产品架构介绍
+        url: /guide/architecture.html
+      - title: Docker 部署
+        url: /guide/docker.html</code></pre>
+    
+    <h2>模板变量</h2>
+    <p>在 base.html 中可使用以下变量：</p>
+    <ul>
+        <li><code>{{ title }}</code> - 页面标题</li>
+        <li><code>{{ site_name }}</code> - 站点名称</li>
+        <li><code>{{ breadcrumb }}</code> - 面包屑导航</li>
+        <li><code>{{{ menu }}}</code> - 渲染后的菜单 HTML</li>
+        <li><code>{{{ content }}}</code> - 渲染后的 Markdown 内容</li>
+    </ul>
+</body>
+</html>
