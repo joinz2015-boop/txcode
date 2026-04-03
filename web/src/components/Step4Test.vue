@@ -48,6 +48,16 @@
             @keydown.enter.native="handleKeydown"
           ></el-input>
           <div class="input-actions">
+            <el-button
+              v-for="action in customActions"
+              :key="action.id"
+              type="info"
+              size="small"
+              @click="executeCustomAction(action)"
+              :disabled="disabled"
+            >
+              {{ action.name }}
+            </el-button>
             <el-button v-if="disabled && !stopping" type="danger" @click="stopChat" class="stop-btn">
               ■ 停止
             </el-button>
@@ -129,7 +139,8 @@ export default {
       commandDialogVisible: false,
       fileSelectVisible: false,
       sessionId: '',
-      sessionStatus: 'idle'
+      sessionStatus: 'idle',
+      customActions: []
     }
   },
   computed: {
@@ -145,6 +156,7 @@ export default {
   async mounted() {
     await this.loadSession()
     await this.loadDefaultModel()
+    await this.loadCustomActions()
     api.ws.init()
   },
   beforeDestroy() {
@@ -371,6 +383,25 @@ export default {
     },
     renderMarkdown(text) {
       return text ? marked(text) : ''
+    },
+    async loadCustomActions() {
+      try {
+        const res = await api.getCustomActions('test')
+        this.customActions = res.data || []
+      } catch (e) {
+        console.error('Load custom actions failed:', e)
+        this.customActions = []
+      }
+    },
+    executeCustomAction(action) {
+      this.inputMessage = action.prompt
+      this.$nextTick(() => {
+        const textarea = this.$el.querySelector('.input-area textarea')
+        if (textarea) textarea.focus()
+        if (action.auto_send) {
+          this.sendMessage()
+        }
+      })
     }
   }
 }

@@ -4,9 +4,14 @@
       <div class="code-chat-panel">
         <div class="panel-header">
           <span><i class="el-icon-code"></i> 代码生成对话</span>
-          <el-button type="primary" size="small" @click="insertGenerateCommand" :disabled="disabled">
-            <i class="el-icon-document"></i> 根据方案生成代码
-          </el-button>
+          <div class="header-actions">
+            <el-button type="primary" size="small" @click="insertGenerateCommand" :disabled="disabled">
+              <i class="el-icon-document"></i> 根据方案生成代码
+            </el-button>
+            <el-button type="warning" size="small" @click="openCustomActions">
+              <i class="el-icon-setting"></i> 动作配置
+            </el-button>
+          </div>
         </div>
         <div class="chat-messages" ref="messagesContainer">
           <div v-if="!logItems.length" class="empty-state">
@@ -48,6 +53,16 @@
             @keydown.enter.native="handleKeydown"
           ></el-input>
           <div class="input-actions">
+            <el-button
+              v-for="action in customActions"
+              :key="action.id"
+              type="info"
+              size="small"
+              @click="executeCustomAction(action)"
+              :disabled="disabled"
+            >
+              {{ action.name }}
+            </el-button>
             <el-button v-if="disabled && !stopping" type="danger" @click="stopChat" class="stop-btn">
               ■ 停止
             </el-button>
@@ -129,7 +144,8 @@ export default {
       commandDialogVisible: false,
       fileSelectVisible: false,
       sessionId: '',
-      sessionStatus: 'idle'
+      sessionStatus: 'idle',
+      customActions: []
     }
   },
   computed: {
@@ -145,6 +161,7 @@ export default {
   async mounted() {
     await this.loadSession()
     await this.loadDefaultModel()
+    await this.loadCustomActions()
     api.ws.init()
   },
   beforeDestroy() {
@@ -371,6 +388,28 @@ export default {
     },
     renderMarkdown(text) {
       return text ? marked(text) : ''
+    },
+    async loadCustomActions() {
+      try {
+        const res = await api.getCustomActions('code')
+        this.customActions = res.data || []
+      } catch (e) {
+        console.error('Load custom actions failed:', e)
+        this.customActions = []
+      }
+    },
+    executeCustomAction(action) {
+      this.inputMessage = action.prompt
+      this.$nextTick(() => {
+        const textarea = this.$el.querySelector('.input-area textarea')
+        if (textarea) textarea.focus()
+        if (action.auto_send) {
+          this.sendMessage()
+        }
+      })
+    },
+    openCustomActions() {
+      window.open('/custom-actions', '_blank')
     }
   }
 }
@@ -382,6 +421,7 @@ export default {
 .code-chat-panel { flex: 1; background: #121212; border: 1px solid #1e1e1e; border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; }
 .panel-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: #121212; border-bottom: 1px solid #1e1e1e; flex-shrink: 0; }
 .panel-header span { font-size: 14px; font-weight: 500; color: #f4f4f5; }
+.header-actions { display: flex; gap: 8px; }
 .chat-messages { flex: 1; overflow-y: auto; padding: 16px; font-size: 14px; line-height: 1.6; }
 .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #84848a; }
 .empty-state i { font-size: 48px; margin-bottom: 16px; opacity: 0.5; }

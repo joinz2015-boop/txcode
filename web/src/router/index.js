@@ -86,6 +86,11 @@ const routes = [
         name: 'gitChanges',
         component: () => import('../views/GitChanges.vue'),
       },
+      {
+        path: 'custom-actions',
+        name: 'customActions',
+        component: () => import('../views/CustomActionsView.vue'),
+      },
     ],
   },
 ];

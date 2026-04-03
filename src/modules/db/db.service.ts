@@ -210,6 +210,7 @@ export class DbService {
       () => this.migration007AddScheduledTasks(),
       () => this.migration008AddEmailConfig(),
       () => this.migration009AddSessionStatus(),
+      () => this.migration010AddCustomActions(),
     ];
 
     for (let i = 0; i < migrations.length; i++) {
@@ -588,6 +589,22 @@ export class DbService {
     if (!columns.includes('status')) {
       this.db.run(`ALTER TABLE sessions ADD COLUMN status TEXT DEFAULT 'idle'`)
     }
+  }
+
+  private migration010AddCustomActions(): void {
+    if (!this.db) return
+
+    this.db.run(`
+      CREATE TABLE IF NOT EXISTS custom_actions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        action_type TEXT NOT NULL CHECK(action_type IN ('design', 'code', 'test')),
+        name TEXT NOT NULL,
+        prompt TEXT NOT NULL,
+        auto_send INTEGER DEFAULT 0,
+        sort_order INTEGER DEFAULT 0,
+        created_at TEXT DEFAULT (datetime('now'))
+      )
+    `)
   }
 
   private getTableColumns(tableName: string): string[] {

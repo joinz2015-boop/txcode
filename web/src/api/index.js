@@ -622,4 +622,23 @@ export const api = {
   gitDiscardUntracked() {
     return request('POST', '/git/discard-untracked');
   },
+
+  // ==================== 自定义动作管理 ====================
+
+  getCustomActions(type) {
+    const query = type ? `?type=${type}` : '';
+    return request('GET', `/custom-actions${query}`);
+  },
+
+  createCustomAction(action) {
+    return request('POST', '/custom-actions', action);
+  },
+
+  updateCustomAction(id, action) {
+    return request('PUT', `/custom-actions/${id}`, action);
+  },
+
+  deleteCustomAction(id) {
+    return request('DELETE', `/custom-actions/${id}`);
+  },
 };
