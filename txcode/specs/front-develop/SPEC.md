@@ -1,5 +1,5 @@
 ---
-name: 前端vue项目开发规范
+name: front-develop
 description: 开发前端项目时必须要遵循的开发规范，包括项目结构、命名、API请求、路由、组件规范。适用于添加新模块、代码审查、理解项目结构时使用。
 read_mode: required
 ---

@@ -1,5 +1,5 @@
 ---
-name: 后端python项目开发规范
+name: python-develop
 description: python后端项目开发规范。包含后端分层架构（Controller→Service→Repository→Model）后端目录结构、文件命名规范、HTTP请求路径规范（GET查列表/详情，POST增删改用JSON body）。适用于添加新模块、代码审查、理解项目结构时使用。
 read_mode: required
 ---

@@ -1,5 +1,5 @@
 ---
-name: 文档编写规范
+name: document-spec
 description: 项目文档编写规范，包括接口文档、测试文档、开发文档等各类技术文档的编写标准、格式要求、命名规范。适用于编写新文档、审查文档、文档维护时使用。
 read_mode: required
 ---
