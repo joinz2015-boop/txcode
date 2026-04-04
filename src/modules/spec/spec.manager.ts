@@ -8,7 +8,12 @@ export class SpecManager {
 
   setProjectPath(projectPath: string | null | undefined): void {
     if (projectPath) {
-      this.projectSpecsPath = path.join(projectPath, '.txcode', 'specs');
+      let normalizedPath = projectPath;
+      if (normalizedPath.startsWith('/e/') || normalizedPath.startsWith('/E/')) {
+        normalizedPath = normalizedPath.replace(/^\/([A-Za-z])\//, (match, drive) => `${drive.toUpperCase()}:/`);
+      }
+      this.projectSpecsPath = path.join(normalizedPath, '.txcode', 'specs');
+      console.log('[SpecManager] setProjectPath:', projectPath, '->', this.projectSpecsPath);
     } else {
       this.projectSpecsPath = null;
     }

@@ -82,13 +82,21 @@ export class OpenAIAgent implements AIProvider {
       }
     }
 
-    let finalUserMessage = userMessage;
     const messageCount = options?.historyMessages?.length || 0;
+
     if (specInjector.shouldInject(messageCount)) {
-      finalUserMessage = specInjector.injectIntoMessage(userMessage);
+      const injectedMessage = specInjector.injectIntoMessage(userMessage, process.cwd());
+      baseMessages.push({ role: 'user', content: injectedMessage });
+    } else {
+      const firstUserIndex = baseMessages.findIndex(m => m.role === 'user');
+      if (firstUserIndex >= 0) {
+        const originalFirstUser = baseMessages[firstUserIndex].content;
+        const reinjected = specInjector.injectIntoMessage(originalFirstUser, process.cwd());
+        baseMessages[firstUserIndex].content = reinjected;
+      } 
+      baseMessages.push({ role: 'user', content: userMessage });
     }
 
-    baseMessages.push({ role: 'user', content: finalUserMessage });
     this.addMessage('user', userMessage, true, true, undefined, undefined, this.sessionId);
 
     let iteration = 0;

@@ -213,6 +213,8 @@ export class AIService {
       summarizer,
       sessionService: this.sessionService,
     });
+    
+    console.log('[AIService] Creating agent with projectPath:', options?.projectPath);
 
     const wrappedOnStep = options?.onStep
       ? (step: any, iteration: number, usage?: any) => {

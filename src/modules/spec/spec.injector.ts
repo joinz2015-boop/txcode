@@ -8,8 +8,15 @@ export class SpecInjector {
     return messageCount === 0;
   }
 
-  buildSpecInjection(): string {
+  buildSpecInjection(projectPath?: string): string {
+    console.log('[SpecInjector] buildSpecInjection called, projectPath:', projectPath);
+    if (projectPath) {
+      this.specMgr.setProjectPath(projectPath);
+      console.log('[SpecInjector] setProjectPath to:', projectPath);
+    }
+    
     const specs = this.specMgr.getLocalSpecs();
+    console.log('[SpecInjector] specs count:', specs.length, 'specs:', specs.map(s => s.name));
 
     const requiredSpecs = specs.filter(s => s.read_mode === 'required');
     const optionalSpecs = specs.filter(s => s.read_mode === 'optional');
@@ -32,7 +39,7 @@ export class SpecInjector {
 ### 必读规范
 <specs>`;
       for (const spec of requiredSpecs) {
-        const specPath = this.getSpecPath(spec.name);
+        const specPath = this.getSpecPath(spec.name, projectPath);
         injection += `
   <spec>
     <name>${this.escapeXml(spec.name)}</name>
@@ -50,7 +57,7 @@ export class SpecInjector {
 ### 选读规范
 <specs>`;
       for (const spec of optionalSpecs) {
-        const specPath = this.getSpecPath(spec.name);
+        const specPath = this.getSpecPath(spec.name, projectPath);
         injection += `
   <spec>
     <name>${this.escapeXml(spec.name)}</name>
@@ -65,8 +72,8 @@ export class SpecInjector {
     return injection;
   }
 
-  injectIntoMessage(message: string): string {
-    const injection = this.buildSpecInjection();
+  injectIntoMessage(message: string, projectPath?: string): string {
+    const injection = this.buildSpecInjection(projectPath);
     if (!injection) {
       return message;
     }
@@ -74,7 +81,14 @@ export class SpecInjector {
     return injection.replace('{{原始用户问题}}', message);
   }
 
-  private getSpecPath(name: string): string {
+  private getSpecPath(name: string, projectPath?: string): string {
+    if (projectPath) {
+      return `${projectPath}/.txcode/specs/${name}/SPEC.md`;
+    }
+    const basePath = this.specMgr.getLocalSpecsPath();
+    if (basePath) {
+      return `${basePath}/${name}/SPEC.md`;
+    }
     const home = process.env.HOME || process.env.USERPROFILE || '~';
     return `${home}/.txcode/specs/${name}/SPEC.md`;
   }
