@@ -15,6 +15,7 @@ import {
 import type { MemoryService } from '../../../memory/memory.service.js';
 import type { SummarizerService } from '../../../ai/summarizer/index.js';
 import type { SessionService } from '../../../session/session.service.js';
+import { specInjector } from '../../../spec/index.js';
 
 export interface OpenAIAgentConfig {
   provider: OpenAIProvider;
@@ -81,7 +82,13 @@ export class OpenAIAgent implements AIProvider {
       }
     }
 
-    baseMessages.push({ role: 'user', content: userMessage });
+    let finalUserMessage = userMessage;
+    const messageCount = options?.historyMessages?.length || 0;
+    if (specInjector.shouldInject(messageCount)) {
+      finalUserMessage = specInjector.injectIntoMessage(userMessage);
+    }
+
+    baseMessages.push({ role: 'user', content: finalUserMessage });
     this.addMessage('user', userMessage, true, true, undefined, undefined, this.sessionId);
 
     let iteration = 0;

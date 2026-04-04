@@ -259,6 +259,8 @@ npm run dev
     const { schedulerService } = await import('../modules/scheduler/index.js');
     schedulerService.init();
 
+    sessionService.cleanStaleSessions();
+
     return new Promise((resolve, reject) => {
       this.server = http.createServer(this.app);
       webSocketService.initialize(this.server);

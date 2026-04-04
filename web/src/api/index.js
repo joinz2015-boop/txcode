@@ -663,4 +663,63 @@ export const api = {
   deleteCustomAction(id) {
     return request('DELETE', `/custom-actions/${id}`);
   },
+
+  // ==================== 规范管理 ====================
+
+  getLocalSpecs(projectPath) {
+    const query = projectPath ? `?projectPath=${encodeURIComponent(projectPath)}` : '';
+    return request('GET', `/specs/local${query}`);
+  },
+
+  getSpecContent(name) {
+    return request('GET', `/specs/local/${encodeURIComponent(name)}/SPEC.md`);
+  },
+
+  deleteLocalSpec(name) {
+    return request('DELETE', `/specs/local/${encodeURIComponent(name)}`);
+  },
+
+  uploadSpec(name, content) {
+    return request('POST', '/specs/local/upload', { name, content });
+  },
+
+  getSpecRepositories() {
+    return request('GET', '/specs/repositories');
+  },
+
+  createSpecRepository(data) {
+    return request('POST', '/specs/repositories', data);
+  },
+
+  updateSpecRepository(id, data) {
+    return request('PUT', `/specs/repositories/${id}`, data);
+  },
+
+  deleteSpecRepository(id) {
+    return request('DELETE', `/specs/repositories/${id}`);
+  },
+
+  getRepoSpecs(repoId) {
+    return request('GET', `/specs/repositories/${repoId}/specs`);
+  },
+
+  syncSpecRepository(repoId) {
+    return request('POST', `/specs/repositories/${repoId}/sync`);
+  },
+
+  downloadSpec(repoId, specName, projectPath) {
+    return request('POST', `/specs/repositories/${repoId}/download`, { specName, projectPath });
+  },
+
+  downloadAll(repoId, projectPath) {
+    return request('POST', `/specs/repositories/${repoId}/download-all`, { projectPath });
+  },
+
+  downloadAllSpecs(repoId, projectPath) {
+    return request('POST', `/specs/repositories/${repoId}/download-all`, { projectPath });
+  },
+
+  getProjectPath() {
+    return request('GET', '/specs/project-path');
+  },
 };

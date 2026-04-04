@@ -212,6 +212,7 @@ export class DbService {
       () => this.migration009AddSessionStatus(),
       () => this.migration010AddCustomActions(),
       () => this.migration011AddWafGatewayConfig(),
+      () => this.migration012AddSpecRepositories(),
     ];
 
     for (let i = 0; i < migrations.length; i++) {
@@ -623,6 +624,34 @@ export class DbService {
     `)
 
     this.db.run(`INSERT OR IGNORE INTO waf_gateway_config (id) VALUES (1)`)
+  }
+
+  private migration012AddSpecRepositories(): void {
+    if (!this.db) return
+
+    this.db.run(`
+      CREATE TABLE IF NOT EXISTS spec_repositories (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        url TEXT NOT NULL,
+        type TEXT DEFAULT 'default',
+        enabled INTEGER DEFAULT 1,
+        repo_path TEXT,
+        last_sync_at DATETIME,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `)
+
+    const columns = this.getTableColumns('spec_repositories');
+    if (!columns.includes('repo_path')) {
+      this.db.run('ALTER TABLE spec_repositories ADD COLUMN repo_path TEXT');
+    }
+
+    this.db.run(`
+      INSERT OR IGNORE INTO spec_repositories (id, name, url, type, repo_path)
+      VALUES ('default', 'txcode官方规范库', 'https://gitee.com/homecommunity/txcode', 'default', '')
+    `)
   }
 
   private getTableColumns(tableName: string): string[] {

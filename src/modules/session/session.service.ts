@@ -403,6 +403,18 @@ export class SessionService {
     this.update(sessionId, { status: 'idle' });
   }
 
+  cleanStaleSessions(): void {
+    const stale = this.db.all<any>(
+      "SELECT id FROM sessions WHERE status = 'processing'"
+    );
+    if (stale.length > 0) {
+      console.log(`[Session] 清理 ${stale.length} 个残留 processing 会话`);
+      this.db.run(
+        "UPDATE sessions SET status = 'idle' WHERE status = 'processing'"
+      );
+    }
+  }
+
   /**
    * 获取会话统计信息
    * 
