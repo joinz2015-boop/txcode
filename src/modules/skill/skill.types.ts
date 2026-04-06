@@ -43,4 +43,5 @@ export interface SkillsConfig {
 export interface AvailableSkill {
   name: string;
   description: string;
+  filePath: string;
 }

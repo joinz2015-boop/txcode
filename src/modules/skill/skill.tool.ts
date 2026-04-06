@@ -82,7 +82,7 @@ export async function buildAvailableSkillsPrompt(): Promise<string> {
   }
 
   const skillsXml = skills
-    .map(s => `  <skill>\n    <name>${s.name}</name>\n    <description>${s.description}</description>\n  </skill>`)
+    .map(s => `  <skill>\n    <name>${s.name}</name>\n    <path>${s.filePath}</path>\n    <description>${s.description}</description>\n  </skill>`)
     .join('\n')
 
   return `<available_skills>\n${skillsXml}\n</available_skills>`

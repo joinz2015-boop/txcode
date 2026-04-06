@@ -13,7 +13,6 @@ export class SpecManager {
         normalizedPath = normalizedPath.replace(/^\/([A-Za-z])\//, (match, drive) => `${drive.toUpperCase()}:/`);
       }
       this.projectSpecsPath = path.join(normalizedPath, '.txcode', 'specs');
-      console.log('[SpecManager] setProjectPath:', projectPath, '->', this.projectSpecsPath);
     } else {
       this.projectSpecsPath = null;
     }

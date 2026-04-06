@@ -16,6 +16,47 @@ import type { MemoryService } from '../../../memory/memory.service.js';
 import { buildAvailableSkillsPrompt } from '../../../skill/skill.tool.js';
 import type { SummarizerService } from '../../../ai/summarizer/index.js';
 import type { SessionService } from '../../../session/session.service.js';
+import { specInjector } from '../../../spec/index.js';
+
+async function loadRoleTemplate(): Promise<string> {
+  try {
+    const fs = await import('fs/promises');
+    const path = await import('path');
+    const { fileURLToPath } = await import('url');
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = path.dirname(__filename);
+    return await fs.readFile(path.join(__dirname, 'prompts', 'role.txt'), 'utf-8');
+  } catch {
+    return '你是 txcode，一个帮助用户完成软件工程任务的交互式命令行工具。';
+  }
+}
+
+async function buildCodePrompt(
+  maxIterations: number,
+  options?: { platform?: string; workdir?: string }
+): Promise<string> {
+  const platform = options?.platform || process.platform;
+
+  const workdir = options?.workdir || process.cwd();
+  
+  const platformName = platform === 'win32' ? 'Windows'
+    : platform === 'darwin' ? 'macOS'
+    : platform === 'linux' ? 'Linux'
+    : platform;
+
+  const skillsPrompt = await buildAvailableSkillsPrompt();
+  const roleTemplate = await loadRoleTemplate();
+
+  return `${roleTemplate}
+
+ ## 可用 Skills
+ {skills}
+ **注意**
+ 读取skill 可以通过read_file工具读取内容
+ `.replace('{platform}', platformName)
+    .replace('{workdir}', workdir)
+    .replace('{skills}', skillsPrompt);
+}
 
 export interface CodeAgentConfig {
   provider: OpenAIProvider;
@@ -68,8 +109,10 @@ export class CodeAgent implements AIProvider {
     const baseMessages: ChatMessage[] = [];
     const abortSignal = options?.abortSignal;
 
-    const builtinTools = await this.getBuiltinTools();
-    const systemPrompt = await this.buildPrompt(await this.getBuiltinTools());
+    const builtinTools = this.providerTools;
+    const systemPrompt = await buildCodePrompt(this.maxIterations, {
+      workdir: this.projectPath || process.cwd(),
+    });
 
     if (options?.historyMessages && options.historyMessages.length > 0) {
       for (const msg of options.historyMessages) {
@@ -79,7 +122,21 @@ export class CodeAgent implements AIProvider {
       }
     }
 
-    baseMessages.push({ role: 'user', content: userMessage });
+    const messageCount = options?.historyMessages?.length || 0;
+
+    if (specInjector.shouldInject(messageCount)) {
+      const injectedMessage = specInjector.injectIntoMessage(userMessage, process.cwd());
+      baseMessages.push({ role: 'user', content: injectedMessage });
+    } else {
+      const firstUserIndex = baseMessages.findIndex(m => m.role === 'user');
+      if (firstUserIndex >= 0) {
+        const originalFirstUser = baseMessages[firstUserIndex].content;
+        const reinjected = specInjector.injectIntoMessage(originalFirstUser, process.cwd());
+        baseMessages[firstUserIndex].content = reinjected;
+      } 
+      baseMessages.push({ role: 'user', content: userMessage });
+    }
+
     this.addMessage('user', userMessage, true, true, undefined, undefined, this.sessionId);
 
     let iteration = 0;
@@ -110,14 +167,14 @@ export class CodeAgent implements AIProvider {
       }
 
       if (response.usage) {
-        totalUsage.promptTokens += response.usage.promptTokens || 0;
-        totalUsage.completionTokens += response.usage.completionTokens || 0;
-        totalUsage.totalTokens += response.usage.totalTokens || 0;
+        totalUsage.promptTokens = response.usage.promptTokens ;
+        totalUsage.completionTokens = response.usage.completionTokens ;
+        totalUsage.totalTokens = response.usage.totalTokens ;
       }
 
       if (response.finishReason === 'stop' && response.content) {
         finalAnswer = response.content;
-        this.addMessage('assistant', finalAnswer, true, false, undefined, undefined, options?.sessionId);
+        this.addMessage('assistant', finalAnswer, true, false, undefined, undefined, this.sessionId);
         break;
       }
 
@@ -176,7 +233,7 @@ export class CodeAgent implements AIProvider {
             thought: response.reasoning || '',
             success: result.success,
           };
-          this.addMessage('assistant', JSON.stringify(reactData), true, false, undefined, undefined, options?.sessionId);
+          this.addMessage('assistant', JSON.stringify(reactData), true, false, undefined, undefined, this.sessionId);
 
           const toolMsg = {
             role: 'tool' as const,
@@ -184,7 +241,7 @@ export class CodeAgent implements AIProvider {
             toolCallId: toolCall.id,
           };
           baseMessages.push(toolMsg);
-          this.addMessage('tool', toolMsg.content, true, false, undefined, toolCall.id, options?.sessionId);
+          this.addMessage('tool', toolMsg.content, true, false, undefined, toolCall.id, this.sessionId);
         }
 
         await this.checkAndCompact(options, baseMessages, totalUsage, newMessagesStartIndex);
@@ -302,74 +359,6 @@ export class CodeAgent implements AIProvider {
   private async getFilteredTools(): Promise<any[]> {
     const allTools = await getProviderTools();
     return allTools.filter((tool: any) => this.tools.includes(tool.name));
-  }
-
-  private async buildPrompt(_builtinTools: any[] = []): Promise<string> {
-    const platform = process.platform;
-    const workdir = this.projectPath || process.cwd();
-
-    const platformName = platform === 'win32' ? 'Windows'
-      : platform === 'darwin' ? 'macOS'
-      : platform === 'linux' ? 'Linux'
-      : platform;
-
-    const roleTemplate = await this.loadRoleTemplate();
-    const skillsPrompt = await buildAvailableSkillsPrompt();
-
-    const promptTemplate = `${roleTemplate}
-
-  你通过 OpenAI Function Calling 模式工作：
-
-  1. AI 生成结构化的工具调用请求
-  2. 系统自动执行工具并返回结果
-  3. 重复直到任务完成
-
-  ## 上下文管理
-
-  Provider 模式下，所有工具执行结果默认都会保留在对话历史中供后续参考。
-
-  ## 内置工具
-
-  {builtinTools}
-
-  ## 可用 Skills
-
-  {skills}
-
-  ## 重要规则
-
-  - 优先使用内置工具
-  - 在执行任务前，先使用 skill 加载相关 Skill 指南了解约束和最佳实践
-  - 如果工具执行失败，思考原因并尝试其他方法
-  - 最大迭代次数: {maxIterations}
-
-  ## 运行环境
-  - 操作系统: {platform}
-  - 工作目录: {workdir}
-  `;
-
-    const openaiTools = await getOpenAITools();
-    const builtinToolsDesc = openaiTools.map(t => `- **${t.function.name}**: ${t.function.description}`).join('\n');
-
-    return promptTemplate
-      .replace('{platform}', platformName)
-      .replace('{workdir}', workdir)
-      .replace('{builtinTools}', builtinToolsDesc || '（无）')
-      .replace('{skills}', skillsPrompt)
-      .replace('{maxIterations}', String(this.maxIterations));
-  }
-
-  private async loadRoleTemplate(): Promise<string> {
-    try {
-      const fs = await import('fs/promises');
-      const path = await import('path');
-      const { fileURLToPath } = await import('url');
-      const __filename = fileURLToPath(import.meta.url);
-      const __dirname = path.dirname(__filename);
-      return await fs.readFile(path.join(__dirname, 'prompts', 'role.txt'), 'utf-8');
-    } catch {
-      return '你是 txcode，一个帮助用户完成软件工程任务的交互式命令行工具。';
-    }
   }
 
   private addMessage(

@@ -190,6 +190,7 @@ export class SkillsManager {
       .map(s => ({
         name: s.name,
         description: s.description,
+        filePath: s.filePath,
       }));
   }
 

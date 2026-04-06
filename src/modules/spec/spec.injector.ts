@@ -9,14 +9,11 @@ export class SpecInjector {
   }
 
   buildSpecInjection(projectPath?: string): string {
-    console.log('[SpecInjector] buildSpecInjection called, projectPath:', projectPath);
     if (projectPath) {
       this.specMgr.setProjectPath(projectPath);
-      console.log('[SpecInjector] setProjectPath to:', projectPath);
     }
     
     const specs = this.specMgr.getLocalSpecs();
-    console.log('[SpecInjector] specs count:', specs.length, 'specs:', specs.map(s => s.name));
 
     const requiredSpecs = specs.filter(s => s.read_mode === 'required');
     const optionalSpecs = specs.filter(s => s.read_mode === 'optional');

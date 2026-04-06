@@ -17,7 +17,7 @@ import { webSearchTool } from './web_search.js'
 import { webFetchTool } from './web_fetch.js'
 import { codeSearchTool } from './code_search.js'
 import { memoryTool } from './memory.js'
-import { skillTool } from './skill.js'
+import { skillTool } from '../../skill/skill.tool.js'
 import { emailTool } from './email.tool.js'
 
 export async function getProviderTools(): Promise<Tool[]> {
