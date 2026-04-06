@@ -24,7 +24,7 @@
         @drop="onDropPanel($event, index)"
       >
         <div class="panel-header">
-          <span class="title"># {{ panel.session?.id ? (panel.userQuestion || '新会话') : '选择会话' }}</span>
+          <span class="title"># {{ panel.session?.id ? getTitleText(panel.userQuestion, '新会话') : '选择会话' }}</span>
         </div>
         <div class="log-area">
           <template v-if="panel.session?.id">
@@ -283,6 +283,11 @@ export default {
     getTodoStatusIcon(status) {
       const icons = { completed: '✅', in_progress: '🔄', pending: '⬜', cancelled: '❌' }
       return icons[status] || '⬜'
+    },
+
+    getTitleText(text, defaultText) {
+      if (!text) return defaultText
+      return text.length > 30 ? text.slice(0, 30) + '...' : text
     },
 
     formatInput(action, input) {

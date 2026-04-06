@@ -189,7 +189,7 @@ export default {
       if (!category) return
       this.isLoadingProjects = true
       try {
-        const catPath = `${this.reqBasePath}\\${category}`
+        const catPath = `${this.reqBasePath}/${category}`
         const res = await api.browseFilesystem(catPath)
         const items = res.data?.items || []
         this.projects = {}
@@ -231,7 +231,7 @@ export default {
         return
       }
       try {
-        const newPath = `${this.reqBasePath}\\${name}`
+        const newPath = `${this.reqBasePath}/${name}`
         await api.createDirectory(newPath)
         this.categories.push(name)
         this.categories.sort()
@@ -247,7 +247,7 @@ export default {
         return
       }
       try {
-        const oldPath = `${this.reqBasePath}\\${oldName}`
+        const oldPath = `${this.reqBasePath}/${oldName}`
         await api.renameFile(oldPath, newName)
         
         const index = this.categories.indexOf(oldName)
@@ -269,7 +269,7 @@ export default {
     },
     async deleteCategory(catName) {
       try {
-        const deletePath = `${this.reqBasePath}\\${catName}`
+        const deletePath = `${this.reqBasePath}/${catName}`
         await api.deleteFile(deletePath)
 
         this.categories = this.categories.filter(c => c !== catName)
@@ -294,7 +294,7 @@ export default {
       }
 
       try {
-        const reqDirPath = `${this.reqBasePath}\\${category}\\${name}`
+        const reqDirPath = `${this.reqBasePath}/${category}/${name}`
         await api.createDirectory(reqDirPath)
       } catch (e) {
         console.error('Create requirement directory failed:', e)
@@ -311,7 +311,7 @@ export default {
 `
 
       try {
-        const specPath = `${this.reqBasePath}\\${category}\\${name}\\${name}_方案.md`
+        const specPath = `${this.reqBasePath}/${category}/${name}/${name}_方案.md`
         await api.writeFile(specPath, specContent)
       } catch (e) {
         console.error('Write spec file failed:', e)
@@ -329,7 +329,7 @@ export default {
           codeSessionId: codeRes.data?.id || '',
           testSessionId: testRes.data?.id || ''
         }
-        const sessionPath = `${this.reqBasePath}\\${category}\\${name}\\session.json`
+        const sessionPath = `${this.reqBasePath}/${category}/${name}/session.json`
         await api.writeFile(sessionPath, JSON.stringify(sessionData, null, 2))
       } catch (e) {
         console.error('Create sessions failed:', e)
@@ -346,7 +346,7 @@ export default {
     },
     async onSaveSpec(content) {
       if (!this.projectKey) return
-      const specPath = `${this.reqBasePath}\\${this.currentCategory}\\${this.currentProject}\\${this.currentProject}_方案.md`
+      const specPath = `${this.reqBasePath}/${this.currentCategory}/${this.currentProject}/${this.currentProject}_方案.md`
       try {
         await api.writeFile(specPath, content)
         this.$message.success('方案已保存')
