@@ -1,10 +1,36 @@
-import { aiService } from '../../modules/ai/ai.service.js';
-import { sessionService } from '../../modules/session/session.service.js';
+import { configService as defaultConfigService } from '../../modules/config/config.service.js';
+import { sessionService as defaultSessionService } from '../../modules/session/session.service.js';
 import { memoryService } from '../../modules/memory/index.js';
 import { ChatInput, ChatOptions, ChatResult, Step } from './codeChat.types.js';
 import { Session } from '../../modules/session/session.types.js';
+import { ConfigService } from '../../modules/config/config.service.js';
+import { OpenAIProvider } from '../../modules/ai/openai.provider.js';
+import { CodeAgent } from '../../modules/ai/agents/index.js';
+import { SummarizerService } from '../../modules/ai/summarizer/index.js';
 
 export class CodeChatService {
+  private configService: ConfigService;
+  private sessionService: typeof defaultSessionService;
+
+  constructor(config?: { configService?: ConfigService; sessionService?: typeof defaultSessionService }) {
+    this.configService = config?.configService || defaultConfigService;
+    this.sessionService = config?.sessionService || defaultSessionService;
+  }
+
+  private getProvider(modelName?: string): OpenAIProvider {
+    const defaultModel = modelName || this.configService.getDefaultModel();
+    const providerConfig = this.configService.getModelProvider(defaultModel);
+
+    if (!providerConfig) {
+      throw new Error(`Provider not found for model: ${defaultModel}`);
+    }
+
+    return new OpenAIProvider({
+      apiKey: providerConfig.apiKey,
+      baseUrl: providerConfig.baseUrl,
+      defaultModel: defaultModel,
+    });
+  }
 
   async handleChat(input: ChatInput): Promise<ChatResult> {
     const session = this.getOrCreateSession(input);
@@ -20,28 +46,42 @@ export class CodeChatService {
   }
 
   private getOrCreateSession(input: ChatInput): Session {
-    let session = input.sessionId ? sessionService.get(input.sessionId) : null;
+    let session = input.sessionId ? this.sessionService.get(input.sessionId) : null;
     if (!session) {
-      session = sessionService.create('New Chat', input.projectPath || undefined);
+      session = this.sessionService.create('New Chat', input.projectPath || undefined);
     }
-    sessionService.switchTo(session.id);
+    this.sessionService.switchTo(session.id);
     return session;
   }
 
   private async chatWithAI(message: string, options: ChatOptions): Promise<ChatResult> {
     const reactSteps: any[] = [];
 
-    const result = await aiService.chatWithTools(message, {
-      sessionId: options.sessionId,
-      projectPath: options.projectPath,
-      abortSignal: options.abortSignal,
-      modelName: options.modelName,
+    const provider = this.getProvider(options.modelName);
+
+    const summarizer = new SummarizerService(
+      this.sessionService,
       memoryService,
+      this.configService
+    );
+
+    const agent = new CodeAgent({
+      provider,
+      maxIterations: 50,
+      projectPath: options.projectPath,
+      sessionId: options.sessionId,
+      memoryService,
+      summarizer,
+      sessionService: this.sessionService,
+    });
+
+    const result = await agent.run(message, {
+      abortSignal: options.abortSignal,
       onStep: (step: any, iteration: number, usage?: any) => {
         const reactFormatStep: Step = {
-          thought: step.thought || step.reasoning || '',
+          thought: step.reasoning || '',
           toolCalls: step.toolCalls || [],
-          success: step.success ?? true,
+          success: step.results?.[0]?.success ?? true,
         };
         reactSteps.push({ iteration, ...reactFormatStep });
         options.onStep?.(reactFormatStep, iteration, usage);

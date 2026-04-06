@@ -14,6 +14,8 @@ import {
 } from '../../provider/base.js';
 import type { MemoryService } from '../../../memory/memory.service.js';
 import { buildAvailableSkillsPrompt } from '../../../skill/skill.tool.js';
+import type { SummarizerService } from '../../../ai/summarizer/index.js';
+import type { SessionService } from '../../../session/session.service.js';
 
 export interface CodeAgentConfig {
   provider: OpenAIProvider;
@@ -21,6 +23,8 @@ export interface CodeAgentConfig {
   projectPath?: string;
   sessionId?: string;
   memoryService?: MemoryService;
+  summarizer?: SummarizerService;
+  sessionService?: SessionService;
 }
 
 export class CodeAgent implements AIProvider {
@@ -33,6 +37,9 @@ export class CodeAgent implements AIProvider {
   private projectPath?: string;
   private sessionId?: string;
   private memoryService?: MemoryService;
+  private summarizer?: SummarizerService;
+  private sessionService?: SessionService;
+  private userMessage: string = '';
   private providerTools: any[] = [];
   private providerToolsMap: Map<string, any> = new Map();
 
@@ -42,12 +49,15 @@ export class CodeAgent implements AIProvider {
     this.projectPath = config.projectPath;
     this.sessionId = config.sessionId;
     this.memoryService = config.memoryService;
+    this.summarizer = config.summarizer;
+    this.sessionService = config.sessionService;
   }
 
   async run(
     userMessage: string,
     options?: ProviderRunOptions
   ): Promise<ProviderRunResult> {
+    this.userMessage = userMessage;
     this.providerTools = await this.getFilteredTools();
     this.providerToolsMap.clear();
     for (const t of this.providerTools) {
@@ -100,9 +110,9 @@ export class CodeAgent implements AIProvider {
       }
 
       if (response.usage) {
-        totalUsage.promptTokens += response.usage.promptTokens;
-        totalUsage.completionTokens += response.usage.completionTokens;
-        totalUsage.totalTokens += response.usage.totalTokens;
+        totalUsage.promptTokens += response.usage.promptTokens || 0;
+        totalUsage.completionTokens += response.usage.completionTokens || 0;
+        totalUsage.totalTokens += response.usage.totalTokens || 0;
       }
 
       if (response.finishReason === 'stop' && response.content) {
@@ -141,6 +151,8 @@ export class CodeAgent implements AIProvider {
         steps.push(step);
         options?.onStep?.(step, iteration, response.usage);
 
+        const newMessagesStartIndex = baseMessages.length;
+
         for (let i = 0; i < toolCalls.length; i++) {
           const toolCall = toolCalls[i];
           const result = results[i];
@@ -175,6 +187,7 @@ export class CodeAgent implements AIProvider {
           this.addMessage('tool', toolMsg.content, true, false, undefined, toolCall.id, options?.sessionId);
         }
 
+        await this.checkAndCompact(options, baseMessages, totalUsage, newMessagesStartIndex);
         continue;
       }
 
@@ -200,6 +213,56 @@ export class CodeAgent implements AIProvider {
 
   getType(): string {
     return 'code';
+  }
+
+  private async checkAndCompact(
+    options: ProviderRunOptions | undefined,
+    baseMessages: ChatMessage[],
+    totalUsage: ProviderTokenUsage,
+    newMessagesStartIndex: number
+  ): Promise<void> {
+    if (!this.sessionId || !this.summarizer) return;
+
+    const check = this.summarizer.checkNeedsCompact(
+      this.sessionId,
+      totalUsage.promptTokens
+    );
+
+    if (!check.needed) return;
+
+    const currentToolResults = baseMessages.slice(newMessagesStartIndex).filter(
+      msg => msg.role === 'tool' || (msg.role === 'assistant' && msg.toolCalls)
+    );
+
+    try {
+      const result = await this.summarizer.compact({
+        sessionId: this.sessionId,
+      });
+
+      if (result.success) {
+        options?.onCompact?.({
+          beforeTokens: check.promptTokens,
+          afterTokens: result.tokensAfter,
+          summary: result.summary,
+        });
+
+        const session = this.sessionService?.get(this.sessionId);
+        
+        const summaryMessages = this.memoryService?.getMessagesForAI(
+          this.sessionId,
+          session?.summaryMessageId || null
+        ) || [];
+
+        baseMessages.length = 0;
+        baseMessages.push({ role: 'user', content: this.userMessage });
+        if (summaryMessages.length > 0) {
+          baseMessages.push(...summaryMessages.filter(m => m.role !== 'system'));
+        }
+        baseMessages.push(...currentToolResults);
+      }
+    } catch (error) {
+      console.error('[AutoCompact] Error:', error);
+    }
   }
 
   private async executeTool(
