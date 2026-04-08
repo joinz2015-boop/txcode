@@ -83,6 +83,7 @@ export class CodeAgent implements AIProvider {
   private userMessage: string = '';
   private providerTools: any[] = [];
   private providerToolsMap: Map<string, any> = new Map();
+  private rawToolsMap: Map<string, any> = new Map();
 
   constructor(config: CodeAgentConfig) {
     this.provider = config.provider;
@@ -101,8 +102,14 @@ export class CodeAgent implements AIProvider {
     this.userMessage = userMessage;
     this.providerTools = await this.getFilteredTools();
     this.providerToolsMap.clear();
+    this.rawToolsMap.clear();
     for (const t of this.providerTools) {
-      this.providerToolsMap.set(t.name, t);
+      this.providerToolsMap.set(t.function.name, t);
+    }
+    
+    const allTools = await getProviderTools();
+    for (const t of allTools) {
+      this.rawToolsMap.set(t.name, t);
     }
 
     const steps: ProviderStep[] = [];
@@ -327,9 +334,10 @@ export class CodeAgent implements AIProvider {
     args: Record<string, any>
   ): Promise<{ success: boolean; data?: any; error?: string }> {
     try {
-      const tool = this.providerToolsMap.get(name);
+      const tool = this.rawToolsMap.get(name);
       if (!tool) {
-        throw new Error(`Tool not found: ${name}`);
+        const available = Array.from(this.rawToolsMap.keys()).join(', ');
+        throw new Error(`Tool not found: ${name}. Available tools: ${available}`);
       }
       const context = {
         sessionId: this.sessionId || '',
@@ -349,8 +357,14 @@ export class CodeAgent implements AIProvider {
     if (this.providerTools.length === 0) {
       this.providerTools = await this.getFilteredTools();
       this.providerToolsMap.clear();
+      this.rawToolsMap.clear();
       for (const t of this.providerTools) {
-        this.providerToolsMap.set(t.name, t);
+        this.providerToolsMap.set(t.function.name, t);
+      }
+      
+      const allTools = await getProviderTools();
+      for (const t of allTools) {
+        this.rawToolsMap.set(t.name, t);
       }
     }
     return await getOpenAITools();
