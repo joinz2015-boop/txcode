@@ -238,7 +238,15 @@ export class ChatAgent implements AIProvider {
 
   private async getFilteredTools(): Promise<any[]> {
     const allTools = await getProviderTools();
-    return allTools.filter((tool: any) => this.tools.includes(tool.name));
+    const filtered = allTools.filter((tool: any) => this.tools.includes(tool.name));
+    return filtered.map(tool => ({
+      type: 'function' as const,
+      function: {
+        name: tool.name,
+        description: tool.description,
+        parameters: tool.parameters,
+      },
+    }));
   }
 
   private async buildPrompt(_builtinTools: any[] = []): Promise<string> {
