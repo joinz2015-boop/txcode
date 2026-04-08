@@ -180,6 +180,9 @@ export class OpenAIProvider {
       responseData.reasoning = (message as any).reasoning;
     } else if ((response as any).reasoning) {
       responseData.reasoning = (response as any).reasoning;
+    } else if (message.content) {
+      // 如果没有 reasoning 字段，将 content 作为 reasoning
+      responseData.reasoning = message.content;
     }
 
     if (message.tool_calls && message.tool_calls.length > 0) {
