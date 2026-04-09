@@ -150,7 +150,7 @@ export default {
   computed: {
     specFilePath() {
       if (!this.category || !this.name) return '等待选择需求...'
-      return `${this.reqBasePath}\\${this.category}\\${this.name}\\${this.name}_方案.md`
+      return `${this.reqBasePath}/${this.category}/${this.name}/${this.name}_方案.md`
     }
   },
   watch: {
@@ -217,7 +217,7 @@ export default {
         return
       }
       try {
-        const sessionFilePath = `${this.reqBasePath}\\${this.category}\\${this.name}\\session.json`
+        const sessionFilePath = `${this.reqBasePath}/${this.category}/${this.name}/session.json`
         const fileRes = await api.getFileContent(sessionFilePath)
         if (fileRes && fileRes.content) {
           const sessionData = JSON.parse(fileRes.content)
