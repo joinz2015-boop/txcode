@@ -62,10 +62,9 @@
           </div>
         </div>
         <div class="input-block">
-          <el-input
+          <ResizableTextarea
             v-model="panel.input"
-            type="textarea"
-            :rows="2"
+            :rows="5"
             placeholder="输入消息... (Enter 发送, Ctrl+Enter 换行, @ 选择文件)"
             :disabled="panel.disabled || !panel.session?.id"
             class="input-area"
@@ -139,13 +138,14 @@ import SessionsPanel from '../components/SessionsPanel.vue'
 import FileSelectDialog from '../components/FileSelectDialog.vue'
 import ModelSelectDialog from '../components/ModelSelectDialog.vue'
 import CommandDialog from '../components/CommandDialog.vue'
+import ResizableTextarea from '../components/ResizableTextarea.vue'
 import { ws } from '../api/websocket/websocket_client.js'
 import * as sessions from '../api/sessions.js'
 import * as config from '../api/config.js'
 
 export default {
   name: 'CodeView',
-  components: { SessionsPanel, FileSelectDialog, ModelSelectDialog, CommandDialog },
+  components: { SessionsPanel, FileSelectDialog, ModelSelectDialog, CommandDialog, ResizableTextarea },
   MAX_LOG_ITEMS: 400,
 
   props: {

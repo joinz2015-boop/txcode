@@ -43,16 +43,16 @@
           </div>
         </div>
         <div class="chat-input-area">
-          <el-input
-            v-model="inputMessage"
-            type="textarea"
-            :rows="3"
-            placeholder="输入代码修改要求... (Enter 发送, Ctrl+Enter 换行, @ 选择文件)"
-            :disabled="disabled && !stopping"
-            class="input-area"
-            @keydown.enter.native="handleKeydown"
-          ></el-input>
-          <div class="input-actions">
+          <div class="input-row">
+            <ResizableTextarea
+              v-model="inputMessage"
+              :rows="5"
+              placeholder="输入代码修改要求... (Enter 发送, Ctrl+Enter 换行, @ 选择文件)"
+              :disabled="disabled && !stopping"
+              class="input-area"
+              @keydown.enter.native="handleKeydown"
+            />
+            <div class="input-actions">
             <el-button
               v-for="action in customActions"
               :key="action.id"
@@ -72,6 +72,7 @@
             <el-button v-else type="primary" :disabled="!inputMessage.trim()" @click="sendMessage" class="send-btn">
               发送
             </el-button>
+          </div>
           </div>
         </div>
         <div class="status-bar">
@@ -120,10 +121,11 @@ import { marked } from 'marked'
 import ModelSelectDialog from './ModelSelectDialog.vue'
 import CommandDialog from './CommandDialog.vue'
 import FileSelectDialog from './FileSelectDialog.vue'
+import ResizableTextarea from './ResizableTextarea.vue'
 
 export default {
   name: 'Step3CodeGen',
-  components: { ModelSelectDialog, CommandDialog, FileSelectDialog },
+  components: { ModelSelectDialog, CommandDialog, FileSelectDialog, ResizableTextarea },
   props: {
     category: { type: String, default: '' },
     name: { type: String, default: '' },
@@ -435,9 +437,10 @@ export default {
 .tool-fail { color: #ef4444; }
 .tool-input { color: #60a5fa; margin-left: 8px; }
 .build-info { color: #84848a; display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
-.chat-input-area { border-top: 1px solid #1e1e1e; padding: 12px 16px; background: #121212; display: flex; flex-direction: column; gap: 8px; flex-shrink: 0; }
-.input-area { width: 100%; }
-.input-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.chat-input-area { padding: 12px 16px; background: #121212; border-top: 1px solid #1e1e1e; }
+.input-row { display: flex; gap: 12px; align-items: flex-end; }
+.input-row .input-area { flex: 1; }
+.input-row .input-actions { display: flex; flex-direction: column; gap: 8px; align-items: flex-end; }
 .status-bar { display: flex; gap: 8px; align-items: center; padding: 6px 16px; font-size: 12px; color: #84848a; border-top: 1px solid #1e1e1e; flex-shrink: 0; flex-wrap: wrap; background: #0a0a09; }
 .status-bar .separator { color: #3f3f46; }
 .status-ready { color: #22c55e; }
