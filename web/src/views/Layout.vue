@@ -46,6 +46,9 @@
           <router-link to="/aiLogs" class="w-10 h-10 mb-2 rounded flex items-center justify-center" :class="$route.name === 'aiLogs' ? 'text-white border-l-2 border-accent bg-sidebar' : 'text-textMuted hover:text-white border-l-2 border-transparent'" title="AI 日志">
             <i class="fa-solid fa-robot text-xl"></i>
           </router-link>
+          <router-link to="/wiki" class="w-10 h-10 mb-2 rounded flex items-center justify-center" :class="$route.name === 'wiki' ? 'text-white border-l-2 border-accent bg-sidebar' : 'text-textMuted hover:text-white border-l-2 border-transparent'" title="文档">
+            <i class="fa-solid fa-book text-xl"></i>
+          </router-link>
         </div>
         <div class="flex flex-col items-center w-full mb-2">
           <router-link to="/settings" class="w-10 h-10 mb-2 rounded flex items-center justify-center" :class="$route.name === 'settings' ? 'text-white border-l-2 border-accent bg-sidebar' : 'text-textMuted hover:text-white border-l-2 border-transparent hover:bg-white/5'" title="设置">

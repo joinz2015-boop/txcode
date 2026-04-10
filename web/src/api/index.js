@@ -722,4 +722,18 @@ export const api = {
   getProjectPath() {
     return request('GET', '/specs/project-path');
   },
+
+  // ==================== Wiki ====================
+
+  getWikiMenu() {
+    return request('GET', '/wiki/menu');
+  },
+
+  getWikiContent(path) {
+    return request('GET', `/wiki/content?path=${encodeURIComponent(path)}`);
+  },
+
+  getWikiAsset(path) {
+    return `/api/wiki/asset?path=${encodeURIComponent(path)}`;
+  },
 };

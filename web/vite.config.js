@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite';
 import vue2 from '@vitejs/plugin-vue2';
 import { createServer } from 'net';
+import { resolve } from 'path';
 
 async function findAvailablePort(startPort) {
   return new Promise((resolve) => {
@@ -21,6 +22,11 @@ export default defineConfig(async () => {
   return {
     plugins: [vue2()],
     base: '/',
+    resolve: {
+      alias: {
+        '@': resolve(__dirname, 'src'),
+      },
+    },
     build: {
       outDir: 'dist',
       assetsDir: 'assets',
