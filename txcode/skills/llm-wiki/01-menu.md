@@ -134,3 +134,4 @@ nav:
    - 模块级：`fa-solid fa-folder`, `fa-solid fa-sitemap`
 3. **相对路径**：url 使用相对于 `.txcode/wiki/` 的路径
 4. **叶子节点**：最末级菜单必须有 url，非叶子节点有 children
+5. **验证必须**：生成 menu.yaml 后必须运行 `validate-menu.cjs` 验证

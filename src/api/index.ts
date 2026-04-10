@@ -21,6 +21,7 @@ import { workflowRouter } from './workflow.routes.js';
 import { gitRouter } from './git.routes.js';
 import { customActionsRouter } from './custom-actions.routes.js';
 import { specsRouter } from './specs.routes.js';
+import { wikiRouter } from './wiki.routes.js';
 
 export const apiRouter = Router();
 
@@ -42,5 +43,6 @@ apiRouter.use('/workflow', workflowRouter);
 apiRouter.use('/git', gitRouter);
 apiRouter.use('/custom-actions', customActionsRouter);
 apiRouter.use('/specs', specsRouter);
+apiRouter.use('/wiki', wikiRouter);
 
 export type * from './api.types.js';

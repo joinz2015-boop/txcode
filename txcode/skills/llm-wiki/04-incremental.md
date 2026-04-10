@@ -17,6 +17,7 @@
 4. 扫描所有入口文件
 5. 分析每个文件生成 md
 6. 生成 menu.yaml
+7. 运行 validate-menu.cjs 验证
 ```
 
 ### 2.2 增量更新
@@ -30,6 +31,7 @@
 6. 对变更文件重新分析
 7. 检查是否有删除的文件，清理对应的 md
 8. 重新生成 menu.yaml（包含最新 git 信息）
+9. 运行 validate-menu.cjs 验证
 ```
 
 ---
@@ -92,3 +94,4 @@ git diff --name-only --diff-filter=D <上次commit> HEAD
 2. **删除处理**：检测到删除时及时清理对应的 md 文件
 3. **批量操作**：变更文件多时分组处理
 4. **Git 信息**：每次生成 menu.yaml 时更新 `git_commit` 和 `generated` 字段
+5. **验证必须**：每次更新 menu.yaml 后必须运行验证脚本

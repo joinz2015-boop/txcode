@@ -24,7 +24,8 @@ llm-wiki/
 ├── 01-menu.md         # 如何生成 menu.md
 ├── 02-entry.md        # 如何找入口文件
 ├── 03-analyze.md      # 如何分析生成 md 文件
-└── 04-incremental.md  # 增量更新逻辑
+├── 04-incremental.md  # 增量更新逻辑
+└── validate-menu.cjs  # 菜单验证脚本
 ```
 
 ---
@@ -64,8 +65,9 @@ llm-wiki/
 1. 执行 git log 获取最新 commit id
 2. 创建 .txcode/wiki/ 目录
 3. 分析所有入口文件
-4. 生成 menu.md
+4. 生成 menu.yaml
 5. 创建 wiki.json 保存 commit id
+6. 运行 validate-menu.cjs 验证菜单合理性
 ```
 
 ### 增量更新
@@ -75,4 +77,12 @@ llm-wiki/
 3. 只分析变更的文件
 4. 更新对应的 md 文件
 5. 更新 wiki.json 的 commit id
+6. 运行 validate-menu.cjs 验证菜单合理性
 ```
+
+### 验证菜单
+```bash
+node txcode/skills/llm-wiki/validate-menu.cjs [.txcode/wiki/menu.yaml]
+```
+
+> ⚠️ **重要**：每次生成或更新 menu.yaml 后，必须运行验证脚本确认菜单结构正确。验证逻辑与 WikiSidebar.vue 显示逻辑一致：节点有 `children` 时显示为文件夹，有 `url` 时显示为叶子节点，二者不能同时存在。

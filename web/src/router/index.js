@@ -91,6 +91,11 @@ const routes = [
         name: 'customActions',
         component: () => import('../views/CustomActionsView.vue'),
       },
+      {
+        path: 'wiki',
+        name: 'wiki',
+        component: () => import('../views/WikiView.vue'),
+      },
     ],
   },
 ];
