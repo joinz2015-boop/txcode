@@ -94,7 +94,18 @@
           <span>{{ selectedChange.path }}</span>
           <span style="margin-left: auto; color: var(--accent);" @click="selectedChange = null">收起</span>
         </div>
-        <div class="diff-content" v-if="!diffLoading && diffContent" v-html="diffContent"></div>
+        <div class="diff-content" v-if="!diffLoading && diffLines.length > 0">
+          <div
+            v-for="(line, idx) in diffLines"
+            :key="idx"
+            class="diff-line"
+            :class="line.type"
+          >
+            <span class="line-num">{{ line.lineNum }}</span>
+            <span class="line-sign" :class="line.type">{{ line.sign }}</span>
+            <span class="line-text">{{ line.content }}</span>
+          </div>
+        </div>
         <div class="diff-loading" v-if="diffLoading">
           <span class="loading-spinner"></span> 加载中...
         </div>
@@ -143,7 +154,7 @@ export default {
       changes: [],
       loading: false,
       selectedChange: null,
-      diffContent: '',
+      diffLines: [],
       diffLoading: false,
       currentTab: 'modified',
       currentFilter: 'all',
@@ -245,52 +256,45 @@ export default {
     },
     async loadDiff(change) {
       this.diffLoading = true
-      this.diffContent = ''
+      this.diffLines = []
       try {
         const res = await api.gitDiff(change.path)
-        this.diffContent = this.formatDiff(res.diff || '')
+        this.diffLines = this.parseDiff(res.diff || '')
       } catch (e) {
         console.error('Failed to get diff:', e)
       } finally {
         this.diffLoading = false
       }
     },
-    formatDiff(diff) {
-      if (!diff) return '<div class="diff-line context"><span class="line-num">-</span><span class="line-sign"></span><span>无可用差异</span></div>'
+    parseDiff(diff) {
+      if (!diff) return []
 
       const lines = diff.split('\n')
-      let html = ''
+      let oldLineNum = 1
+      let newLineNum = 1
+      const result = []
 
-      lines.forEach((line, idx) => {
-        let lineClass = 'context'
-        let lineSign = ''
-
-        if (line.startsWith('+')) {
-          lineClass = 'add'
-          lineSign = '+'
+      for (const line of lines) {
+        if (line.startsWith('@@')) {
+          const match = line.match(/@@ -(\d+),?\d* \+(\d+),?\d* @@/)
+          if (match) {
+            oldLineNum = parseInt(match[1])
+            newLineNum = parseInt(match[2])
+          }
+          result.push({ lineNum: '', sign: '', content: line, type: 'header' })
+        } else if (line.startsWith('---') || line.startsWith('+++') || line.startsWith('diff ') || line.startsWith('index ')) {
+          continue
         } else if (line.startsWith('-')) {
-          lineClass = 'del'
-          lineSign = '-'
-        } else if (line.startsWith('@@')) {
-          lineClass = 'context header'
+          result.push({ lineNum: oldLineNum++, sign: '-', content: line.substring(1), type: 'del' })
+        } else if (line.startsWith('+')) {
+          result.push({ lineNum: newLineNum++, sign: '+', content: line.substring(1), type: 'add' })
+        } else {
+          result.push({ lineNum: oldLineNum++, sign: ' ', content: line, type: 'context' })
+          newLineNum++
         }
+      }
 
-        const lineNum = line.match(/^@@\s*-(\d+)/)?.[1] || line.match(/^@@\s*\+\d+\s*,\d+\s*-(\d+)/)?.[1] || ''
-        const displayNum = lineNum || ''
-
-        html += `<div class="diff-line ${lineClass}">
-          <span class="line-num">${displayNum}</span>
-          <span class="line-sign ${lineClass}">${lineSign}</span>
-          <span>${this.escapeHtml(line)}</span>
-        </div>`
-      })
-
-      return html
-    },
-    escapeHtml(text) {
-      const div = document.createElement('div')
-      div.textContent = text
-      return div.innerHTML
+      return result
     },
     getStatusClass(status) {
       const map = {
@@ -581,20 +585,24 @@ export default {
   flex-shrink: 0;
 }
 
-.change-status.add,
+.change-status.add {
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+}
+
 .change-status.mod {
   background: rgba(245, 158, 11, 0.15);
-  color: var(--warning, #f59e0b);
+  color: #f59e0b;
 }
 
 .change-status.del {
   background: rgba(239, 68, 68, 0.15);
-  color: var(--danger, #ef4444);
+  color: #ef4444;
 }
 
 .change-status.new {
   background: rgba(59, 130, 246, 0.15);
-  color: var(--accent, #3b82f6);
+  color: #3b82f6;
 }
 
 .change-info {
@@ -609,11 +617,12 @@ export default {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  color: #f4f4f5;
 }
 
 .change-path {
   font-size: 12px;
-  color: var(--text-muted, #84848a);
+  color: #84848a;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -664,7 +673,6 @@ export default {
   line-height: 1.5;
   flex: 1;
   overflow-y: auto;
-  color: #d4d4d8;
 }
 
 .diff-loading {
@@ -673,14 +681,14 @@ export default {
   justify-content: center;
   gap: 8px;
   padding: 20px;
-  color: var(--text-muted, #84848a);
+  color: #84848a;
 }
 
 .loading-spinner {
   width: 14px;
   height: 14px;
-  border: 2px solid var(--border-color, #27272a);
-  border-top-color: var(--accent, #3b82f6);
+  border: 2px solid #27272a;
+  border-top-color: #3b82f6;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -696,16 +704,30 @@ export default {
   padding: 2px 12px;
   white-space: pre-wrap;
   word-break: break-all;
-  color: #f4f4f5;
+  color: #d4d4d8;
 }
 
 .diff-line.add {
   background: rgba(34, 197, 94, 0.2);
+}
+
+.diff-line.add .line-sign {
+  color: #22c55e;
+}
+
+.diff-line.add .line-text {
   color: #4ade80;
 }
 
 .diff-line.del {
   background: rgba(239, 68, 68, 0.2);
+}
+
+.diff-line.del .line-sign {
+  color: #ef4444;
+}
+
+.diff-line.del .line-text {
   color: #f87171;
 }
 
@@ -713,9 +735,17 @@ export default {
   color: #9ca3af;
 }
 
+.diff-line.context .line-text {
+  color: #9ca3af;
+}
+
 .diff-line.header {
-  background: var(--bg-secondary, #121212);
-  color: var(--accent, #3b82f6);
+  background: #121212;
+  color: #3b82f6;
+}
+
+.diff-line.header .line-text {
+  color: #3b82f6;
 }
 
 .line-num {
@@ -731,6 +761,7 @@ export default {
   width: 16px;
   text-align: center;
   flex-shrink: 0;
+  color: #9ca3af;
 }
 
 .line-sign.add {
@@ -739,6 +770,10 @@ export default {
 
 .line-sign.del {
   color: #ef4444;
+}
+
+.line-text {
+  flex: 1;
 }
 
 .empty-state {

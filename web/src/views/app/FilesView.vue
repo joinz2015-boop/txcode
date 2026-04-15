@@ -82,9 +82,12 @@
       </div>
     </div>
 
-    <div v-if="fileViewerVisible" class="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" @click.self="closeFileViewer">
-      <div class="w-full max-w-4xl h-[80vh] bg-[#1e1e1e] rounded-xl flex flex-col overflow-hidden">
-        <div class="bg-sidebar border-b border-border px-4 py-3 flex items-center justify-between shrink-0">
+    <div v-if="fileViewerVisible" class="fixed inset-0 bg-black/50 z-50" @click.self="closeFileViewer">
+      <div class="absolute bottom-0 left-0 right-0 bg-[#1e1e1e] rounded-t-2xl flex flex-col" style="height: 85vh;">
+        <div class="flex justify-center pt-3 pb-1 shrink-0">
+          <div class="w-10 h-1 bg-gray-500 rounded-full"></div>
+        </div>
+        <div class="bg-sidebar border-b border-border px-4 py-2 flex items-center justify-between shrink-0">
           <span class="text-sm text-white truncate">{{ editingFileName }}</span>
           <div class="flex items-center gap-2">
             <button @click="saveFile" :disabled="!hasChanges || saving" class="p-2 text-accent disabled:opacity-50" title="保存">
@@ -108,7 +111,7 @@
           </div>
           <div v-else ref="editorContainer" class="w-full h-full monaco-editor-container"></div>
         </div>
-        <div v-if="hasChanges && !isBinary" class="bg-yellow-600/20 border-t border-yellow-600/30 px-4 py-2 text-yellow-500 text-sm text-center">
+        <div v-if="hasChanges && !isBinary" class="bg-yellow-600/20 border-t border-yellow-600/30 px-4 py-2 text-yellow-500 text-sm text-center shrink-0">
           文件已修改，Ctrl+S 保存
         </div>
       </div>
@@ -252,66 +255,70 @@ export default {
       this.editingFileName = node.name
       this.editingFilePath = node.path
       this.fileLoading = true
-      this.isBinary = node.is_binary
+      this.isBinary = node.is_binary || false
       this.editor = null
 
-      if (node.is_binary) {
+      if (this.isBinary) {
         this.fileLoading = false
         return
       }
 
+      let content = ''
       try {
         const res = await api.getFileContent(node.path)
-        const isBinary = res.is_binary || false
-        this.isBinary = isBinary
-        this.$nextTick(() => {
-          if (isBinary || !this.$refs.editorContainer) return
-          
-          if (!this.editor) {
-            this.editor = monaco.editor.create(this.$refs.editorContainer, {
-              value: '',
-              language: 'plaintext',
-              theme: 'vs-dark',
-              automaticLayout: true,
-              minimap: { enabled: false },
-              scrollBeyondLastLine: false,
-              fontSize: 16,
-              fontFamily: 'Consolas, Monaco, "Courier New", monospace',
-              lineNumbers: 'on'
-            })
-            this.editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
-              this.saveFile()
-            })
-          }
-          if (this.editor) {
-            const content = res.content || ''
-            const language = this.getLanguageFromFilename(node.name)
-            const model = monaco.editor.createModel(content, language)
-            this.editor.setModel(model)
-            this.originalContent = content
-          }
-        })
+        this.isBinary = res.is_binary || false
+        content = res.content || ''
       } catch (e) {
         console.error('Load file failed:', e)
-      } finally {
         this.fileLoading = false
+        return
       }
+
+      this.fileLoading = false
+
+      if (this.isBinary) return
+
+      await this.$nextTick()
+
+      if (!this.$refs.editorContainer) return
+
+      this.editor = monaco.editor.create(this.$refs.editorContainer, {
+        value: '',
+        language: 'plaintext',
+        theme: 'vs-dark',
+        automaticLayout: true,
+        minimap: { enabled: false },
+        scrollBeyondLastLine: false,
+        fontSize: 16,
+        fontFamily: 'Consolas, Monaco, "Courier New", monospace',
+        lineNumbers: 'on',
+        roundedSelection: false,
+        scrollbar: {
+          useShadows: false,
+          vertical: 'auto',
+          horizontal: 'auto'
+        }
+      })
+
+      this.editor.onDidChangeModelContent(() => {
+        this.$forceUpdate()
+      })
+
+      this.editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
+        this.saveFile()
+      })
+
+      const language = this.getLanguageFromFilename(node.name)
+      const model = monaco.editor.createModel(content, language)
+      this.editor.setModel(model)
+      this.originalContent = content
     },
     closeFileViewer() {
-      if (this.hasChanges) {
-        this.$confirm('文件已修改，是否保存？', '提示', {
-          confirmButtonText: '保存',
-          cancelButtonText: '不保存',
-          type: 'warning'
-        }).then(() => {
-          this.saveFile()
-          this.fileViewerVisible = false
-        }).catch(() => {
-          this.fileViewerVisible = false
-        })
-      } else {
-        this.fileViewerVisible = false
+      if (this.editor) {
+        this.editor.dispose()
+        this.editor = null
       }
+      this.fileViewerVisible = false
     },
     async saveFile() {
       if (!this.editor || this.saving) return
