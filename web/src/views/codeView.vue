@@ -204,6 +204,7 @@ export default {
     this.activeSessions.forEach(panel => {
       if (panel.session?.id) {
         this.subscribePanel(panel)
+        this.schedulePanelScroll(panel)
       }
     })
   },

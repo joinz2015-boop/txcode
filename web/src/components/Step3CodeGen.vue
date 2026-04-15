@@ -312,6 +312,7 @@ export default {
       try {
         const res = await api.getMessages(this.sessionId)
         this.logItems = res.data || []
+        this.scrollToBottom()
       } catch (e) {
         console.error('Load messages failed:', e)
       }
