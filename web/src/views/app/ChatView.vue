@@ -121,56 +121,17 @@
       <span>Token: {{ promptTokens || 0 }}</span>
     </div>
 
-    <div class="drawer-overlay" :class="{ show: showSessionDrawer || showModelDrawer || showCommandDrawer || showFileDrawer }" @click="closeAllDrawers"></div>
+    <div class="drawer-overlay" :class="{ show: showSessionDrawer || showModelDrawer || showCommandDrawer }" @click="closeAllDrawers"></div>
 
-    <div class="file-drawer" :class="{ show: showFileDrawer }">
-      <div class="drawer-header">
-        <span class="drawer-title">选择文件</span>
-        <button class="drawer-close" @click="closeFileDrawer">
-          <i class="fa-solid fa-xmark"></i>
-        </button>
-      </div>
-      <div class="file-toolbar">
-        <button class="toolbar-btn" @click="goUp" :disabled="!parentPath">
-          <i class="fa-solid fa-arrow-up"></i>
-        </button>
-        <div class="file-path">{{ currentPath || '/' }}</div>
-      </div>
-      <div class="file-list">
-        <div v-if="fileLoading" class="file-loading">
-          <i class="fa-solid fa-spinner fa-spin"></i> 加载中...
-        </div>
-        <div v-else-if="fileTreeData.length === 0" class="file-empty">
-          此目录为空
-        </div>
-        <template v-else>
-          <div
-            v-for="node in fileTreeData"
-            :key="node.path"
-            class="file-item"
-            :class="{ selected: selectedFilePath === node.path, directory: node.is_directory }"
-            @click="selectFile(node)"
-          >
-            <i :class="node.is_directory ? 'fa-solid fa-folder' : 'fa-solid fa-file'"></i>
-            <span class="file-name">{{ node.name }}</span>
-            <template v-if="node.is_directory && node.expanded">
-              <div v-for="child in node.children" :key="child.path" class="file-item child" @click.stop="selectFile(child)">
-                <i :class="child.is_directory ? 'fa-solid fa-folder' : 'fa-solid fa-file'"></i>
-                <span class="file-name">{{ child.name }}</span>
-              </div>
-            </template>
-          </div>
-        </template>
-      </div>
-      <div class="drawer-footer">
-        <div class="selected-path">{{ selectedFilePath || '未选择' }}</div>
-        <button class="confirm-btn" :disabled="!selectedFilePath" @click="confirmFileSelect">选择</button>
-      </div>
-    </div>
+    <FileSelectDrawer
+      :visible="showFileDrawer"
+      @select="onFileSelected"
+      @close="showFileDrawer = false"
+    />
 
     <div class="session-drawer" :class="{ show: showSessionDrawer }">
       <div class="drawer-header">
-        <span class="drawer-title">选择会话</span>
+        <span class="drawer-title" style="color: var(--text-primary, #f4f4f5);">选择会话</span>
         <button class="drawer-close" @click="showSessionDrawer = false">
           <i class="fa-solid fa-xmark"></i>
         </button>
@@ -205,7 +166,7 @@
 
     <div class="session-drawer" :class="{ show: showModelDrawer }">
       <div class="drawer-header">
-        <span class="drawer-title">选择模型</span>
+        <span class="drawer-title" style="color: var(--text-primary, #f4f4f5);">选择模型</span>
         <button class="drawer-close" @click="showModelDrawer = false">
           <i class="fa-solid fa-xmark"></i>
         </button>
@@ -231,7 +192,7 @@
 
     <div class="command-drawer" :class="{ show: showCommandDrawer }">
       <div class="drawer-header">
-        <span class="drawer-title">快捷命令</span>
+        <span class="drawer-title" style="color: var(--text-primary, #f4f4f5);">快捷命令</span>
         <button class="drawer-close" @click="showCommandDrawer = false">
           <i class="fa-solid fa-xmark"></i>
         </button>
@@ -274,9 +235,13 @@ import { marked } from 'marked'
 import { ws } from '../../api/websocket/websocket_client.js'
 import * as sessions from '../../api/sessions.js'
 import { api } from '../../api'
+import FileSelectDrawer from './components/chat/FileSelectDrawer.vue'
 
 export default {
   name: 'ChatView',
+  components: {
+    FileSelectDrawer
+  },
   data() {
     return {
       sessions: [],
@@ -291,16 +256,10 @@ export default {
       showModelDrawer: false,
       showCommandDrawer: false,
       showFileDrawer: false,
-      fileSelectVisible: false,
       searchKeyword: '',
       models: [],
       logSeq: 0,
-      wsUnsubscribe: null,
-      currentPath: '',
-      parentPath: null,
-      fileTreeData: [],
-      selectedFilePath: '',
-      fileLoading: false
+      wsUnsubscribe: null
     }
   },
   computed: {
@@ -545,94 +504,11 @@ export default {
 
     openFileSelect() {
       this.showFileDrawer = true
-      this.loadFileTree('')
     },
 
-    closeFileDrawer() {
+    onFileSelected(filePath) {
+      this.inputMessage = this.inputMessage + filePath + ' '
       this.showFileDrawer = false
-      this.selectedFilePath = ''
-    },
-
-    async loadFileTree(path = '') {
-      this.fileLoading = true
-      try {
-        const res = await api.browseFilesystem(path)
-        this.currentPath = res.data?.current_path || path
-        this.parentPath = res.data?.parent_path
-        const items = (res.data?.items || []).map(item => this.transformNode(item))
-        items.sort((a, b) => {
-          if (a.is_directory === b.is_directory) {
-            return a.name.localeCompare(b.name)
-          }
-          return a.is_directory ? -1 : 1
-        })
-        this.fileTreeData = items
-      } catch (e) {
-        console.error('加载文件树失败:', e)
-        this.fileTreeData = []
-      } finally {
-        this.fileLoading = false
-      }
-    },
-
-    transformNode(node) {
-      return {
-        name: node.name,
-        path: node.path,
-        is_directory: node.is_directory,
-        is_drive: node.is_drive || false,
-        size: node.size,
-        has_children: node.is_directory,
-        expanded: false,
-        children: []
-      }
-    },
-
-    async loadFileChildren(node) {
-      try {
-        const res = await api.browseFilesystem(node.path)
-        const children = (res.data?.items || []).map(item => this.transformNode(item))
-        children.sort((a, b) => {
-          if (a.is_directory === b.is_directory) {
-            return a.name.localeCompare(b.name)
-          }
-          return a.is_directory ? -1 : 1
-        })
-        node.children = children
-        node.expanded = true
-      } catch (e) {
-        console.error('加载子目录失败:', e)
-        node.children = []
-        node.expanded = true
-      }
-    },
-
-    selectFile(node) {
-      if (node.is_directory) {
-        if (node.expanded) {
-          node.expanded = false
-        } else {
-          if (node.children.length === 0) {
-            this.loadFileChildren(node)
-          } else {
-            node.expanded = true
-          }
-        }
-      } else {
-        this.selectedFilePath = node.path
-      }
-    },
-
-    goUp() {
-      if (this.parentPath !== null && this.parentPath !== undefined) {
-        this.loadFileTree(this.parentPath === '' ? '' : this.parentPath)
-      }
-    },
-
-    confirmFileSelect() {
-      if (!this.selectedFilePath) return
-      this.inputMessage = this.inputMessage + this.selectedFilePath + ' '
-      this.closeFileDrawer()
       this.$refs.inputField?.focus()
     },
 
@@ -1290,155 +1166,6 @@ export default {
   align-items: center;
   justify-content: center;
   gap: 8px;
-}
-
-.file-drawer {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  max-width: 430px;
-  margin: 0 auto;
-  background: var(--bg-secondary, #121212);
-  border-radius: 16px 16px 0 0;
-  transform: translateY(100%);
-  transition: transform 0.3s ease;
-  z-index: 1000;
-  max-height: 70vh;
-  display: flex;
-  flex-direction: column;
-}
-
-.file-drawer.show {
-  transform: translateY(0);
-}
-
-.file-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--border-color, #27272a);
-}
-
-.toolbar-btn {
-  padding: 8px 12px;
-  background: var(--bg-tertiary, #18191b);
-  border: 1px solid var(--border-color, #27272a);
-  border-radius: 6px;
-  color: var(--text-secondary, #d4d4d8);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.toolbar-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.toolbar-btn:active:not(:disabled) {
-  background: var(--accent, #3b82f6);
-  color: white;
-}
-
-.file-path {
-  flex: 1;
-  padding: 8px 12px;
-  background: var(--bg-tertiary, #18191b);
-  border-radius: 6px;
-  color: var(--text-muted, #84848a);
-  font-size: 12px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.file-list {
-  flex: 1;
-  overflow-y: auto;
-  padding: 8px 0;
-  min-height: 200px;
-  max-height: 400px;
-}
-
-.file-loading,
-.file-empty {
-  padding: 20px;
-  text-align: center;
-  color: var(--text-muted, #84848a);
-}
-
-.file-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 16px;
-  cursor: pointer;
-  color: var(--text-secondary, #d4d4d8);
-}
-
-.file-item:active {
-  background: var(--bg-tertiary, #18191b);
-}
-
-.file-item.selected {
-  background: rgba(59, 130, 246, 0.1);
-  color: var(--accent, #3b82f6);
-}
-
-.file-item > i {
-  font-size: 16px;
-  color: var(--accent, #3b82f6);
-}
-
-.file-item:not(.directory) > i {
-  color: var(--text-muted, #84848a);
-}
-
-.file-name {
-  flex: 1;
-  font-size: 14px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.file-item.child {
-  padding-left: 40px;
-}
-
-.selected-path {
-  flex: 1;
-  padding: 10px 14px;
-  background: var(--bg-tertiary, #18191b);
-  border-radius: 8px;
-  color: var(--text-muted, #84848a);
-  font-size: 13px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.confirm-btn {
-  padding: 10px 20px;
-  background: var(--accent, #3b82f6);
-  border: none;
-  border-radius: 8px;
-  color: white;
-  font-size: 14px;
-  cursor: pointer;
-  flex-shrink: 0;
-}
-
-.confirm-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.confirm-btn:active:not(:disabled) {
-  transform: scale(0.95);
 }
 
 .message-bubble :deep(p) {

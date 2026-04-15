@@ -51,12 +51,12 @@ export default {
   padding: 8px 16px;
   border-radius: 8px;
   cursor: pointer;
-  opacity: 0.5;
+  color: #52525b;
   transition: all 0.2s;
 }
 
 .step-item.active {
-  opacity: 1;
+  color: #a1a1aa;
 }
 
 .step-item.current {
