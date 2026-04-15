@@ -17,10 +17,12 @@ import Settings from '../views/Settings.vue';
 import Files from '../views/Files.vue';
 import Skills from '../views/Skills.vue';
 import DbView from '../views/DbView.vue';
+import appRoutes from './appRoutes.js';
 
 Vue.use(VueRouter);
 
 const routes = [
+  appRoutes,
   {
     path: '/',
     component: () => import('../views/Layout.vue'),

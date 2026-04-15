@@ -51,6 +51,10 @@ export default {
       presets: [
         { name: 'openai', label: 'OpenAI', nameValue: 'OpenAI', baseUrlValue: 'https://api.openai.com/v1' },
         { name: 'deepseek', label: 'DeepSeek', nameValue: 'DeepSeek', baseUrlValue: 'https://api.deepseek.com/v1' },
+        { name: 'minimax', label: 'MiniMax', nameValue: 'MiniMax', baseUrlValue: 'https://api.minimax.io/v1' },
+        { name: 'zlm', label: 'ZLM', nameValue: 'ZLM', baseUrlValue: 'https://open.bigmodel.cn/api/paas/v4/' },
+        { name: 'qwen', label: 'Qwen', nameValue: 'Qwen', baseUrlValue: 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1' },
+        { name: 'xiaomi_mimo', label: 'Xiaomi Mimo', nameValue: 'Xiaomi Mimo', baseUrlValue: 'https://api.xiaomimimo.com/v1' },
         { name: 'openrouter', label: 'OpenRouter', nameValue: 'OpenRouter', baseUrlValue: 'https://openrouter.ai/api/v1' },
         { name: 'custom', label: '自定义', nameValue: '', baseUrlValue: '' },
       ],
