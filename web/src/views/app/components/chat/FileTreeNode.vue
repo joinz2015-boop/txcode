@@ -22,7 +22,8 @@
         :key="child.path"
         :node="child"
         :selected-path="selectedPath"
-        @select="$emit('select', $event)"
+        @load-children="handleLoadChildren"
+        @select-node="handleSelectNode"
       />
     </div>
   </div>
@@ -52,15 +53,7 @@ export default {
 
       if (!this.node.expanded && this.node.children.length === 0) {
         this.node.loading = true
-        try {
-          const res = await this.$parent.loadChildren(this.node)
-          this.node.children = res
-          this.node.expanded = true
-        } catch (e) {
-          console.error('加载子目录失败:', e)
-        } finally {
-          this.node.loading = false
-        }
+        this.$emit('load-children', this.node)
       } else {
         this.node.expanded = !this.node.expanded
       }
@@ -70,8 +63,16 @@ export default {
       if (this.node.is_directory) {
         this.toggleExpand()
       } else {
-        this.$emit('select', this.node)
+        this.$emit('select-node', this.node)
       }
+    },
+
+    handleLoadChildren(node) {
+      this.$emit('load-children', node)
+    },
+
+    handleSelectNode(node) {
+      this.$emit('select-node', node)
     },
 
     getFileIcon(name, isDir) {

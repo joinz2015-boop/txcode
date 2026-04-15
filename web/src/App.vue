@@ -6,7 +6,12 @@
 
 <script>
 export default {
-  name: 'App'
+  name: 'App',
+  created() {
+    if (window.innerWidth < 768 && this.$route.path === '/') {
+      this.$router.push('/app')
+    }
+  }
 }
 </script>
 

@@ -30,7 +30,8 @@
             :key="node.path"
             :node="node"
             :selected-path="selectedPath"
-            @select="handleSelect"
+            @load-children="onLoadChildren"
+            @select-node="onSelectNode"
           />
         </template>
       </div>
@@ -120,9 +121,7 @@ export default {
         loading: false
       }
     },
-
-    async loadChildren(node) {
-      node.loading = true
+    async onLoadChildren(node) {
       try {
         const res = await api.browseFilesystem(node.path)
         const children = (res.data?.items || []).map(item => this.transformNode(item))
@@ -132,28 +131,19 @@ export default {
           }
           return a.is_directory ? -1 : 1
         })
-        return children
+        node.children = children
+        node.expanded = true
       } catch (e) {
         console.error('加载子目录失败:', e)
-        return []
+        node.children = []
+        node.expanded = true
       } finally {
         node.loading = false
       }
     },
 
-    handleSelect(node) {
-      if (node.is_directory) {
-        if (!node.expanded && node.children.length === 0) {
-          this.loadChildren(node).then(children => {
-            node.children = children
-            node.expanded = true
-          })
-        } else {
-          node.expanded = !node.expanded
-        }
-      } else {
-        this.selectedPath = node.path
-      }
+    onSelectNode(node) {
+      this.selectedPath = node.path
     },
 
     goUp() {

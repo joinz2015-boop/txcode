@@ -80,7 +80,7 @@ export default {
   },
   methods: {
     goTo(path) {
-      window.location.href = path
+      this.$router.push(path)
     },
     async loadSessions() {
       try {

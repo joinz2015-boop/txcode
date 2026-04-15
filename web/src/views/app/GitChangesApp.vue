@@ -116,10 +116,6 @@
         <i class="fa-solid fa-arrow-rotate-left"></i>
         撤销全部
       </button>
-      <button class="action-btn primary" @click="openCommit" :disabled="filteredChanges.length === 0">
-        <i class="fa-solid fa-check"></i>
-        提交变更
-      </button>
     </div>
 
     <confirm-dialog
@@ -557,10 +553,20 @@ export default {
   background: var(--bg-secondary, #121212);
 }
 
+.change-item:active .change-name,
+.change-item:active .change-path {
+  color: var(--text-secondary, #d4d4d8);
+}
+
 .change-item.selected {
   background: var(--bg-secondary, #121212);
   border-left: 3px solid var(--accent, #3b82f6);
   padding-left: 13px;
+}
+
+.change-item.selected .change-name,
+.change-item.selected .change-path {
+  color: var(--text-primary, #f4f4f5);
 }
 
 .change-status {
@@ -658,6 +664,7 @@ export default {
   line-height: 1.5;
   flex: 1;
   overflow-y: auto;
+  color: #d4d4d8;
 }
 
 .diff-loading {
@@ -689,18 +696,21 @@ export default {
   padding: 2px 12px;
   white-space: pre-wrap;
   word-break: break-all;
+  color: #f4f4f5;
 }
 
 .diff-line.add {
-  background: rgba(34, 197, 94, 0.15);
+  background: rgba(34, 197, 94, 0.2);
+  color: #4ade80;
 }
 
 .diff-line.del {
-  background: rgba(239, 68, 68, 0.15);
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
 }
 
 .diff-line.context {
-  color: var(--text-muted, #84848a);
+  color: #9ca3af;
 }
 
 .diff-line.header {
@@ -712,7 +722,7 @@ export default {
   width: 40px;
   text-align: right;
   padding-right: 12px;
-  color: var(--text-muted, #84848a);
+  color: #6b7280;
   user-select: none;
   flex-shrink: 0;
 }
@@ -724,11 +734,11 @@ export default {
 }
 
 .line-sign.add {
-  color: var(--success, #22c55e);
+  color: #22c55e;
 }
 
 .line-sign.del {
-  color: var(--danger, #ef4444);
+  color: #ef4444;
 }
 
 .empty-state {

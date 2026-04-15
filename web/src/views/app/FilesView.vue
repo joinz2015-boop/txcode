@@ -2,11 +2,11 @@
   <div class="h-full flex flex-col bg-[#1e1e1e]">
     <div class="bg-sidebar border-b border-border px-4 py-3 flex items-center justify-between shrink-0">
       <div class="flex items-center gap-2">
-        <button @click="goUp" :disabled="!browseResult.parent_path && browseResult.parent_path !== ''" class="p-2 text-textMuted hover:text-white disabled:opacity-30">
-          <i class="fa-solid fa-arrow-left"></i>
+        <button @click="goBack" class="p-2 text-textMuted hover:text-white" title="返回">
+          <i class="fa-solid fa-chevron-left"></i>
         </button>
-        <button @click="goHome" class="p-2 text-textMuted hover:text-white">
-          <i class="fa-solid fa-home"></i>
+        <button @click="goUp" :disabled="!browseResult.parent_path && browseResult.parent_path !== ''" class="p-2 text-textMuted hover:text-white disabled:opacity-30" title="上级目录">
+          <i class="fa-solid fa-arrow-up"></i>
         </button>
       </div>
       <div class="text-sm text-white truncate max-w-[50%]">{{ currentDirName }}</div>
@@ -82,29 +82,35 @@
       </div>
     </div>
 
-    <div v-if="fileViewerVisible" class="fixed inset-0 bg-[#1e1e1e] z-50 flex flex-col">
-      <div class="bg-sidebar border-b border-border px-4 py-3 flex items-center justify-between shrink-0">
-        <button @click="closeFileViewer" class="p-2 text-textMuted hover:text-white">
-          <i class="fa-solid fa-times"></i>
-        </button>
-        <span class="text-sm text-white truncate max-w-[50%]">{{ editingFileName }}</span>
-        <button @click="saveFile" :disabled="!hasChanges || saving" class="p-2 text-accent disabled:opacity-50">
-          <i v-if="saving" class="fa-solid fa-spinner fa-spin"></i>
-          <i v-else class="fa-solid fa-save"></i>
-        </button>
-      </div>
-      <div v-if="fileLoading" class="flex-1 flex items-center justify-center text-textMuted">
-        <i class="fa-solid fa-spinner fa-spin mr-2"></i> 加载中...
-      </div>
-      <div v-else-if="isBinary" class="flex-1 flex items-center justify-center text-textMuted">
-        <div class="text-center">
-          <i class="fa-solid fa-file text-4xl mb-4 opacity-30"></i>
-          <p>二进制文件无法预览</p>
+    <div v-if="fileViewerVisible" class="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" @click.self="closeFileViewer">
+      <div class="w-full max-w-4xl h-[80vh] bg-[#1e1e1e] rounded-xl flex flex-col overflow-hidden">
+        <div class="bg-sidebar border-b border-border px-4 py-3 flex items-center justify-between shrink-0">
+          <span class="text-sm text-white truncate">{{ editingFileName }}</span>
+          <div class="flex items-center gap-2">
+            <button @click="saveFile" :disabled="!hasChanges || saving" class="p-2 text-accent disabled:opacity-50" title="保存">
+              <i v-if="saving" class="fa-solid fa-spinner fa-spin"></i>
+              <i v-else class="fa-solid fa-save"></i>
+            </button>
+            <button @click="closeFileViewer" class="p-2 text-textMuted hover:text-white" title="关闭">
+              <i class="fa-solid fa-times"></i>
+            </button>
+          </div>
         </div>
-      </div>
-      <div v-else ref="editorContainer" class="flex-1 monaco-editor-container"></div>
-      <div v-if="hasChanges && !isBinary" class="bg-yellow-600/20 border-t border-yellow-600/30 px-4 py-2 text-yellow-500 text-sm text-center">
-        文件已修改，Ctrl+S 保存
+        <div class="flex-1 overflow-hidden">
+          <div v-if="fileLoading" class="flex items-center justify-center h-full text-textMuted">
+            <i class="fa-solid fa-spinner fa-spin mr-2"></i> 加载中...
+          </div>
+          <div v-else-if="isBinary" class="flex items-center justify-center h-full text-textMuted">
+            <div class="text-center">
+              <i class="fa-solid fa-file text-4xl mb-4 opacity-30"></i>
+              <p>二进制文件无法预览</p>
+            </div>
+          </div>
+          <div v-else ref="editorContainer" class="w-full h-full monaco-editor-container"></div>
+        </div>
+        <div v-if="hasChanges && !isBinary" class="bg-yellow-600/20 border-t border-yellow-600/30 px-4 py-2 text-yellow-500 text-sm text-center">
+          文件已修改，Ctrl+S 保存
+        </div>
       </div>
     </div>
 
@@ -233,13 +239,13 @@ export default {
         this.openFileViewer(this.contextMenu.target)
       }
     },
+    goBack() {
+      this.$router.back()
+    },
     goUp() {
       if (!this.browseResult.parent_path && this.browseResult.parent_path !== '') return
       const parentPath = this.browseResult.parent_path === '' ? '' : this.browseResult.parent_path
       this.browse(parentPath)
-    },
-    goHome() {
-      this.browse('')
     },
     async openFileViewer(node) {
       this.fileViewerVisible = true
