@@ -1,0 +1,191 @@
+import os
+import sys
+import json
+import time
+import random
+import string
+import logging
+from datetime import datetime
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+class DataProcessor:
+    def __init__(self, name):
+        self.name = name
+        self.data = []
+        self.status = "initialized"
+        self.created_at = datetime.now()
+    
+    def load_data(self, filepath):
+        logger.info(f"Loading data from {filepath}")
+        if not os.path.exists(filepath):
+            logger.error(f"File not found: {filepath}")
+            print(f"File not found: {filepath}")
+            return False
+        try:
+            with open(filepath, 'r', encoding='utf-8') as f:
+                self.data = json.load(f)
+            logger.info(f"Loaded {len(self.data)} records successfully")
+            print(f"Loaded {len(self.data)} records")
+            return True
+        except Exception as e:
+            logger.error(f"Error loading data: {e}")
+            print(f"Error loading data: {e}")
+            return False
+    
+    def process(self):
+        logger.info(f"Processing data with {len(self.data)} items")
+        if not self.data:
+            logger.warning("No data to process")
+            print("No data to process")
+            return []
+        result = []
+        for item in self.data:
+            processed = self._process_item(item)
+            result.append(processed)
+        self.status = "processed"
+        logger.info("Data processing completed")
+        return result
+    
+    def _process_item(self, item):
+        processed = {}
+        for key, value in item.items():
+            if isinstance(value, str):
+                processed[key] = value.strip().upper()
+            elif isinstance(value, (int, float)):
+                processed[key] = value * 2
+            else:
+                processed[key] = value
+        return processed
+    
+    def save_result(self, filepath):
+        logger.info(f"Saving result to {filepath}")
+        try:
+            with open(filepath, 'w', encoding='utf-8') as f:
+                json.dump(self.data, f, indent=2, ensure_ascii=False)
+            logger.info(f"Result saved successfully to {filepath}")
+            print(f"Result saved to {filepath}")
+            return True
+        except Exception as e:
+            logger.error(f"Error saving result: {e}")
+            print(f"Error saving result: {e}")
+            return False
+
+class Validator:
+    @staticmethod
+    def validate_email(email):
+        if not email or '@' not in email:
+            return False
+        parts = email.split('@')
+        if len(parts) != 2:
+            return False
+        return True
+    
+    @staticmethod
+    def validate_phone(phone):
+        if not phone:
+            return False
+        digits = ''.join(filter(str.isdigit, phone))
+        return len(digits) >= 10
+    
+    @staticmethod
+    def validate_age(age):
+        try:
+            age = int(age)
+            return 0 < age < 150
+        except:
+            return False
+
+class UserManager:
+    def __init__(self):
+        self.users = {}
+        self.session = {}
+    
+    def add_user(self, user_id, username, email, age):
+        logger.info(f"Adding user: {username} (ID: {user_id})")
+        if user_id in self.users:
+            logger.warning(f"User already exists: {user_id}")
+            return False, "User already exists"
+        if not Validator.validate_email(email):
+            logger.warning(f"Invalid email: {email}")
+            return False, "Invalid email"
+        if not Validator.validate_age(age):
+            logger.warning(f"Invalid age: {age}")
+            return False, "Invalid age"
+        self.users[user_id] = {
+            'username': username,
+            'email': email,
+            'age': age,
+            'created_at': datetime.now().isoformat()
+        }
+        logger.info(f"User added successfully: {username}")
+        return True, "User added successfully"
+    
+    def get_user(self, user_id):
+        return self.users.get(user_id)
+    
+    def update_user(self, user_id, **kwargs):
+        if user_id not in self.users:
+            return False, "User not found"
+        self.users[user_id].update(kwargs)
+        return True, "User updated"
+    
+    def delete_user(self, user_id):
+        logger.info(f"Deleting user: {user_id}")
+        if user_id not in self.users:
+            logger.warning(f"User not found: {user_id}")
+            return False, "User not found"
+        del self.users[user_id]
+        logger.info(f"User deleted successfully: {user_id}")
+        return True, "User deleted"
+    
+    def list_users(self):
+        return list(self.users.values())
+
+def generate_random_string(length=10):
+    return ''.join(random.choices(string.ascii_letters + string.digits, k=length))
+
+def calculate_statistics(numbers):
+    if not numbers:
+        return {}
+    total = sum(numbers)
+    average = total / len(numbers)
+    sorted_nums = sorted(numbers)
+    median = sorted_nums[len(sorted_nums) // 2]
+    return {
+        'total': total,
+        'average': average,
+        'median': median,
+        'count': len(numbers),
+        'min': min(numbers),
+        'max': max(numbers)
+    }
+
+def main():
+    logger.info("Application starting...")
+    print("Starting application...")
+    processor = DataProcessor("MainProcessor")
+    manager = UserManager()
+    
+    manager.add_user("001", "Alice", "alice@example.com", 25)
+    manager.add_user("002", "Bob", "bob@example.com", 30)
+    manager.add_user("003", "Charlie", "charlie@example.com", 35)
+    
+    print("\nUser list:")
+    for user in manager.list_users():
+        print(f"  - {user['username']}: {user['email']}")
+    
+    numbers = [random.randint(1, 100) for _ in range(20)]
+    stats = calculate_statistics(numbers)
+    logger.info(f"Statistics calculated: {stats}")
+    print(f"\nStatistics: {stats}")
+    
+    logger.info("Application finished")
+    print("\nApplication finished")
+
+if __name__ == "__main__":
+    main()
