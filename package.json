@@ -28,8 +28,10 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@types/diff": "^7.0.3",
     "@types/nodemailer": "^7.0.11",
     "cors": "^2.8.6",
+    "diff": "^7.0.0",
     "dingtalk-stream-sdk-nodejs": "^2.0.4",
     "express": "^5.2.1",
     "ink": "^6.8.0",

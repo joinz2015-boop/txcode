@@ -51,13 +51,6 @@ export const writeFileTool: Tool = {
     }
 
     const exists = await fs.promises.access(file_path).then(() => true).catch(() => false)
-    if (exists) {
-      return {
-        success: false,
-        output: '',
-        error: `File already exists: ${file_path}\nUse edit_file to modify existing files.`
-      }
-    }
 
     const dir = path.dirname(file_path)
     await fs.promises.mkdir(dir, { recursive: true })
@@ -66,7 +59,9 @@ export const writeFileTool: Tool = {
 
     return {
       success: true,
-      output: `成功: 新文件已创建 ${file_path} (${content.length} 字符)`,
+      output: exists
+        ? `成功: 文件已更新 ${file_path} (${content.length} 字符)`
+        : `成功: 新文件已创建 ${file_path} (${content.length} 字符)`,
       metadata: { path: file_path, size: content.length }
     }
   }
