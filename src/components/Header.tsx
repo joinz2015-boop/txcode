@@ -1,7 +1,7 @@
 import React from 'react';
 import { Box, Text } from 'ink';
 
-const VERSION = '1.0.25';
+const VERSION = '1.0.26';
 
 export const Header = React.memo(function Header() {
 	return (
