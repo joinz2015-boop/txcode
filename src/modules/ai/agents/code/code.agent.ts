@@ -261,7 +261,7 @@ export class CodeAgent implements AIProvider {
         }
 
         await this.checkAndCompact(options, baseMessages, totalUsage, newMessagesStartIndex);
-        this.checkHooks();
+        this.checkHooks('round');
         continue;
       }
 
@@ -275,7 +275,7 @@ export class CodeAgent implements AIProvider {
 
     const success = iteration < this.maxIterations && finalAnswer.length > 0;
 
-    this.checkHooks();
+    this.checkHooks('end');
 
     return {
       answer: finalAnswer || steps[steps.length - 1]?.results?.[0]?.output || 'Unable to complete task',
@@ -305,6 +305,8 @@ export class CodeAgent implements AIProvider {
     );
 
     if (!check.needed) return;
+
+    this.checkHooks('compact');
 
     const currentToolResults = baseMessages.slice(newMessagesStartIndex).filter(
       msg => msg.role === 'tool' || (msg.role === 'assistant' && msg.toolCalls)
@@ -341,9 +343,7 @@ export class CodeAgent implements AIProvider {
     }
   }
 
-  private checkHooks(): void {
-    this.roundCount++;
-
+  private checkHooks(type: 'round' | 'compact' | 'end'): void {
     const baseMessage = {
       messages: this.memoryService?.getAllMessages(this.sessionId || '') || [],
       metadata: {
@@ -352,30 +352,28 @@ export class CodeAgent implements AIProvider {
       }
     };
 
-    const check = this.summarizer?.checkNeedsCompact(
-      this.sessionId || '',
-      0
-    );
-
-    if (check?.needed) {
+    if (type === 'compact') {
+      this.roundCount = 0;
       hooks.queue.emit('before_compact', { 
         ...baseMessage, 
         trigger: 'before_compact' 
       });
-      this.roundCount = 0;
-    } else if (this.roundCount >= 10) {
-      hooks.queue.emit('round', { 
+    } else if (type === 'round') {
+      this.roundCount++;
+      if (this.roundCount >= 10) {
+        hooks.queue.emit('round', { 
+          ...baseMessage, 
+          trigger: 'round',
+          metadata: { ...baseMessage.metadata, roundCount: this.roundCount }
+        });
+        this.roundCount = 0;
+      }
+    } else if (type === 'end') {
+      hooks.queue.emit('chat_end', { 
         ...baseMessage, 
-        trigger: 'round',
-        metadata: { ...baseMessage.metadata, roundCount: this.roundCount }
+        trigger: 'chat_end' 
       });
-      this.roundCount = 0;
     }
-
-    hooks.queue.emit('chat_end', { 
-      ...baseMessage, 
-      trigger: 'chat_end' 
-    });
   }
 
   private async executeTool(
