@@ -17,6 +17,8 @@ import { buildAvailableSkillsPrompt } from '../../../skill/skill.tool.js';
 import type { SummarizerService } from '../../../ai/summarizer/index.js';
 import type { SessionService } from '../../../session/session.service.js';
 import { specInjector } from '../../../spec/index.js';
+import { hooks } from '../../../hooks/index.js';
+import { loadMemory } from '../../../tools/provider/memory.js';
 
 async function loadRoleTemplate(): Promise<string> {
   try {
@@ -47,7 +49,13 @@ async function buildCodePrompt(
   const skillsPrompt = await buildAvailableSkillsPrompt();
   const roleTemplate = await loadRoleTemplate();
 
-  return `${roleTemplate}
+  const memory = loadMemory(workdir);
+  let memoryBlock = '';
+  if (memory) {
+    memoryBlock = `\n<memory-context>\n${memory}\n</memory-context>`;
+  }
+
+  return `${roleTemplate}${memoryBlock}
 
  ## 可用 Skills
  {skills}
@@ -84,6 +92,7 @@ export class CodeAgent implements AIProvider {
   private providerTools: any[] = [];
   private providerToolsMap: Map<string, any> = new Map();
   private rawToolsMap: Map<string, any> = new Map();
+  private roundCount: number = 0;
 
   constructor(config: CodeAgentConfig) {
     this.provider = config.provider;
@@ -252,6 +261,7 @@ export class CodeAgent implements AIProvider {
         }
 
         await this.checkAndCompact(options, baseMessages, totalUsage, newMessagesStartIndex);
+        this.checkHooks('round');
         continue;
       }
 
@@ -264,6 +274,8 @@ export class CodeAgent implements AIProvider {
     }
 
     const success = iteration < this.maxIterations && finalAnswer.length > 0;
+
+    this.checkHooks('end');
 
     return {
       answer: finalAnswer || steps[steps.length - 1]?.results?.[0]?.output || 'Unable to complete task',
@@ -293,6 +305,8 @@ export class CodeAgent implements AIProvider {
     );
 
     if (!check.needed) return;
+
+    this.checkHooks('compact');
 
     const currentToolResults = baseMessages.slice(newMessagesStartIndex).filter(
       msg => msg.role === 'tool' || (msg.role === 'assistant' && msg.toolCalls)
@@ -324,8 +338,41 @@ export class CodeAgent implements AIProvider {
         }
         baseMessages.push(...currentToolResults);
       }
-    } catch (error) {
+} catch (error) {
       console.error('[AutoCompact] Error:', error);
+    }
+  }
+
+  private checkHooks(type: 'round' | 'compact' | 'end'): void {
+    const baseMessage = {
+      messages: this.memoryService?.getAllMessages(this.sessionId || '') || [],
+      metadata: {
+        sessionId: this.sessionId || '',
+        projectPath: this.projectPath || process.cwd(),
+      }
+    };
+
+    if (type === 'compact') {
+      this.roundCount = 0;
+      hooks.queue.emit('before_compact', { 
+        ...baseMessage, 
+        trigger: 'before_compact' 
+      });
+    } else if (type === 'round') {
+      this.roundCount++;
+      if (this.roundCount >= 10) {
+        hooks.queue.emit('round', { 
+          ...baseMessage, 
+          trigger: 'round',
+          metadata: { ...baseMessage.metadata, roundCount: this.roundCount }
+        });
+        this.roundCount = 0;
+      }
+    } else if (type === 'end') {
+      hooks.queue.emit('chat_end', { 
+        ...baseMessage, 
+        trigger: 'chat_end' 
+      });
     }
   }
 

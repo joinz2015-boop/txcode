@@ -22,6 +22,7 @@ import { gitRouter } from './git.routes.js';
 import { customActionsRouter } from './custom-actions.routes.js';
 import { specsRouter } from './specs.routes.js';
 import { wikiRouter } from './wiki.routes.js';
+import { memoryRouter } from './memory.routes.js';
 
 export const apiRouter = Router();
 
@@ -44,5 +45,6 @@ apiRouter.use('/git', gitRouter);
 apiRouter.use('/custom-actions', customActionsRouter);
 apiRouter.use('/specs', specsRouter);
 apiRouter.use('/wiki', wikiRouter);
+apiRouter.use('/memory', memoryRouter);
 
 export type * from './api.types.js';

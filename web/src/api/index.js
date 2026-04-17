@@ -736,4 +736,15 @@ export const api = {
   getWikiAsset(path) {
     return `/api/wiki/asset?path=${encodeURIComponent(path)}`;
   },
+
+  // ==================== 记忆管理 ====================
+
+  getMemory(projectPath) {
+    const query = projectPath ? `?projectPath=${encodeURIComponent(projectPath)}` : '';
+    return request('GET', `/memory${query}`);
+  },
+
+  saveMemory(projectPath, content) {
+    return request('POST', '/memory/save', { projectPath, content });
+  },
 };

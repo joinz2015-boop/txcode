@@ -14,6 +14,7 @@ import {
 } from '../../provider/base.js';
 import type { MemoryService } from '../../../memory/memory.service.js';
 import { buildAvailableSkillsPrompt } from '../../../skill/skill.tool.js';
+import { loadMemory } from '../../../tools/provider/memory.js';
 
 export interface ChatAgentConfig {
   provider: OpenAIProvider;
@@ -261,7 +262,13 @@ export class ChatAgent implements AIProvider {
     const roleTemplate = await this.loadRoleTemplate();
     const skillsPrompt = await buildAvailableSkillsPrompt();
 
-    const promptTemplate = `${roleTemplate}
+    const memory = loadMemory(workdir);
+    let memoryBlock = '';
+    if (memory) {
+      memoryBlock = `\n<memory-context>\n${memory}\n</memory-context>`;
+    }
+
+    const promptTemplate = `${roleTemplate}${memoryBlock}
 
   你通过 OpenAI Function Calling 模式工作：
 
