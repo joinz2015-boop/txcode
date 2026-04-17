@@ -42,7 +42,7 @@ export class MemAgent {
 
     while (iteration < maxIterations) {
       iteration++;
-
+      console.log(`\n--- Iteration ${iteration} ---`);
       const response = await this.provider.chat(messages, {
         tools: this.getToolDefs(),
         sessionId: 'mem-agent',
@@ -130,12 +130,35 @@ export class MemAgent {
   }
 
   private async buildPrompt(): Promise<string> {
-    const fs = await import('fs/promises');
+    const fsPromises = await import('fs/promises');
+    const fs = await import('fs');
     const path = await import('path');
     const { fileURLToPath } = await import('url');
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = path.dirname(__filename);
-    return await fs.readFile(path.join(__dirname, 'prompts', 'role.txt'), 'utf-8');
+    const rolePrompt = await fsPromises.readFile(path.join(__dirname, 'prompts', 'role.txt'), 'utf-8');
+
+    const workDir = this.workDir || process.cwd();
+    const memoryPath = path.join(workDir, '.txcode', 'memory', 'MEMORY.md');
+    let memorySection = '';
+
+    if (fs.existsSync(memoryPath)) {
+      const content = fs.readFileSync(memoryPath, 'utf-8');
+      if(content.length > 0) {
+      const entries = content.split('\n§\n').filter((e: string) => e.trim());
+      if (entries.length > 0) {
+        let memoryOutput = `Memory list (${entries.length} total):\n`;
+        for (let i = 0; i < entries.length; i++) {
+          const entry = entries[i].replace(/^#.*\n/, '').trim();
+          memoryOutput += `\n${i + 1}. ${entry}`;
+        }
+        memoryOutput += `\n\nTotal characters: ${content.length}/2200`;
+        memorySection = `\n\n## 当前记忆\n${memoryOutput}`;
+      }
+    }
+    }
+
+    return rolePrompt + memorySection;
   }
 
   private buildUserPrompt(messages: ChatMessage[]): string {
