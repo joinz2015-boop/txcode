@@ -25,7 +25,10 @@
                 <span class="todo-name">{{ todo.name }}</span>
               </div>
             </div>
-            <div v-else-if="item.type === 'chat' || item.type === 'think'" class="user-question" v-html="renderMarkdown(item.content)"></div>
+            <div v-if="item.type === 'chat'" class="flex justify-end">
+              <div class="user-question">{{ item.content }}</div>
+            </div>
+            <div v-else-if="item.type === 'think'" class="ai-thought" v-html="renderMarkdown(item.content)"></div>
             <div v-else-if="item.type === 'system'" class="system-message" v-html="renderMarkdown(item.content)"></div>
             <template v-else-if="item.type === 'step'">
               <div v-if="item.thought" class="ai-thought" v-html="renderMarkdown(item.thought)"></div>
@@ -430,8 +433,17 @@ export default {
 .empty-state i { font-size: 48px; margin-bottom: 16px; opacity: 0.5; }
 .todos-list { margin-bottom: 16px; color: #d4d4d8; }
 .todo-item { display: flex; align-items: center; gap: 8px; padding: 2px 0; }
-.user-question { color: #60a5fa; font-weight: bold; margin-bottom: 16px; }
-.user-question :deep(p) { color: #d4d4d8; font-weight: normal; margin: 0 0 8px 0; }
+.user-question {
+  color: #60a5fa;
+  font-weight: bold;
+  border: 1px solid #60a5fa;
+  padding: 15px;
+  margin: 15px;
+  border-radius: 10px;
+  display: inline-block;
+  max-width: 80%;
+  text-align: left;
+}
 .ai-thought { color: #d4d4d8; margin-bottom: 16px; }
 .log-mute { color: #84848a; margin-bottom: 16px; white-space: pre; }
 .tool-success { color: #22c55e; }

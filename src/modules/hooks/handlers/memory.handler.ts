@@ -12,7 +12,8 @@ export class MemoryHandler extends HookHandler {
 
   async handle(message: HookMessage): Promise<void> {
     try {
-      const providerConfig = configService.getDefaultProvider();
+      const defaultModel = configService.getDefaultModel();
+      const providerConfig = configService.getModelProvider(defaultModel);
       if (!providerConfig) {
         return;
       }
@@ -20,7 +21,7 @@ export class MemoryHandler extends HookHandler {
       const provider = new OpenAIProvider({
         apiKey: providerConfig.apiKey,
         baseUrl: providerConfig.baseUrl,
-        defaultModel: configService.getDefaultModel(),
+        defaultModel,
       });
 
       const projectPath = this.getProjectPath(message);
