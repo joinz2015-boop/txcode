@@ -193,6 +193,9 @@ npm version patch  # 或 minor, major
 npm publish
 ```
 
+## CHANGE LOG
+[change log](./CHANGELOG.md)
+
 ## 许可证
 
 ISC
