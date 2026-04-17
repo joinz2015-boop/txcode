@@ -18,6 +18,7 @@ import type { SummarizerService } from '../../../ai/summarizer/index.js';
 import type { SessionService } from '../../../session/session.service.js';
 import { specInjector } from '../../../spec/index.js';
 import { hooks } from '../../../hooks/index.js';
+import { loadMemory } from '../../../tools/provider/memory.js';
 
 async function loadRoleTemplate(): Promise<string> {
   try {
@@ -48,7 +49,13 @@ async function buildCodePrompt(
   const skillsPrompt = await buildAvailableSkillsPrompt();
   const roleTemplate = await loadRoleTemplate();
 
-  return `${roleTemplate}
+  const memory = loadMemory(workdir);
+  let memoryBlock = '';
+  if (memory) {
+    memoryBlock = `\n<memory-context>\n${memory}\n</memory-context>`;
+  }
+
+  return `${roleTemplate}${memoryBlock}
 
  ## 可用 Skills
  {skills}

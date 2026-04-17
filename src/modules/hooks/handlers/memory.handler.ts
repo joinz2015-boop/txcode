@@ -10,7 +10,7 @@ export class MemoryHandler extends HookHandler {
   trigger: HookTrigger = 'round';
   alternateTriggers: HookTrigger[] = ['before_compact', 'chat_end'];
 
-async handle(message: HookMessage): Promise<void> {
+  async handle(message: HookMessage): Promise<void> {
     try {
       const providerConfig = configService.getDefaultProvider();
       if (!providerConfig) {
@@ -23,41 +23,11 @@ async handle(message: HookMessage): Promise<void> {
         defaultModel: configService.getDefaultModel(),
       });
 
-      const memAgent = new MemAgent({ provider });
-      const result = await memAgent.run(message.messages);
-
-      if (result) {
-        await this.saveMemory(result, message);
-      }
+      const projectPath = this.getProjectPath(message);
+      const memAgent = new MemAgent({ provider, workDir: projectPath });
+      await memAgent.run(message.messages);
     } catch (error) {
       console.error('[MemoryHandler] Error:', error);
     }
-  }
-
-  private async saveMemory(
-    result: { id: string; name: string; content: string },
-    message: HookMessage
-  ): Promise<void> {
-    const projectPath = this.getProjectPath(message);
-    const memoryDir = path.join(projectPath, '.txcode', 'memory');
-
-    if (!fs.existsSync(memoryDir)) {
-      fs.mkdirSync(memoryDir, { recursive: true });
-    }
-
-    const fileName = `${result.id}-${result.name}.md`;
-    const filePath = path.join(memoryDir, fileName);
-
-    const content = `---
-id: ${result.id}
-name: ${result.name}
-created: ${new Date().toISOString()}
-trigger: ${message.trigger}
----
-
-${result.content}
-`;
-
-    fs.writeFileSync(filePath, content, 'utf-8');
   }
 }

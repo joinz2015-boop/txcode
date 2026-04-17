@@ -1,1 +1,1 @@
-export const MEM_TOOLS = ['read_file', 'write_file', 'glob', 'grep'] as const;
+export const MEM_TOOLS = ['read_file', 'write_file', 'glob', 'grep', 'memory', 'bash'] as const;

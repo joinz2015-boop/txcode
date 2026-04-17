@@ -1,13 +1,13 @@
 import { OpenAIProvider } from '../../openai.provider.js';
 import { ChatMessage } from '../../ai.types.js';
-import { getOpenAITools } from '../../../tools/provider/tools.js';
+import { getProviderTools } from '../../../tools/provider/index.js';
+import { MEM_TOOLS } from './agent_tool.js';
+import type { Tool, ToolContext } from '../../../tools/tool.types.js';
 
 export interface MemAgentConfig {
   provider: OpenAIProvider;
-  maxIterations?: number;
+  workDir?: string;
 }
-
-const MEM_TOOLS = ['read_file', 'write_file', 'glob', 'grep'];
 
 export class MemAgent {
   name = 'mem';
@@ -15,108 +15,142 @@ export class MemAgent {
   keepContext = true;
 
   private provider: OpenAIProvider;
-  private maxIterations: number;
-  private providerTools: any[] = [];
-  private providerToolsMap: Map<string, any> = new Map();
+  private workDir?: string;
+  private rawToolsMap: Map<string, Tool> = new Map();
 
   constructor(config: MemAgentConfig) {
     this.provider = config.provider;
-    this.maxIterations = config.maxIterations || 3;
+    this.workDir = config.workDir;
   }
 
-  async run(messages: ChatMessage[]): Promise<{ id: string; name: string; content: string } | null> {
-    this.providerTools = await this.getFilteredTools();
-    this.providerToolsMap.clear();
-    for (const t of this.providerTools) {
-      this.providerToolsMap.set(t.function.name, t);
-    }
-
+  async run(messages: ChatMessage[]): Promise<void> {
     const systemPrompt = await this.buildPrompt();
     const userPrompt = this.buildUserPrompt(messages);
 
-    const conversation: ChatMessage[] = [
+    const baseMessages: ChatMessage[] = [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userPrompt },
     ];
 
-    const response = await this.provider.chat(conversation, {
-      sessionId: 'mem-agent',
-      modelName: this.provider.getModel(),
-    });
-
-    if (!response.content) {
-      return null;
-    }
-
-    try {
-      const result = JSON.parse(response.content);
-      if (result.id && result.name && result.content) {
-        return result;
-      }
-    } catch {
-      return null;
-    }
-
-    return null;
+    await this.initTools();
+    await this.runLoop(baseMessages);
   }
 
-  private async getFilteredTools(): Promise<any[]> {
-    const allTools = await getOpenAITools();
-    const filtered = allTools.filter((tool: any) => this.tools.includes(tool.function.name));
-    return filtered.map(tool => ({
+  private async runLoop(messages: ChatMessage[]): Promise<void> {
+    const maxIterations = 50;
+    let iteration = 0;
+
+    while (iteration < maxIterations) {
+      iteration++;
+
+      const response = await this.provider.chat(messages, {
+        tools: this.getToolDefs(),
+        sessionId: 'mem-agent',
+        modelName: this.provider.getModel(),
+      });
+
+      if (!response.toolCalls || response.toolCalls.length === 0) {
+        break;
+      }
+
+      const toolCalls = response.toolCalls.map((tc: any) => ({
+        id: tc.id,
+        name: tc.function.name,
+        arguments: typeof tc.function.arguments === 'string'
+          ? JSON.parse(tc.function.arguments)
+          : tc.function.arguments,
+      }));
+
+      for (const toolCall of toolCalls) {
+        const result = await this.executeTool(toolCall.name, toolCall.arguments);
+
+        messages.push({
+          role: 'assistant',
+          content: null as any,
+          toolCalls: [{
+            id: toolCall.id,
+            type: 'function' as const,
+            function: {
+              name: toolCall.name,
+              arguments: JSON.stringify(toolCall.arguments),
+            },
+          }],
+        });
+
+        messages.push({
+          role: 'tool',
+          content: result.success ? result.data || '' : `Error: ${result.error}`,
+          toolCallId: toolCall.id,
+        });
+      }
+    }
+  }
+
+  private async initTools(): Promise<void> {
+    const allTools = await getProviderTools();
+    for (const tool of allTools) {
+      if ((MEM_TOOLS as readonly string[]).includes(tool.name)) {
+        this.rawToolsMap.set(tool.name, tool);
+      }
+    }
+  }
+
+  private getToolDefs(): any[] {
+    return Array.from(this.rawToolsMap.values()).map(tool => ({
       type: 'function' as const,
       function: {
-        name: tool.function.name,
-        description: tool.function.description,
-        parameters: tool.function.parameters,
+        name: tool.name,
+        description: tool.description,
+        parameters: tool.parameters,
       },
     }));
   }
 
-  private async buildPrompt(): Promise<string> {
-    try {
-      const fs = await import('fs/promises');
-      const path = await import('path');
-      const { fileURLToPath } = await import('url');
-      const __filename = fileURLToPath(import.meta.url);
-      const __dirname = path.dirname(__filename);
-      return await fs.readFile(path.join(__dirname, 'prompts', 'role.txt'), 'utf-8');
-    } catch {
-      return `你是一个记忆提取助手。根据对话历史提取关键知识点，生成结构化的记忆文档。
-      
-输出格式要求（JSON）：
-{
-  "id": "记忆唯一ID（使用简短的中文或英文标识）",
-  "name": "记忆名称（简洁明了）",
-  "content": "记忆内容（Markdown格式，包含详细描述）"
-}
-
-重要规则：
-- 只在有实质内容时返回记忆
-- id 使用小写英文、连字符或中文
-- 内容应该包含足够的上下文信息`;
+  private async executeTool(
+    name: string,
+    args: Record<string, any>
+  ): Promise<{ success: boolean; data?: any; error?: string }> {
+    const tool = this.rawToolsMap.get(name);
+    if (!tool) {
+      const available = Array.from(this.rawToolsMap.keys()).join(', ');
+      return { success: false, error: `Tool not found: ${name}. Available: ${available}` };
     }
+
+    const context: ToolContext = {
+      sessionId: 'mem-agent',
+      workDir: this.workDir || process.cwd(),
+    };
+
+    try {
+      const result = await tool.execute(args, context);
+      return { success: result.success, data: result.output, error: result.error };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  }
+
+  private async buildPrompt(): Promise<string> {
+    const fs = await import('fs/promises');
+    const path = await import('path');
+    const { fileURLToPath } = await import('url');
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = path.dirname(__filename);
+    return await fs.readFile(path.join(__dirname, 'prompts', 'role.txt'), 'utf-8');
   }
 
   private buildUserPrompt(messages: ChatMessage[]): string {
     const recentMessages = messages.slice(-20);
     const filtered = recentMessages.filter(m => m.role !== 'system');
-    
+
     const conversation = filtered
       .map(m => `${m.role === 'user' ? '用户' : '助手'}: ${m.content.substring(0, 500)}`)
       .join('\n\n');
 
-    return `请分析以下对话历史，提取可能对后续任务有帮助的关键知识或经验：
+    return `请分析以下对话历史，提取可能对后续任务有帮助的关键信息：
 
 ${conversation}
 
-如果发现有价值的信息，请按以下JSON格式返回记忆：
-{
-  "id": "简短ID",
-  "name": "记忆名称",
-  "content": "详细的记忆内容（Markdown格式）"
-}
-
-如果没有发现有价值的信息，请返回 null。`;
+如果发现有价值的信息，请直接调用 memory 工具添加记忆。
+`;
   }
 }

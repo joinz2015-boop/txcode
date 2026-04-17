@@ -10,6 +10,5 @@ export const CODE_TOOLS = [
   'web_search',
   'web_fetch',
   'todo_read',
-  'todo_write',
-  'memory'
+  'todo_write'
 ];
