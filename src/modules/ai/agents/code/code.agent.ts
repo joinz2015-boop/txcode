@@ -17,6 +17,7 @@ import { buildAvailableSkillsPrompt } from '../../../skill/skill.tool.js';
 import type { SummarizerService } from '../../../ai/summarizer/index.js';
 import type { SessionService } from '../../../session/session.service.js';
 import { specInjector } from '../../../spec/index.js';
+import { hooks } from '../../../hooks/index.js';
 
 async function loadRoleTemplate(): Promise<string> {
   try {
@@ -84,6 +85,7 @@ export class CodeAgent implements AIProvider {
   private providerTools: any[] = [];
   private providerToolsMap: Map<string, any> = new Map();
   private rawToolsMap: Map<string, any> = new Map();
+  private roundCount: number = 0;
 
   constructor(config: CodeAgentConfig) {
     this.provider = config.provider;
@@ -252,6 +254,7 @@ export class CodeAgent implements AIProvider {
         }
 
         await this.checkAndCompact(options, baseMessages, totalUsage, newMessagesStartIndex);
+        this.checkHooks();
         continue;
       }
 
@@ -264,6 +267,8 @@ export class CodeAgent implements AIProvider {
     }
 
     const success = iteration < this.maxIterations && finalAnswer.length > 0;
+
+    this.checkHooks();
 
     return {
       answer: finalAnswer || steps[steps.length - 1]?.results?.[0]?.output || 'Unable to complete task',
@@ -324,9 +329,46 @@ export class CodeAgent implements AIProvider {
         }
         baseMessages.push(...currentToolResults);
       }
-    } catch (error) {
+} catch (error) {
       console.error('[AutoCompact] Error:', error);
     }
+  }
+
+  private checkHooks(): void {
+    this.roundCount++;
+
+    const baseMessage = {
+      messages: this.memoryService?.getAllMessages(this.sessionId || '') || [],
+      metadata: {
+        sessionId: this.sessionId || '',
+        projectPath: this.projectPath || process.cwd(),
+      }
+    };
+
+    const check = this.summarizer?.checkNeedsCompact(
+      this.sessionId || '',
+      0
+    );
+
+    if (check?.needed) {
+      hooks.queue.emit('before_compact', { 
+        ...baseMessage, 
+        trigger: 'before_compact' 
+      });
+      this.roundCount = 0;
+    } else if (this.roundCount >= 10) {
+      hooks.queue.emit('round', { 
+        ...baseMessage, 
+        trigger: 'round',
+        metadata: { ...baseMessage.metadata, roundCount: this.roundCount }
+      });
+      this.roundCount = 0;
+    }
+
+    hooks.queue.emit('chat_end', { 
+      ...baseMessage, 
+      trigger: 'chat_end' 
+    });
   }
 
   private async executeTool(
