@@ -72,7 +72,7 @@ async function getMemory(req: Request, res: Response) {
     if (!projectPath) {
       const sessionRes = await fetch(`${process.env.API_BASE || ''}/api/sessions/current`);
       if (sessionRes.ok) {
-        const sessionData = await sessionRes.json();
+        const sessionData = await sessionRes.json() as { data?: { projectPath?: string } };
         projectPath = sessionData.data?.projectPath;
       }
     }
