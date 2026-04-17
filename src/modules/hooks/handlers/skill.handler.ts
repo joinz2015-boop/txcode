@@ -18,19 +18,19 @@ export class SkillHandler extends HookHandler {
         return;
       }
 
-      const provider = new OpenAIProvider({
-        apiKey: providerConfig.apiKey,
-        baseUrl: providerConfig.baseUrl,
-        defaultModel: configService.getDefaultModel(),
-      });
+      // const provider = new OpenAIProvider({
+      //   apiKey: providerConfig.apiKey,
+      //   baseUrl: providerConfig.baseUrl,
+      //   defaultModel: configService.getDefaultModel(),
+      // });
 
-      const skillAgent = new SkillAgent({ provider });
-      const result = await skillAgent.run(message.messages);
+      // const skillAgent = new SkillAgent({ provider });
+      // const result = await skillAgent.run(message.messages);
 
-      if (result) {
-        await this.saveSkill(result, message);
-        await this.reloadSkills();
-      }
+      // if (result) {
+      //   await this.saveSkill(result, message);
+      //   await this.reloadSkills();
+      // }
     } catch (error) {
       console.error('[SkillHandler] Error:', error);
     }
