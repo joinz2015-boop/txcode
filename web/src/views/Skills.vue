@@ -37,6 +37,15 @@
         >
           <i class="fa-solid fa-folder w-4 text-center"></i> Local Specs
         </button>
+
+        <div class="px-4 py-1 text-xs font-bold text-textMuted uppercase mt-4">Memory</div>
+        <button
+          @click="subTab = 'memory'"
+          class="w-full text-left px-4 py-2 flex items-center gap-2"
+          :class="subTab === 'memory' ? 'bg-active text-white border-l-2 border-accent' : 'text-textMuted hover:text-white hover:bg-white/5 border-l-2 border-transparent'"
+        >
+          <i class="fa-solid fa-brain w-4 text-center"></i> 记忆
+        </button>
       </div>
     </aside>
 
@@ -72,6 +81,18 @@
           @delete="handleDeleteSpec"
         />
       </div>
+
+      <div v-show="subTab === 'memory'" class="flex-1 flex flex-col overflow-hidden">
+        <div class="flex items-center justify-between px-6 py-3 border-b border-border">
+          <h2 class="text-lg font-bold text-white">记忆</h2>
+          <el-button size="small" @click="openMemoryEdit">
+            <i class="fa-solid fa-pen"></i>
+          </el-button>
+        </div>
+        <div class="flex-1 p-6 overflow-y-auto">
+          <MemoryDisplay :items="memoryItems" />
+        </div>
+      </div>
     </main>
 
     <SpecRepositoryDialog
@@ -86,6 +107,12 @@
       :spec="currentSpec"
       :content="currentSpecContent"
     />
+
+    <MemoryEditDialog
+      :visible.sync="showMemoryEdit"
+      :content="memoryRawContent"
+      @save="handleSaveMemory"
+    />
   </div>
 </template>
 
@@ -97,6 +124,8 @@ import RemoteSpecs from '../components/RemoteSpecs.vue'
 import LocalSpecsList from '../components/LocalSpecsList.vue'
 import SpecRepositoryDialog from '../components/SpecRepositoryDialog.vue'
 import SpecViewer from '../components/SpecViewer.vue'
+import MemoryDisplay from '../components/MemoryDisplay.vue'
+import MemoryEditDialog from '../components/MemoryEditDialog.vue'
 
 export default {
   name: 'Skills',
@@ -106,7 +135,9 @@ export default {
     RemoteSpecs,
     LocalSpecsList,
     SpecRepositoryDialog,
-    SpecViewer
+    SpecViewer,
+    MemoryDisplay,
+    MemoryEditDialog
   },
   data() {
     return {
@@ -124,7 +155,10 @@ export default {
       showSpecViewer: false,
       currentSpec: null,
       currentSpecContent: '',
-      projectPath: ''
+      projectPath: '',
+      memoryItems: [],
+      memoryRawContent: '',
+      showMemoryEdit: false
     }
   },
   computed: {
@@ -137,11 +171,21 @@ export default {
       )
     }
   },
+  watch: {
+    subTab(val) {
+      if (val === 'memory' && this.projectPath) {
+        this.loadMemory()
+      }
+    }
+  },
   async created() {
     await this.loadSkills()
     await this.loadRepositories()
     await this.loadLocalSpecs()
     await this.loadProjectPath()
+    if (this.subTab === 'memory') {
+      await this.loadMemory()
+    }
   },
   methods: {
     async loadSkills() {
@@ -290,6 +334,30 @@ export default {
         this.$message.error('Download failed: ' + (e.message || 'Unknown error'));
       } finally {
         this.$set(this.downloadingAll, repoId, false);
+      }
+    },
+    async loadMemory() {
+      try {
+        const res = await api.getMemory(this.projectPath);
+        this.memoryItems = res.data?.items || [];
+        this.memoryRawContent = res.data?.rawContent || '';
+      } catch (e) {
+        console.error('Failed to load memory:', e);
+        this.memoryItems = [];
+        this.memoryRawContent = '';
+      }
+    },
+    openMemoryEdit() {
+      this.showMemoryEdit = true;
+    },
+    async handleSaveMemory(content) {
+      try {
+        await api.saveMemory(this.projectPath, content);
+        await this.loadMemory();
+        this.$message.success('Memory saved');
+      } catch (e) {
+        console.error('Failed to save memory:', e);
+        this.$message.error('Failed to save memory');
       }
     }
   }
