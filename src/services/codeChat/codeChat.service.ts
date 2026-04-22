@@ -115,7 +115,7 @@ export class CodeChatService {
       if (options.enableDevLog) {
         const date = new Date().toISOString().slice(0, 10);
         const sessionIdSuffix = sessionId.slice(-12);
-        userMessage = message + `\n\n开发过程中你需要在 devlog.md 文件中记录你的修改记录，文件路径为：./txcode/session/${date}/${sessionIdSuffix}/devlog.md`;
+        userMessage = message + `\n\n开发过程中你需要在 devlog.md 文件中记录你的修改记录，文件路径为：.txcode/session/${date}/${sessionIdSuffix}/devlog.md`;
       }
       const result = await agent.run(userMessage, {
         abortSignal: abortController.signal,
