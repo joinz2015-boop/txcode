@@ -57,6 +57,23 @@ function sanitizeContext(content: string): string {
   return `<memory-context>\n${content}\n</memory-context>`
 }
 
+const FORBIDDEN_PATTERNS = [
+  '已修复', '待修复', '已完成', '待完成', '待处理',
+  'task done', 'task completed', 'task pending',
+  'fixed', 'resolved', 'in progress',
+  'todo', 'to-do', '待办', '已完成工作', '任务进度', '会话结果'
+]
+
+function isLowValueContent(content: string): boolean {
+  const lowerContent = content.toLowerCase()
+  for (const pattern of FORBIDDEN_PATTERNS) {
+    if (lowerContent.includes(pattern.toLowerCase())) {
+      return true
+    }
+  }
+  return false
+}
+
 interface MemoryEntry {
   content: string
 }
@@ -110,6 +127,14 @@ export const memoryTool: Tool = {
         return { success: false, output: '', error: 'content required for add action' }
       }
 
+      if (isLowValueContent(params.content)) {
+        return {
+          success: true,
+          output: '禁止记录任务进度、会话结果、已完成工作日志或临时的待办事项状态。如果对话中没有高价值信息可以选择不记录记忆。',
+          metadata: { blocked: true, reason: 'low-value content' }
+        }
+      }
+
       const newContent = currentContent 
         ? currentContent + ENTRY_SEPARATOR + params.content 
         : params.content
@@ -134,6 +159,14 @@ export const memoryTool: Tool = {
     if (action === 'replace') {
       if (!params.old_text || !params.content) {
         return { success: false, output: '', error: 'old_text and content required for replace action' }
+      }
+
+      if (isLowValueContent(params.content)) {
+        return {
+          success: true,
+          output: '禁止记录任务进度、会话结果、已完成工作日志或临时的待办事项状态。如果对话中没有高价值信息可以选择不记录记忆。',
+          metadata: { blocked: true, reason: 'low-value content' }
+        }
       }
 
       const oldText = params.old_text.trim()
