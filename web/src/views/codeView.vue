@@ -100,6 +100,8 @@
           <span class="separator">|</span>
           <span class="status-action" @click.stop="openFileSelectFromStatus">选择文件</span>
           <span class="separator">|</span>
+          <el-checkbox v-model="panel.enableDevLog" size="small">启用记录</el-checkbox>
+          <span class="separator">|</span>
           <span class="status-action" @click.stop="openDevLogDialog">查看记录</span>
         </div>
       </div>
@@ -476,7 +478,7 @@ export default {
           session: null, logItems: [], userQuestion: '', modelName: '',
           input: '', disabled: false, stopping: false, wsConnected: false,
           promptTokens: 0, dotInterval: null, compactionRatio: 0,
-          sessionStatus: 'idle', enableDevLog: true
+          sessionStatus: 'idle', enableDevLog: false
         })
       }
       this.activeSessions = newActive
