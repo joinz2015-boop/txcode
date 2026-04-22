@@ -57,6 +57,16 @@ export function getAllCommands(): string[] {
   return Array.from(commands.keys());
 }
 
+/**
+ * 判断消息是否为已注册的命令
+ */
+export function isCommand(message: string): boolean {
+  const trimmed = message.trim();
+  if (!trimmed.startsWith('/')) return false;
+  const cmdName = trimmed.split(/\s+/)[0].slice(1).toLowerCase();
+  return commands.has(cmdName);
+}
+
 // 注册内置命令
 
 registerCommand('help', () => ({

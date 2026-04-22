@@ -10,6 +10,7 @@ import { sessionService } from '../../modules/session/index.js';
 import { Session } from '../../modules/session/session.types.js';
 import { codeChatService } from '../../services/codeChat/index.js';
 import { commandChatService } from '../../services/commandChat/index.js';
+import {  isCommand } from '../../cli/commands.js';
 
 export class CodeWebSocketHandler {
   private wsClients: Set<WebSocket> = new Set();
@@ -93,12 +94,6 @@ export class CodeWebSocketHandler {
 
     let session = sessionService.get(sessionId);
     let chatMessage = message;
-    if (enableDevLog) {
-      const date = new Date().toISOString().slice(0, 10);
-      const sessionIdSuffix = sessionId.slice(-12);
-      chatMessage = message + `\n\n开发过程中你需要在 devlog.md 文件中记录你的修改记录，文件路径为：./txcode/session/${date}/${sessionIdSuffix}/devlog.md`;
-    }
-
     if (!session) {
       const title = message.length > 10 ? message.slice(0, 10) + '...' : message;
       session = sessionService.createWithId(sessionId, title);
@@ -118,7 +113,9 @@ export class CodeWebSocketHandler {
 
       console.log('[CodeWebSocket] Chat message:', message);
 
-      if (message.trim().startsWith('/')) {
+      const isCmd = isCommand(message);
+
+      if (isCmd) {
         const result = await commandChatService.handleCommand({
           message,
           sessionId: session.id,
