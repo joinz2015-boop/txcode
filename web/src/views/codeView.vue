@@ -99,6 +99,8 @@
           <span class="status-action" @click.stop="openCommandDialog">命令</span>
           <span class="separator">|</span>
           <span class="status-action" @click.stop="openFileSelectFromStatus">选择文件</span>
+          <span class="separator">|</span>
+          <span class="status-action" @click.stop="openDevLogDialog">查看记录</span>
         </div>
       </div>
     </div>
@@ -129,6 +131,11 @@
       @execute="handleExecuteCommand"
       @close="commandDialogVisible = false"
     />
+
+    <DevLogDialog
+      :visible.sync="devLogVisible"
+      :session-id="selectedPanel?.session?.id"
+    />
   </div>
 </template>
 
@@ -138,6 +145,7 @@ import SessionsPanel from '../components/SessionsPanel.vue'
 import FileSelectDialog from '../components/FileSelectDialog.vue'
 import ModelSelectDialog from '../components/ModelSelectDialog.vue'
 import CommandDialog from '../components/CommandDialog.vue'
+import DevLogDialog from '../components/DevLogDialog.vue'
 import ResizableTextarea from '../components/ResizableTextarea.vue'
 import { ws } from '../api/websocket/websocket_client.js'
 import * as sessions from '../api/sessions.js'
@@ -145,7 +153,7 @@ import * as config from '../api/config.js'
 
 export default {
   name: 'CodeView',
-  components: { SessionsPanel, FileSelectDialog, ModelSelectDialog, CommandDialog, ResizableTextarea },
+  components: { SessionsPanel, FileSelectDialog, ModelSelectDialog, CommandDialog, DevLogDialog, ResizableTextarea },
   MAX_LOG_ITEMS: 400,
 
   props: {
@@ -170,6 +178,9 @@ export default {
       modelSelectVisible: false,
       selectedPanel: null,
       commandDialogVisible: false,
+      enableDevLog: true,
+      devLogVisible: false,
+      devLogContent: '',
       scrollRafMap: new WeakMap(),
       logSeq: 0,
       wsUnsubscribers: []
@@ -264,6 +275,16 @@ export default {
     openFileSelectFromStatus() {
       this.currentPanel = this.activeSessions[this.focusedPanelIndex]
       this.fileSelectVisible = true
+    },
+
+    openDevLogDialog() {
+      this.selectedPanel = this.activeSessions[this.focusedPanelIndex]
+      const session = this.selectedPanel?.session
+      if (!session?.id) {
+        this.$message.warning('请先选择会话')
+        return
+      }
+      this.devLogVisible = true
     },
 
     async handleExecuteCommand(cmd) {
@@ -455,7 +476,7 @@ export default {
           session: null, logItems: [], userQuestion: '', modelName: '',
           input: '', disabled: false, stopping: false, wsConnected: false,
           promptTokens: 0, dotInterval: null, compactionRatio: 0,
-          sessionStatus: 'idle'
+          sessionStatus: 'idle', enableDevLog: true
         })
       }
       this.activeSessions = newActive
@@ -621,7 +642,7 @@ export default {
       panel.userQuestion = content
       this.pushLogItem(panel, { type: 'chat', content: content })
 
-      ws.send('chat', { message: content, sessionId: panel.session?.id, modelName: panel.modelName || undefined })
+      ws.send('chat', { message: content, sessionId: panel.session?.id, modelName: panel.modelName || undefined, enableDevLog: panel.enableDevLog })
     },
 
     stopPanel(panel) {

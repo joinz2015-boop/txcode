@@ -39,6 +39,7 @@ export class CodeChatService {
     return this.chatWithAI(input.message, {
       sessionId: session.id,
       projectPath: session.projectPath ?? undefined,
+      enableDevLog: input.enableDevLog,
       abortSignal: input.abortSignal,
       modelName: input.modelName,
       onStep: input.onStep,
@@ -110,7 +111,13 @@ export class CodeChatService {
     }
 
     try {
-      const result = await agent.run(message, {
+      let userMessage = message;
+      if (options.enableDevLog) {
+        const date = new Date().toISOString().slice(0, 10);
+        const sessionIdSuffix = sessionId.slice(-12);
+        userMessage = message + `\n\n开发过程中你需要在 devlog.md 文件中记录你的修改记录，文件路径为：./txcode/session/${date}/${sessionIdSuffix}/devlog.md`;
+      }
+      const result = await agent.run(userMessage, {
         abortSignal: abortController.signal,
         onStep: (step: any, iteration: number, usage?: any) => {
           const toolCalls = (step.toolCalls || []).map((tc: any) => ({
