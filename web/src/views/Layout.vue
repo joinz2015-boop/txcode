@@ -13,6 +13,18 @@
         </div>
       </div>
       <div class="flex items-center gap-3">
+        <el-dropdown @command="handleProjectChange" trigger="click" v-if="projects.length > 0">
+          <span class="text-white text-sm cursor-pointer hover:text-accent">
+            <i class="fa-solid fa-folder mr-1"></i>
+            {{ currentProject?.name || '选择项目' }}
+            <i class="fa-solid fa-chevron-down ml-1 text-xs"></i>
+          </span>
+          <el-dropdown-menu slot="dropdown">
+            <el-dropdown-item v-for="proj in projects" :key="proj.id" :command="proj.id">
+              <span :class="proj.id === currentProject?.id ? 'text-accent' : ''">{{ proj.name }}</span>
+            </el-dropdown-item>
+          </el-dropdown-menu>
+        </el-dropdown>
         <span class="text-xs text-textMuted mr-2"><i class="fa-solid fa-circle text-green-500 text-[8px]"></i> Server Connected</span>
         <button v-show="$route.name === 'chat'" @click="toggleSidebar" class="hover:text-white" :title="sidebarVisible ? '关闭侧栏' : '显示侧栏'"><i class="fa-solid fa-columns"></i></button>
         <!-- <router-link to="/settings" class="hover:text-white" title="设置"><i class="fa-solid fa-gear"></i></router-link> -->
@@ -85,7 +97,9 @@ export default {
       showSessionDropdown: false,
       sessions: [],
       currentSessionId: null,
-      currentSessionName: ''
+      currentSessionName: '',
+      projects: [],
+      currentProject: null
     }
   },
   methods: {
@@ -127,9 +141,31 @@ export default {
       } catch (e) {
         console.error('加载会话失败:', e)
       }
+    },
+    async loadProjects() {
+      try {
+        const res = await api.getProjects()
+        this.projects = res.data || []
+        const cur = await api.getCurrentProject()
+        this.currentProject = cur.data || null
+      } catch (e) {
+        console.error('加载项目失败:', e)
+      }
+    },
+    async handleProjectChange(projectId) {
+      try {
+        await api.setCurrentProject(projectId)
+        const proj = this.projects.find(p => p.id === projectId)
+        if (proj) {
+          this.currentProject = proj
+        }
+      } catch (e) {
+        this.$message.error('切换项目失败: ' + e.message)
+      }
     }
   },
   async created() {
+    await this.loadProjects()
     await this.loadSessions()
     document.addEventListener('click', (e) => {
       if (!this.$el.contains(e.target)) {

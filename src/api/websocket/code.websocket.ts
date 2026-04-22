@@ -11,6 +11,7 @@ import { Session } from '../../modules/session/session.types.js';
 import { codeChatService } from '../../services/codeChat/index.js';
 import { commandChatService } from '../../services/commandChat/index.js';
 import {  isCommand } from '../../cli/commands.js';
+import { projectService } from '@/services/project/project.service.js';
 
 export class CodeWebSocketHandler {
   private wsClients: Set<WebSocket> = new Set();
@@ -138,7 +139,7 @@ export class CodeWebSocketHandler {
         const result = await codeChatService.handleChat({
           message: chatMessage,
           sessionId: session.id,
-          projectPath: session.projectPath ?? undefined,
+          projectPath: session.projectPath ?? projectService.getCurrentProjectPath(),
           enableDevLog,
           abortSignal: abortController.signal,
           onStep: (step: any, iteration: number, usage?: any) => {

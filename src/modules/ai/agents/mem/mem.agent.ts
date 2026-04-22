@@ -42,7 +42,6 @@ export class MemAgent {
 
     while (iteration < maxIterations) {
       iteration++;
-      console.log(`\n--- Iteration ${iteration} ---`);
       const response = await this.provider.chat(messages, {
         tools: this.getToolDefs(),
         sessionId: 'mem-agent',

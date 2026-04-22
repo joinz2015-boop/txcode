@@ -6,14 +6,17 @@ import { Router } from 'express';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as yaml from 'yaml';
+import { projectService } from '../services/project/project.service.js';
 
 export const wikiRouter = Router();
 
-const DOCS_BASE_PATH = path.resolve(process.cwd(), '.txcode/wiki');
+function getDocsBasePath() {
+  return path.resolve(projectService.getCurrentProjectPath(), '.txcode/wiki');
+}
 
 wikiRouter.get('/menu', (req, res) => {
   try {
-    const menuPath = path.join(DOCS_BASE_PATH, 'menu.yaml');
+    const menuPath = path.join(getDocsBasePath(), 'menu.yaml');
     if (!fs.existsSync(menuPath)) {
       return res.status(404).json({ success: false, error: 'menu.yaml not found' });
     }
@@ -34,7 +37,7 @@ wikiRouter.get('/content', (req, res) => {
     }
     
     const normalizedPath = filePath.replace(/^\//, '');
-    const fullPath = path.join(DOCS_BASE_PATH, normalizedPath);
+    const fullPath = path.join(getDocsBasePath(), normalizedPath);
     
     if (!fs.existsSync(fullPath)) {
       return res.status(404).json({ success: false, error: 'File not found' });
@@ -56,7 +59,7 @@ wikiRouter.get('/asset', (req, res) => {
     }
     
     const normalizedPath = assetPath.replace(/^\//, '');
-    const fullPath = path.join(DOCS_BASE_PATH, normalizedPath);
+    const fullPath = path.join(getDocsBasePath(), normalizedPath);
     
     if (!fs.existsSync(fullPath)) {
       return res.status(404).json({ success: false, error: 'Asset not found' });

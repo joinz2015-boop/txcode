@@ -18,7 +18,7 @@ devlogRouter.get('/', async (req: Request, res: Response) => {
   try {
     const date = new Date().toISOString().slice(0, 10);
     const sessionIdSuffix = sessionId.slice(-12);
-    const logPath = path.resolve(process.cwd(), 'txcode', 'session', date, sessionIdSuffix, 'devlog.md');
+    const logPath = path.resolve(process.cwd(), '.txcode', 'session', date, sessionIdSuffix, 'devlog.md');
 
     let content = '';
     if (fs.existsSync(logPath)) {

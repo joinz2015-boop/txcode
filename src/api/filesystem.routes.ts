@@ -11,6 +11,7 @@ import { Router, Request, Response } from 'express';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import { projectService } from '@/services/project/project.service.js';
 function logError(msg: string, error: unknown): void {
   console.error(`[filesystem.routes] ${msg}:`, error);
 }
@@ -41,14 +42,14 @@ filesystemRouter.get('/browse', (req: Request, res: Response) => {
     
     // Empty path - return current working directory contents
     if (!inputPath || inputPath === '') {
-      const cwd = process.cwd();
+      const cwd = projectService.getCurrentProjectPath();
       return browseDirectory(cwd, isWindows);
     }
     
     // Root path on Linux/Mac
     if (inputPath === '/') {
       if (isWindows) {
-        const cwd = process.cwd();
+        const cwd = projectService.getCurrentProjectPath();
         return browseDirectory(cwd, isWindows);
       } else {
         return browseDirectory('/', isWindows);
@@ -132,7 +133,7 @@ filesystemRouter.get('/browse', (req: Request, res: Response) => {
 });
 
 filesystemRouter.get('/cwd', (req: Request, res: Response) => {
-  const cwd = process.cwd();
+  const cwd = projectService.getCurrentProjectPath();
   const isWindows = os.platform() === 'win32';
   const basePath = path.join(cwd, '.txcode', 'req');
   return res.json({

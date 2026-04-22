@@ -560,9 +560,8 @@ export default {
 
     async loadSessions() {
       try {
-        const res = await sessions.getSessions()
+        const res = await sessions.getSessions(this.pageSize, (this.page - 1) * this.pageSize)
         this.sessions = res.data || []
-        this.page = 1
         this.displayedSessions = this.sessions.slice(0, this.pageSize)
         this.hasMore = this.sessions.length > this.pageSize
         this.updateActiveSessions()

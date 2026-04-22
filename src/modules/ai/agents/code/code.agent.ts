@@ -127,7 +127,7 @@ export class CodeAgent implements AIProvider {
 
     const builtinTools = this.providerTools;
     const systemPrompt = await buildCodePrompt(this.maxIterations, {
-      workdir: this.projectPath || process.cwd(),
+      workdir: this.projectPath ,
     });
 
     if (options?.historyMessages && options.historyMessages.length > 0) {
@@ -141,13 +141,13 @@ export class CodeAgent implements AIProvider {
     const messageCount = options?.historyMessages?.length || 0;
 
     if (specInjector.shouldInject(messageCount)) {
-      const injectedMessage = specInjector.injectIntoMessage(userMessage, process.cwd());
+      const injectedMessage = specInjector.injectIntoMessage(userMessage, this.projectPath );
       baseMessages.push({ role: 'user', content: injectedMessage });
     } else {
       const firstUserIndex = baseMessages.findIndex(m => m.role === 'user');
       if (firstUserIndex >= 0) {
         const originalFirstUser = baseMessages[firstUserIndex].content;
-        const reinjected = specInjector.injectIntoMessage(originalFirstUser, process.cwd());
+        const reinjected = specInjector.injectIntoMessage(originalFirstUser, this.projectPath );
         baseMessages[firstUserIndex].content = reinjected;
       } 
       baseMessages.push({ role: 'user', content: userMessage });

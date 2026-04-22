@@ -13,6 +13,8 @@
  */
 
 import { parseArgs } from './cli/args.js';
+import { dbService } from './modules/db/index.js';
+import { projectService } from './services/project/project.service.js';
 
 /**
  * 程序主入口函数
@@ -27,10 +29,12 @@ import { parseArgs } from './cli/args.js';
  */
 async function main() {
   const args = parseArgs(process.argv);
-  
+  await dbService.init();
+  projectService.createOrGetProject();
+
   if (args.command === 'web') {
     const net = await import('net');
-    
+
     async function findAvailablePort(port: number): Promise<number> {
       return new Promise((resolve) => {
         const server = net.createServer();
@@ -48,7 +52,7 @@ async function main() {
     if (availablePort !== args.port) {
       console.log(`端口 ${args.port} 被占用，使用端口 ${availablePort}`);
     }
-    
+
     const { WebService } = await import('./web/web.service.js');
     const webService = new WebService(availablePort);
     await webService.start();
@@ -75,8 +79,7 @@ async function main() {
     const { render } = await import('ink');
     const React = await import('react');
     const { App } = await import('./components/App.js');
-    const { dbService } = await import('./modules/db/index.js');
-    await dbService.init();
+
     render(React.createElement(App));
   }
 }
