@@ -825,4 +825,21 @@ export const api = {
   createProject(name, path, description = '') {
     return request('POST', '/projects', { name, path, description });
   },
+
+  // ==================== 配置导出导入 ====================
+
+  exportConfig() {
+    return fetch(`${API_BASE}/settings/export`, {
+      method: 'GET',
+    }).then(res => {
+      if (!res.ok) {
+        throw new Error('导出失败');
+      }
+      return res.blob();
+    });
+  },
+
+  importConfig(content) {
+    return request('POST', '/settings/import', { content });
+  },
 };

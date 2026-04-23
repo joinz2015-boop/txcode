@@ -28,6 +28,8 @@
             @add-model="openModelDialog($event, null)"
             @edit-model="openModelDialog($event.providerId, $event)"
             @delete-model="deleteModel"
+            @export-config="handleExportConfig"
+            @import-config="handleImportConfig"
           />
         </div>
 
@@ -561,6 +563,61 @@ export default {
       } finally {
         this.emailLoading = false
       }
+    },
+
+    async handleExportConfig() {
+      try {
+        const blob = await this.$api.exportConfig()
+        const now = new Date()
+        const timestamp = now.getFullYear().toString() +
+          (now.getMonth() + 1).toString().padStart(2, '0') +
+          now.getDate().toString().padStart(2, '0') + '_' +
+          now.getHours().toString().padStart(2, '0') +
+          now.getMinutes().toString().padStart(2, '0') +
+          now.getSeconds().toString().padStart(2, '0')
+        const filename = `config_${timestamp}.yml`
+        
+        const url = window.URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = url
+        link.download = filename
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        window.URL.revokeObjectURL(url)
+        
+        this.$message.success('配置导出成功')
+      } catch (e) {
+        this.$message.error('导出失败: ' + e.message)
+      }
+    },
+
+    handleImportConfig() {
+      const input = document.createElement('input')
+      input.type = 'file'
+      input.accept = '.yml,.yaml'
+      input.onchange = async (e) => {
+        const file = e.target.files[0]
+        if (!file) return
+        
+        try {
+          const content = await file.text()
+          const res = await this.$api.importConfig(content)
+          if (res.success) {
+            this.$message.success('配置导入成功')
+            await this.loadProviders()
+            await this.loadModels()
+            await this.loadGatewayConfig()
+            this.loadWafConfig()
+            this.loadEmailConfig()
+          } else {
+            this.$message.error('导入失败: ' + res.error)
+          }
+        } catch (e) {
+          this.$message.error('导入失败: ' + e.message)
+        }
+      }
+      input.click()
     },
   },
 }

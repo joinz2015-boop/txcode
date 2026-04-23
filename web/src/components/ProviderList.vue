@@ -2,7 +2,15 @@
   <div class="provider-list">
     <div class="flex justify-between items-center mb-4">
       <h3 class="text-xl text-white">AI 服务商 & 模型</h3>
-      <el-button type="primary" size="small" @click="$emit('add-provider')">+ 添加服务商</el-button>
+      <div class="flex gap-2">
+        <el-button size="small" @click="$emit('export-config')">
+          <i class="fa-solid fa-download mr-1"></i>导出配置
+        </el-button>
+        <el-button size="small" @click="$emit('import-config')">
+          <i class="fa-solid fa-upload mr-1"></i>导入配置
+        </el-button>
+        <el-button type="primary" size="small" @click="$emit('add-provider')">+ 添加服务商</el-button>
+      </div>
     </div>
 
     <div class="providers">
@@ -68,6 +76,8 @@ export default {
       default: () => [],
     },
   },
+
+  emits: ['add-provider', 'edit-provider', 'delete-provider', 'add-model', 'edit-model', 'delete-model', 'export-config', 'import-config'],
 
   data() {
     return {

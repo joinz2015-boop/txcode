@@ -25,11 +25,13 @@ import { wikiRouter } from './wiki.routes.js';
 import { memoryRouter } from './memory.routes.js';
 import { devlogRouter } from './devlog.routes.js';
 import { ossRouter } from './oss.routes.js';
+import { configExportImportRouter } from './config-export-import.routes.js';
 
 export const apiRouter = Router();
 
 apiRouter.use('/chat', chatRouter);
 apiRouter.use('/sessions', sessionRouter);
+apiRouter.use('/config', configExportImportRouter);
 apiRouter.use('/config', configRouter);
 apiRouter.use('/skills', skillsRouter);
 apiRouter.use('/lsp', lspRouter);
@@ -50,5 +52,6 @@ apiRouter.use('/wiki', wikiRouter);
 apiRouter.use('/memory', memoryRouter);
 apiRouter.use('/devlog', devlogRouter);
 apiRouter.use('/oss', ossRouter);
+apiRouter.use('/settings', configExportImportRouter);
 
 export type * from './api.types.js';
