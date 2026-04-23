@@ -133,15 +133,66 @@ ossRouter.get('/download', async (req: Request, res: Response) => {
       return res.status(400).json({ success: false, error: 'key必填' });
     }
 
-    const buffer = await ossService.download(key);
+    const config = ossService.getActiveConfig();
+    const client = createOssClient(config);
+    const head = await client.head(key);
+    const totalSize = (head as any).size || 0;
     const filename = key.split('/').pop() || 'download';
 
-    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
-    res.setHeader('Content-Type', 'application/octet-stream');
-    res.setHeader('Content-Length', buffer.length);
-    res.end(buffer);
+    res.setHeader('Content-Type', 'text/plain');
+    res.setHeader('Transfer-Encoding', 'chunked');
+    res.setHeader('X-Filename', encodeURIComponent(filename));
+    res.setHeader('X-TotalSize', totalSize);
+
+    const sendProgress = (loaded: number) => {
+      res.write(JSON.stringify({ progress: Math.round((loaded / totalSize) * 100) }) + '\n');
+    };
+
+    const result = await client.get(key);
+    const chunks: Uint8Array[] = [];
+    let loaded = 0;
+
+    if (result.content) {
+      if (Buffer.isBuffer(result.content)) {
+        sendProgress(totalSize);
+        chunks.push(result.content);
+      } else if (result.content instanceof Uint8Array) {
+        sendProgress(totalSize);
+        chunks.push(result.content);
+      } else {
+        for await (const chunk of result.content as AsyncIterable<Uint8Array>) {
+          chunks.push(chunk);
+          loaded += chunk.length;
+          sendProgress(loaded);
+        }
+      }
+    }
+
+    const buffer = Buffer.concat(chunks);
+    res.write(JSON.stringify({ done: true }) + '\n');
+    res.end();
   } catch (error: unknown) {
     logError('下载OSS文件失败:', error);
+    res.write(JSON.stringify({ success: false, error: (error as Error).message }) + '\n');
+    res.end();
+  }
+});
+
+ossRouter.get('/download-url', async (req: Request, res: Response) => {
+  try {
+    const key = req.query.key as string;
+    const expires = parseInt(req.query.expires as string || '3600', 10);
+    
+    if (!key) {
+      return res.status(400).json({ success: false, error: 'key必填' });
+    }
+
+    const url = ossService.getDownloadUrl(key, expires);
+    const size = await ossService.getFileSize(key);
+    
+    res.json({ success: true, data: { url, size } });
+  } catch (error: unknown) {
+    logError('获取OSS下载链接失败:', error);
     res.status(500).json({ success: false, error: (error as Error).message });
   }
 });
@@ -158,11 +209,20 @@ ossRouter.post('/upload', async (req: Request, res: Response) => {
       return res.status(404).json({ success: false, error: '本地文件不存在' });
     }
 
-    await ossService.upload(localPath, ossKey);
-    res.json({ success: true, message: '上传成功' });
+    res.setHeader('Content-Type', 'text/plain');
+    res.setHeader('Transfer-Encoding', 'chunked');
+
+    const sendData = (data: object) => {
+      res.write(JSON.stringify(data) + '\n');
+    };
+
+    await ossService.upload(localPath, ossKey, (progress) => sendData({ progress: Math.round(progress * 100) }));
+    sendData({ success: true, message: '上传成功' });
+    res.end();
   } catch (error: unknown) {
     logError('上传文件到OSS失败:', error);
-    res.status(500).json({ success: false, error: (error as Error).message });
+    res.write(JSON.stringify({ success: false, error: (error as Error).message }) + '\n');
+    res.end();
   }
 });
 

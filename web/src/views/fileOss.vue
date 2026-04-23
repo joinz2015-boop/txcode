@@ -203,7 +203,7 @@
         <div class="w-full bg-[#3c3c3c] rounded-full h-2">
           <div class="bg-[#0e639c] h-2 rounded-full transition-all" :style="{ width: uploadProgress.percent + '%' }"></div>
         </div>
-        <p class="text-[#808080] text-xs mt-2 text-center">{{ uploadProgress.percent }}%</p>
+        <p class="text-[#808080] text-xs mt-2 text-center">{{ uploadProgress.percent.toFixed(2) }}%</p>
       </div>
     </div>
   </div>
@@ -382,7 +382,9 @@ export default {
       const ossKey = this.ossPrefix ? this.ossPrefix.replace(/\/$/, '') + '/' + filename : filename
       this.uploadProgress = { visible: true, percent: 0, filename }
       try {
-        await ossApi.ossUpload(target.path, ossKey)
+        await ossApi.ossUpload(target.path, ossKey, (p) => {
+          this.uploadProgress.percent = p
+        })
         this.$message.success('上传成功')
         this.loadOssFiles()
       } catch (e) {
@@ -484,7 +486,9 @@ export default {
       const ossKey = this.ossPrefix ? this.ossPrefix.replace(/\/$/, '') + '/' + filename : filename
       this.uploadProgress = { visible: true, percent: 0, filename }
       try {
-        await ossApi.ossUpload(this.dragFile.path, ossKey)
+        await ossApi.ossUpload(this.dragFile.path, ossKey, (p) => {
+          this.uploadProgress.percent = p
+        })
         this.$message.success('上传成功')
         this.loadOssFiles()
       } catch (e) {
@@ -582,17 +586,18 @@ export default {
         this.$message.warning('请先进入一个本地文件夹')
         return
       }
+      this.uploadProgress = { visible: true, percent: 0, filename: item.name }
       try {
-        const res = await ossApi.getOssDownloadUrl(item.path)
-        const url = res.data.url
-        const response = await fetch(url)
-        const blob = await response.arrayBuffer()
         const targetPath = this.localPath + (this.localPath.endsWith('\\') || this.localPath.endsWith('/') ? '' : '\\') + item.name
-        await api.saveFile(targetPath, blob)
+        await ossApi.ossDownloadWithProgress(item.path, item.name, targetPath, (p) => {
+          this.uploadProgress.percent = p
+        })
         this.$message.success('已下载到本地: ' + targetPath)
         this.loadLocalFiles()
       } catch (e) {
         this.$message.error('下载失败: ' + e.message)
+      } finally {
+        this.uploadProgress.visible = false
       }
     },
     openOssConfig() { this.$refs.ossConfigDialog.open(this.ossConfig) },

@@ -8,6 +8,7 @@
 
 import OSS from 'ali-oss';
 import * as path from 'path';
+import * as fs from 'fs';
 import { ossRepository, OssConfig } from '../repository/oss.repository.js';
 
 export interface OssFileItem {
@@ -193,12 +194,55 @@ export class OssService {
     }
   }
 
-  async upload(localPath: string, ossKey: string): Promise<void> {
+  async downloadStream(key: string, onProgress: (loaded: number, total: number) => void): Promise<Buffer> {
     const config = this.getActiveConfig();
     const client = createOssClient(config);
 
     try {
-      await client.put(ossKey, localPath);
+      const totalSize = await this.getFileSize(key);
+      const chunks: Uint8Array[] = [];
+      let loaded = 0;
+
+      const result = await client.get(key);
+      if (result.content) {
+        if (Buffer.isBuffer(result.content)) {
+          onProgress(totalSize, totalSize);
+          return result.content;
+        } else if (result.content instanceof Uint8Array) {
+          onProgress(totalSize, totalSize);
+          return Buffer.from(result.content);
+        } else {
+          for await (const chunk of result.content as AsyncIterable<Uint8Array>) {
+            chunks.push(chunk);
+            loaded += chunk.length;
+            onProgress(loaded, totalSize);
+          }
+        }
+      }
+
+      return Buffer.concat(chunks);
+    } catch (error: unknown) {
+      const err = error as Error;
+      throw new Error(`下载OSS文件失败: ${err.message}`);
+    }
+  }
+
+  async upload(localPath: string, ossKey: string, onProgress?: (progress: number) => void): Promise<void> {
+    const config = this.getActiveConfig();
+    const client = createOssClient(config);
+    const stats = fs.statSync(localPath);
+    const fileSizeMB = stats.size / (1024 * 1024);
+
+    try {
+      if (fileSizeMB > 100) {
+        await client.multipartUpload(ossKey, localPath, {
+          partSize: 1024 * 1024,
+          progress: onProgress
+        });
+      } else {
+        await client.put(ossKey, localPath);
+        if (onProgress) onProgress(1);
+      }
     } catch (error: unknown) {
       const err = error as Error;
       throw new Error(`上传文件到OSS失败: ${err.message}`);
@@ -254,6 +298,19 @@ export class OssService {
     } catch (error: unknown) {
       const err = error as Error;
       throw new Error(`获取下载链接失败: ${err.message}`);
+    }
+  }
+
+  async getFileSize(key: string): Promise<number> {
+    const config = this.getActiveConfig();
+    const client = createOssClient(config);
+
+    try {
+      const res = await client.head(key);
+      return (res as any).size || 0;
+    } catch (error: unknown) {
+      const err = error as Error;
+      throw new Error(`获取文件大小失败: ${err.message}`);
     }
   }
 }
