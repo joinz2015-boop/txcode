@@ -9,7 +9,19 @@
           <i class="fa-solid fa-arrow-up"></i>
         </button>
       </div>
-      <div class="text-sm text-white truncate max-w-[50%]">{{ currentDirName }}</div>
+      <div class="flex items-center gap-2">
+        <el-dropdown @command="handleProjectChange" trigger="click" v-if="projects.length > 0">
+          <span class="text-sm text-white cursor-pointer hover:text-accent">
+            {{ currentProject?.name || '选择项目' }}
+            <i class="fa-solid fa-chevron-down ml-1 text-xs"></i>
+          </span>
+          <el-dropdown-menu slot="dropdown">
+            <el-dropdown-item v-for="proj in projects" :key="proj.id" :command="proj.id">
+              <span :class="proj.id === currentProject?.id ? 'text-accent' : ''">{{ proj.name }}</span>
+            </el-dropdown-item>
+          </el-dropdown-menu>
+        </el-dropdown>
+      </div>
       <button @click="toggleMenu" class="p-2 text-textMuted hover:text-white">
         <i class="fa-solid fa-ellipsis-v"></i>
       </button>
@@ -137,6 +149,8 @@ export default {
   name: 'AppFilesView',
   data() {
     return {
+      projects: [],
+      currentProject: null,
       browseResult: {
         current_path: '',
         parent_path: null,
@@ -194,6 +208,7 @@ export default {
     }
   },
   async created() {
+    await this.loadProjects()
     await this.browse('')
     document.addEventListener('keydown', this.handleKeydown)
   },
@@ -205,6 +220,28 @@ export default {
     }
   },
   methods: {
+    async loadProjects() {
+      try {
+        const res = await api.getProjects()
+        this.projects = res.data || []
+        const cur = await api.getCurrentProject()
+        this.currentProject = cur.data || null
+      } catch (e) {
+        console.error('Load projects failed:', e)
+      }
+    },
+    async handleProjectChange(projectId) {
+      try {
+        await api.setCurrentProject(projectId)
+        const proj = this.projects.find(p => p.id === projectId)
+        if (proj) {
+          this.currentProject = proj
+        }
+        location.reload()
+      } catch (e) {
+        this.$message.error('切换项目失败: ' + e.message)
+      }
+    },
     async browse(path) {
       this.loading = true
       try {
