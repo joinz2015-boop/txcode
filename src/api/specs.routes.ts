@@ -4,6 +4,7 @@ import * as os from 'os';
 import { specManager, specRepositoryService, specInjector } from '../modules/spec/index.js';
 import { memoryService } from '../modules/memory/index.js';
 import { sessionService } from '../modules/session/index.js';
+import { projectService } from '../services/project/project.service.js';
 
 export const specsRouter = Router();
 
@@ -17,7 +18,7 @@ function getProjectPathFromRequest(req: Request): string | null {
 }
 
 function getDefaultProjectPath(): string {
-  return process.cwd();
+  return projectService.getCurrentProjectPath();
 }
 
 function initProjectSpecPath(req: Request): void {
@@ -28,7 +29,7 @@ function initProjectSpecPath(req: Request): void {
 
 specsRouter.get('/project-path', (req: Request, res: Response) => {
   const sessionPath = getProjectPathFromRequest(req);
-  const projectPath = sessionPath || getDefaultProjectPath();
+  const projectPath = projectService.getCurrentProjectPath();
   res.json({
     success: true,
     data: {
@@ -41,7 +42,7 @@ specsRouter.get('/project-path', (req: Request, res: Response) => {
 specsRouter.get('/local', (req: Request, res: Response) => {
   const sessionPath = getProjectPathFromRequest(req);
   const queryPath = req.query.projectPath as string;
-  const projectPath = queryPath || sessionPath || getDefaultProjectPath();
+  const projectPath = projectService.getCurrentProjectPath();
   
   specManager.setProjectPath(projectPath);
   const specs = specManager.getLocalSpecs();

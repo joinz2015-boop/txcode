@@ -17,10 +17,15 @@ import { exec } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 import { promisify } from 'util';
+import { projectService } from '../services/project/project.service.js';
 
 const execAsync = promisify(exec);
 
 export const gitRouter = Router();
+
+function getProjectRoot(): string {
+  return projectService.getCurrentProjectPath();
+}
 
 function logError(msg: string, error: unknown): void {
   console.error(`[git.routes] ${msg}:`, error);
@@ -100,17 +105,23 @@ async function execGitCommand(command: string, cwd?: string): Promise<{ stdout: 
 }
 
 async function getGitRoot(): Promise<string | null> {
+  const projectRoot = getProjectRoot();
   try {
-    const { stdout } = await execGitCommand('git rev-parse --show-toplevel');
-    return stdout.trim() || null;
+    const { stdout } = await execGitCommand('git rev-parse --show-toplevel', projectRoot);
+    const gitRoot = stdout.trim();
+    if (gitRoot && gitRoot.startsWith(projectRoot)) {
+      return gitRoot;
+    }
+    return null;
   } catch {
     return null;
   }
 }
 
 async function isGitRepo(): Promise<boolean> {
+  const projectRoot = getProjectRoot();
   try {
-    await execGitCommand('git rev-parse --git-dir');
+    await execGitCommand('git rev-parse --git-dir', projectRoot);
     return true;
   } catch {
     return false;
@@ -144,7 +155,8 @@ gitRouter.get('/status', async (req: Request, res: Response) => {
       return;
     }
 
-    const { stdout } = await execGitCommand('git status --porcelain');
+    const projectRoot = getProjectRoot();
+    const { stdout } = await execGitCommand('git status --porcelain', projectRoot);
     const changes: GitChange[] = [];
     
     const lines = stdout.split('\n').filter(line => line.trim());
@@ -181,11 +193,12 @@ gitRouter.get(/\/diff(?:\/(.*))?/, async (req: Request, res: Response) => {
     }
 
     let command = `git diff -- "${filePath}"`;
-    let { stdout, stderr } = await execGitCommand(command);
+    const projectRoot = getProjectRoot();
+    let { stdout, stderr } = await execGitCommand(command, projectRoot);
 
     if (!stdout && !stderr) {
       command = `git diff --cached -- "${filePath}"`;
-      const result = await execGitCommand(command);
+      const result = await execGitCommand(command, projectRoot);
       stdout = result.stdout;
       stderr = result.stderr;
     }
@@ -227,7 +240,8 @@ gitRouter.post(/\/revert(?:\/(.*))?/, async (req: Request, res: Response) => {
       return;
     }
 
-    const { stderr } = await execGitCommand(`git checkout -- "${filePath}"`);
+    const projectRoot = getProjectRoot();
+    const { stderr } = await execGitCommand(`git checkout -- "${filePath}"`, projectRoot);
     
     if (stderr && !stderr.includes('Updated')) {
       res.status(400).json({ success: false, error: stderr });
@@ -253,7 +267,8 @@ gitRouter.post('/revert-all', async (req: Request, res: Response) => {
       return;
     }
 
-    const { stderr } = await execGitCommand('git checkout -- .');
+    const projectRoot = getProjectRoot();
+    const { stderr } = await execGitCommand('git checkout -- .', projectRoot);
     
     if (stderr && !stderr.includes('Updated')) {
       res.status(400).json({ success: false, error: stderr });
@@ -318,7 +333,8 @@ gitRouter.post('/discard-untracked', async (req: Request, res: Response) => {
       return;
     }
 
-    const { stdout, stderr } = await execGitCommand('git clean -fd');
+    const projectRoot = getProjectRoot();
+    const { stdout, stderr } = await execGitCommand('git clean -fd', projectRoot);
     
     if (stderr && !stderr.includes('Removing')) {
       res.status(400).json({ success: false, error: stderr });

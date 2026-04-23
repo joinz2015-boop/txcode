@@ -36,7 +36,7 @@ const config: TxConfig = {
   debug: true,
   
   log: {
-    enabled: true,
+    enabled: false,
     dir: 'log',
     accessLog: 'access.log',
   },

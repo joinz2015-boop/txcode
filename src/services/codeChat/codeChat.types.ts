@@ -2,6 +2,7 @@ export interface ChatInput {
   message: string;
   sessionId?: string;
   projectPath?: string;
+  enableDevLog?: boolean;
   abortSignal?: AbortSignal;
   modelName?: string;
   onStep?: (step: Step, iteration: number, usage?: any) => void;
@@ -11,6 +12,7 @@ export interface ChatInput {
 export interface ChatOptions {
   sessionId: string;
   projectPath?: string;
+  enableDevLog?: boolean;
   abortSignal?: AbortSignal;
   modelName?: string;
   onStep?: (step: Step, iteration: number, usage?: any) => void;

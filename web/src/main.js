@@ -24,3 +24,8 @@ new Vue({
   router,
   render: h => h(App),
 }).$mount('#app');
+
+// 修复 dropdown-menu 遮罩 dialog 问题
+const style = document.createElement('style');
+style.textContent = '.v-modal { z-index: 1999 !important; }';
+document.head.appendChild(style);

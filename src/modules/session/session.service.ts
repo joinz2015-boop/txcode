@@ -285,19 +285,25 @@ export class SessionService {
    * 将 currentSessionId 设置为 null
    * 不删除任何会话数据
    */
-  clearCurrent(): void {
+clearCurrent(): void {
     this.state.currentSessionId = null;
   }
 
   /**
-   * 获取会话状态
    * 
-   * 返回当前会话 ID 和会话列表的副本
+   * 按项目路径查询会话，支持分页
    * 
-   * @returns {SessionState} 会话状态对象
+   * @param projectPath - 项目路径
+   * @param limit - 限制数量
+   * @param offset - 偏移量
+   * @returns {Session[]} 会话数组
    */
-  getState(): SessionState {
-    return { ...this.state };
+  getByProjectPath(projectPath: string, limit: number = 20, offset: number = 0): Session[] {
+    const rows = this.db.all<any>(
+      'SELECT * FROM sessions WHERE project_path = ? ORDER BY updated_at DESC LIMIT ? OFFSET ?',
+      [projectPath, limit, offset]
+    );
+    return rows.map(this.rowToSession);
   }
 
   /**

@@ -19,6 +19,7 @@ import { sessionService } from '../modules/session/index.js';
 import { memoryService } from '../modules/memory/index.js';
 import { configService } from '../modules/config/index.js';
 import { SummarizerService } from '../modules/ai/summarizer/index.js';
+import { projectService } from '../services/project/project.service.js';
 import { ApiResponse, SessionCreateRequest } from './api.types.js';
 
 /** 创建会话路由 */
@@ -29,10 +30,15 @@ const summarizerService = new SummarizerService(sessionService, memoryService, c
 
 /**
  * GET /api/sessions
- * 获取所有会话列表
+ * 获取会话列表，按当前项目路径过滤
  */
 sessionRouter.get('/', (req: Request, res: Response) => {
-  const sessions = sessionService.getAll();
+  const limit = Math.min(Number(req.query.limit) || 20, 100);
+  const offset = Number(req.query.offset) || 0;
+  const projectPath = projectService.getCurrentProjectPath();
+  
+  const sessions = sessionService.getByProjectPath(projectPath, limit, offset);
+  
   res.json({ success: true, data: sessions });
 });
 
@@ -67,7 +73,8 @@ sessionRouter.get('/current', (req: Request, res: Response) => {
  * 创建新会话
  */
 sessionRouter.post('/', (req: Request, res: Response) => {
-  const { title, projectPath } = req.body as SessionCreateRequest;
+  const { title, projectPath: inputPath } = req.body as SessionCreateRequest;
+  const projectPath = inputPath || projectService.getCurrentProjectPath();
   const session = sessionService.create(title, projectPath);
   res.status(201).json({ success: true, data: session });
 });

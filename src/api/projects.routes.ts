@@ -1,13 +1,15 @@
 /**
  * 项目和文件 API 路由模块
  * 
- * 提供项目和文件管理的 RESTful API 接口
+ * 提供项目和文件管理的 RESTful API接口
  * 
  * 路由列表：
  * - GET    /api/projects              -> 获取项目列表
  * - POST   /api/projects              -> 创建项目
+ * - GET    /api/projects/current      -> 获取当前项目
+ * - POST   /api/projects/current      -> 设置当前项目
  * - GET    /api/projects/:id          -> 获取项目详情
- * - DELETE /api/projects/:id         -> 删除项目
+ * - DELETE /api/projects/:id          -> 删除项目
  * - POST   /api/projects/:id/activate -> 激活项目
  * - GET    /api/projects/:id/files    -> 获取项目文件树
  * - GET    /api/projects/:id/files/content -> 读取文件内容
@@ -18,8 +20,7 @@
 import { Router, Request, Response } from 'express';
 import * as path from 'path';
 import * as fs from 'fs';
-import { dbService } from '../modules/db/index.js';
-import { v4 as uuidv4 } from 'uuid';
+import { projectService } from '../services/project/project.service.js';
 
 export const projectsRouter = Router();
 
@@ -96,11 +97,8 @@ function buildFileTreeSingleLevel(dirPath: string, basePath: string): FileTreeNo
  */
 projectsRouter.get('/', (req: Request, res: Response) => {
   try {
-    const projects = dbService.all<Project>(
-      'SELECT * FROM projects ORDER BY last_opened_at DESC LIMIT ?',
-      [Number(req.query.limit) || 100]
-    );
-    res.json(projects);
+    const projects = projectService.getAllProjects();
+    res.json({ success: true, data: projects });
   } catch (error) {
     logError('Failed to get projects:', error);
     res.status(500).json({ success: false, error: 'Failed to get projects' });
@@ -113,33 +111,50 @@ projectsRouter.get('/', (req: Request, res: Response) => {
  */
 projectsRouter.post('/', (req: Request, res: Response) => {
   const { name, path: projectPath, description = '' } = req.body;
-  
+
   if (!name || !projectPath) {
     return res.status(400).json({ success: false, error: 'name and path are required' });
   }
-  
+
   try {
-    const existing = dbService.get<Project>(
-      'SELECT * FROM projects WHERE path = ?',
-      [projectPath]
-    );
-    
-    if (existing) {
-      dbService.run('UPDATE projects SET is_active = 1, last_opened_at = CURRENT_TIMESTAMP WHERE id = ?', [existing.id]);
-      return res.json(existing);
-    }
-    
-    const id = uuidv4();
-    dbService.run(
-      'INSERT INTO projects (id, name, path, description, is_active, is_favorite) VALUES (?, ?, ?, ?, 1, 0)',
-      [id, name, projectPath, description]
-    );
-    
-    const project = dbService.get<Project>('SELECT * FROM projects WHERE id = ?', [id]);
-    res.status(201).json(project);
+    const project = projectService.createProject(name, projectPath, description);
+    res.status(201).json({ success: true, data: project });
   } catch (error) {
     logError('Failed to create project:', error);
     res.status(500).json({ success: false, error: 'Failed to create project' });
+  }
+});
+
+/**
+ * GET /api/projects/current
+ * 获取当前项目
+ */
+projectsRouter.get('/current', (req: Request, res: Response) => {
+  try {
+    const project = projectService.getCurrentProject();
+    if (!project) {
+      return res.status(404).json({ success: false, error: 'No active project' });
+    }
+    res.json({ success: true, data: project });
+  } catch (error) {
+    logError('Failed to get current project:', error);
+    res.status(500).json({ success: false, error: 'Failed to get current project' });
+  }
+});
+
+projectsRouter.post('/current', (req: Request, res: Response) => {
+  const { projectId } = req.body;
+
+  if (!projectId) {
+    return res.status(400).json({ success: false, error: 'projectId is required' });
+  }
+
+  try {
+    projectService.setCurrentProject(projectId);
+    res.json({ success: true, message: 'Current project updated' });
+  } catch (error) {
+    logError('Failed to set current project:', error);
+    res.status(500).json({ success: false, error: 'Failed to set current project' });
   }
 });
 
@@ -151,13 +166,13 @@ projectsRouter.get('/:id', (req: Request, res: Response) => {
   const { id } = req.params;
   
   try {
-    const project = dbService.get<Project>('SELECT * FROM projects WHERE id = ?', [id]);
+    const project = projectService.getProjectById(id);
     
     if (!project) {
       return res.status(404).json({ success: false, error: 'Project not found' });
     }
     
-    res.json(project);
+    res.json({ success: true, data: project });
   } catch (error) {
     logError('Failed to get project:', error);
     res.status(500).json({ success: false, error: 'Failed to get project' });
@@ -172,12 +187,12 @@ projectsRouter.delete('/:id', (req: Request, res: Response) => {
   const { id } = req.params;
   
   try {
-    const project = dbService.get<Project>('SELECT * FROM projects WHERE id = ?', [id]);
+    const project = projectService.getProjectById(id);
     if (!project) {
       return res.status(404).json({ success: false, error: 'Project not found' });
     }
     
-    dbService.run('DELETE FROM projects WHERE id = ?', [id]);
+    projectService.deleteProject(id);
     res.json({ success: true });
   } catch (error) {
     logError('Failed to delete project:', error);
@@ -193,8 +208,7 @@ projectsRouter.post('/:id/activate', (req: Request, res: Response) => {
   const { id } = req.params;
   
   try {
-    dbService.run('UPDATE projects SET is_active = 0');
-    dbService.run('UPDATE projects SET is_active = 1, last_opened_at = CURRENT_TIMESTAMP WHERE id = ?', [id]);
+    projectService.setCurrentProject(id);
     res.json({ success: true });
   } catch (error) {
     logError('Failed to activate project:', error);
@@ -212,7 +226,7 @@ projectsRouter.get('/:id/files', (req: Request, res: Response) => {
   const recursive = req.query.recursive === 'true';
   
   try {
-    const project = dbService.get<Project>('SELECT * FROM projects WHERE id = ?', [id]);
+    const project = projectService.getProjectById(id);
     
     if (!project) {
       return res.status(404).json({ success: false, error: 'Project not found' });
@@ -259,7 +273,7 @@ projectsRouter.get('/:id/files/content', (req: Request, res: Response) => {
   }
   
   try {
-    const project = dbService.get<Project>('SELECT * FROM projects WHERE id = ?', [id]);
+    const project = projectService.getProjectById(id);
     
     if (!project) {
       return res.status(404).json({ success: false, error: 'Project not found' });
@@ -313,7 +327,7 @@ projectsRouter.post('/:id/files', (req: Request, res: Response) => {
   }
   
   try {
-    const project = dbService.get<Project>('SELECT * FROM projects WHERE id = ?', [id]);
+    const project = projectService.getProjectById(id);
     
     if (!project) {
       return res.status(404).json({ success: false, error: 'Project not found' });
@@ -347,7 +361,7 @@ projectsRouter.delete('/:id/files', (req: Request, res: Response) => {
   }
   
   try {
-    const project = dbService.get<Project>('SELECT * FROM projects WHERE id = ?', [id]);
+    const project = projectService.getProjectById(id);
     
     if (!project) {
       return res.status(404).json({ success: false, error: 'Project not found' });

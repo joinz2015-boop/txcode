@@ -339,6 +339,10 @@ export const api = {
     return request('GET', `/filesystem/browse?path=${encodeURIComponent(path)}`);
   },
 
+  getDrives() {
+    return request('GET', '/filesystem/drives');
+  },
+
   getCwd() {
     return request('GET', '/filesystem/cwd');
   },
@@ -746,5 +750,23 @@ export const api = {
 
   saveMemory(projectPath, content) {
     return request('POST', '/memory/save', { projectPath, content });
+  },
+
+  // ==================== 项目管理 ====================
+
+  getProjects() {
+    return request('GET', '/projects');
+  },
+
+  getCurrentProject() {
+    return request('GET', '/projects/current');
+  },
+
+  setCurrentProject(projectId) {
+    return request('POST', '/projects/current', { projectId });
+  },
+
+  createProject(name, path, description = '') {
+    return request('POST', '/projects', { name, path, description });
   },
 };

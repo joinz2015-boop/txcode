@@ -94,8 +94,18 @@
           <span class="separator">|</span>
           <span class="status-action" @click="openCommandDialog" @mousedown.prevent>命令</span>
           <span class="separator">|</span>
-          <span class="status-action" @click="openFileSelect" @mousedown.prevent>选择文件</span>
+<span class="status-action" @click="openFileSelect" @mousedown.prevent>选择文件</span>
         </div>
+      </div>
+
+      <div class="devlog-panel">
+        <div class="panel-header">
+          <span><i class="el-icon-document"></i> 开发记录</span>
+          <el-button size="small" @click="refreshDevLog">
+            <i class="el-icon-refresh"></i> 刷新
+          </el-button>
+        </div>
+        <div class="devlog-content" v-html="renderedDevLog"></div>
       </div>
     </div>
 
@@ -134,7 +144,7 @@ export default {
     name: { type: String, default: '' },
     reqBasePath: { type: String, default: '' }
   },
-  data() {
+data() {
     return {
       inputMessage: '',
       disabled: false,
@@ -150,13 +160,18 @@ export default {
       fileSelectVisible: false,
       sessionId: '',
       sessionStatus: 'idle',
-      customActions: []
+      customActions: [],
+      devLogContent: '',
+      devLogLoading: false
     }
   },
   computed: {
     specFilePath() {
       if (!this.category || !this.name) return ''
       return `${this.reqBasePath}/${this.category}/${this.name}/${this.name}_方案.md`
+    },
+    renderedDevLog() {
+      return this.devLogContent ? marked(this.devLogContent) : '<p style="color: #84848a;">暂无记录</p>'
     }
   },
   watch: {
@@ -244,7 +259,7 @@ export default {
       this.stopping = false
       this.logItems.push({ type: 'chat', content: content })
 
-      api.sessionWsSend(this.sessionId, 'chat', { message: content, sessionId: this.sessionId, modelName: this.modelName || undefined })
+      api.sessionWsSend(this.sessionId, 'chat', { message: content, sessionId: this.sessionId, modelName: this.modelName || undefined, enableDevLog: true })
     },
     stopChat() {
       if (!this.sessionId || this.stopping) return
@@ -285,6 +300,7 @@ export default {
           if (data?.modelName) this.modelName = data.modelName
           if (data?.usage?.promptTokens) this.promptTokens = data.usage.promptTokens
           if (data?.response) this.logItems.push({ type: 'think', content: data.response })
+          this.loadDevLog()
           this.scrollToBottom()
         },
         stopped: () => {
@@ -416,6 +432,24 @@ export default {
     },
     openCustomActions() {
       window.open('/custom-actions', '_blank')
+    },
+    async loadDevLog() {
+      if (!this.sessionId) return
+      this.devLogLoading = true
+      try {
+        const res = await fetch(`/api/devlog?sessionId=${this.sessionId}`)
+        const data = await res.json()
+        if (data.success) {
+          this.devLogContent = data.data?.content || ''
+        }
+      } catch (e) {
+        console.error('加载开发日志失败:', e)
+      } finally {
+        this.devLogLoading = false
+      }
+    },
+    async refreshDevLog() {
+      await this.loadDevLog()
     }
   }
 }
@@ -472,4 +506,8 @@ export default {
 }
 .model-selector { cursor: pointer; }
 .model-selector:hover { color: #60a5fa; }
+.devlog-panel { width: 400px; background: #121212; border: 1px solid #1e1e1e; border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; margin-left: 16px; }
+.devlog-panel .panel-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: #121212; border-bottom: 1px solid #1e1e1e; }
+.devlog-panel .panel-header span { font-size: 14px; font-weight: 500; color: #f4f4f5; }
+.devlog-content { flex: 1; overflow-y: auto; padding: 16px; font-size: 14px; line-height: 1.6; color: #d4d4d8; }
 </style>
