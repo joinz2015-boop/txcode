@@ -339,6 +339,10 @@ export const api = {
     return request('GET', `/filesystem/browse?path=${encodeURIComponent(path)}`);
   },
 
+  getDrives() {
+    return request('GET', '/filesystem/drives');
+  },
+
   getCwd() {
     return request('GET', '/filesystem/cwd');
   },

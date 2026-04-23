@@ -23,8 +23,15 @@
             <el-dropdown-item v-for="proj in projects" :key="proj.id" :command="proj.id">
               <span :class="proj.id === currentProject?.id ? 'text-accent' : ''">{{ proj.name }}</span>
             </el-dropdown-item>
+            <el-dropdown-item divided command="__open__">
+              <i class="fa-solid fa-folder-open mr-1"></i> 打开项目文件夹
+            </el-dropdown-item>
           </el-dropdown-menu>
         </el-dropdown>
+        <SelectProjectDialog
+          :visible.sync="selectProjectDialogVisible"
+          @success="handleProjectDialogSuccess"
+        />
         <span class="text-xs text-textMuted mr-2"><i class="fa-solid fa-circle text-green-500 text-[8px]"></i> Server Connected</span>
         <button v-show="$route.name === 'chat'" @click="toggleSidebar" class="hover:text-white" :title="sidebarVisible ? '关闭侧栏' : '显示侧栏'"><i class="fa-solid fa-columns"></i></button>
         <!-- <router-link to="/settings" class="hover:text-white" title="设置"><i class="fa-solid fa-gear"></i></router-link> -->
@@ -88,9 +95,13 @@
 
 <script>
 import { api } from '../api'
+import SelectProjectDialog from '../components/SelectProjectDialog.vue'
 
 export default {
   name: 'Layout',
+  components: {
+    SelectProjectDialog
+  },
   data() {
     return {
       sidebarVisible: true,
@@ -99,7 +110,8 @@ export default {
       currentSessionId: null,
       currentSessionName: '',
       projects: [],
-      currentProject: null
+      currentProject: null,
+      selectProjectDialogVisible: false
     }
   },
   methods: {
@@ -153,15 +165,30 @@ export default {
       }
     },
     async handleProjectChange(projectId) {
+      if (projectId === '__open__') {
+        const dropdown = this.$el.querySelector('.el-dropdown')
+        if (dropdown) {
+          dropdown.click()
+        }
+        this.selectProjectDialogVisible = true
+        return
+      }
       try {
         await api.setCurrentProject(projectId)
         const proj = this.projects.find(p => p.id === projectId)
         if (proj) {
           this.currentProject = proj
         }
+        location.reload()
       } catch (e) {
         this.$message.error('切换项目失败: ' + e.message)
       }
+    },
+    handleProjectDialogSuccess(project) {
+      this.currentProject = project
+      this.loadProjects().then(() => {
+        location.reload()
+      })
     }
   },
   async created() {
