@@ -128,53 +128,75 @@ ossRouter.get('/browse', async (req: Request, res: Response) => {
 ossRouter.get('/download', async (req: Request, res: Response) => {
   try {
     const key = req.query.key as string;
+    const targetPath = req.query.targetPath as string;
     
     if (!key) {
       return res.status(400).json({ success: false, error: 'key必填' });
     }
+    if (!targetPath) {
+      return res.status(400).json({ success: false, error: 'targetPath必填' });
+    }
 
-    const config = ossService.getActiveConfig();
-    const client = createOssClient(config);
-    const head = await client.head(key);
-    const totalSize = (head as any).size || 0;
-    const filename = key.split('/').pop() || 'download';
+    const size = await ossService.getFileSize(key);
 
-    res.setHeader('Content-Type', 'text/plain');
-    res.setHeader('Transfer-Encoding', 'chunked');
-    res.setHeader('X-Filename', encodeURIComponent(filename));
-    res.setHeader('X-TotalSize', totalSize);
-
-    const sendProgress = (loaded: number) => {
-      res.write(JSON.stringify({ progress: Math.round((loaded / totalSize) * 100) }) + '\n');
+    const sendProgress = (progress: number) => {
+      res.write(JSON.stringify({ progress }) + '\n');
     };
 
-    const result = await client.get(key);
+    sendProgress(0);
+
+    const result = await ossService.downloadBuffer(key);
     const chunks: Uint8Array[] = [];
     let loaded = 0;
 
-    if (result.content) {
-      if (Buffer.isBuffer(result.content)) {
-        sendProgress(totalSize);
-        chunks.push(result.content);
-      } else if (result.content instanceof Uint8Array) {
-        sendProgress(totalSize);
-        chunks.push(result.content);
-      } else {
-        for await (const chunk of result.content as AsyncIterable<Uint8Array>) {
-          chunks.push(chunk);
-          loaded += chunk.length;
-          sendProgress(loaded);
-        }
+    if (Buffer.isBuffer(result)) {
+      chunks.push(result);
+      loaded = result.length;
+      sendProgress(100);
+    } else if (result instanceof Uint8Array) {
+      chunks.push(result);
+      loaded = result.length;
+      sendProgress(100);
+    } else if (result) {
+      for await (const chunk of result as AsyncIterable<Uint8Array>) {
+        chunks.push(chunk);
+        loaded += chunk.length;
+        sendProgress(Math.round((loaded / size) * 100));
       }
     }
 
     const buffer = Buffer.concat(chunks);
+    const dir = path.dirname(targetPath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    fs.writeFileSync(targetPath, buffer);
+    
+    sendProgress(100);
     res.write(JSON.stringify({ done: true }) + '\n');
     res.end();
   } catch (error: unknown) {
     logError('下载OSS文件失败:', error);
     res.write(JSON.stringify({ success: false, error: (error as Error).message }) + '\n');
     res.end();
+  }
+});
+
+ossRouter.get('/download-info', async (req: Request, res: Response) => {
+  try {
+    const key = req.query.key as string;
+    
+    if (!key) {
+      return res.status(400).json({ success: false, error: 'key必填' });
+    }
+
+    const url = ossService.getDownloadUrl(key, 3600);
+    const size = await ossService.getFileSize(key);
+    
+    res.json({ success: true, data: { url, size } });
+  } catch (error: unknown) {
+    logError('获取OSS下载信息失败:', error);
+    res.status(500).json({ success: false, error: (error as Error).message });
   }
 });
 

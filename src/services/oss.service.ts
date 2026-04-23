@@ -166,8 +166,9 @@ export class OssService {
     }
   }
 
-  async download(key: string): Promise<Buffer> {
-    const config = this.getActiveConfig();
+async download(key: string): Promise<Buffer> {
+    const config = this.getConfig();
+    if (!config) throw new Error('未配置OSS');
     const client = createOssClient(config);
 
     try {
@@ -188,6 +189,20 @@ export class OssService {
       }
 
       return Buffer.concat(chunks);
+    } catch (error: unknown) {
+      const err = error as Error;
+      throw new Error(`下载OSS文件失败: ${err.message}`);
+    }
+  }
+
+  async downloadBuffer(key: string): Promise<Buffer | Uint8Array | AsyncIterable<Uint8Array>> {
+    const config = this.getConfig();
+    if (!config) throw new Error('未配置OSS');
+    const client = createOssClient(config);
+
+    try {
+      const result = await client.get(key);
+      return result.content || Buffer.alloc(0);
     } catch (error: unknown) {
       const err = error as Error;
       throw new Error(`下载OSS文件失败: ${err.message}`);

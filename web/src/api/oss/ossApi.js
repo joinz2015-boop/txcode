@@ -51,17 +51,15 @@ export const ossApi = {
     window.open(`${API_BASE}/oss/download?key=${encodeURIComponent(key)}`, '_blank');
   },
 
-  async ossDownloadWithProgress(key, filename, targetPath, onProgress) {
-    const res = await fetch(`${API_BASE}/oss/download?key=${encodeURIComponent(key)}`);
-    if (!res.ok) throw new Error('下载失败');
+  async ossDownloadWithProgress(key, targetPath, onProgress) {
+    const url = `${API_BASE}/oss/download?key=${encodeURIComponent(key)}&targetPath=${encodeURIComponent(targetPath)}`;
+    const response = await fetch(url);
+    if (!response.ok) throw new Error('下载失败');
     
-    const reader = res.body?.getReader();
+    const reader = response.body?.getReader();
     if (!reader) throw new Error('无法读取响应');
     
-    const totalSize = parseInt(res.headers.get('X-TotalSize') || '0', 10);
     const decoder = new TextDecoder();
-    const chunks = [];
-    let loaded = 0;
     
     while (true) {
       const { done, value } = await reader.read();
@@ -73,24 +71,16 @@ export const ossApi = {
       for (const line of lines) {
         try {
           const data = JSON.parse(line);
-          if (data.progress !== undefined) {
+          if (typeof data.progress === 'number') {
             onProgress(data.progress);
           } else if (data.done) {
             onProgress(100);
           } else if (data.success === false) {
             throw new Error(data.error);
           }
-        } catch (e) {
-          const binData = decoder.decode(value, { stream: false });
-          if (binData.trim()) {
-            chunks.push(decoder.encode(binData));
-          }
-        }
+        } catch (e) {}
       }
     }
-    
-    const blob = new Blob(chunks, { type: 'application/octet-stream' });
-    await api.saveFile(targetPath, await blob.arrayBuffer());
   },
 
   ossUpload(localPath, ossKey, onProgress) {

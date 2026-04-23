@@ -199,7 +199,7 @@
 
     <div v-if="uploadProgress.visible" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div class="bg-[#252526] border border-[#3c3c3c] rounded p-4 w-80">
-        <p class="text-[#cccccc] text-sm mb-3">正在上传 {{ uploadProgress.filename }}</p>
+        <p class="text-[#cccccc] text-sm mb-3">正在 {{ uploadProgress.isDownload ? '下载' : '上传' }} {{ uploadProgress.filename }}</p>
         <div class="w-full bg-[#3c3c3c] rounded-full h-2">
           <div class="bg-[#0e639c] h-2 rounded-full transition-all" :style="{ width: uploadProgress.percent + '%' }"></div>
         </div>
@@ -240,7 +240,7 @@ export default {
 
       renameDialog: { visible: false, title: '', value: '', target: null },
 
-      uploadProgress: { visible: false, percent: 0, filename: '' }
+      uploadProgress: { visible: false, percent: 0, filename: '', isDownload: false }
     }
   },
   async created() {
@@ -586,10 +586,10 @@ export default {
         this.$message.warning('请先进入一个本地文件夹')
         return
       }
-      this.uploadProgress = { visible: true, percent: 0, filename: item.name }
+      this.uploadProgress = { visible: true, percent: 0, filename: item.name, isDownload: true }
       try {
         const targetPath = this.localPath + (this.localPath.endsWith('\\') || this.localPath.endsWith('/') ? '' : '\\') + item.name
-        await ossApi.ossDownloadWithProgress(item.path, item.name, targetPath, (p) => {
+        await ossApi.ossDownloadWithProgress(item.path, targetPath, (p) => {
           this.uploadProgress.percent = p
         })
         this.$message.success('已下载到本地: ' + targetPath)
