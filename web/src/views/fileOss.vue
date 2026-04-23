@@ -20,7 +20,12 @@
         </button>
       </div>
 
-      <div class="flex-1 overflow-auto py-1">
+      <div class="flex-1 overflow-auto py-1"
+        :class="{ 'bg-blue-900/20': localDragOver }"
+        @dragover.prevent="handleLocalDragOver"
+        @dragleave="handleLocalDragLeave"
+        @drop="handleLocalDrop"
+      >
         <div v-if="localLoading" class="flex items-center justify-center py-8 text-textMuted">
           <i class="fa-solid fa-spinner fa-spin mr-2"></i> 加载中...
         </div>
@@ -71,7 +76,20 @@
           <button @click="copyLocalPath" class="w-full text-left px-4 py-2 text-sm text-[#cccccc] hover:bg-[#094771] flex items-center gap-2">
             <i class="fa-solid fa-copy text-xs w-4"></i> 复制路径
           </button>
-          <button v-if="!localContextMenu.target.is_directory" @click="uploadToOss" class="w-full text-left px-4 py-2 text-sm text-[#cccccc] hover:bg-[#094771] flex items-center gap-2">
+          <button v-if="localContextMenu.target.name !== '..'" @click="showLocalRenameDialog" class="w-full text-left px-4 py-2 text-sm text-[#cccccc] hover:bg-[#094771] flex items-center gap-2">
+            <i class="fa-solid fa-pen text-xs w-4"></i> 重命名
+          </button>
+          <button v-if="localContextMenu.target.name !== '..'" @click="deleteLocalItem" class="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-[#094771] flex items-center gap-2">
+            <i class="fa-solid fa-trash text-xs w-4"></i> 删除
+          </button>
+          <div class="border-t border-[#3c3c3c] my-1"></div>
+          <button v-if="localContextMenu.target.name !== '..' && localContextMenu.target.is_directory" @click="uploadFileToLocal" class="w-full text-left px-4 py-2 text-sm text-[#cccccc] hover:bg-[#094771] flex items-center gap-2">
+            <i class="fa-solid fa-arrow-up text-xs w-4"></i> 上传文件到此处
+          </button>
+          <button v-if="localContextMenu.target.name !== '..' && !localContextMenu.target.is_directory" @click="downloadLocalFile" class="w-full text-left px-4 py-2 text-sm text-[#cccccc] hover:bg-[#094771] flex items-center gap-2">
+            <i class="fa-solid fa-download text-xs w-4"></i> 下载
+          </button>
+          <button v-if="localContextMenu.target.name !== '..' && !localContextMenu.target.is_directory" @click="uploadToOss" class="w-full text-left px-4 py-2 text-sm text-[#cccccc] hover:bg-[#094771] flex items-center gap-2">
             <i class="fa-solid fa-cloud-arrow-up text-xs w-4"></i> 上传到OSS
           </button>
         </template>
@@ -215,6 +233,7 @@ export default {
       selectedOssPath: null,
 
       isDragOver: false,
+      localDragOver: false,
       dragFile: null,
 
       localContextMenu: { visible: false, x: 0, y: 0, target: null },
@@ -316,6 +335,45 @@ export default {
         this.$message.success('路径已复制')
       }
     },
+    showLocalRenameDialog() {
+      const target = this.localContextMenu.target
+      if (!target || target.name === '..') return
+      this.renameDialog = { visible: true, title: '重命名', value: target.name, target }
+      this.hideLocalContextMenu()
+      this.$nextTick(() => {
+        this.$refs.renameInput?.focus()
+        this.$refs.renameInput?.select()
+      })
+    },
+    async confirmLocalRename() {
+      const { value, target } = this.renameDialog
+      if (!value.trim() || !target) { this.renameDialog.visible = false; return }
+      try {
+        await api.renameFile(target.path, value.trim())
+        this.$message.success('重命名成功')
+        this.loadLocalFiles()
+      } catch (e) {
+        this.$message.error('重命名失败: ' + e.message)
+      }
+      this.renameDialog.visible = false
+    },
+    async deleteLocalItem() {
+      const target = this.localContextMenu.target
+      if (!target || target.name === '..') return
+      try {
+        await this.$confirm(`确定要删除 "${target.name}" 吗？`, '确认删除', {
+          confirmButtonText: '删除',
+          cancelButtonText: '取消',
+          type: 'warning'
+        })
+        await api.deleteFile(target.path)
+        this.$message.success('删除成功')
+        this.loadLocalFiles()
+      } catch (e) {
+        if (e !== 'cancel') this.$message.error('删除失败: ' + e.message)
+      }
+      this.hideLocalContextMenu()
+    },
     async uploadToOss() {
       this.hideLocalContextMenu()
       const target = this.localContextMenu.target
@@ -338,6 +396,71 @@ export default {
       this.dragFile = item
       e.dataTransfer.effectAllowed = 'copy'
     },
+    handleLocalDragOver(e) {
+      e.preventDefault()
+      this.localDragOver = true
+      e.dataTransfer.dropEffect = 'copy'
+    },
+    handleLocalDragLeave() { this.localDragOver = false },
+    async handleLocalDrop(e) {
+      e.preventDefault()
+      this.localDragOver = false
+      const files = e.dataTransfer.files
+      if (files.length === 0) return
+      const targetFolder = this.localItems.find(item => item.is_directory && item.name !== '..')
+      if (!targetFolder && this.localPath) {
+        this.$message.warning('请先进入一个文件夹')
+        return
+      }
+      const uploadPath = this.localPath || ''
+      for (const file of files) {
+        try {
+          await api.uploadFilesystem(uploadPath, file)
+        } catch (err) {
+          this.$message.error(`上传 ${file.name} 失败: ` + err.message)
+          return
+        }
+      }
+      this.$message.success(`已上传 ${files.length} 个文件`)
+      this.loadLocalFiles()
+    },
+
+    downloadLocalFile() {
+      this.hideLocalContextMenu()
+      const target = this.localContextMenu.target
+      if (!target || target.is_directory || target.name === '..') return
+      const url = `${window.location.origin}/api/filesystem/download?path=${encodeURIComponent(target.path)}`
+      const link = document.createElement('a')
+      link.href = url
+      link.download = target.name
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+    },
+
+    uploadFileToLocal() {
+      this.hideLocalContextMenu()
+      const target = this.localContextMenu.target
+      if (!target || !target.is_directory || target.name === '..') return
+      const input = document.createElement('input')
+      input.type = 'file'
+      input.multiple = true
+      input.onchange = async () => {
+        if (!input.files || input.files.length === 0) return
+        const files = Array.from(input.files)
+        for (const file of files) {
+          try {
+            await api.uploadFilesystem(target.path, file)
+          } catch (err) {
+            this.$message.error(`上传 ${file.name} 失败: ` + err.message)
+            return
+          }
+        }
+        this.$message.success(`已上传 ${files.length} 个文件`)
+        this.loadLocalFiles()
+      }
+      input.click()
+    },
 
     handleOssDragOver(e) {
       e.preventDefault()
@@ -348,6 +471,11 @@ export default {
     async handleOssDrop(e) {
       e.preventDefault()
       this.isDragOver = false
+      const files = e.dataTransfer.files
+      if (files.length > 0) {
+        this.$message.warning('请从左侧本地文件列表拖拽文件到OSS，或右键本地文件选择"上传到OSS"')
+        return
+      }
       if (!this.dragFile || !this.ossConfig) {
         this.$message.warning('请先选择要上传的文件')
         return
@@ -388,7 +516,8 @@ export default {
       this.selectedOssPath = item.path
       this.$refs.ossContextMenu.show(e, item, {
         onRename: this.showRenameDialog,
-        onDelete: this.handleOssDelete
+        onDelete: this.handleOssDelete,
+        onDownload: item.type === 'file' ? this.downloadOssToLocal : null
       })
     },
     showRenameDialog(item) {
@@ -399,6 +528,27 @@ export default {
       })
     },
     async confirmRename() {
+      const { value, target } = this.renameDialog
+      if (!value.trim() || !target) { this.cancelRename(); return }
+      if (target.is_directory !== undefined) {
+        await this.confirmLocalRename()
+      } else {
+        await this.confirmOssRename()
+      }
+    },
+    async confirmLocalRename() {
+      const { value, target } = this.renameDialog
+      if (!value.trim() || !target) { this.renameDialog.visible = false; return }
+      try {
+        await api.renameFile(target.path, value.trim())
+        this.$message.success('重命名成功')
+        this.loadLocalFiles()
+      } catch (e) {
+        this.$message.error('重命名失败: ' + e.message)
+      }
+      this.renameDialog.visible = false
+    },
+    async confirmOssRename() {
       const { value, target } = this.renameDialog
       if (!value.trim() || !target) { this.cancelRename(); return }
       try {
@@ -425,6 +575,24 @@ export default {
         this.loadOssFiles()
       } catch (e) {
         if (e !== 'cancel') this.$message.error('删除失败: ' + e.message)
+      }
+    },
+    async downloadOssToLocal(item) {
+      if (!this.localPath) {
+        this.$message.warning('请先进入一个本地文件夹')
+        return
+      }
+      try {
+        const res = await ossApi.getOssDownloadUrl(item.path)
+        const url = res.data.url
+        const response = await fetch(url)
+        const blob = await response.arrayBuffer()
+        const targetPath = this.localPath + (this.localPath.endsWith('\\') || this.localPath.endsWith('/') ? '' : '\\') + item.name
+        await api.saveFile(targetPath, blob)
+        this.$message.success('已下载到本地: ' + targetPath)
+        this.loadLocalFiles()
+      } catch (e) {
+        this.$message.error('下载失败: ' + e.message)
       }
     },
     openOssConfig() { this.$refs.ossConfigDialog.open(this.ossConfig) },

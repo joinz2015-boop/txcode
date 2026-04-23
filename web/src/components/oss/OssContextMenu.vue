@@ -42,7 +42,8 @@ export default {
       y: 0,
       target: null,
       onRename: null,
-      onDelete: null
+      onDelete: null,
+      onDownload: null
     }
   },
   methods: {
@@ -53,6 +54,7 @@ export default {
       this.visible = true
       this.onRename = callbacks.onRename || null
       this.onDelete = callbacks.onDelete || null
+      this.onDownload = callbacks.onDownload || null
     },
     hide() {
       this.visible = false
@@ -71,7 +73,9 @@ export default {
     },
     handleDownload() {
       this.hide()
-      if (this.target?.path) {
+      if (this.onDownload) {
+        this.onDownload(this.target)
+      } else if (this.target?.path) {
         ossApi.ossDownload(this.target.path)
       }
     },

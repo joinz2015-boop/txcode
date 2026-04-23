@@ -339,6 +339,62 @@ export const api = {
     return request('GET', `/filesystem/browse?path=${encodeURIComponent(path)}`);
   },
 
+  /**
+   * 上传文件到本地文件系统
+   * @param {string} targetDir - 目标目录路径
+   * @param {File} file - 文件对象
+   */
+  async uploadFilesystem(targetDir, file) {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('targetDir', targetDir);
+    formData.append('filename', encodeURIComponent(file.name));
+    const res = await fetch(`${API_BASE}/filesystem/upload`, {
+      method: 'POST',
+      body: formData
+    });
+    const json = await res.json();
+    if (json.success === false) {
+      throw new Error(json.error || json.message || '上传失败');
+    }
+    return json;
+  },
+
+  /**
+   * 保存文件到本地文件系统
+   * @param {string} targetPath - 目标文件路径
+   * @param {ArrayBuffer} content - 文件内容
+   */
+  async saveFile(targetPath, content) {
+    const res = await fetch(`${API_BASE}/filesystem/save-file`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ targetPath, content: Array.from(new Uint8Array(content)) })
+    });
+    const json = await res.json();
+    if (json.success === false) {
+      throw new Error(json.error || json.message || '保存失败');
+    }
+    return json;
+  },
+
+  /**
+   * 删除文件或目录
+   * @param {string} targetPath - 目标路径
+   */
+  deleteFile(targetPath) {
+    return request('POST', '/filesystem/delete', { path: targetPath });
+  },
+
+  /**
+   * 重命名文件或目录
+   * @param {string} oldPath - 原路径
+   * @param {string} newName - 新名称
+   */
+  renameFile(oldPath, newName) {
+    return request('POST', '/filesystem/rename', { path: oldPath, newName });
+  },
+
   getDrives() {
     return request('GET', '/filesystem/drives');
   },

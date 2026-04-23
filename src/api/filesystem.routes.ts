@@ -243,7 +243,7 @@ const upload = multer({
 });
 
 filesystemRouter.post('/upload', upload.single('file'), async (req: Request, res: Response) => {
-  const { targetDir } = req.body;
+  const { targetDir, filename } = req.body;
   const file = req.file;
   
   if (!file || !targetDir) {
@@ -251,7 +251,8 @@ filesystemRouter.post('/upload', upload.single('file'), async (req: Request, res
   }
   
   const separator = targetDir.includes('\\') ? '\\' : '/';
-  const targetPath = path.join(targetDir, file.originalname);
+  const originalName = filename ? decodeURIComponent(filename) : file.originalname;
+  const targetPath = path.join(targetDir, originalName);
   
   try {
     const readStream = fs.createReadStream(file.path);
@@ -301,4 +302,71 @@ filesystemRouter.get('/download', (req: Request, res: Response) => {
       res.status(500).end('下载失败');
     }
   });
+});
+
+filesystemRouter.post('/save-file', async (req: Request, res: Response) => {
+  const { targetPath, content } = req.body;
+  
+  if (!targetPath || content === undefined) {
+    return res.status(400).json({ success: false, error: '参数不完整' });
+  }
+  
+  try {
+    const dir = path.dirname(targetPath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    fs.writeFileSync(targetPath, Buffer.from(content));
+    return res.json({ success: true, data: { path: targetPath } });
+  } catch (error) {
+    logError('Failed to save file:', error);
+    res.status(500).json({ success: false, error: '保存失败' });
+  }
+});
+
+filesystemRouter.post('/delete', (req: Request, res: Response) => {
+  const { path: targetPath } = req.body;
+  
+  if (!targetPath) {
+    return res.status(400).json({ success: false, error: '路径必填' });
+  }
+  
+  if (!fs.existsSync(targetPath)) {
+    return res.status(404).json({ success: false, error: '文件不存在' });
+  }
+  
+  try {
+    const stats = fs.statSync(targetPath);
+    if (stats.isDirectory()) {
+      fs.rmSync(targetPath, { recursive: true, force: true });
+    } else {
+      fs.unlinkSync(targetPath);
+    }
+    return res.json({ success: true, message: '删除成功' });
+  } catch (error) {
+    logError('Failed to delete:', error);
+    res.status(500).json({ success: false, error: '删除失败' });
+  }
+});
+
+filesystemRouter.post('/rename', (req: Request, res: Response) => {
+  const { path: oldPath, newName } = req.body;
+  
+  if (!oldPath || !newName) {
+    return res.status(400).json({ success: false, error: '参数不完整' });
+  }
+  
+  if (!fs.existsSync(oldPath)) {
+    return res.status(404).json({ success: false, error: '文件不存在' });
+  }
+  
+  try {
+    const dir = path.dirname(oldPath);
+    const newPath = path.join(dir, newName);
+    fs.renameSync(oldPath, newPath);
+    return res.json({ success: true, data: { path: newPath } });
+  } catch (error) {
+    logError('Failed to rename:', error);
+    res.status(500).json({ success: false, error: '重命名失败' });
+  }
 });
