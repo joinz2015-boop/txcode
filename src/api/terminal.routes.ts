@@ -11,7 +11,8 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { terminalService } from '../modules/terminal/terminal.service.js';
+import { terminalService } from '../modules/terminal/index.js';
+import { projectService } from '../services/project/project.service.js';
 
 export const terminalRouter = Router();
 
@@ -45,7 +46,8 @@ terminalRouter.get('/sessions', (req: Request, res: Response) => {
 terminalRouter.post('/sessions', async (req: Request, res: Response) => {
   try {
     const { cols, rows, cwd } = req.body;
-    const session = await terminalService.createSession({ cols, rows, cwd });
+    const effectiveCwd = cwd || projectService.getCurrentProjectPath();
+    const session = await terminalService.createSession({ cols, rows, cwd: effectiveCwd });
     res.status(201).json({ success: true, data: session });
   } catch (error) {
     res.status(500).json({ 
