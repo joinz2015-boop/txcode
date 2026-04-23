@@ -11,6 +11,8 @@ import { Router, Request, Response } from 'express';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import multer from 'multer';
+import { pipeline } from 'stream/promises';
 import { projectService } from '@/services/project/project.service.js';
 function logError(msg: string, error: unknown): void {
   console.error(`[filesystem.routes] ${msg}:`, error);
@@ -222,3 +224,81 @@ function getRootContents(): FileSystemItem[] {
   
   return items;
 }
+
+const pipelineAsync = pipeline;
+
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => {
+      cb(null, os.tmpdir());
+    },
+    filename: (req, file, cb) => {
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+      cb(null, uniqueSuffix + '-' + file.originalname);
+    }
+  }),
+  limits: {
+    fileSize: 2 * 1024 * 1024 * 1024
+  }
+});
+
+filesystemRouter.post('/upload', upload.single('file'), async (req: Request, res: Response) => {
+  const { targetDir } = req.body;
+  const file = req.file;
+  
+  if (!file || !targetDir) {
+    return res.status(400).json({ success: false, error: '参数不完整' });
+  }
+  
+  const separator = targetDir.includes('\\') ? '\\' : '/';
+  const targetPath = path.join(targetDir, file.originalname);
+  
+  try {
+    const readStream = fs.createReadStream(file.path);
+    const writeStream = fs.createWriteStream(targetPath);
+    
+    await pipelineAsync(readStream, writeStream);
+    
+    fs.unlinkSync(file.path);
+    
+    return res.json({
+      success: true,
+      data: { path: targetPath }
+    });
+  } catch (error) {
+    logError('Failed to upload file:', error);
+    res.status(500).json({ success: false, error: '上传失败' });
+  }
+});
+
+filesystemRouter.get('/download', (req: Request, res: Response) => {
+  const filePath = req.query.path as string;
+  
+  if (!filePath || !fs.existsSync(filePath)) {
+    return res.status(404).json({ success: false, error: '文件不存在' });
+  }
+  
+  const stats = fs.statSync(filePath);
+  if (stats.isDirectory()) {
+    return res.status(400).json({ success: false, error: '不能下载目录' });
+  }
+  
+  const filename = path.basename(filePath);
+  
+  res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
+  res.setHeader('Content-Type', 'application/octet-stream');
+  res.setHeader('Content-Length', stats.size);
+  
+  const readStream = fs.createReadStream(filePath, {
+    highWaterMark: 1024 * 1024
+  });
+  
+  readStream.pipe(res);
+  
+  readStream.on('error', (error) => {
+    logError('Download file error:', error);
+    if (!res.writableEnded) {
+      res.status(500).end('下载失败');
+    }
+  });
+});

@@ -28,6 +28,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@lydell/node-pty": "^1.0.0",
     "@types/diff": "^7.0.2",
     "@types/nodemailer": "^7.0.11",
     "cors": "^2.8.6",
@@ -36,8 +37,8 @@
     "express": "^5.2.1",
     "ink": "^6.8.0",
     "js-yaml": "^4.1.1",
+    "multer": "^2.1.1",
     "node-cron": "^4.2.1",
-    "@lydell/node-pty": "^1.0.0",
     "nodemailer": "^8.0.4",
     "openai": "^5.5.1",
     "react": "^19.2.4",
@@ -50,11 +51,11 @@
     "yaml": "^2.8.3"
   },
   "devDependencies": {
-    "tsc-alias": "^1.8.10",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/jest": "^30.0.0",
     "@types/js-yaml": "^4.0.9",
+    "@types/multer": "^2.1.0",
     "@types/node": "^25.5.0",
     "@types/node-cron": "^3.0.11",
     "@types/react": "^19.2.14",
@@ -67,6 +68,7 @@
     "jest": "^30.3.0",
     "ts-jest": "^29.4.6",
     "ts-node": "^10.9.2",
+    "tsc-alias": "^1.8.10",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   }

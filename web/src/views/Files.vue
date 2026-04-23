@@ -56,6 +56,9 @@
           <button @click="createNewFolder" class="w-full text-left px-4 py-2 text-sm text-textMain hover:bg-active flex items-center gap-2">
             <i class="fa-solid fa-folder-plus text-xs"></i> 新建文件夹
           </button>
+          <button @click="triggerFileUpload" class="w-full text-left px-4 py-2 text-sm text-textMain hover:bg-active flex items-center gap-2">
+            <i class="fa-solid fa-upload text-xs"></i> 上传文件
+          </button>
           <div class="border-t border-border my-1"></div>
           <button @click="renameItem" class="w-full text-left px-4 py-2 text-sm text-textMain hover:bg-active flex items-center gap-2">
             <i class="fa-solid fa-pen text-xs"></i> 重命名
@@ -67,6 +70,9 @@
         <template v-else>
           <button @click="copyPath" class="w-full text-left px-4 py-2 text-sm text-textMain hover:bg-active flex items-center gap-2">
             <i class="fa-solid fa-copy text-xs"></i> 复制路径
+          </button>
+          <button @click="downloadFile" class="w-full text-left px-4 py-2 text-sm text-textMain hover:bg-active flex items-center gap-2">
+            <i class="fa-solid fa-download text-xs"></i> 下载
           </button>
           <button @click="renameItem" class="w-full text-left px-4 py-2 text-sm text-textMain hover:bg-active flex items-center gap-2">
             <i class="fa-solid fa-pen text-xs"></i> 重命名
@@ -96,6 +102,19 @@
             <button @click="cancelInput" class="px-3 py-1 text-xs text-textMuted hover:text-white">取消</button>
             <button @click="confirmInput" class="px-3 py-1 text-xs bg-accent text-white rounded hover:bg-blue-600">确定</button>
           </div>
+        </div>
+      </div>
+
+      <input ref="fileInput" type="file" class="hidden" @change="handleFileSelect" />
+
+      <div v-if="uploadProgress.visible" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div class="bg-sidebar border border-border rounded p-4 w-80">
+          <p class="text-white text-sm mb-3">正在上传 {{ uploadProgress.filename }}</p>
+          <div class="w-full bg-[#1e1e1e] rounded-full h-2">
+            <div class="bg-accent h-2 rounded-full transition-all" :style="{ width: uploadProgress.percent + '%' }"></div>
+          </div>
+          <p class="text-textMuted text-xs mt-2 text-center">{{ uploadProgress.percent }}%</p>
+          <button @click="cancelUpload" class="w-full mt-4 py-2 text-xs text-textMuted hover:text-white border border-border rounded">取消</button>
         </div>
       </div>
     </aside>
@@ -205,7 +224,8 @@ export default {
         sh: 'fa-solid fa-terminal text-green-400',
         go: 'fa-brands fa-golang text-cyan-400',
         rs: 'fa-brands fa-rust text-orange-400'
-      }
+      },
+      uploadProgress: { visible: false, percent: 0, filename: '', xhr: null }
     }
   },
   computed: {
@@ -511,6 +531,70 @@ export default {
           this.$message.error('删除失败')
         }
       }
+    },
+    triggerFileUpload() {
+      this.hideContextMenu()
+      this.$refs.fileInput?.click()
+    },
+    handleFileSelect(e) {
+      const file = e.target.files?.[0]
+      if (!file) return
+      const targetDir = this.contextMenu.target?.path
+      if (!targetDir) return
+      this.uploadFile(file, targetDir)
+      e.target.value = ''
+    },
+    uploadFile(file, targetDir) {
+      this.uploadProgress = {
+        visible: true,
+        percent: 0,
+        filename: file.name,
+        xhr: null
+      }
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('targetDir', targetDir)
+      return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest()
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable) {
+            const percent = Math.round((e.loaded / e.total) * 100)
+            this.uploadProgress.percent = percent
+          }
+        }
+        xhr.onload = () => {
+          this.uploadProgress.visible = false
+          if (xhr.status >= 200 && xhr.status < 300) {
+            this.$message.success('上传成功')
+            this.refresh()
+            resolve(xhr.response)
+          } else {
+            this.$message.error('上传失败')
+            reject(new Error('上传失败'))
+          }
+        }
+        xhr.onerror = () => {
+          this.uploadProgress.visible = false
+          this.$message.error('上传失败')
+          reject(new Error('上传失败'))
+        }
+        xhr.open('POST', '/api/filesystem/upload')
+        xhr.send(formData)
+        this.uploadProgress.xhr = xhr
+      })
+    },
+    cancelUpload() {
+      if (this.uploadProgress.xhr) {
+        this.uploadProgress.xhr.abort()
+      }
+      this.uploadProgress.visible = false
+    },
+    downloadFile() {
+      this.hideContextMenu()
+      const target = this.contextMenu.target
+      if (!target) return
+      const url = `/api/filesystem/download?path=${encodeURIComponent(target.path)}`
+      window.open(url, '_blank')
     },
     initEditor() {
       if (this.editor) return
