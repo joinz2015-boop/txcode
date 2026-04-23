@@ -194,7 +194,7 @@ npm publish
 ```
 
 ## CHANGE LOG
-[change log](./CHANGELOG.md)
+[change log](https://github.com/joinz2015-boop/txcode/blob/main/CHANGELOG.md)
 
 ## 许可证
 
