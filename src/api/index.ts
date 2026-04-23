@@ -24,6 +24,7 @@ import { specsRouter } from './specs.routes.js';
 import { wikiRouter } from './wiki.routes.js';
 import { memoryRouter } from './memory.routes.js';
 import { devlogRouter } from './devlog.routes.js';
+import { ossRouter } from './oss.routes.js';
 
 export const apiRouter = Router();
 
@@ -48,5 +49,6 @@ apiRouter.use('/specs', specsRouter);
 apiRouter.use('/wiki', wikiRouter);
 apiRouter.use('/memory', memoryRouter);
 apiRouter.use('/devlog', devlogRouter);
+apiRouter.use('/oss', ossRouter);
 
 export type * from './api.types.js';

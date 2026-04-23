@@ -31,6 +31,7 @@
     "@lydell/node-pty": "^1.0.0",
     "@types/diff": "^7.0.2",
     "@types/nodemailer": "^7.0.11",
+    "ali-oss": "^6.23.0",
     "cors": "^2.8.6",
     "diff": "^7.0.0",
     "dingtalk-stream-sdk-nodejs": "^2.0.4",
@@ -51,6 +52,7 @@
     "yaml": "^2.8.3"
   },
   "devDependencies": {
+    "@types/ali-oss": "^6.23.3",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/jest": "^30.0.0",

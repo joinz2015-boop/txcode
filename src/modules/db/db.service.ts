@@ -212,7 +212,8 @@ export class DbService {
       () => this.migration009AddSessionStatus(),
       () => this.migration010AddCustomActions(),
       () => this.migration011AddWafGatewayConfig(),
-      () => this.migration012AddSpecRepositories(),
+() => this.migration012AddSpecRepositories(),
+      () => this.migration013AddOssConfig(),
     ];
 
     for (let i = 0; i < migrations.length; i++) {
@@ -626,7 +627,7 @@ export class DbService {
     this.db.run(`INSERT OR IGNORE INTO waf_gateway_config (id) VALUES (1)`)
   }
 
-  private migration012AddSpecRepositories(): void {
+private migration012AddSpecRepositories(): void {
     if (!this.db) return
 
     this.db.run(`
@@ -651,6 +652,25 @@ export class DbService {
     this.db.run(`
       INSERT OR IGNORE INTO spec_repositories (id, name, url, type, repo_path)
       VALUES ('default', 'txcode官方规范库', 'https://gitee.com/homecommunity/txcode', 'default', '')
+    `)
+  }
+
+  private migration013AddOssConfig(): void {
+    if (!this.db) return
+
+    this.db.run(`
+      CREATE TABLE IF NOT EXISTS oss_config (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        endpoint TEXT NOT NULL,
+        bucket TEXT NOT NULL,
+        access_key_id TEXT NOT NULL,
+        access_key_secret TEXT NOT NULL,
+        region TEXT NOT NULL DEFAULT 'cn-hangzhou',
+        is_active INTEGER DEFAULT 1,
+        created_at TEXT DEFAULT (datetime('now')),
+        updated_at TEXT DEFAULT (datetime('now'))
+      )
     `)
   }
 

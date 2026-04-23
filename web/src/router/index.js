@@ -98,6 +98,11 @@ const routes = [
         name: 'wiki',
         component: () => import('../views/WikiView.vue'),
       },
+      {
+        path: 'fileOss',
+        name: 'fileOss',
+        component: () => import('../views/fileOss.vue'),
+      },
     ],
   },
 ];
