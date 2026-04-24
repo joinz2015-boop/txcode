@@ -58,3 +58,16 @@ export interface ReActState {
     totalTokens: number;
   };
 }
+
+export interface BaseProvider {
+  chat(
+    messages: ChatMessage[],
+    options?: ChatOptions
+  ): Promise<ChatResponse>;
+  chatStream(
+    messages: ChatMessage[],
+    options?: ChatOptions
+  ): AsyncGenerator<string, void, unknown>;
+  getModel(): string;
+  getBaseUrl(): string;
+}

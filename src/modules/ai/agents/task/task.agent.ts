@@ -1,5 +1,5 @@
 import { OpenAIProvider } from '../../openai.provider.js';
-import { ChatMessage } from '../../ai.types.js';
+import { ChatMessage, BaseProvider } from '../../ai.types.js';
 import { TASK_TOOLS } from './agent_tool.js';
 import { getOpenAITools } from '../../../tools/provider/tools.js';
 import { getProviderTools } from '../../../tools/provider/index.js';
@@ -16,7 +16,7 @@ import type { MemoryService } from '../../../memory/memory.service.js';
 import { buildAvailableSkillsPrompt } from '../../../skill/skill.tool.js';
 
 export interface TaskAgentConfig {
-  provider: OpenAIProvider;
+  provider: BaseProvider;
   maxIterations?: number;
   projectPath?: string;
   sessionId?: string;
@@ -28,7 +28,7 @@ export class TaskAgent implements AIProvider {
   tools = TASK_TOOLS;
   keepContext = false;
 
-  private provider: OpenAIProvider;
+  private provider: BaseProvider;
   private maxIterations: number;
   private projectPath?: string;
   private sessionId?: string;

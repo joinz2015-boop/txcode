@@ -1,11 +1,11 @@
 import { OpenAIProvider } from '../../openai.provider.js';
-import { ChatMessage } from '../../ai.types.js';
+import { ChatMessage, BaseProvider } from '../../ai.types.js';
 import { getProviderTools } from '../../../tools/provider/index.js';
 import { MEM_TOOLS } from './agent_tool.js';
 import type { Tool, ToolContext } from '../../../tools/tool.types.js';
 
 export interface MemAgentConfig {
-  provider: OpenAIProvider;
+  provider: BaseProvider;
   workDir?: string;
 }
 
@@ -14,7 +14,7 @@ export class MemAgent {
   tools = MEM_TOOLS;
   keepContext = true;
 
-  private provider: OpenAIProvider;
+  private provider: BaseProvider;
   private workDir?: string;
   private rawToolsMap: Map<string, Tool> = new Map();
 

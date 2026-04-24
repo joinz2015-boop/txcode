@@ -1,9 +1,9 @@
 import { OpenAIProvider } from '../../openai.provider.js';
-import { ChatMessage } from '../../ai.types.js';
+import { ChatMessage, BaseProvider } from '../../ai.types.js';
 import { getOpenAITools } from '../../../tools/provider/tools.js';
 
 export interface SkillAgentConfig {
-  provider: OpenAIProvider;
+  provider: BaseProvider;
   maxIterations?: number;
 }
 
@@ -14,7 +14,7 @@ export class SkillAgent {
   tools = SKILL_TOOLS;
   keepContext = true;
 
-  private provider: OpenAIProvider;
+  private provider: BaseProvider;
   private maxIterations: number;
   private providerTools: any[] = [];
   private providerToolsMap: Map<string, any> = new Map();

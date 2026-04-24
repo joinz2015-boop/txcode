@@ -1,5 +1,5 @@
 import { OpenAIProvider } from '../../openai.provider.js';
-import { ChatMessage } from '../../ai.types.js';
+import { ChatMessage, BaseProvider } from '../../ai.types.js';
 import { CHAT_TOOLS } from './agent_tool.js';
 import { getOpenAITools } from '../../../tools/provider/tools.js';
 import { getProviderTools } from '../../../tools/provider/index.js';
@@ -17,7 +17,7 @@ import { buildAvailableSkillsPrompt } from '../../../skill/skill.tool.js';
 import { loadMemory } from '../../../tools/provider/memory.js';
 
 export interface ChatAgentConfig {
-  provider: OpenAIProvider;
+  provider: BaseProvider;
   maxIterations?: number;
   projectPath?: string;
   sessionId?: string;
@@ -29,7 +29,7 @@ export class ChatAgent implements AIProvider {
   tools = CHAT_TOOLS;
   keepContext = true;
 
-  private provider: OpenAIProvider;
+  private provider: BaseProvider;
   private maxIterations: number;
   private projectPath?: string;
   private sessionId?: string;

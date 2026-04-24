@@ -5,6 +5,7 @@ import { ChatInput, ChatOptions, ChatResult, Step } from './codeChat.types.js';
 import { Session } from '../../modules/session/session.types.js';
 import { ConfigService } from '../../modules/config/config.service.js';
 import { OpenAIProvider } from '../../modules/ai/openai.provider.js';
+import { DeepSeekProvider } from '../../modules/ai/deepseek.provider.js';
 import { CodeAgent } from '../../modules/ai/agents/index.js';
 import { SummarizerService } from '../../modules/ai/summarizer/index.js';
 import { ChatMessage } from '../../modules/ai/ai.types.js';
@@ -18,7 +19,7 @@ export class CodeChatService {
     this.sessionService = config?.sessionService || defaultSessionService;
   }
 
-  private getProvider(modelName?: string): OpenAIProvider {
+  private getProvider(modelName?: string): OpenAIProvider | DeepSeekProvider {
     const defaultModel = modelName || this.configService.getDefaultModel();
     const providerConfig = this.configService.getModelProvider(defaultModel);
 
@@ -26,9 +27,19 @@ export class CodeChatService {
       throw new Error(`Provider not found for model: ${defaultModel}`);
     }
 
+    const baseUrl = providerConfig.baseUrl || '';
+
+    if (baseUrl.includes('deepseek.com') || baseUrl.includes('api.deepseek.com')) {
+      return new DeepSeekProvider({
+        apiKey: providerConfig.apiKey,
+        baseUrl: baseUrl,
+        defaultModel: defaultModel,
+      });
+    }
+
     return new OpenAIProvider({
       apiKey: providerConfig.apiKey,
-      baseUrl: providerConfig.baseUrl,
+      baseUrl: baseUrl,
       defaultModel: defaultModel,
     });
   }
@@ -84,9 +95,14 @@ export class CodeChatService {
           if (parsed.type === 'assistant_with_tools' && parsed.toolCalls) {
             chatMsg.content = '';
             chatMsg.toolCalls = parsed.toolCalls;
+            if (parsed.thought) {
+              (chatMsg as any).reasoning = parsed.thought;
+            }
           } else if (parsed.type === 'tool_result') {
             chatMsg.content = parsed.output || '';
             chatMsg.toolCallId = parsed.toolCallId;
+          } else if (parsed.thought) {
+            (chatMsg as any).reasoning = parsed.thought;
           }
         } catch { }
 

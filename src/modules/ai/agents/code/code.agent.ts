@@ -1,5 +1,5 @@
 import { OpenAIProvider } from '../../openai.provider.js';
-import { ChatMessage } from '../../ai.types.js';
+import { ChatMessage, BaseProvider } from '../../ai.types.js';
 import { CODE_TOOLS } from './agent_tool.js';
 import { getOpenAITools } from '../../../tools/provider/tools.js';
 import { getProviderTools } from '../../../tools/provider/index.js';
@@ -67,7 +67,7 @@ async function buildCodePrompt(
 }
 
 export interface CodeAgentConfig {
-  provider: OpenAIProvider;
+  provider: BaseProvider;
   maxIterations?: number;
   projectPath?: string;
   sessionId?: string;
@@ -81,7 +81,7 @@ export class CodeAgent implements AIProvider {
   tools = CODE_TOOLS;
   keepContext = true;
 
-  private provider: OpenAIProvider;
+  private provider: BaseProvider;
   private maxIterations: number;
   private projectPath?: string;
   private sessionId?: string;
@@ -233,6 +233,7 @@ export class CodeAgent implements AIProvider {
           const assistantMsg = {
             role: 'assistant' as const,
             content: null as any,
+            reasoning: response.reasoning || '',
             toolCalls: [{
               id: toolCall.id,
               type: 'function' as const,
