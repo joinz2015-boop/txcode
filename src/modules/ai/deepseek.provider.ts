@@ -52,12 +52,11 @@ export class DeepSeekProvider implements BaseProvider {
       model,
       messages: messages.map(m => this.formatMessage(m)),
       max_tokens: maxTokens,
-      extra_body: {
-        thinking: {
-          type: "disabled",
-        },
-        reasoning_effort: "max",
+      thinking: {
+        type: "disabled",
       },
+    //reasoning_effort: "high",
+
     };
 
     if (tools && tools.length > 0) {
@@ -110,9 +109,8 @@ export class DeepSeekProvider implements BaseProvider {
       stream: true,
       extra_body: {
         thinking: {
-          type: "enabled",
+          type: "disabled",
         },
-        reasoning_effort: "max",
       },
     };
 
@@ -160,7 +158,7 @@ export class DeepSeekProvider implements BaseProvider {
     if (message.name) formatted.name = message.name;
     if (message.toolCallId) formatted.tool_call_id = message.toolCallId;
     if (message.toolCalls) formatted.tool_calls = message.toolCalls;
-    if ((message as any).reasoning) formatted.reasoning_content = (message as any).reasoning;
+    //if ((message as any).reasoning) formatted.reasoning_content = (message as any).reasoning;
 
     return formatted;
   }
