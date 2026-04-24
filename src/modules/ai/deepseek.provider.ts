@@ -47,15 +47,14 @@ export class DeepSeekProvider implements BaseProvider {
       abortSignal,
     } = options;
 
-    console.log('DeepSeekProvider chat called with model:', model);
     const requestBody: Record<string, any> = {
       model,
       messages: messages.map(m => this.formatMessage(m)),
       max_tokens: maxTokens,
       thinking: {
-        type: "disabled",
+        type: "enabled",
       },
-    //reasoning_effort: "high",
+      reasoning_effort: "max",
 
     };
 
@@ -152,13 +151,17 @@ export class DeepSeekProvider implements BaseProvider {
   private formatMessage(message: ChatMessage): Record<string, any> {
     const formatted: Record<string, any> = {
       role: message.role,
-      content: message.content,
+      content: message.content || null,
     };
 
     if (message.name) formatted.name = message.name;
     if (message.toolCallId) formatted.tool_call_id = message.toolCallId;
     if (message.toolCalls) formatted.tool_calls = message.toolCalls;
-    //if ((message as any).reasoning) formatted.reasoning_content = (message as any).reasoning;
+    if ((message as any).reasoning) formatted.reasoning_content = (message as any).reasoning;
+
+    if(message.role == 'assistant' &&!formatted.reasoning_content) {
+      formatted.reasoning_content = "null";
+    }
 
     return formatted;
   }

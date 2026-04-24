@@ -4,7 +4,7 @@ import { HookMessage, HookTrigger } from '../hook.types.js';
 import { HookHandler } from './hook.handler.js';
 import { MemAgent } from '../../ai/agents/mem/mem.agent.js';
 import { configService } from '../../config/index.js';
-import { OpenAIProvider } from '../../ai/openai.provider.js';
+import { createProvider } from '../../ai/provider.js';
 
 export class MemoryHandler extends HookHandler {
   trigger: HookTrigger = 'round';
@@ -18,7 +18,7 @@ export class MemoryHandler extends HookHandler {
         return;
       }
 
-      const provider = new OpenAIProvider({
+      const provider = createProvider({
         apiKey: providerConfig.apiKey,
         baseUrl: providerConfig.baseUrl,
         defaultModel,

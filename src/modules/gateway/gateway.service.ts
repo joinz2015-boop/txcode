@@ -1,8 +1,8 @@
-import { v4 as uuidv4 } from 'uuid';
+﻿import { v4 as uuidv4 } from 'uuid';
 import { configService } from '../config/index.js';
 import { sessionService } from '../session/index.js';
 import { memoryService } from '../memory/index.js';
-import { OpenAIProvider } from '../ai/openai.provider.js';
+import { createProvider } from '../ai/provider.js';
 import { ChatAgent } from '../ai/agents/chat/chat.agent.js';
 import { toolService } from '../tools/index.js';
 import { skillsManager } from '../skill/index.js';
@@ -259,7 +259,7 @@ export class GatewayService {
       if (!providerConfig) {
         throw new Error(`Provider not found for model: ${defaultModel}`);
       }
-      const provider = new OpenAIProvider({
+      const provider = createProvider({
         apiKey: providerConfig.apiKey,
         baseUrl: providerConfig.baseUrl,
         defaultModel: defaultModel,

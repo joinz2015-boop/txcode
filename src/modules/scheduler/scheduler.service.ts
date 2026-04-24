@@ -3,6 +3,7 @@ import { v4 as uuid } from 'uuid';
 import { dbService } from '../db/db.service.js';
 import { configService } from '../config/config.service.js';
 import { OpenAIProvider } from '../ai/openai.provider.js';
+import { createProvider } from '../ai/provider.js';
 import { TaskAgent } from '../ai/agents/task/task.agent.js';
 import { taskLogService, TaskLog } from './task-log.service.js';
 import { notifyService, NotifyType } from './notify.service.js';
@@ -267,7 +268,7 @@ export class SchedulerService {
       const models = providerConfig ? configService.getModels(providerConfig.id) : [];
       const modelName = taskConfig.model || models.find(m => m.enabled)?.name || 'gpt-4';
 
-      const provider = new OpenAIProvider({
+      const provider = createProvider({
         baseUrl: providerConfig?.baseUrl || '',
         apiKey: providerConfig?.apiKey || '',
         defaultModel: modelName,

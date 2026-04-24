@@ -1,5 +1,6 @@
-import { OpenAIProvider } from '../../openai.provider.js';
-import { ChatMessage } from '../../ai.types.js';
+﻿import { OpenAIProvider } from '../../openai.provider.js';
+import { BaseProvider, ChatMessage } from '../../ai.types.js';
+import { DeepSeekProvider } from '../../deepseek.provider.js';
 import { buildProviderPrompt } from './prompts.js';
 import { getOpenAITools, openaiTools } from '../../../tools/provider/tools.js';
 import { getProviderTools } from '../../../tools/provider/index.js';
@@ -18,7 +19,7 @@ import type { SessionService } from '../../../session/session.service.js';
 import { specInjector } from '../../../spec/index.js';
 
 export interface OpenAIAgentConfig {
-  provider: OpenAIProvider;
+  provider: BaseProvider;
   toolService: any;
   maxIterations?: number;
   projectPath?: string;
@@ -31,7 +32,7 @@ export interface OpenAIAgentConfig {
 export class OpenAIAgent implements AIProvider {
   name = 'openai';
 
-  private provider: OpenAIProvider;
+  private provider: BaseProvider;
   private toolService: any;
   private maxIterations: number;
   private projectPath?: string;

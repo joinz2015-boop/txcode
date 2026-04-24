@@ -1,14 +1,13 @@
-import { configService as defaultConfigService } from '../../modules/config/config.service.js';
+﻿import { configService as defaultConfigService } from '../../modules/config/config.service.js';
 import { sessionService as defaultSessionService } from '../../modules/session/session.service.js';
 import { memoryService } from '../../modules/memory/index.js';
 import { ChatInput, ChatOptions, ChatResult, Step } from './codeChat.types.js';
 import { Session } from '../../modules/session/session.types.js';
 import { ConfigService } from '../../modules/config/config.service.js';
-import { OpenAIProvider } from '../../modules/ai/openai.provider.js';
-import { DeepSeekProvider } from '../../modules/ai/deepseek.provider.js';
+import { createProvider } from '../../modules/ai/provider.js';
 import { CodeAgent } from '../../modules/ai/agents/index.js';
 import { SummarizerService } from '../../modules/ai/summarizer/index.js';
-import { ChatMessage } from '../../modules/ai/ai.types.js';
+import { ChatMessage, BaseProvider } from '../../modules/ai/ai.types.js';
 
 export class CodeChatService {
   private configService: ConfigService;
@@ -19,7 +18,7 @@ export class CodeChatService {
     this.sessionService = config?.sessionService || defaultSessionService;
   }
 
-  private getProvider(modelName?: string): OpenAIProvider | DeepSeekProvider {
+  private getProvider(modelName?: string): BaseProvider {
     const defaultModel = modelName || this.configService.getDefaultModel();
     const providerConfig = this.configService.getModelProvider(defaultModel);
 
@@ -27,19 +26,9 @@ export class CodeChatService {
       throw new Error(`Provider not found for model: ${defaultModel}`);
     }
 
-    const baseUrl = providerConfig.baseUrl || '';
-
-    if (baseUrl.includes('deepseek.com') || baseUrl.includes('api.deepseek.com')) {
-      return new DeepSeekProvider({
-        apiKey: providerConfig.apiKey,
-        baseUrl: baseUrl,
-        defaultModel: defaultModel,
-      });
-    }
-
-    return new OpenAIProvider({
+    return createProvider({
       apiKey: providerConfig.apiKey,
-      baseUrl: baseUrl,
+      baseUrl: providerConfig.baseUrl,
       defaultModel: defaultModel,
     });
   }

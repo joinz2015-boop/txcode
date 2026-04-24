@@ -8,7 +8,8 @@
  */
 
 import { ConfigService, configService } from '../../config/config.service.js';
-import { OpenAIProvider } from '../openai.provider.js';
+import { createProvider } from '../provider.js';
+import { BaseProvider } from '../ai.types.js';
 import { buildSummarizerMessages } from './summarizer.prompts.js';
 import { SummarizerResult, SummarizerOptions, CompactionCheckResult } from './summarizer.types.js';
 import { SessionService } from '../../session/session.service.js';
@@ -30,7 +31,7 @@ export class SummarizerService {
     this.configService = configSvc || configService;
   }
 
-  private getProvider(): OpenAIProvider {
+  private getProvider(): BaseProvider {
     const provider = this.configService.getDefaultProvider();
     if (!provider) {
       throw new Error('No default AI provider configured');
@@ -39,7 +40,7 @@ export class SummarizerService {
     const models = this.configService.getModels(provider.id);
     const defaultModel = models.find(m => m.enabled) || models[0] || { name: 'gpt-4' };
 
-    return new OpenAIProvider({
+    return createProvider({
       apiKey: provider.apiKey,
       baseUrl: provider.baseUrl,
       defaultModel: defaultModel.name,

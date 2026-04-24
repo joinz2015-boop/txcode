@@ -1,4 +1,4 @@
-/**
+﻿/**
  * AI 服务模块
  * 
  * 本模块是 TXCode 的核心 AI 服务层，负责：
@@ -15,8 +15,10 @@
 
 import { ConfigService, configService as defaultConfigService } from '../config/config.service.js';
 import { OpenAIProvider } from './openai.provider.js';
+import { DeepSeekProvider } from './deepseek.provider.js';
+import { createProvider } from './provider.js';
 import { OpenAIAgent } from './provider/openai/openai-agent.js';
-import { ChatMessage, ChatOptions, ChatResponse } from './ai.types.js';
+import { BaseProvider, ChatMessage, ChatOptions, ChatResponse } from './ai.types.js';
 import { ProviderRunResult } from './provider/base.js';
 import { ToolService, toolService as defaultToolService } from '../tools/tool.service.js';
 import { MemoryService } from '../memory/memory.service.js';
@@ -92,10 +94,10 @@ export class AIService {
    * 3. 找到启用的模型 (或默认使用 gpt-4)
    * 4. 创建 OpenAIProvider 实例
    * 
-   * @returns {OpenAIProvider} AI Provider 实例
+   * @returns {BaseProvider} AI Provider 实例
    * @throws {Error} 如果没有配置默认 AI 提供商
    */
-  private getProvider(modelName?: string): OpenAIProvider {
+  private getProvider(modelName?: string): BaseProvider {
     const defaultModel = modelName || this.configService.getDefaultModel();
     
     const providerConfig = this.configService.getModelProvider(defaultModel);
@@ -103,7 +105,7 @@ export class AIService {
       throw new Error(`Provider not found for model: ${defaultModel}`);
     }
     
-    return new OpenAIProvider({
+    return createProvider({
       apiKey: providerConfig.apiKey,
       baseUrl: providerConfig.baseUrl,
       defaultModel: defaultModel,
