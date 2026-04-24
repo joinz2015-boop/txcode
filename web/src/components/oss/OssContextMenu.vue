@@ -28,13 +28,20 @@
       </button>
     </template>
   </div>
+
+  <url-link-dialog ref="urlLinkDialogRef" />
 </template>
 
 <script>
 import { ossApi } from '../../api/oss/ossApi.js'
+import UrlLinkDialog from '../common/UrlLinkDialog.vue'
 
 export default {
   name: 'OssContextMenu',
+  components: { UrlLinkDialog },
+  props: {
+    urlDialogRef: Object
+  },
   data() {
     return {
       visible: false,
@@ -85,10 +92,12 @@ export default {
       
       try {
         const res = await ossApi.getOssDownloadUrl(this.target.path)
-        navigator.clipboard.writeText(res.data.url)
-        this.$message.success('下载链接已复制')
+        const dialogRef = this.urlDialogRef || this.$refs.urlLinkDialogRef
+        this.$nextTick(() => {
+          dialogRef.open(res.data.url)
+        })
       } catch (e) {
-        this.$message.error('复制失败: ' + e.message)
+        this.$message.error('获取链接失败: ' + e.message)
       }
     }
   }

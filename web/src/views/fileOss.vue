@@ -173,7 +173,8 @@
       </div>
 
       <OssConfigDialog ref="ossConfigDialog" @success="loadOssConfig" />
-      <OssContextMenu ref="ossContextMenu" />
+      <OssContextMenu ref="ossContextMenu" :url-dialog-ref="$refs.urlLinkDialog" />
+      <UrlLinkDialog ref="urlLinkDialog" />
     </main>
 
     <div
@@ -212,12 +213,13 @@
 <script>
 import { api } from '../api'
 import { ossApi } from '../api/oss/ossApi.js'
+import UrlLinkDialog from '../components/common/UrlLinkDialog.vue'
 import OssConfigDialog from '../components/oss/OssConfigDialog.vue'
 import OssContextMenu from '../components/oss/OssContextMenu.vue'
 
 export default {
   name: 'FileOss',
-  components: { OssConfigDialog, OssContextMenu },
+  components: { UrlLinkDialog, OssConfigDialog, OssContextMenu },
   data() {
     return {
       localItems: [],
