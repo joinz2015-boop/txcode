@@ -225,6 +225,7 @@ export default {
       localItems: [],
       localLoading: false,
       localPath: '',
+      localCurrentPath: '',
       localParentPath: null,
       selectedLocalPath: null,
 
@@ -259,6 +260,7 @@ export default {
       try {
         const res = await api.browseFilesystem(this.localPath)
         let items = res.data.items || []
+        this.localCurrentPath = res.data.current_path || ''
         this.localParentPath = res.data.parent_path
         if (this.localParentPath || this.localParentPath === '') {
           items = [{ name: '..', is_directory: true, path: this.localParentPath || '', size: 0 }, ...items]
@@ -411,19 +413,23 @@ export default {
       this.localDragOver = false
       const files = e.dataTransfer.files
       if (files.length === 0) return
-      const targetFolder = this.localItems.find(item => item.is_directory && item.name !== '..')
-      if (!targetFolder && this.localPath) {
-        this.$message.warning('请先进入一个文件夹')
+      const uploadPath = this.localCurrentPath || this.localPath
+      if (!uploadPath) {
+        this.$message.warning('无法确定上传目录')
         return
       }
-      const uploadPath = this.localPath || ''
       for (const file of files) {
+        this.uploadProgress = { visible: true, percent: 0, filename: file.name, isDownload: false }
         try {
-          await api.uploadFilesystem(uploadPath, file)
+          await api.uploadFilesystemWithProgress(uploadPath, file, (p) => {
+            this.uploadProgress.percent = p
+          })
         } catch (err) {
+          this.uploadProgress.visible = false
           this.$message.error(`上传 ${file.name} 失败: ` + err.message)
           return
         }
+        this.uploadProgress.visible = false
       }
       this.$message.success(`已上传 ${files.length} 个文件`)
       this.loadLocalFiles()
@@ -453,12 +459,17 @@ export default {
         if (!input.files || input.files.length === 0) return
         const files = Array.from(input.files)
         for (const file of files) {
+          this.uploadProgress = { visible: true, percent: 0, filename: file.name, isDownload: false }
           try {
-            await api.uploadFilesystem(target.path, file)
+            await api.uploadFilesystemWithProgress(target.path, file, (p) => {
+              this.uploadProgress.percent = p
+            })
           } catch (err) {
+            this.uploadProgress.visible = false
             this.$message.error(`上传 ${file.name} 失败: ` + err.message)
             return
           }
+          this.uploadProgress.visible = false
         }
         this.$message.success(`已上传 ${files.length} 个文件`)
         this.loadLocalFiles()

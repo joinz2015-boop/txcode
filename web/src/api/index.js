@@ -361,6 +361,46 @@ export const api = {
   },
 
   /**
+   * 上传文件到本地文件系统（带进度回调，支持大文件）
+   * @param {string} targetDir - 目标目录路径
+   * @param {File} file - 文件对象
+   * @param {Function} onProgress - 进度回调 (percent: number)
+   */
+  uploadFilesystemWithProgress(targetDir, file, onProgress) {
+    return new Promise((resolve, reject) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('targetDir', targetDir);
+      formData.append('filename', encodeURIComponent(file.name));
+      const xhr = new XMLHttpRequest();
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable && onProgress) {
+          onProgress(Math.round((e.loaded / e.total) * 100));
+        }
+      };
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            const json = JSON.parse(xhr.responseText);
+            if (json.success === false) {
+              reject(new Error(json.error || json.message || '上传失败'));
+            } else {
+              resolve(json);
+            }
+          } catch {
+            resolve({ success: true });
+          }
+        } else {
+          reject(new Error('上传失败: HTTP ' + xhr.status));
+        }
+      };
+      xhr.onerror = () => reject(new Error('上传失败'));
+      xhr.open('POST', `${API_BASE}/filesystem/upload`);
+      xhr.send(formData);
+    });
+  },
+
+  /**
    * 保存文件到本地文件系统
    * @param {string} targetPath - 目标文件路径
    * @param {ArrayBuffer} content - 文件内容

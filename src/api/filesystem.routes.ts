@@ -246,13 +246,14 @@ filesystemRouter.post('/upload', upload.single('file'), async (req: Request, res
   const { targetDir, filename } = req.body;
   const file = req.file;
   
-  if (!file || !targetDir) {
+  if (!file || (targetDir === undefined || targetDir === null)) {
     return res.status(400).json({ success: false, error: '参数不完整' });
   }
   
-  const separator = targetDir.includes('\\') ? '\\' : '/';
+  const resolvedDir = targetDir === '' ? projectService.getCurrentProjectPath() : targetDir;
+  const separator = resolvedDir.includes('\\') ? '\\' : '/';
   const originalName = filename ? decodeURIComponent(filename) : file.originalname;
-  const targetPath = path.join(targetDir, originalName);
+  const targetPath = path.join(resolvedDir, originalName);
   
   try {
     const readStream = fs.createReadStream(file.path);
