@@ -175,6 +175,7 @@
       <OssConfigDialog ref="ossConfigDialog" @success="loadOssConfig" />
       <OssContextMenu ref="ossContextMenu" :url-dialog-ref="$refs.urlLinkDialog" />
       <UrlLinkDialog ref="urlLinkDialog" />
+      <CopyPathDialog ref="copyPathDialog" />
     </main>
 
     <div
@@ -214,12 +215,13 @@
 import { api } from '../api'
 import { ossApi } from '../api/oss/ossApi.js'
 import UrlLinkDialog from '../components/common/UrlLinkDialog.vue'
+import CopyPathDialog from '../components/common/CopyPathDialog.vue'
 import OssConfigDialog from '../components/oss/OssConfigDialog.vue'
 import OssContextMenu from '../components/oss/OssContextMenu.vue'
 
 export default {
   name: 'FileOss',
-  components: { UrlLinkDialog, OssConfigDialog, OssContextMenu },
+  components: { UrlLinkDialog, CopyPathDialog, OssConfigDialog, OssContextMenu },
   data() {
     return {
       localItems: [],
@@ -335,8 +337,7 @@ export default {
     copyLocalPath() {
       this.hideLocalContextMenu()
       if (this.localContextMenu.target) {
-        navigator.clipboard.writeText(this.localContextMenu.target.path)
-        this.$message.success('路径已复制')
+        this.$refs.copyPathDialog.open(this.localContextMenu.target.path)
       }
     },
     showLocalRenameDialog() {

@@ -176,17 +176,19 @@
         </div>
       </div>
     </main>
+    <CopyPathDialog ref="copyPathDialog" />
   </div>
 </template>
 
 <script>
 import FileTreeNode from '../components/FileTreeNode.vue'
+import CopyPathDialog from '../components/common/CopyPathDialog.vue'
 import { api } from '../api'
 import * as monaco from 'monaco-editor'
 
 export default {
   name: 'Files',
-  components: { FileTreeNode },
+  components: { FileTreeNode, CopyPathDialog },
   data() {
     return {
       browseResult: {
@@ -468,8 +470,7 @@ export default {
     },
     copyPath() {
       this.hideContextMenu()
-      navigator.clipboard.writeText(this.contextMenu.target.path)
-      this.$message.success('路径已复制')
+      this.$refs.copyPathDialog.open(this.contextMenu.target.path)
     },
     renameItem() {
       this.hideContextMenu()

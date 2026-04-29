@@ -5,6 +5,10 @@
     :style="{ left: x + 'px', top: y + 'px' }"
   >
     <template v-if="target?.type === 'folder'">
+      <button @click="handleCopyPath" class="w-full text-left px-4 py-2 text-sm text-textMain hover:bg-active flex items-center gap-2">
+        <i class="fa-solid fa-copy text-xs"></i> 复制路径
+      </button>
+      <div class="border-t border-border my-1"></div>
       <button @click="handleRename" class="w-full text-left px-4 py-2 text-sm text-textMain hover:bg-active flex items-center gap-2">
         <i class="fa-solid fa-pen text-xs"></i> 重命名
       </button>
@@ -15,6 +19,9 @@
     <template v-else>
       <button @click="handleDownload" class="w-full text-left px-4 py-2 text-sm text-textMain hover:bg-active flex items-center gap-2">
         <i class="fa-solid fa-download text-xs"></i> 下载
+      </button>
+      <button @click="handleCopyPath" class="w-full text-left px-4 py-2 text-sm text-textMain hover:bg-active flex items-center gap-2">
+        <i class="fa-solid fa-copy text-xs"></i> 复制路径
       </button>
       <button @click="handleCopyUrl" class="w-full text-left px-4 py-2 text-sm text-textMain hover:bg-active flex items-center gap-2">
         <i class="fa-solid fa-link text-xs"></i> 复制下载链接
@@ -30,15 +37,17 @@
   </div>
 
   <url-link-dialog ref="urlLinkDialogRef" />
+  <copy-path-dialog ref="copyPathDialogRef" />
 </template>
 
 <script>
 import { ossApi } from '../../api/oss/ossApi.js'
 import UrlLinkDialog from '../common/UrlLinkDialog.vue'
+import CopyPathDialog from '../common/CopyPathDialog.vue'
 
 export default {
   name: 'OssContextMenu',
-  components: { UrlLinkDialog },
+  components: { UrlLinkDialog, CopyPathDialog },
   props: {
     urlDialogRef: Object
   },
@@ -98,6 +107,12 @@ export default {
         })
       } catch (e) {
         this.$message.error('获取链接失败: ' + e.message)
+      }
+    },
+    handleCopyPath() {
+      this.hide()
+      if (this.target?.path) {
+        this.$refs.copyPathDialogRef.open(this.target.path)
       }
     }
   }
