@@ -1,43 +1,45 @@
 <template>
-  <div
-    v-show="visible"
-    class="fixed bg-sidebar border border-border rounded shadow-lg py-1 z-50 min-w-[160px]"
-    :style="{ left: x + 'px', top: y + 'px' }"
-  >
-    <template v-if="target?.type === 'folder'">
-      <button @click="handleCopyPath" class="w-full text-left px-4 py-2 text-sm text-textMain hover:bg-active flex items-center gap-2">
-        <i class="fa-solid fa-copy text-xs"></i> 复制路径
-      </button>
-      <div class="border-t border-border my-1"></div>
-      <button @click="handleRename" class="w-full text-left px-4 py-2 text-sm text-textMain hover:bg-active flex items-center gap-2">
-        <i class="fa-solid fa-pen text-xs"></i> 重命名
-      </button>
-      <button @click="handleDelete" class="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-active flex items-center gap-2">
-        <i class="fa-solid fa-trash text-xs"></i> 删除
-      </button>
-    </template>
-    <template v-else>
-      <button @click="handleDownload" class="w-full text-left px-4 py-2 text-sm text-textMain hover:bg-active flex items-center gap-2">
-        <i class="fa-solid fa-download text-xs"></i> 下载
-      </button>
-      <button @click="handleCopyPath" class="w-full text-left px-4 py-2 text-sm text-textMain hover:bg-active flex items-center gap-2">
-        <i class="fa-solid fa-copy text-xs"></i> 复制路径
-      </button>
-      <button @click="handleCopyUrl" class="w-full text-left px-4 py-2 text-sm text-textMain hover:bg-active flex items-center gap-2">
-        <i class="fa-solid fa-link text-xs"></i> 复制下载链接
-      </button>
-      <div class="border-t border-border my-1"></div>
-      <button @click="handleRename" class="w-full text-left px-4 py-2 text-sm text-textMain hover:bg-active flex items-center gap-2">
-        <i class="fa-solid fa-pen text-xs"></i> 重命名
-      </button>
-      <button @click="handleDelete" class="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-active flex items-center gap-2">
-        <i class="fa-solid fa-trash text-xs"></i> 删除
-      </button>
-    </template>
-  </div>
+  <div>
+    <div
+      v-show="visible"
+      class="fixed bg-sidebar border border-border rounded shadow-lg py-1 z-50 min-w-[160px]"
+      :style="{ left: x + 'px', top: y + 'px' }"
+    >
+      <template v-if="target?.type === 'folder'">
+        <button @click="handleCopyPath" class="w-full text-left px-4 py-2 text-sm text-textMain hover:bg-active flex items-center gap-2">
+          <i class="fa-solid fa-copy text-xs"></i> 复制路径
+        </button>
+        <div class="border-t border-border my-1"></div>
+        <button @click="handleRename" class="w-full text-left px-4 py-2 text-sm text-textMain hover:bg-active flex items-center gap-2">
+          <i class="fa-solid fa-pen text-xs"></i> 重命名
+        </button>
+        <button @click="handleDelete" class="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-active flex items-center gap-2">
+          <i class="fa-solid fa-trash text-xs"></i> 删除
+        </button>
+      </template>
+      <template v-else>
+        <button @click="handleDownload" class="w-full text-left px-4 py-2 text-sm text-textMain hover:bg-active flex items-center gap-2">
+          <i class="fa-solid fa-download text-xs"></i> 下载
+        </button>
+        <button @click="handleCopyPath" class="w-full text-left px-4 py-2 text-sm text-textMain hover:bg-active flex items-center gap-2">
+          <i class="fa-solid fa-copy text-xs"></i> 复制路径
+        </button>
+        <button @click="handleCopyUrl" class="w-full text-left px-4 py-2 text-sm text-textMain hover:bg-active flex items-center gap-2">
+          <i class="fa-solid fa-link text-xs"></i> 复制下载链接
+        </button>
+        <div class="border-t border-border my-1"></div>
+        <button @click="handleRename" class="w-full text-left px-4 py-2 text-sm text-textMain hover:bg-active flex items-center gap-2">
+          <i class="fa-solid fa-pen text-xs"></i> 重命名
+        </button>
+        <button @click="handleDelete" class="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-active flex items-center gap-2">
+          <i class="fa-solid fa-trash text-xs"></i> 删除
+        </button>
+      </template>
+    </div>
 
-  <url-link-dialog ref="urlLinkDialogRef" />
-  <copy-path-dialog ref="copyPathDialogRef" />
+    <url-link-dialog ref="urlLinkDialogRef" />
+    <copy-path-dialog ref="copyPathDialogRef" />
+  </div>
 </template>
 
 <script>
