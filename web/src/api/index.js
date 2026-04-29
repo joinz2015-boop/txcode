@@ -361,43 +361,113 @@ export const api = {
   },
 
   /**
-   * 上传文件到本地文件系统（带进度回调，支持大文件）
+   * 上传文件到本地文件系统（带进度回调，分片上传支持大文件）
    * @param {string} targetDir - 目标目录路径
    * @param {File} file - 文件对象
    * @param {Function} onProgress - 进度回调 (percent: number)
    */
   uploadFilesystemWithProgress(targetDir, file, onProgress) {
-    return new Promise((resolve, reject) => {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('targetDir', targetDir);
-      formData.append('filename', encodeURIComponent(file.name));
-      const xhr = new XMLHttpRequest();
-      xhr.upload.onprogress = (e) => {
-        if (e.lengthComputable && onProgress) {
-          onProgress(Math.round((e.loaded / e.total) * 100));
+    const CHUNK_SIZE = 10 * 1024 * 1024
+    const totalChunks = Math.ceil(file.size / CHUNK_SIZE)
+    const uploadId = Date.now() + '-' + Math.round(Math.random() * 1E9)
+
+    const doUpload = async () => {
+      for (let i = 0; i < totalChunks; i++) {
+        const start = i * CHUNK_SIZE
+        const end = Math.min(start + CHUNK_SIZE, file.size)
+        const chunk = file.slice(start, end)
+        await this.uploadChunk(uploadId, i, totalChunks, file.name, targetDir, chunk)
+        if (onProgress) {
+          onProgress(Math.round(((i + 1) / totalChunks) * 95))
         }
-      };
-      xhr.onload = () => {
-        if (xhr.status >= 200 && xhr.status < 300) {
-          try {
-            const json = JSON.parse(xhr.responseText);
-            if (json.success === false) {
-              reject(new Error(json.error || json.message || '上传失败'));
-            } else {
-              resolve(json);
-            }
-          } catch {
-            resolve({ success: true });
-          }
-        } else {
-          reject(new Error('上传失败: HTTP ' + xhr.status));
-        }
-      };
-      xhr.onerror = () => reject(new Error('上传失败'));
-      xhr.open('POST', `${API_BASE}/filesystem/upload`);
-      xhr.send(formData);
+      }
+      const result = await this.mergeChunks(uploadId)
+      if (onProgress) onProgress(100)
+      return result
+    }
+
+    return doUpload()
+  },
+
+  /**
+   * 上传分片（大文件分片上传）
+   * @param {string} uploadId - 上传会话ID
+   * @param {number} chunkIndex - 分片索引
+   * @param {number} totalChunks - 总分片数
+   * @param {string} fileName - 文件名
+   * @param {string} targetDir - 目标目录
+   * @param {Blob} chunk - 分片数据
+   */
+  uploadChunk(uploadId, chunkIndex, totalChunks, fileName, targetDir, chunk) {
+    const formData = new FormData();
+    formData.append('uploadId', uploadId);
+    formData.append('chunkIndex', String(chunkIndex));
+    formData.append('totalChunks', String(totalChunks));
+    formData.append('fileName', encodeURIComponent(fileName));
+    formData.append('targetDir', targetDir);
+    formData.append('chunk', chunk);
+    return fetch(`${API_BASE}/filesystem/upload/chunk`, {
+      method: 'POST',
+      body: formData,
+    }).then(res => res.json()).then(json => {
+      if (json.success === false) {
+        throw new Error(json.error || '上传分片失败');
+      }
+      return json;
     });
+  },
+
+  /**
+   * 合并分片（大文件分片上传完成后合并）
+   * @param {string} uploadId - 上传会话ID
+   */
+  mergeChunks(uploadId) {
+    return request('POST', '/filesystem/upload/merge', { uploadId });
+  },
+
+  /**
+   * 下载本地文件（带进度回调）
+   * @param {string} filePath - 文件路径
+   * @param {string} fileName - 文件名
+   * @param {Function} onProgress - 进度回调 (percent: number)
+   * @returns {Promise<{success: boolean}>}
+   */
+  downloadFilesystemWithProgress(filePath, fileName, onProgress) {
+    const url = `${API_BASE}/filesystem/download?path=${encodeURIComponent(filePath)}`
+    return fetch(url).then((response) => {
+      if (!response.ok) {
+        throw new Error('下载失败: HTTP ' + response.status)
+      }
+      const contentLength = response.headers.get('Content-Length')
+      const total = contentLength ? parseInt(contentLength, 10) : 0
+      const reader = response.body.getReader()
+      const chunks = []
+      let loaded = 0
+
+      const read = () => {
+        return reader.read().then(({ done, value }) => {
+          if (done) {
+            const blob = new Blob(chunks)
+            const downloadUrl = URL.createObjectURL(blob)
+            const a = document.createElement('a')
+            a.href = downloadUrl
+            a.download = fileName
+            document.body.appendChild(a)
+            a.click()
+            document.body.removeChild(a)
+            URL.revokeObjectURL(downloadUrl)
+            return { success: true }
+          }
+          chunks.push(value)
+          loaded += value.length
+          if (total > 0 && onProgress) {
+            onProgress(Math.round((loaded / total) * 100))
+          }
+          return read()
+        })
+      }
+      return read()
+    })
   },
 
   /**

@@ -7,7 +7,7 @@
     @close="handleClose"
   >
     <div class="flex gap-2">
-      <el-input ref="inputRef" v-model="path" readonly class="flex-1" @focus="onInputFocus" />
+      <el-input v-model="path" readonly class="flex-1" />
       <el-button type="primary" @click="handleCopy">复制</el-button>
     </div>
   </el-dialog>
@@ -30,13 +30,6 @@ export default {
     handleClose() {
       this.path = ''
     },
-    onInputFocus() {
-      const input = this.$refs.inputRef
-      if (input) {
-        const el = input.$el?.querySelector('input') || input.$el
-        el?.select()
-      }
-    },
     handleCopy() {
       if (navigator.clipboard && window.isSecureContext) {
         navigator.clipboard.writeText(this.path).then(() => {
@@ -45,7 +38,6 @@ export default {
           this.$message.info('请手动 Ctrl+C 复制')
         })
       } else {
-        this.onInputFocus()
         this.$message.info('请手动 Ctrl+C 复制')
       }
       this.visible = false

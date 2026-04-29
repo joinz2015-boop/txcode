@@ -305,6 +305,106 @@ filesystemRouter.get('/download', (req: Request, res: Response) => {
   });
 });
 
+const CHUNK_UPLOAD_DIR = path.join(os.tmpdir(), 'txcode-uploads');
+
+function ensureChunkDir(uploadId: string): string {
+  const dir = path.join(CHUNK_UPLOAD_DIR, uploadId);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+  return dir;
+}
+
+filesystemRouter.post('/upload/chunk', upload.single('chunk'), async (req: Request, res: Response) => {
+  const { uploadId, chunkIndex, totalChunks, fileName, targetDir } = req.body;
+  const file = req.file;
+  
+  if (!file || !targetDir || !fileName) {
+    return res.status(400).json({ success: false, error: '参数不完整' });
+  }
+  
+  const index = parseInt(chunkIndex as string, 10);
+  const total = parseInt(totalChunks as string, 10);
+  
+  if (isNaN(index) || index < 0) {
+    return res.status(400).json({ success: false, error: 'chunkIndex 无效' });
+  }
+  
+  try {
+    const dir = ensureChunkDir(uploadId as string);
+    
+    const metaPath = path.join(dir, 'meta.json');
+    if (!fs.existsSync(metaPath)) {
+      fs.writeFileSync(metaPath, JSON.stringify({
+        fileName: decodeURIComponent(fileName as string),
+        targetDir: targetDir as string,
+        totalChunks: total,
+      }));
+    }
+    
+    const chunkPath = path.join(dir, `chunk_${index}`);
+    const readStream = fs.createReadStream(file.path);
+    const writeStream = fs.createWriteStream(chunkPath);
+    await pipelineAsync(readStream, writeStream);
+    fs.unlinkSync(file.path);
+    
+    return res.json({ success: true, data: { chunkIndex: index } });
+  } catch (error) {
+    logError('Failed to upload chunk:', error);
+    res.status(500).json({ success: false, error: '上传分片失败' });
+  }
+});
+
+filesystemRouter.post('/upload/merge', async (req: Request, res: Response) => {
+  const { uploadId } = req.body;
+  
+  if (!uploadId) {
+    return res.status(400).json({ success: false, error: 'uploadId 必填' });
+  }
+  
+  const dir = path.join(CHUNK_UPLOAD_DIR, uploadId as string);
+  
+  if (!fs.existsSync(dir)) {
+    return res.status(404).json({ success: false, error: '上传会话不存在' });
+  }
+  
+  const metaPath = path.join(dir, 'meta.json');
+  if (!fs.existsSync(metaPath)) {
+    return res.status(400).json({ success: false, error: '上传元数据丢失' });
+  }
+  
+  try {
+    const meta = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
+    const resolvedDir = (meta.targetDir === '' || meta.targetDir === null || meta.targetDir === undefined)
+      ? projectService.getCurrentProjectPath()
+      : meta.targetDir;
+    const separator = resolvedDir.includes('\\') ? '\\' : '/';
+    const targetPath = path.join(resolvedDir, meta.fileName);
+    
+    const writeStream = fs.createWriteStream(targetPath);
+    
+    for (let i = 0; i < meta.totalChunks; i++) {
+      const chunkPath = path.join(dir, `chunk_${i}`);
+      if (!fs.existsSync(chunkPath)) {
+        writeStream.close();
+        fs.unlinkSync(targetPath);
+        return res.status(400).json({ success: false, error: `分片 ${i} 丢失` });
+      }
+      const readStream = fs.createReadStream(chunkPath);
+      await pipelineAsync(readStream, writeStream, { end: false });
+    }
+    
+    writeStream.end();
+    
+    fs.rmSync(dir, { recursive: true, force: true });
+    
+    return res.json({ success: true, data: { path: targetPath } });
+  } catch (error) {
+    logError('Failed to merge chunks:', error);
+    res.status(500).json({ success: false, error: '合并文件失败' });
+  }
+});
+
 filesystemRouter.post('/save-file', async (req: Request, res: Response) => {
   const { targetPath, content } = req.body;
   

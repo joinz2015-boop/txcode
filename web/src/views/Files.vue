@@ -117,6 +117,17 @@
           <button @click="cancelUpload" class="w-full mt-4 py-2 text-xs text-textMuted hover:text-white border border-border rounded">取消</button>
         </div>
       </div>
+
+      <div v-if="downloadProgress.visible" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div class="bg-sidebar border border-border rounded p-4 w-80">
+          <p class="text-white text-sm mb-3">正在下载 {{ downloadProgress.filename }}</p>
+          <div class="w-full bg-[#1e1e1e] rounded-full h-2">
+            <div class="bg-accent h-2 rounded-full transition-all" :style="{ width: downloadProgress.percent + '%' }"></div>
+          </div>
+          <p class="text-textMuted text-xs mt-2 text-center">{{ downloadProgress.percent }}%</p>
+          <button @click="cancelDownload" class="w-full mt-4 py-2 text-xs text-textMuted hover:text-white border border-border rounded">取消</button>
+        </div>
+      </div>
     </aside>
 
     <div class="w-1 bg-border hover:bg-accent cursor-col-resize transition-colors" @mousedown="startResize"></div>
@@ -227,7 +238,8 @@ export default {
         go: 'fa-brands fa-golang text-cyan-400',
         rs: 'fa-brands fa-rust text-orange-400'
       },
-      uploadProgress: { visible: false, percent: 0, filename: '', xhr: null }
+      uploadProgress: { visible: false, percent: 0, filename: '', cancelled: false },
+      downloadProgress: { visible: false, percent: 0, filename: '', cancelled: false }
     }
   },
   computed: {
@@ -550,52 +562,52 @@ export default {
         visible: true,
         percent: 0,
         filename: file.name,
-        xhr: null
+        cancelled: false
       }
-      const formData = new FormData()
-      formData.append('file', file)
-      formData.append('targetDir', targetDir)
-      return new Promise((resolve, reject) => {
-        const xhr = new XMLHttpRequest()
-        xhr.upload.onprogress = (e) => {
-          if (e.lengthComputable) {
-            const percent = Math.round((e.loaded / e.total) * 100)
-            this.uploadProgress.percent = percent
-          }
-        }
-        xhr.onload = () => {
-          this.uploadProgress.visible = false
-          if (xhr.status >= 200 && xhr.status < 300) {
-            this.$message.success('上传成功')
-            this.refresh()
-            resolve(xhr.response)
-          } else {
-            this.$message.error('上传失败')
-            reject(new Error('上传失败'))
-          }
-        }
-        xhr.onerror = () => {
-          this.uploadProgress.visible = false
-          this.$message.error('上传失败')
-          reject(new Error('上传失败'))
-        }
-        xhr.open('POST', '/api/filesystem/upload')
-        xhr.send(formData)
-        this.uploadProgress.xhr = xhr
+
+      api.uploadFilesystemWithProgress(targetDir, file, (p) => {
+        this.uploadProgress.percent = p
       })
+        .then(() => {
+          this.uploadProgress.visible = false
+          this.$message.success('上传成功')
+          this.refresh()
+        })
+        .catch((e) => {
+          this.uploadProgress.visible = false
+          this.$message.error('上传失败: ' + e.message)
+        })
     },
     cancelUpload() {
-      if (this.uploadProgress.xhr) {
-        this.uploadProgress.xhr.abort()
-      }
+      this.uploadProgress.cancelled = true
       this.uploadProgress.visible = false
     },
     downloadFile() {
       this.hideContextMenu()
       const target = this.contextMenu.target
       if (!target) return
-      const url = `/api/filesystem/download?path=${encodeURIComponent(target.path)}`
-      window.open(url, '_blank')
+
+      this.downloadProgress = {
+        visible: true,
+        percent: 0,
+        filename: target.name,
+        cancelled: false
+      }
+
+      api.downloadFilesystemWithProgress(target.path, target.name, (p) => {
+        this.downloadProgress.percent = p
+      })
+        .then(() => {
+          this.downloadProgress.visible = false
+        })
+        .catch((e) => {
+          this.downloadProgress.visible = false
+          this.$message.error('下载失败: ' + e.message)
+        })
+    },
+    cancelDownload() {
+      this.downloadProgress.cancelled = true
+      this.downloadProgress.visible = false
     },
     initEditor() {
       if (this.editor) return

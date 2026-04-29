@@ -440,13 +440,17 @@ export default {
       this.hideLocalContextMenu()
       const target = this.localContextMenu.target
       if (!target || target.is_directory || target.name === '..') return
-      const url = `${window.location.origin}/api/filesystem/download?path=${encodeURIComponent(target.path)}`
-      const link = document.createElement('a')
-      link.href = url
-      link.download = target.name
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
+      this.uploadProgress = { visible: true, percent: 0, filename: target.name, isDownload: true }
+      api.downloadFilesystemWithProgress(target.path, target.name, (p) => {
+        this.uploadProgress.percent = p
+      })
+        .then(() => {
+          this.uploadProgress.visible = false
+        })
+        .catch((e) => {
+          this.uploadProgress.visible = false
+          this.$message.error('下载失败: ' + e.message)
+        })
     },
 
     uploadFileToLocal() {
