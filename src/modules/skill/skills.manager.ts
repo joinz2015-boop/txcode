@@ -13,6 +13,7 @@ export class SkillsManager {
   private searchPaths: string[] = [];
   private permissions: SkillPermission[] = [];
   private gitRoot: string | null = null;
+  private projectPath: string | null = null;
 
   constructor(cwd?: string) {
     this.initSearchPaths(cwd || process.cwd());
@@ -204,6 +205,81 @@ export class SkillsManager {
 
   getGitRoot(): string | null {
     return this.gitRoot;
+  }
+
+  setProjectPath(projectPath: string | null | undefined): void {
+    if (projectPath) {
+      let normalizedPath = projectPath;
+      if (normalizedPath.startsWith('/e/') || normalizedPath.startsWith('/E/')) {
+        normalizedPath = normalizedPath.replace(/^\/([A-Za-z])\//, (match, drive) => `${drive.toUpperCase()}:/`);
+      }
+      this.projectPath = path.join(normalizedPath, '.txcode', 'skills');
+    } else {
+      this.projectPath = null;
+    }
+  }
+
+  getLocalSkills(): Skill[] {
+    if (!this.projectPath || !fs.existsSync(this.projectPath)) {
+      return [];
+    }
+
+    const skills: Skill[] = [];
+    try {
+      const entries = fs.readdirSync(this.projectPath, { withFileTypes: true });
+      for (const entry of entries) {
+        if (entry.isDirectory()) {
+          const skillPath = path.join(this.projectPath, entry.name, 'SKILL.md');
+          if (fs.existsSync(skillPath)) {
+            const skill = this.loadSkillSync(skillPath);
+            if (skill) {
+              skills.push(skill);
+            }
+          }
+        }
+      }
+    } catch {
+      // ignore
+    }
+    return skills;
+  }
+
+  private loadSkillSync(filePath: string): Skill | null {
+    try {
+      const content = fs.readFileSync(filePath, 'utf-8');
+      const skill = this.parseSkill(content, filePath);
+      return skill;
+    } catch {
+      return null;
+    }
+  }
+
+  getSkillContent(name: string): string | null {
+    if (!this.projectPath) return null;
+
+    const skillPath = path.join(this.projectPath, name, 'SKILL.md');
+    if (fs.existsSync(skillPath)) {
+      try {
+        return fs.readFileSync(skillPath, 'utf-8');
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  deleteLocalSkill(name: string): boolean {
+    if (!this.projectPath) return false;
+
+    const skillDir = path.join(this.projectPath, name);
+    if (!fs.existsSync(skillDir)) return false;
+
+    try {
+      fs.rmSync(skillDir, { recursive: true });
+      return true;
+    } catch {
+      return false;
+    }
   }
 }
 

@@ -250,6 +250,98 @@ export const api = {
     return request('GET', '/skills');
   },
 
+  /**
+   * 获取技能仓库列表
+   */
+  getSkillRepositories() {
+    return request('GET', '/skills/repositories');
+  },
+
+  /**
+   * 添加技能仓库
+   * @param {object} data - { name, url }
+   */
+  createSkillRepository(data) {
+    return request('POST', '/skills/repositories', data);
+  },
+
+  /**
+   * 更新技能仓库
+   * @param {string} id - 仓库ID
+   * @param {object} data - { name, url }
+   */
+  updateSkillRepository(id, data) {
+    return request('PUT', `/skills/repositories/${id}`, data);
+  },
+
+  /**
+   * 删除技能仓库
+   * @param {string} id - 仓库ID
+   */
+  deleteSkillRepository(id) {
+    return request('DELETE', `/skills/repositories/${id}`);
+  },
+
+  /**
+   * 同步技能仓库
+   * @param {string} id - 仓库ID
+   */
+  syncSkillRepository(id) {
+    return request('POST', `/skills/repositories/${id}/sync`);
+  },
+
+  /**
+   * 获取仓库远程技能列表
+   * @param {string} repoId - 仓库ID
+   */
+  getRemoteSkills(repoId) {
+    return request('GET', `/skills/repositories/${repoId}`);
+  },
+
+  /**
+   * 下载单个技能到项目
+   * @param {string} repoId - 仓库ID
+   * @param {string} skillName - 技能名称
+   * @param {string} projectPath - 项目路径
+   */
+  downloadSkill(repoId, skillName, projectPath) {
+    return request('POST', `/skills/repositories/${repoId}/download`, { skillName, projectPath });
+  },
+
+  /**
+   * 批量下载全部技能
+   * @param {string} repoId - 仓库ID
+   * @param {string} projectPath - 项目路径
+   */
+  downloadAllSkills(repoId, projectPath) {
+    return request('POST', `/skills/repositories/${repoId}/download-all`, { projectPath });
+  },
+
+  /**
+   * 获取本地技能列表
+   * @param {string} projectPath - 项目路径
+   */
+  getLocalSkills(projectPath) {
+    const query = projectPath ? `?projectPath=${encodeURIComponent(projectPath)}` : '';
+    return request('GET', `/skills/local${query}`);
+  },
+
+  /**
+   * 获取技能内容
+   * @param {string} name - 技能名称
+   */
+  getSkillContent(name) {
+    return request('GET', `/skills/local/${encodeURIComponent(name)}`);
+  },
+
+  /**
+   * 删除本地技能
+   * @param {string} name - 技能名称
+   */
+  deleteLocalSkill(name) {
+    return request('DELETE', `/skills/local/${encodeURIComponent(name)}`);
+  },
+
   // ==================== 配置管理 ====================
 
   /**

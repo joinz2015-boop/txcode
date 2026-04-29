@@ -8,18 +8,18 @@
       <div class="flex-1 overflow-y-auto">
         <div class="px-4 py-1 text-xs font-bold text-textMuted uppercase mt-2">Skills</div>
         <button
-          @click="subTab = 'project'"
+          @click="subTab = 'remoteSkills'"
           class="w-full text-left px-4 py-2 flex items-center gap-2"
-          :class="subTab === 'project' ? 'bg-active text-white border-l-2 border-accent' : 'text-textMuted hover:text-white hover:bg-white/5 border-l-2 border-transparent'"
+          :class="subTab === 'remoteSkills' ? 'bg-active text-white border-l-2 border-accent' : 'text-textMuted hover:text-white hover:bg-white/5 border-l-2 border-transparent'"
         >
-          <i class="fa-solid fa-folder-tree w-4 text-center"></i> Project Skills
+          <i class="fa-solid fa-server w-4 text-center"></i> Remote Skills
         </button>
         <button
-          @click="subTab = 'system'"
+          @click="subTab = 'localSkills'"
           class="w-full text-left px-4 py-2 flex items-center gap-2"
-          :class="subTab === 'system' ? 'bg-active text-white border-l-2 border-accent' : 'text-textMuted hover:text-white hover:bg-white/5 border-l-2 border-transparent'"
+          :class="subTab === 'localSkills' ? 'bg-active text-white border-l-2 border-accent' : 'text-textMuted hover:text-white hover:bg-white/5 border-l-2 border-transparent'"
         >
-          <i class="fa-solid fa-globe w-4 text-center"></i> System Skills
+          <i class="fa-solid fa-folder w-4 text-center"></i> Local Skills
         </button>
 
         <div class="px-4 py-1 text-xs font-bold text-textMuted uppercase mt-4">Specs</div>
@@ -50,12 +50,28 @@
     </aside>
 
     <main class="flex-1 flex flex-col bg-[#1e1e1e] min-w-0">
-      <div v-show="subTab === 'project'" class="flex-1 p-6 overflow-y-auto">
-        <ProjectSkills :skills="filteredSkills" />
+      <div v-show="subTab === 'remoteSkills'" class="flex-1 p-6 overflow-y-auto">
+        <RemoteSkills
+          :repositories="skillRepositories"
+          :repo-skills="repoSkills"
+          :loading-skills="loadingSkills"
+          :downloading-all="downloadingAll"
+          @add="showAddSkillDialog = true"
+          @edit="handleEditSkillRepo"
+          @delete="handleDeleteSkillRepo"
+          @sync="handleSyncSkillRepo"
+          @load-skills="loadRepoSKills"
+          @download-skill="handleDownloadSkill"
+          @download-all="handleDownloadAllSkills"
+        />
       </div>
 
-      <div v-show="subTab === 'system'" class="flex-1 p-6 overflow-y-auto">
-        <SystemSkills :skills="systemSkills" />
+      <div v-show="subTab === 'localSkills'" class="flex-1 p-6 overflow-y-auto">
+        <LocalSkillsList
+          :skills="localSkills"
+          @view="handleViewSkill"
+          @delete="handleDeleteLocalSkill"
+        />
       </div>
 
       <div v-show="subTab === 'remote'" class="flex-1 p-6 overflow-y-auto">
@@ -63,7 +79,7 @@
           :repositories="repositories"
           :repo-specs="repoSpecs"
           :loading-specs="loadingSpecs"
-          :downloading-all="downloadingAll"
+          :downloading-all="downloadingAllSpecs"
           @add="showAddDialog = true"
           @edit="handleEditRepo"
           @delete="handleDeleteRepo"
@@ -102,10 +118,23 @@
       @close="editingRepo = null"
     />
 
+    <SkillRepositoryDialog
+      :visible.sync="showAddSkillDialog"
+      :repository="editingSkillRepo"
+      @submit="handleSubmitSkillRepo"
+      @close="editingSkillRepo = null"
+    />
+
     <SpecViewer
       :visible.sync="showSpecViewer"
       :spec="currentSpec"
       :content="currentSpecContent"
+    />
+
+    <SkillViewer
+      :visible.sync="showSkillViewer"
+      :skill="currentSkill"
+      :content="currentSkillContent"
     />
 
     <MemoryEditDialog
@@ -118,8 +147,10 @@
 
 <script>
 import { api } from '../api'
-import ProjectSkills from '../components/ProjectSkills.vue'
-import SystemSkills from '../components/SystemSkills.vue'
+import RemoteSkills from '../components/RemoteSkills.vue'
+import LocalSkillsList from '../components/LocalSkillsList.vue'
+import SkillRepositoryDialog from '../components/SkillRepositoryDialog.vue'
+import SkillViewer from '../components/SkillViewer.vue'
 import RemoteSpecs from '../components/RemoteSpecs.vue'
 import LocalSpecsList from '../components/LocalSpecsList.vue'
 import SpecRepositoryDialog from '../components/SpecRepositoryDialog.vue'
@@ -130,8 +161,10 @@ import MemoryEditDialog from '../components/MemoryEditDialog.vue'
 export default {
   name: 'Skills',
   components: {
-    ProjectSkills,
-    SystemSkills,
+    RemoteSkills,
+    LocalSkillsList,
+    SkillRepositoryDialog,
+    SkillViewer,
     RemoteSpecs,
     LocalSpecsList,
     SpecRepositoryDialog,
@@ -141,20 +174,28 @@ export default {
   },
   data() {
     return {
-      subTab: 'project',
+      subTab: 'remoteSkills',
       filterText: '',
-      skills: [],
-      systemSkills: [],
+      skillRepositories: [],
+      repoSkills: {},
+      loadingSkills: {},
+      downloadingAll: {},
+      localSkills: [],
       repositories: [],
       repoSpecs: {},
       loadingSpecs: {},
-      downloadingAll: {},
+      downloadingAllSpecs: {},
       localSpecs: [],
       showAddDialog: false,
       editingRepo: null,
+      showAddSkillDialog: false,
+      editingSkillRepo: null,
       showSpecViewer: false,
       currentSpec: null,
       currentSpecContent: '',
+      showSkillViewer: false,
+      currentSkill: null,
+      currentSkillContent: '',
       projectPath: '',
       memoryItems: [],
       memoryRawContent: '',
@@ -163,9 +204,9 @@ export default {
   },
   computed: {
     filteredSkills() {
-      if (!this.filterText) return this.skills
+      if (!this.filterText) return this.localSkills
       const lower = this.filterText.toLowerCase()
-      return this.skills.filter(s => 
+      return this.localSkills.filter(s =>
         s.name.toLowerCase().includes(lower) ||
         s.description?.toLowerCase().includes(lower)
       )
@@ -179,26 +220,155 @@ export default {
     }
   },
   async created() {
-    await this.loadSkills()
+    await this.loadProjectPath()
+    await this.loadSkillRepositories()
+    await this.loadLocalSkills()
     await this.loadRepositories()
     await this.loadLocalSpecs()
-    await this.loadProjectPath()
     if (this.subTab === 'memory') {
       await this.loadMemory()
     }
   },
   methods: {
-    async loadSkills() {
+    async loadProjectPath() {
       try {
-        const res = await api.getSkills()
-        this.skills = res.data || []
-        this.systemSkills = []
+        const res = await api.getProjectPath()
+        if (res.success && res.data) {
+          this.projectPath = res.data.projectPath || ''
+        }
       } catch (e) {
-        console.error('Failed to load skills:', e)
-        this.skills = []
-        this.systemSkills = []
+        console.error('Failed to load project path:', e)
       }
     },
+    // ==================== Skills - Remote ====================
+    async loadSkillRepositories() {
+      try {
+        const res = await api.getSkillRepositories()
+        this.skillRepositories = res.data || []
+      } catch (e) {
+        console.error('Failed to load skill repositories:', e)
+        this.skillRepositories = []
+      }
+    },
+    async loadRepoSKills(repoId) {
+      this.$set(this.loadingSkills, repoId, true)
+      try {
+        const res = await api.getRemoteSkills(repoId)
+        this.$set(this.repoSkills, repoId, res.data || [])
+      } catch (e) {
+        console.error('Failed to load repo skills:', e)
+        this.$set(this.repoSkills, repoId, [])
+      } finally {
+        this.$set(this.loadingSkills, repoId, false)
+      }
+    },
+    async loadLocalSkills() {
+      try {
+        const res = await api.getLocalSkills(this.projectPath)
+        this.localSkills = res.data || []
+      } catch (e) {
+        console.error('Failed to load local skills:', e)
+        this.localSkills = []
+      }
+    },
+    handleEditSkillRepo(repo) {
+      this.editingSkillRepo = repo
+      this.showAddSkillDialog = true
+    },
+    async handleSubmitSkillRepo(data) {
+      try {
+        if (data.id) {
+          await api.updateSkillRepository(data.id, data)
+        } else {
+          await api.createSkillRepository(data)
+        }
+        await this.loadSkillRepositories()
+        this.editingSkillRepo = null
+      } catch (e) {
+        console.error('Failed to submit skill repository:', e)
+        this.$message.error('Failed to submit repository')
+      }
+    },
+    async handleDeleteSkillRepo(id) {
+      try {
+        await this.$confirm('Are you sure you want to delete this repository?', 'Confirm', {
+          type: 'warning'
+        })
+        await api.deleteSkillRepository(id)
+        await this.loadSkillRepositories()
+        this.$message.success('Repository deleted')
+      } catch (e) {
+        if (e !== 'cancel') {
+          console.error('Failed to delete repository:', e)
+        }
+      }
+    },
+    async handleSyncSkillRepo(repo) {
+      try {
+        const loading = this.$message.loading?.('Syncing repository...') || (() => {});
+        const result = await api.syncSkillRepository(repo.id)
+        loading()
+        if (result.success) {
+          this.$message.success(result.message || 'Sync completed')
+          await this.loadSkillRepositories()
+          await this.loadRepoSKills(repo.id)
+        } else {
+          this.$message.error(result.message || 'Sync failed')
+        }
+      } catch (e) {
+        console.error('Failed to sync repository:', e)
+        this.$message.error('Sync failed')
+      }
+    },
+    async handleDownloadSkill(repoId, skillName) {
+      try {
+        const res = await api.downloadSkill(repoId, skillName, this.projectPath)
+        this.$message.success(`Downloaded ${skillName} to ${res.data?.projectPath || this.projectPath}`)
+        await this.loadLocalSkills()
+      } catch (e) {
+        console.error('Failed to download skill:', e)
+        this.$message.error('Download failed: ' + (e.message || 'Unknown error'))
+      }
+    },
+    async handleDownloadAllSkills(repoId) {
+      try {
+        this.$set(this.downloadingAll, repoId, true);
+        const res = await api.downloadAllSkills(repoId, this.projectPath);
+        this.$message.success(`Downloaded ${res.data?.downloaded?.length || 0} skills to ${res.data?.projectPath || this.projectPath}`);
+        await this.loadLocalSkills();
+      } catch (e) {
+        console.error('Failed to download all skills:', e);
+        this.$message.error('Download failed: ' + (e.message || 'Unknown error'));
+      } finally {
+        this.$set(this.downloadingAll, repoId, false);
+      }
+    },
+    async handleViewSkill(skill) {
+      try {
+        const res = await api.getSkillContent(skill.name)
+        this.currentSkill = skill
+        this.currentSkillContent = res.data
+        this.showSkillViewer = true
+      } catch (e) {
+        console.error('Failed to load skill content:', e)
+        this.$message.error('Failed to load skill content')
+      }
+    },
+    async handleDeleteLocalSkill(name) {
+      try {
+        await this.$confirm(`Are you sure you want to delete "${name}"?`, 'Confirm', {
+          type: 'warning'
+        })
+        await api.deleteLocalSkill(name)
+        await this.loadLocalSkills()
+        this.$message.success('Skill deleted')
+      } catch (e) {
+        if (e !== 'cancel') {
+          console.error('Failed to delete skill:', e)
+        }
+      }
+    },
+    // ==================== Specs (unchanged) ====================
     async loadRepositories() {
       try {
         const res = await api.getSpecRepositories()
@@ -215,16 +385,6 @@ export default {
       } catch (e) {
         console.error('Failed to load local specs:', e)
         this.localSpecs = []
-      }
-    },
-    async loadProjectPath() {
-      try {
-        const res = await api.getProjectPath()
-        if (res.success && res.data) {
-          this.projectPath = res.data.projectPath || ''
-        }
-      } catch (e) {
-        console.error('Failed to load project path:', e)
       }
     },
     async loadRepoSpecs(repoId) {
@@ -325,7 +485,7 @@ export default {
     },
     async handleDownloadAll(repoId) {
       try {
-        this.$set(this.downloadingAll, repoId, true);
+        this.$set(this.downloadingAllSpecs, repoId, true);
         const res = await api.downloadAllSpecs(repoId, this.projectPath);
         this.$message.success(`Downloaded ${res.data?.downloaded?.length || 0} specs to ${res.data?.projectPath || this.projectPath}`);
         await this.loadLocalSpecs();
@@ -333,9 +493,10 @@ export default {
         console.error('Failed to download all specs:', e);
         this.$message.error('Download failed: ' + (e.message || 'Unknown error'));
       } finally {
-        this.$set(this.downloadingAll, repoId, false);
+        this.$set(this.downloadingAllSpecs, repoId, false);
       }
     },
+    // ==================== Memory (unchanged) ====================
     async loadMemory() {
       try {
         const res = await api.getMemory(this.projectPath);
