@@ -214,6 +214,7 @@ export class DbService {
       () => this.migration011AddWafGatewayConfig(),
 () => this.migration012AddSpecRepositories(),
       () => this.migration013AddOssConfig(),
+      () => this.migration014AddZihaoConfig(),
     ];
 
     for (let i = 0; i < migrations.length; i++) {
@@ -668,6 +669,23 @@ private migration012AddSpecRepositories(): void {
         access_key_secret TEXT NOT NULL,
         region TEXT NOT NULL DEFAULT 'cn-hangzhou',
         is_active INTEGER DEFAULT 1,
+        created_at TEXT DEFAULT (datetime('now')),
+        updated_at TEXT DEFAULT (datetime('now'))
+      )
+    `)
+  }
+
+  private migration014AddZihaoConfig(): void {
+    if (!this.db) return
+
+    this.db.run(`
+      CREATE TABLE IF NOT EXISTS zihao_config (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        url TEXT NOT NULL,
+        username TEXT NOT NULL,
+        password TEXT NOT NULL,
+        is_active INTEGER DEFAULT 0,
         created_at TEXT DEFAULT (datetime('now')),
         updated_at TEXT DEFAULT (datetime('now'))
       )

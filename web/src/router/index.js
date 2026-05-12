@@ -103,6 +103,11 @@ const routes = [
         name: 'fileOss',
         component: () => import('../views/fileOss.vue'),
       },
+      {
+        path: 'fileZihao',
+        name: 'fileZihao',
+        component: () => import('../views/fileZihao.vue'),
+      },
     ],
   },
 ];

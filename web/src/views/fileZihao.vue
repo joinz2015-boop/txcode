@@ -7,7 +7,6 @@
           本地文件
         </div>
       </div>
-      
       <div class="flex items-center gap-1 px-2 py-2 border-b border-border">
         <button @click="goLocalUp" class="p-1 text-textMuted hover:text-white" title="上级目录">
           <i class="fa-solid fa-arrow-up"></i>
@@ -19,7 +18,6 @@
           <i class="fa-solid fa-home"></i>
         </button>
       </div>
-
       <div class="flex-1 overflow-auto py-1"
         :class="{ 'bg-blue-900/20': localDragOver }"
         @dragover.prevent="handleLocalDragOver"
@@ -66,77 +64,71 @@
           </tbody>
         </table>
       </div>
-
       <div
         v-show="localContextMenu.visible"
         class="fixed bg-[#252526] border border-[#3c3c3c] rounded shadow-lg py-1 z-50 min-w-[160px]"
         :style="{ left: localContextMenu.x + 'px', top: localContextMenu.y + 'px' }"
       >
-        <template v-if="localContextMenu.target">
-          <button @click="copyLocalPath" class="w-full text-left px-4 py-2 text-sm text-[#cccccc] hover:bg-[#094771] flex items-center gap-2">
-            <i class="fa-solid fa-copy text-xs w-4"></i> 复制路径
-          </button>
-          <button v-if="localContextMenu.target.name !== '..'" @click="showLocalRenameDialog" class="w-full text-left px-4 py-2 text-sm text-[#cccccc] hover:bg-[#094771] flex items-center gap-2">
-            <i class="fa-solid fa-pen text-xs w-4"></i> 重命名
-          </button>
-          <button v-if="localContextMenu.target.name !== '..'" @click="deleteLocalItem" class="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-[#094771] flex items-center gap-2">
-            <i class="fa-solid fa-trash text-xs w-4"></i> 删除
-          </button>
-          <div class="border-t border-[#3c3c3c] my-1"></div>
-          <button v-if="localContextMenu.target.name !== '..' && localContextMenu.target.is_directory" @click="uploadFileToLocal" class="w-full text-left px-4 py-2 text-sm text-[#cccccc] hover:bg-[#094771] flex items-center gap-2">
-            <i class="fa-solid fa-arrow-up text-xs w-4"></i> 上传文件到此处
-          </button>
-          <button v-if="localContextMenu.target.name !== '..' && !localContextMenu.target.is_directory" @click="downloadLocalFile" class="w-full text-left px-4 py-2 text-sm text-[#cccccc] hover:bg-[#094771] flex items-center gap-2">
-            <i class="fa-solid fa-download text-xs w-4"></i> 下载
-          </button>
-          <button v-if="localContextMenu.target.name !== '..' && !localContextMenu.target.is_directory" @click="uploadToOss" class="w-full text-left px-4 py-2 text-sm text-[#cccccc] hover:bg-[#094771] flex items-center gap-2">
-            <i class="fa-solid fa-cloud-arrow-up text-xs w-4"></i> 上传到OSS
-          </button>
-        </template>
+        <button @click="copyLocalPath" class="w-full text-left px-4 py-2 text-sm text-[#cccccc] hover:bg-[#094771] flex items-center gap-2">
+          <i class="fa-solid fa-copy text-xs w-4"></i> 复制路径
+        </button>
+        <button v-if="localContextMenu.target?.name !== '..'" @click="showLocalRenameDialog" class="w-full text-left px-4 py-2 text-sm text-[#cccccc] hover:bg-[#094771] flex items-center gap-2">
+          <i class="fa-solid fa-pen text-xs w-4"></i> 重命名
+        </button>
+        <button v-if="localContextMenu.target?.name !== '..'" @click="deleteLocalItem" class="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-[#094771] flex items-center gap-2">
+          <i class="fa-solid fa-trash text-xs w-4"></i> 删除
+        </button>
+        <div class="border-t border-[#3c3c3c] my-1"></div>
+        <button v-if="localContextMenu.target?.name !== '..' && !localContextMenu.target?.is_directory" @click="uploadToZihao" class="w-full text-left px-4 py-2 text-sm text-[#cccccc] hover:bg-[#094771] flex items-center gap-2">
+          <i class="fa-solid fa-server text-xs w-4"></i> 上传到梓豪
+        </button>
       </div>
     </aside>
-
     <main class="flex-1 flex flex-col min-w-0 bg-[#1e1e1e]">
       <div class="flex border-b border-border bg-sidebar shrink-0">
         <div class="px-4 py-2 text-xs uppercase font-bold text-white flex items-center gap-2">
-          <i class="fa-solid fa-cloud text-accent"></i>
-          OSS 对象存储
+          <i class="fa-solid fa-server text-accent"></i>
+          梓豪远程平台
         </div>
         <div class="flex-1"></div>
-        <button @click="openOssConfig" class="p-1 mr-2 text-textMuted hover:text-white" title="OSS配置">
+        <button @click="openZihaoConfig" class="p-1 mr-2 text-textMuted hover:text-white" title="梓豪配置">
           <i class="fa-solid fa-gear"></i>
         </button>
       </div>
-
       <div class="flex items-center gap-1 px-2 py-2 border-b border-border">
-        <button @click="goOssUp" class="p-1 text-textMuted hover:text-white" title="上级目录">
+        <button @click="goZihaoUp" class="p-1 text-textMuted hover:text-white" title="上级目录">
           <i class="fa-solid fa-arrow-up"></i>
         </button>
-        <button @click="refreshOss" class="p-1 text-textMuted hover:text-white" title="刷新">
+        <button @click="refreshZihao" class="p-1 text-textMuted hover:text-white" title="刷新">
           <i class="fa-solid fa-refresh"></i>
         </button>
+        <input
+          v-model="zihaoPathInput"
+          @keyup.enter="navigateZihaoPath"
+          placeholder="输入路径后回车跳转..."
+          class="flex-1 px-2 py-1 mx-1 bg-[#3c3c3c] border border-[#3c3c3c] rounded text-xs text-[#cccccc] focus:outline-none focus:border-[#0e639c]"
+        />
       </div>
-
       <div
         class="flex-1 overflow-auto py-1"
         :class="{ 'bg-blue-900/20': isDragOver }"
-        @dragover.prevent="handleOssDragOver"
-        @dragleave="handleOssDragLeave"
-        @drop="handleOssDrop"
+        @dragover.prevent="handleZihaoDragOver"
+        @dragleave="handleZihaoDragLeave"
+        @drop="handleZihaoDrop"
       >
-        <div v-if="!ossConfig" class="flex items-center justify-center h-full text-textMuted">
+        <div v-if="!zihaoConfig" class="flex items-center justify-center h-full text-textMuted">
           <div class="text-center">
-            <i class="fa-solid fa-cloud-arrow-up text-4xl mb-4 opacity-30"></i>
-            <p class="mb-2">未配置OSS</p>
-            <button @click="openOssConfig" class="px-4 py-2 bg-[#0e639c] text-white rounded hover:bg-[#1177bb] text-sm">
-              配置OSS
+            <i class="fa-solid fa-server text-4xl mb-4 opacity-30"></i>
+            <p class="mb-2">未配置梓豪平台</p>
+            <button @click="openZihaoConfig" class="px-4 py-2 bg-[#0e639c] text-white rounded hover:bg-[#1177bb] text-sm">
+              配置梓豪
             </button>
           </div>
         </div>
-        <div v-else-if="ossLoading" class="flex items-center justify-center py-8 text-textMuted">
+        <div v-else-if="zihaoLoading" class="flex items-center justify-center py-8 text-textMuted">
           <i class="fa-solid fa-spinner fa-spin mr-2"></i> 加载中...
         </div>
-        <div v-else-if="ossItems.length === 0" class="flex items-center justify-center py-8 text-textMuted text-sm">
+        <div v-else-if="zihaoItems.length === 0" class="flex items-center justify-center py-8 text-textMuted text-sm">
           此目录为空
         </div>
         <table v-else class="w-full text-sm">
@@ -150,13 +142,13 @@
           </thead>
           <tbody>
             <tr
-              v-for="item in ossItems"
+              v-for="item in zihaoItems"
               :key="item.path"
               class="cursor-pointer border-b border-[#3c3c3c]/50 hover:bg-[#2a2a2a]"
-              :class="{ 'bg-[#094771]': selectedOssPath === item.path }"
-              @click="selectOssItem(item)"
-              @dblclick="openOssItem(item)"
-              @contextmenu.prevent="showOssContextMenu($event, item)"
+              :class="{ 'bg-[#094771]': selectedZihaoPath === item.path }"
+              @click="selectZihaoItem(item)"
+              @dblclick="openZihaoItem(item)"
+              @contextmenu.prevent="showZihaoContextMenu($event, item)"
             >
               <td class="px-3 py-1">
                 <div class="flex items-center gap-2">
@@ -166,18 +158,14 @@
               </td>
               <td class="px-3 py-1 text-[#808080] text-xs">{{ item.type === 'folder' ? '文件夹' : '文件' }}</td>
               <td class="px-3 py-1 text-[#808080] text-xs text-right">{{ item.type === 'file' ? formatSize(item.size) : '-' }}</td>
-              <td class="px-3 py-1 text-[#808080] text-xs">{{ item.modified ? formatDate(item.modified) : '-' }}</td>
+              <td class="px-3 py-1 text-[#808080] text-xs">{{ item.modify_time || '-' }}</td>
             </tr>
           </tbody>
         </table>
       </div>
-
-      <OssConfigDialog ref="ossConfigDialog" @success="loadOssConfig" />
-      <OssContextMenu ref="ossContextMenu" :url-dialog-ref="$refs.urlLinkDialog" />
-      <UrlLinkDialog ref="urlLinkDialog" />
-      <CopyPathDialog ref="copyPathDialog" />
+      <ZihaoConfigDialog ref="zihaoConfigDialog" @success="loadZihaoConfig" />
+      <ZihaoContextMenu ref="zihaoContextMenu" />
     </main>
-
     <div
       v-show="renameDialog.visible"
       class="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
@@ -198,7 +186,6 @@
         </div>
       </div>
     </div>
-
     <div v-if="uploadProgress.visible" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div class="bg-[#252526] border border-[#3c3c3c] rounded p-4 w-80">
         <p class="text-[#cccccc] text-sm mb-3">正在 {{ uploadProgress.isDownload ? '下载' : '上传' }} {{ uploadProgress.filename }}</p>
@@ -213,15 +200,13 @@
 
 <script>
 import { api } from '../api'
-import { ossApi } from '../api/oss/ossApi.js'
-import UrlLinkDialog from '../components/common/UrlLinkDialog.vue'
-import CopyPathDialog from '../components/common/CopyPathDialog.vue'
-import OssConfigDialog from '../components/oss/OssConfigDialog.vue'
-import OssContextMenu from '../components/oss/OssContextMenu.vue'
+import { zihaoApi } from '../api/zihao/zihaoApi.js'
+import ZihaoConfigDialog from '../components/zihao/ZihaoConfigDialog.vue'
+import ZihaoContextMenu from '../components/zihao/ZihaoContextMenu.vue'
 
 export default {
-  name: 'FileOss',
-  components: { UrlLinkDialog, CopyPathDialog, OssConfigDialog, OssContextMenu },
+  name: 'FileZihao',
+  components: { ZihaoConfigDialog, ZihaoContextMenu },
   data() {
     return {
       localItems: [],
@@ -230,27 +215,23 @@ export default {
       localCurrentPath: '',
       localParentPath: null,
       selectedLocalPath: null,
-
-      ossConfig: null,
-      ossItems: [],
-      ossLoading: false,
-      ossPrefix: '',
-      selectedOssPath: null,
-
-      isDragOver: false,
       localDragOver: false,
       dragFile: null,
-
+      zihaoConfig: null,
+      zihaoItems: [],
+      zihaoLoading: false,
+      zihaoPath: '/',
+      zihaoPathInput: '/',
+      selectedZihaoPath: null,
+      isDragOver: false,
       localContextMenu: { visible: false, x: 0, y: 0, target: null },
-
-      renameDialog: { visible: false, title: '', value: '', target: null },
-
+      renameDialog: { visible: false, title: '', value: '', target: null, isZihao: false },
       uploadProgress: { visible: false, percent: 0, filename: '', isDownload: false }
     }
   },
   async created() {
     document.addEventListener('click', this.hideLocalContextMenu)
-    await this.loadOssConfig()
+    await this.loadZihaoConfig()
     await this.loadLocalFiles()
   },
   beforeDestroy() {
@@ -264,7 +245,7 @@ export default {
         let items = res.data.items || []
         this.localCurrentPath = res.data.current_path || ''
         this.localParentPath = res.data.parent_path
-        if (this.localParentPath || this.localParentPath === '') {
+        if (this.localParentPath !== undefined) {
           items = [{ name: '..', is_directory: true, path: this.localParentPath || '', size: 0 }, ...items]
         }
         this.localItems = items.sort((a, b) => {
@@ -279,36 +260,6 @@ export default {
         this.localLoading = false
       }
     },
-
-    async loadOssConfig() {
-      try {
-        const res = await ossApi.getOssConfig()
-        this.ossConfig = res.data.active
-        if (this.ossConfig) {
-          await this.loadOssFiles()
-        }
-      } catch (e) {
-        console.error('加载OSS配置失败:', e)
-      }
-    },
-
-    async loadOssFiles() {
-      if (!this.ossConfig) return
-      this.ossLoading = true
-      try {
-        const res = await ossApi.ossBrowse(this.ossPrefix)
-        let items = res.data.items || []
-        if (this.ossPrefix) {
-          items = [{ name: '..', type: 'folder', path: '', size: 0, modified: null }, ...items]
-        }
-        this.ossItems = items
-      } catch (e) {
-        this.$message.error('加载OSS文件失败: ' + e.message)
-      } finally {
-        this.ossLoading = false
-      }
-    },
-
     refreshLocal() { this.loadLocalFiles() },
     goLocalUp() {
       if (this.localParentPath === null) return
@@ -330,47 +281,31 @@ export default {
       }
     },
     showLocalContextMenu(e, item) {
-      e.preventDefault()
       this.localContextMenu = { visible: true, x: e.pageX, y: e.pageY, target: item }
     },
     hideLocalContextMenu() { this.localContextMenu.visible = false },
     copyLocalPath() {
       this.hideLocalContextMenu()
       if (this.localContextMenu.target) {
-        this.$refs.copyPathDialog.open(this.localContextMenu.target.path)
+        navigator.clipboard.writeText(this.localContextMenu.target.path).catch(() => {})
+        this.$message.success('已复制路径')
       }
     },
     showLocalRenameDialog() {
       const target = this.localContextMenu.target
       if (!target || target.name === '..') return
-      this.renameDialog = { visible: true, title: '重命名', value: target.name, target }
+      this.renameDialog = { visible: true, title: '重命名', value: target.name, target, isZihao: false }
       this.hideLocalContextMenu()
       this.$nextTick(() => {
         this.$refs.renameInput?.focus()
         this.$refs.renameInput?.select()
       })
     },
-    async confirmLocalRename() {
-      const { value, target } = this.renameDialog
-      if (!value.trim() || !target) { this.renameDialog.visible = false; return }
-      try {
-        await api.renameFile(target.path, value.trim())
-        this.$message.success('重命名成功')
-        this.loadLocalFiles()
-      } catch (e) {
-        this.$message.error('重命名失败: ' + e.message)
-      }
-      this.renameDialog.visible = false
-    },
     async deleteLocalItem() {
       const target = this.localContextMenu.target
       if (!target || target.name === '..') return
       try {
-        await this.$confirm(`确定要删除 "${target.name}" 吗？`, '确认删除', {
-          confirmButtonText: '删除',
-          cancelButtonText: '取消',
-          type: 'warning'
-        })
+        await this.$confirm(`确定要删除 "${target.name}" 吗？`, '确认删除', { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' })
         await api.deleteFile(target.path)
         this.$message.success('删除成功')
         this.loadLocalFiles()
@@ -379,19 +314,27 @@ export default {
       }
       this.hideLocalContextMenu()
     },
-    async uploadToOss() {
+    async uploadToZihao() {
       this.hideLocalContextMenu()
       const target = this.localContextMenu.target
-      if (!target || target.is_directory) return
+      if (!target || target.is_directory || target.name === '..') return
+      if (!this.zihaoConfig) {
+        this.$message.warning('请先配置梓豪平台')
+        return
+      }
       const filename = target.name
-      const ossKey = this.ossPrefix ? this.ossPrefix.replace(/\/$/, '') + '/' + filename : filename
-      this.uploadProgress = { visible: true, percent: 0, filename }
+      const targetDir = this.zihaoPath || '/'
+      this.uploadProgress = { visible: true, percent: 0, filename, isDownload: false }
       try {
-        await ossApi.ossUpload(target.path, ossKey, (p) => {
+        const response = await fetch(`/api/filesystem/download?path=${encodeURIComponent(target.path)}`)
+        if (!response.ok) throw new Error('读取文件失败')
+        const blob = await response.blob()
+        const file = new File([blob], filename)
+        await zihaoApi.uploadWithProgress(file, filename, targetDir, (p) => {
           this.uploadProgress.percent = p
         })
         this.$message.success('上传成功')
-        this.loadOssFiles()
+        this.loadZihaoFiles()
       } catch (e) {
         this.$message.error('上传失败: ' + e.message)
       } finally {
@@ -415,16 +358,11 @@ export default {
       const files = e.dataTransfer.files
       if (files.length === 0) return
       const uploadPath = this.localCurrentPath || this.localPath
-      if (!uploadPath) {
-        this.$message.warning('无法确定上传目录')
-        return
-      }
+      if (!uploadPath) { this.$message.warning('无法确定上传目录'); return }
       for (const file of files) {
         this.uploadProgress = { visible: true, percent: 0, filename: file.name, isDownload: false }
         try {
-          await api.uploadFilesystemWithProgress(uploadPath, file, (p) => {
-            this.uploadProgress.percent = p
-          })
+          await api.uploadFilesystemWithProgress(uploadPath, file, (p) => { this.uploadProgress.percent = p })
         } catch (err) {
           this.uploadProgress.visible = false
           this.$message.error(`上传 ${file.name} 失败: ` + err.message)
@@ -435,182 +373,92 @@ export default {
       this.$message.success(`已上传 ${files.length} 个文件`)
       this.loadLocalFiles()
     },
-
-    downloadLocalFile() {
-      this.hideLocalContextMenu()
-      const target = this.localContextMenu.target
-      if (!target || target.is_directory || target.name === '..') return
-      this.uploadProgress = { visible: true, percent: 0, filename: target.name, isDownload: true }
-      api.downloadFilesystemWithProgress(target.path, target.name, (p) => {
-        this.uploadProgress.percent = p
-      })
-        .then(() => {
-          this.uploadProgress.visible = false
-        })
-        .catch((e) => {
-          this.uploadProgress.visible = false
-          this.$message.error('下载失败: ' + e.message)
-        })
-    },
-
-    uploadFileToLocal() {
-      this.hideLocalContextMenu()
-      const target = this.localContextMenu.target
-      if (!target || !target.is_directory || target.name === '..') return
-      const input = document.createElement('input')
-      input.type = 'file'
-      input.multiple = true
-      input.onchange = async () => {
-        if (!input.files || input.files.length === 0) return
-        const files = Array.from(input.files)
-        for (const file of files) {
-          this.uploadProgress = { visible: true, percent: 0, filename: file.name, isDownload: false }
-          try {
-            await api.uploadFilesystemWithProgress(target.path, file, (p) => {
-              this.uploadProgress.percent = p
-            })
-          } catch (err) {
-            this.uploadProgress.visible = false
-            this.$message.error(`上传 ${file.name} 失败: ` + err.message)
-            return
-          }
-          this.uploadProgress.visible = false
-        }
-        this.$message.success(`已上传 ${files.length} 个文件`)
-        this.loadLocalFiles()
-      }
-      input.click()
-    },
-
-    handleOssDragOver(e) {
-      e.preventDefault()
-      this.isDragOver = true
-      e.dataTransfer.dropEffect = 'copy'
-    },
-    handleOssDragLeave() { this.isDragOver = false },
-    async handleOssDrop(e) {
-      e.preventDefault()
-      this.isDragOver = false
-      const files = e.dataTransfer.files
-      if (files.length > 0) {
-        this.$message.warning('请从左侧本地文件列表拖拽文件到OSS，或右键本地文件选择"上传到OSS"')
-        return
-      }
-      if (!this.dragFile || !this.ossConfig) {
-        this.$message.warning('请先选择要上传的文件')
-        return
-      }
-      const filename = this.dragFile.name
-      const ossKey = this.ossPrefix ? this.ossPrefix.replace(/\/$/, '') + '/' + filename : filename
-      this.uploadProgress = { visible: true, percent: 0, filename }
+    async loadZihaoConfig() {
       try {
-        await ossApi.ossUpload(this.dragFile.path, ossKey, (p) => {
-          this.uploadProgress.percent = p
-        })
-        this.$message.success('上传成功')
-        this.loadOssFiles()
+        const res = await zihaoApi.getZihaoConfig()
+        this.zihaoConfig = res.data.active
+        if (this.zihaoConfig) {
+          await this.loadZihaoFiles()
+        }
       } catch (e) {
-        this.$message.error('上传失败: ' + e.message)
+        console.error('加载梓豪配置失败:', e)
+      }
+    },
+    async loadZihaoFiles() {
+      if (!this.zihaoConfig) return
+      this.zihaoLoading = true
+      try {
+        const res = await zihaoApi.browse(this.zihaoPath)
+        let items = res.data.items || []
+        if (this.zihaoPath !== '/') {
+          const parentPath = this.zihaoPath.split('/').filter(Boolean).slice(0, -1).join('/')
+          items = [{ name: '..', type: 'folder', path: parentPath ? '/' + parentPath : '/', size: 0, modify_time: '' }, ...items]
+        }
+        this.zihaoItems = items
+      } catch (e) {
+        this.$message.error('加载梓豪文件失败: ' + e.message)
       } finally {
-        this.uploadProgress.visible = false
-        this.dragFile = null
+        this.zihaoLoading = false
       }
     },
-
-    refreshOss() { this.loadOssFiles() },
-    goOssUp() {
-      if (!this.ossPrefix) return
-      const parts = this.ossPrefix.split('/').filter(Boolean)
+    refreshZihao() { this.loadZihaoFiles() },
+    navigateZihaoPath() {
+      let p = this.zihaoPathInput.trim()
+      if (!p) return
+      if (!p.startsWith('/')) p = '/' + p
+      this.zihaoPath = p
+      this.zihaoPathInput = p
+      this.loadZihaoFiles()
+    },
+    goZihaoUp() {
+      if (this.zihaoPath === '/') return
+      const parts = this.zihaoPath.split('/').filter(Boolean)
       parts.pop()
-      this.ossPrefix = parts.join('/')
-      if (this.ossPrefix) this.ossPrefix += '/'
-      else this.ossPrefix = ''
-      this.loadOssFiles()
+      this.zihaoPath = parts.length > 0 ? '/' + parts.join('/') : '/'
+      this.zihaoPathInput = this.zihaoPath
+      this.loadZihaoFiles()
     },
-    selectOssItem(item) { this.selectedOssPath = item.path },
-    openOssItem(item) {
+    selectZihaoItem(item) { this.selectedZihaoPath = item.path },
+    openZihaoItem(item) {
       if (item.type === 'folder') {
-        this.ossPrefix = item.path
-        this.loadOssFiles()
+        this.zihaoPath = item.path
+        this.zihaoPathInput = item.path
+        this.loadZihaoFiles()
       }
     },
-    showOssContextMenu(e, item) {
-      this.selectedOssPath = item.path
-      this.$refs.ossContextMenu.show(e, item, {
-        onRename: this.showRenameDialog,
-        onDelete: this.handleOssDelete,
-        onDownload: item.type === 'file' ? this.downloadOssToLocal : null
+    showZihaoContextMenu(e, item) {
+      this.selectedZihaoPath = item.path
+      this.$refs.zihaoContextMenu.show(e, item, {
+        onRename: this.showZihaoRenameDialog,
+        onDelete: this.handleZihaoDelete,
+        onDownload: item.type === 'file' ? this.downloadZihaoToLocal : null
       })
     },
-    showRenameDialog(item) {
-      this.renameDialog = { visible: true, title: '重命名', value: item.name, target: item }
+    showZihaoRenameDialog(item) {
+      this.renameDialog = { visible: true, title: '重命名', value: item.name, target: item, isZihao: true }
       this.$nextTick(() => {
         this.$refs.renameInput?.focus()
         this.$refs.renameInput?.select()
       })
     },
-    async confirmRename() {
-      const { value, target } = this.renameDialog
-      if (!value.trim() || !target) { this.cancelRename(); return }
-      if (target.is_directory !== undefined) {
-        await this.confirmLocalRename()
-      } else {
-        await this.confirmOssRename()
-      }
-    },
-    async confirmLocalRename() {
-      const { value, target } = this.renameDialog
-      if (!value.trim() || !target) { this.renameDialog.visible = false; return }
+    async handleZihaoDelete(item) {
       try {
-        await api.renameFile(target.path, value.trim())
-        this.$message.success('重命名成功')
-        this.loadLocalFiles()
-      } catch (e) {
-        this.$message.error('重命名失败: ' + e.message)
-      }
-      this.renameDialog.visible = false
-    },
-    async confirmOssRename() {
-      const { value, target } = this.renameDialog
-      if (!value.trim() || !target) { this.cancelRename(); return }
-      try {
-        const parentPath = target.path.substring(0, target.path.lastIndexOf('/') + 1)
-        const newPath = parentPath + value.trim()
-        await ossApi.ossRename(target.path, newPath)
-        this.$message.success('重命名成功')
-        this.loadOssFiles()
-      } catch (e) {
-        this.$message.error('重命名失败: ' + e.message)
-      }
-      this.renameDialog.visible = false
-    },
-    cancelRename() { this.renameDialog.visible = false },
-    async handleOssDelete(item) {
-      try {
-        await this.$confirm(`确定要删除 "${item.name}" 吗？`, '确认删除', {
-          confirmButtonText: '删除',
-          cancelButtonText: '取消',
-          type: 'warning'
-        })
-        await ossApi.ossDelete(item.path)
+        await this.$confirm(`确定要删除 "${item.name}" 吗？`, '确认删除', { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' })
+        await zihaoApi.deleteFile(item.path, item.type)
         this.$message.success('删除成功')
-        this.loadOssFiles()
+        this.loadZihaoFiles()
       } catch (e) {
         if (e !== 'cancel') this.$message.error('删除失败: ' + e.message)
       }
     },
-    async downloadOssToLocal(item) {
+    async downloadZihaoToLocal(item) {
       const targetDir = this.localCurrentPath || this.localPath
-      if (!targetDir) {
-        this.$message.warning('请先进入一个本地文件夹')
-        return
-      }
+      if (!targetDir) { this.$message.warning('请先进入一个本地文件夹'); return }
       this.uploadProgress = { visible: true, percent: 0, filename: item.name, isDownload: true }
       try {
-        const targetPath = targetDir + (targetDir.endsWith('\\') || targetDir.endsWith('/') ? '' : '\\') + item.name
-        await ossApi.ossDownloadWithProgress(item.path, targetPath, (p) => {
-          this.uploadProgress.percent = p
-        })
+        const sep = targetDir.endsWith('\\') || targetDir.endsWith('/') ? '' : '\\'
+        const targetPath = targetDir + sep + item.name
+        await zihaoApi.download(item.path, targetPath, (p) => { this.uploadProgress.percent = p })
         this.$message.success('已下载到本地: ' + targetPath)
         this.loadLocalFiles()
       } catch (e) {
@@ -619,8 +467,57 @@ export default {
         this.uploadProgress.visible = false
       }
     },
-    openOssConfig() { this.$refs.ossConfigDialog.open(this.ossConfig) },
-
+    async confirmRename() {
+      const { value, target, isZihao } = this.renameDialog
+      if (!value.trim() || !target) { this.cancelRename(); return }
+      try {
+        if (isZihao) {
+          await zihaoApi.rename(target.path, value.trim())
+          this.$message.success('重命名成功')
+          this.loadZihaoFiles()
+        } else {
+          await api.renameFile(target.path, value.trim())
+          this.$message.success('重命名成功')
+          this.loadLocalFiles()
+        }
+      } catch (e) {
+        this.$message.error('重命名失败: ' + e.message)
+      }
+      this.renameDialog.visible = false
+    },
+    cancelRename() { this.renameDialog.visible = false },
+    handleZihaoDragOver(e) {
+      e.preventDefault()
+      this.isDragOver = true
+      e.dataTransfer.dropEffect = 'copy'
+    },
+    handleZihaoDragLeave() { this.isDragOver = false },
+    async handleZihaoDrop(e) {
+      e.preventDefault()
+      this.isDragOver = false
+      if (!this.dragFile || !this.zihaoConfig) {
+        this.$message.warning('请先从左侧拖拽文件')
+        return
+      }
+      const filename = this.dragFile.name
+      const targetDir = this.zihaoPath || '/'
+      this.uploadProgress = { visible: true, percent: 0, filename, isDownload: false }
+      try {
+        const response = await fetch(`/api/filesystem/download?path=${encodeURIComponent(this.dragFile.path)}`)
+        if (!response.ok) throw new Error('读取文件失败')
+        const blob = await response.blob()
+        const file = new File([blob], filename)
+        await zihaoApi.uploadWithProgress(file, filename, targetDir, (p) => { this.uploadProgress.percent = p })
+        this.$message.success('上传成功')
+        this.loadZihaoFiles()
+      } catch (e) {
+        this.$message.error('上传失败: ' + e.message)
+      } finally {
+        this.uploadProgress.visible = false
+        this.dragFile = null
+      }
+    },
+    openZihaoConfig() { this.$refs.zihaoConfigDialog.open(this.zihaoConfig) },
     formatSize(size) {
       if (!size) return '-'
       const units = ['B', 'KB', 'MB', 'GB']
@@ -628,13 +525,8 @@ export default {
       while (s >= 1024 && i < units.length - 1) { s /= 1024; i++ }
       return `${s.toFixed(1)}${units[i]}`
     },
-    formatDate(dateStr) {
-      if (!dateStr) return '-'
-      const date = new Date(dateStr)
-      return date.toLocaleString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
-    },
     getFileIcon(filename) {
-      const ext = filename.split('.').pop().toLowerCase()
+      const ext = filename.split('.').pop()?.toLowerCase()
       const icons = {
         js: 'fa-brands fa-js text-yellow-400',
         ts: 'fa-brands fa-js text-blue-400',
