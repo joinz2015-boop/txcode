@@ -14,3 +14,4 @@ txCode 是一个 AI 编程助手，帮助你完成软件开发任务。
 - [AI 日志](/txcode/logs/ai-logs.html) - 查看调用记录
 - [技能与记忆](/txcode/skills/skills.html) - 技能和记忆功能
 - [网关配置](/txcode/gateway/config.html) - 钉钉机器人接入
+- [Caller API](/txcode/caller/overview.html) - 外部系统对接
