@@ -1,5 +1,4 @@
 import { dbService } from '../modules/db/index.js';
-import { ossRepository } from '../repository/oss.repository.js';
 
 export interface ExportData {
   providers?: any[];
@@ -7,7 +6,6 @@ export interface ExportData {
   gateway?: any;
   wafGateway?: any;
   email?: any;
-  oss?: any;
 }
 
 export class ConfigExportImportService {
@@ -66,17 +64,6 @@ export class ConfigExportImportService {
         user: email.user,
         password: email.password,
         fromName: email.from_name || '',
-      };
-    }
-
-    const oss = ossRepository.findActive();
-    if (oss) {
-      data.oss = {
-        region: oss.region,
-        bucket: oss.bucket,
-        endpoint: oss.endpoint,
-        accessKeyId: oss.access_key_id,
-        accessKeySecret: oss.access_key_secret,
       };
     }
 
@@ -153,31 +140,6 @@ export class ConfigExportImportService {
             `INSERT INTO email_config (name, host, port, secure, user, password, from_name, is_default) VALUES (?, ?, ?, ?, ?, ?, ?, 1)`,
             ['Default', data.email.host, data.email.port, data.email.secure ? 1 : 0, data.email.user, data.email.password, data.email.fromName || '']
           );
-        }
-      }
-
-      if (data.oss) {
-        const existing = ossRepository.findActive();
-        if (existing) {
-          ossRepository.update(existing.id, {
-            endpoint: data.oss.endpoint,
-            bucket: data.oss.bucket,
-            access_key_id: data.oss.accessKeyId,
-            access_key_secret: data.oss.accessKeySecret,
-            region: data.oss.region,
-          });
-        } else {
-          const id = crypto.randomUUID();
-          ossRepository.insert({
-            id,
-            name: 'Imported OSS',
-            endpoint: data.oss.endpoint || '',
-            bucket: data.oss.bucket || '',
-            access_key_id: data.oss.accessKeyId || '',
-            access_key_secret: data.oss.accessKeySecret || '',
-            region: data.oss.region || '',
-            is_active: 1,
-          });
         }
       }
 

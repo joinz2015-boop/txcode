@@ -99,14 +99,14 @@ const routes = [
         component: () => import('../views/WikiView.vue'),
       },
       {
-        path: 'fileOss',
-        name: 'fileOss',
-        component: () => import('../views/fileOss.vue'),
-      },
-      {
         path: 'fileZihao',
         name: 'fileZihao',
         component: () => import('../views/fileZihao.vue'),
+      },
+      {
+        path: 'deploy',
+        name: 'deploy',
+        component: () => import('../views/deployView.vue'),
       },
     ],
   },

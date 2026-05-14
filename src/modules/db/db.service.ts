@@ -213,7 +213,8 @@ export class DbService {
       () => this.migration010AddCustomActions(),
       () => this.migration011AddWafGatewayConfig(),
 () => this.migration012AddSpecRepositories(),
-      () => this.migration013AddOssConfig(),
+
+
       () => this.migration014AddZihaoConfig(),
     ];
 
@@ -656,24 +657,7 @@ private migration012AddSpecRepositories(): void {
     `)
   }
 
-  private migration013AddOssConfig(): void {
-    if (!this.db) return
 
-    this.db.run(`
-      CREATE TABLE IF NOT EXISTS oss_config (
-        id TEXT PRIMARY KEY,
-        name TEXT NOT NULL,
-        endpoint TEXT NOT NULL,
-        bucket TEXT NOT NULL,
-        access_key_id TEXT NOT NULL,
-        access_key_secret TEXT NOT NULL,
-        region TEXT NOT NULL DEFAULT 'cn-hangzhou',
-        is_active INTEGER DEFAULT 1,
-        created_at TEXT DEFAULT (datetime('now')),
-        updated_at TEXT DEFAULT (datetime('now'))
-      )
-    `)
-  }
 
   private migration014AddZihaoConfig(): void {
     if (!this.db) return

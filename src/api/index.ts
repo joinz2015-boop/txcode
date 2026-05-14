@@ -24,9 +24,10 @@ import { specsRouter } from './specs.routes.js';
 import { wikiRouter } from './wiki.routes.js';
 import { memoryRouter } from './memory.routes.js';
 import { devlogRouter } from './devlog.routes.js';
-import { ossRouter } from './oss.routes.js';
+
 import { zihaoRouter } from './zihao.routes.js';
 import { configExportImportRouter } from './config-export-import.routes.js';
+import { deployRouter } from './deploy.routes.js';
 
 export const apiRouter = Router();
 
@@ -52,8 +53,9 @@ apiRouter.use('/specs', specsRouter);
 apiRouter.use('/wiki', wikiRouter);
 apiRouter.use('/memory', memoryRouter);
 apiRouter.use('/devlog', devlogRouter);
-apiRouter.use('/oss', ossRouter);
+
 apiRouter.use('/zihao', zihaoRouter);
+apiRouter.use('/deploy', deployRouter);
 apiRouter.use('/settings', configExportImportRouter);
 
 export type * from './api.types.js';

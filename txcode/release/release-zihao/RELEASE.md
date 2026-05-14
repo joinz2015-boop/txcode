@@ -25,6 +25,7 @@ metadata:
 | 地址 | `http://zihao.homecommunity.cn` |
 | 用户名 | `zihao` |
 | 密码 | `123456` |
+| 项目名称 | HC项目 |
 | 认证方式 | `Authorization: Bearer {token}` |
 
 ---

@@ -11,6 +11,11 @@
             <i class="fa-solid fa-laptop-code mr-1"></i> 软件研发
           </a>
         </div>
+        <div class="relative">
+          <router-link to="/deploy" class="hover:text-white px-3 py-1 rounded border border-transparent hover:border-accent transition-colors cursor-pointer" :class="$route.name === 'deploy' ? 'text-accent border-accent' : 'text-gray-400'">
+            <i class="fa-solid fa-rocket mr-1"></i> 部署
+          </router-link>
+        </div>
       </div>
       <div class="flex items-center gap-3">
         <el-dropdown @command="handleProjectChange" trigger="click" v-if="projects.length > 0">
@@ -67,9 +72,6 @@
           </router-link>
           <router-link to="/wiki" class="w-10 h-10 mb-2 rounded flex items-center justify-center" :class="$route.name === 'wiki' ? 'text-white border-l-2 border-accent bg-sidebar' : 'text-textMuted hover:text-white border-l-2 border-transparent'" title="文档">
             <i class="fa-solid fa-book text-xl"></i>
-          </router-link>
-          <router-link to="/fileOss" class="w-10 h-10 mb-2 rounded flex items-center justify-center" :class="$route.name === 'fileOss' ? 'text-white border-l-2 border-accent bg-sidebar' : 'text-textMuted hover:text-white border-l-2 border-transparent'" title="文件OSS">
-            <i class="fa-solid fa-cloud text-xl"></i>
           </router-link>
           <router-link to="/fileZihao" class="w-10 h-10 mb-2 rounded flex items-center justify-center" :class="$route.name === 'fileZihao' ? 'text-white border-l-2 border-accent bg-sidebar' : 'text-textMuted hover:text-white border-l-2 border-transparent'" title="文件梓豪">
             <i class="fa-solid fa-server text-xl"></i>
