@@ -3,7 +3,7 @@ const path = require('path');
 const crypto = require('crypto');
 const zlib = require('zlib');
 
-const DEFAULT_CHUNK_SIZE = 1024 * 1024;
+const DEFAULT_CHUNK_SIZE = 5 * 1024;
 
 function toOctal(num, len) {
   return num.toString(8).padStart(len - 1, '0') + '\0';
@@ -172,6 +172,7 @@ async function uploadVersion(url, token, versionId, filePath, chunkSize = DEFAUL
       headers: { 'Authorization': `Bearer ${token}` },
       body: formData
     });
+    //console.log(res)
     const json = await res.json();
     if (json.code !== 200) {
       throw new Error(json.message || `分片 ${i + 1}/${totalChunks} 上传失败`);
@@ -284,7 +285,7 @@ if (require.main === module) {
   }
   const [url, username, password, projectName, filePath] = args;
   deploy(url, username, password, projectName, filePath).catch(err => {
-    console.error('[deploy] 失败:', err.message);
+    console.error('[deploy] 失败:', err);
     process.exit(1);
   });
 }

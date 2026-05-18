@@ -56,7 +56,16 @@ node txcode/release/release-zihao/node-zihao.js \
 
 ---
 
-## 四、注意事项
+## 四、编译当前项目
+应该进入到web 项目做 npm run build 
+然后再根目录 执行npm run build 
+将dist 打包成txcode.tar.gz ,将这个包发布到梓豪平台
+```bash
+cd web && npm run build
+npm run build
+```
+
+## 五、注意事项
 
 - 项目名称需在梓豪平台上已存在
 - 传入目录时自动使用纯 Node.js 打包，跨平台兼容，无需系统 tar 命令
@@ -66,6 +75,6 @@ node txcode/release/release-zihao/node-zihao.js \
 
 ---
 
-## 五、底层参考
+## 六、底层参考
 
 详细的 API 接口文档和 node-zihao.js 方法说明见 [zihao.md](./zihao.md)。

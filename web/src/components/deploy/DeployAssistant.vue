@@ -35,23 +35,17 @@
     </div>
     <div class="chat-input-area">
       <div class="input-row">
-        <textarea
+        <ResizableTextarea
           v-model="inputMessage"
-          class="input-area"
-          placeholder="输入消息... (Enter 发送)"
+          :rows="5"
+          :min-rows="2"
+          :max-rows="15"
+          placeholder="输入消息... (Enter 发送, Ctrl+Enter 换行)"
           :disabled="disabled && !stopping"
-          rows="3"
-          @keydown.enter.exact="sendMessage"
-        ></textarea>
+          class="input-area"
+          @keydown.enter.native="handleKeydown"
+        />
         <div class="input-actions">
-          <el-button
-            type="primary"
-            @click="deployByDoc"
-            :disabled="disabled || !hasContent"
-            size="small"
-          >
-            <i class="fa-solid fa-play"></i> 按部署文档部署
-          </el-button>
           <el-button
             v-if="disabled && !stopping"
             type="danger"
@@ -79,6 +73,9 @@
           </el-button>
         </div>
       </div>
+      <div class="deploy-doc-link" @click="deployByDoc">
+        <i class="fa-solid fa-file-arrow-up"></i> 按部署文档部署
+      </div>
     </div>
     <div class="status-bar">
       <span :class="sessionStatus === 'processing' ? 'status-thinking' : 'status-ready'">
@@ -97,13 +94,17 @@
 
 <script>
 import { marked } from 'marked'
+import { api } from '../../api'
+import ResizableTextarea from '../ResizableTextarea.vue'
 
 export default {
   name: 'DeployAssistant',
+  components: { ResizableTextarea },
   props: {
     hasContent: { type: Boolean, default: false },
     docContent: { type: String, default: '' },
-    projectPath: { type: String, default: '' }
+    projectPath: { type: String, default: '' },
+    releasePath: { type: String, default: '' }
   },
   data() {
     return {
@@ -124,7 +125,11 @@ export default {
       return this.sessionId ? this.sessionId.slice(0, 8) : '--------'
     }
   },
-  mounted() {
+  async mounted() {
+    const savedSessionId = await this.loadSavedSession()
+    if (savedSessionId) {
+      this.sessionId = savedSessionId
+    }
     this.connect()
   },
   beforeDestroy() {
@@ -138,11 +143,13 @@ export default {
       this.ws = new WebSocket(wsUrl)
 
       this.ws.onopen = () => {
-        this.sessionId = 'deploy-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8)
+        if (!this.sessionId) {
+          this.sessionId = 'deploy-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8)
+        }
         this.ws.send(JSON.stringify({
           type: 'init',
           data: {
-            callbackUrl: '',
+            callbackUrl: 'http://localhost:40000',
             projectPath: this.projectPath || '',
             tools: [],
             sessionId: this.sessionId,
@@ -195,6 +202,8 @@ export default {
           break
         case 'init_ready':
           this.sessionId = msg.data?.sessionId || this.sessionId
+          this.saveSessionId(this.sessionId)
+          this.loadHistoryMessages()
           break
         case 'step':
           this.messages.push({
@@ -246,18 +255,8 @@ export default {
     },
 
     deployByDoc() {
-      if (!this.docContent || this.disabled || !this.ws) return
-      const message = `请按照以下部署文档进行部署：\n\n${this.docContent}`
-      this.messages.push({ type: 'user', content: '按部署文档部署' })
-      this.disabled = true
-      this.stopping = false
-      this.sessionStatus = 'processing'
-
-      this.ws.send(JSON.stringify({
-        type: 'chat',
-        data: { sessionId: this.sessionId, message }
-      }))
-      this.scrollToBottom()
+      if (this.disabled) return
+      this.inputMessage = `请按 ${this.releasePath} 文档进行部署`
     },
 
     stopChat() {
@@ -269,6 +268,17 @@ export default {
       }))
     },
 
+    handleKeydown(e) {
+      if (e.key === 'Enter') {
+        if (e.ctrlKey) {
+          return
+        } else {
+          e.preventDefault()
+          this.sendMessage()
+        }
+      }
+    },
+
     scrollToBottom() {
       this.$nextTick(() => {
         const container = this.$refs.messagesContainer
@@ -276,6 +286,52 @@ export default {
           container.scrollTop = container.scrollHeight
         }
       })
+    },
+
+    async loadSavedSession() {
+      if (!this.projectPath) return null
+      try {
+        const deployJsonPath = `${this.projectPath}/.txcode/release/deploy.json`
+        const res = await api.getFileContent(deployJsonPath)
+        if (res?.data?.content) {
+          const data = JSON.parse(res.data.content)
+          return data.sessionId || null
+        }
+      } catch (e) {
+        // 文件不存在，返回 null
+      }
+      return null
+    },
+
+    async saveSessionId(sessionId) {
+      if (!this.projectPath) return
+      try {
+        const deployJsonPath = `${this.projectPath}/.txcode/release/deploy.json`
+        await api.writeFile(deployJsonPath, JSON.stringify({ sessionId }, null, 2))
+      } catch (e) {
+        console.error('保存 sessionId 失败:', e)
+      }
+    },
+
+    async loadHistoryMessages() {
+      if (!this.sessionId) return
+      try {
+        const res = await api.getMessages(this.sessionId)
+        const messages = res?.data || []
+        if (messages.length > 0) {
+          this.messages = messages.map(msg => {
+            if (msg.type === 'chat' && msg.role === 'user') {
+              return { type: 'user', content: msg.content }
+            }
+            if (msg.role === 'assistant') {
+              return { type: 'done', content: msg.content }
+            }
+            return msg
+          })
+        }
+      } catch (e) {
+        console.error('加载历史消息失败:', e)
+      }
     },
 
     renderMarkdown(text) {
@@ -391,7 +447,7 @@ export default {
 .input-row {
   display: flex;
   gap: 12px;
-  align-items: flex-end;
+  align-items: flex-start;
 }
 .input-area {
   flex: 1;
@@ -410,6 +466,20 @@ export default {
 }
 .input-area::placeholder {
   color: #52525b;
+}
+.deploy-doc-link {
+  color: #60a5fa;
+  font-size: 12px;
+  cursor: pointer;
+  user-select: none;
+  margin-top: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.deploy-doc-link:hover {
+  color: #93c5fd;
+  text-decoration: underline;
 }
 .input-actions {
   display: flex;

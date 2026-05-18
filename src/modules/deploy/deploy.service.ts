@@ -56,28 +56,24 @@ export class DeployService {
 
     const isTarGz = url.endsWith('.tar.gz') || url.endsWith('.tgz');
     const isMd = url.endsWith('.md');
+    const isZip = url.endsWith('.zip');
 
-    if (isTarGz) {
-      const targetDir = path.join(releaseDir, 'release-zihao');
-      if (!fs.existsSync(targetDir)) {
-        fs.mkdirSync(targetDir, { recursive: true });
-      }
-      await this.extractTarGz(tempFilePath, targetDir);
-      fs.unlinkSync(tempFilePath);
-      return { extractedPath: path.relative(projectPath, targetDir) };
-    } else if (isMd) {
-      const targetDir = path.join(releaseDir, 'release-zihao');
-      if (!fs.existsSync(targetDir)) {
-        fs.mkdirSync(targetDir, { recursive: true });
-      }
+    const targetDir = path.join(releaseDir, 'release-zihao');
+    if (!fs.existsSync(targetDir)) {
+      fs.mkdirSync(targetDir, { recursive: true });
+    }
+
+    if (isMd) {
       fs.renameSync(tempFilePath, path.join(targetDir, 'RELEASE.md'));
       return { extractedPath: path.relative(projectPath, targetDir) };
+    } else if (isZip) {
+      await this.extractZip(tempFilePath, targetDir);
+      this.flattenTargetDir(targetDir);
+      fs.unlinkSync(tempFilePath);
+      return { extractedPath: path.relative(projectPath, targetDir) };
     } else {
-      const targetDir = path.join(releaseDir, 'release-zihao');
-      if (!fs.existsSync(targetDir)) {
-        fs.mkdirSync(targetDir, { recursive: true });
-      }
       await this.extractTarGz(tempFilePath, targetDir);
+      this.flattenTargetDir(targetDir);
       fs.unlinkSync(tempFilePath);
       return { extractedPath: path.relative(projectPath, targetDir) };
     }
@@ -94,10 +90,87 @@ export class DeployService {
       fs.mkdirSync(targetDir, { recursive: true });
     }
 
-    await this.extractTarGz(filePath, targetDir);
+    const lowerName = filePath.toLowerCase();
+    if (lowerName.endsWith('.zip')) {
+      await this.extractZip(filePath, targetDir);
+    } else {
+      await this.extractTarGz(filePath, targetDir);
+    }
+    this.flattenTargetDir(targetDir);
     fs.unlinkSync(filePath);
 
     return { extractedPath: path.relative(projectPath, targetDir) };
+  }
+
+  private flattenTargetDir(targetDir: string): void {
+    const entries = fs.readdirSync(targetDir, { withFileTypes: true });
+    const dirs = entries.filter(e => e.isDirectory());
+    const files = entries.filter(e => e.isFile());
+    if (dirs.length === 1 && files.length === 0) {
+      const nestedDir = path.join(targetDir, dirs[0].name);
+      const nestedEntries = fs.readdirSync(nestedDir, { withFileTypes: true });
+      for (const entry of nestedEntries) {
+        const srcPath = path.join(nestedDir, entry.name);
+        const dstPath = path.join(targetDir, entry.name);
+        fs.renameSync(srcPath, dstPath);
+      }
+      fs.rmdirSync(nestedDir);
+    }
+  }
+
+  private async extractZip(filePath: string, targetDir: string): Promise<void> {
+    try {
+      const { execSync } = await import('child_process');
+      if (process.platform === 'win32') {
+        execSync(`powershell -command "Expand-Archive -Path '${filePath}' -DestinationPath '${targetDir}' -Force"`, { stdio: 'pipe' });
+      } else {
+        execSync(`unzip -o "${filePath}" -d "${targetDir}"`, { stdio: 'pipe' });
+      }
+    } catch (err) {
+      logError('system unzip failed, falling back to manual extraction:', err);
+      await this.parseZip(filePath, targetDir);
+    }
+  }
+
+  private async parseZip(filePath: string, targetDir: string): Promise<void> {
+    const buffer = fs.readFileSync(filePath);
+    let offset = 0;
+
+    while (offset + 4 <= buffer.length) {
+      const signature = buffer.readUInt32LE(offset);
+
+      if (signature === 0x04034b50) {
+        const fileNameLen = buffer.readUInt16LE(offset + 26);
+        const extraLen = buffer.readUInt16LE(offset + 28);
+        const compSize = buffer.readUInt32LE(offset + 18);
+        const compMethod = buffer.readUInt16LE(offset + 8);
+        const name = buffer.toString('utf-8', offset + 30, offset + 30 + fileNameLen);
+
+        const dataOffset = offset + 30 + fileNameLen + extraLen;
+        const data = buffer.subarray(dataOffset, dataOffset + compSize);
+
+        if (!name.endsWith('/') && compSize > 0) {
+          const filePath = path.join(targetDir, name);
+          const fileDir = path.dirname(filePath);
+          if (!fs.existsSync(fileDir)) {
+            fs.mkdirSync(fileDir, { recursive: true });
+          }
+
+          if (compMethod === 0) {
+            fs.writeFileSync(filePath, data);
+          } else if (compMethod === 8) {
+            const decompressed = zlib.inflateRawSync(data);
+            fs.writeFileSync(filePath, decompressed);
+          }
+        }
+
+        offset = dataOffset + compSize;
+      } else if (signature === 0x02014b50 || signature === 0x06054b50) {
+        break;
+      } else {
+        offset++;
+      }
+    }
   }
 
   private async extractTarGz(filePath: string, targetDir: string): Promise<void> {

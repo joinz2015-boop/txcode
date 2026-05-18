@@ -17,6 +17,7 @@
           :has-content="!!editorContent"
           :doc-content="editorContent"
           :project-path="projectPath"
+          :release-path="releasePath"
         />
       </div>
     </template>

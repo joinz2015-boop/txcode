@@ -37,20 +37,20 @@
 
       <div class="import-card">
         <div class="import-card-title">
-          <i class="fa-solid fa-upload"></i> 选择 tar.gz 文件上传
+          <i class="fa-solid fa-upload"></i> 选择压缩包上传(tar.gz / zip)
         </div>
         <div class="import-card-body">
           <el-upload
             drag
             :auto-upload="false"
             :show-file-list="true"
-            accept=".tar.gz,.tgz"
+            accept=".tar.gz,.tgz,.zip"
             :on-change="handleFileChange"
             :file-list="fileList"
             :limit="1"
           >
             <i class="el-icon-upload"></i>
-            <div class="el-upload__text">将 tar.gz 文件拖到此处，或<em>点击上传</em></div>
+            <div class="el-upload__text">将 tar.gz / zip 文件拖到此处，或<em>点击上传</em></div>
             <div class="el-upload__tip" slot="tip">上传后自动解压到 .txcode/release/ 目录</div>
           </el-upload>
         </div>
