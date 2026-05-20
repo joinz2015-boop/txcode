@@ -26,6 +26,11 @@ export interface TxConfig {
     maxContextTokens: number;
     context: ContextConfig;
   };
+
+  songbing: {
+    platformUrl: string;
+    apiBaseUrl: string;
+  };
 }
 
 /**
@@ -52,6 +57,13 @@ const config: TxConfig = {
       percentage: 0.95,
       autoCompact: true,
     },
+  },
+
+  songbing: {
+    // platformUrl: 'http://ai.songbingcloud.com',
+    // apiBaseUrl: 'http://ai.songbingcloud.com/api/v1',
+    platformUrl: 'http://localhost:5174',
+    apiBaseUrl: 'http://localhost:5174/api/v1',
   },
 };
 

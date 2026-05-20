@@ -1044,4 +1044,22 @@ export const api = {
   importConfig(content) {
     return request('POST', '/settings/import', { content });
   },
+
+  // ==================== 松饼认证 ====================
+
+  getSongbingConfig() {
+    return request('GET', '/songbing/config');
+  },
+
+  startSongbingAuth() {
+    return request('POST', '/songbing/auth/start');
+  },
+
+  verifySongbingAuth(key) {
+    return request('POST', '/songbing/auth/verify', { key });
+  },
+
+  syncSongbingModels() {
+    return request('POST', '/songbing/sync-models');
+  },
 };

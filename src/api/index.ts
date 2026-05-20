@@ -28,6 +28,7 @@ import { devlogRouter } from './devlog.routes.js';
 import { zihaoRouter } from './zihao.routes.js';
 import { configExportImportRouter } from './config-export-import.routes.js';
 import { deployRouter } from './deploy.routes.js';
+import { songbingRouter } from './songbing.routes.js';
 
 export const apiRouter = Router();
 
@@ -57,5 +58,6 @@ apiRouter.use('/devlog', devlogRouter);
 apiRouter.use('/zihao', zihaoRouter);
 apiRouter.use('/deploy', deployRouter);
 apiRouter.use('/settings', configExportImportRouter);
+apiRouter.use('/songbing', songbingRouter);
 
 export type * from './api.types.js';

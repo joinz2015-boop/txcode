@@ -22,6 +22,7 @@
           <ProviderList
             :providers="providers"
             :models="models"
+            :songbing-provider="songbingProvider"
             @add-provider="openProviderDialog(null)"
             @edit-provider="openProviderDialog($event)"
             @delete-provider="deleteProvider"
@@ -30,6 +31,8 @@
             @delete-model="deleteModel"
             @export-config="handleExportConfig"
             @import-config="handleImportConfig"
+            @auth-songbing="authSongbing"
+            @sync-songbing-models="syncSongbingModels"
           />
         </div>
 
@@ -238,6 +241,9 @@ export default {
         configured: false,
       },
       wafGatewayLoading: false,
+      songbingConfig: { platformUrl: '', apiBaseUrl: '' },
+      songbingProvider: null,
+      pollTimer: null,
     }
   },
 
@@ -248,6 +254,7 @@ export default {
     this.loadConfig()
     this.loadGatewayConfig()
     this.loadGatewayStatus()
+    this.loadSongbingConfig()
   },
 
   activated() {
@@ -287,6 +294,7 @@ export default {
         this.providers = res.data || []
         const defaultProvider = this.providers.find(p => p.isDefault)
         this.defaultProviderId = defaultProvider?.id || null
+        this.checkSongbingProvider()
       } catch (e) {
         this.$message.error('加载提供商失败: ' + e.message)
       }
@@ -619,6 +627,78 @@ export default {
       }
       input.click()
     },
+
+    async loadSongbingConfig() {
+      try {
+        const res = await this.$api.getSongbingConfig()
+        this.songbingConfig = res.data
+      } catch (e) {
+        console.error('Failed to load songbing config:', e)
+      }
+    },
+
+    checkSongbingProvider() {
+      this.songbingProvider = this.providers.find(p => p.name === '松饼AI') || null
+    },
+
+    async authSongbing() {
+      if (this.pollTimer) {
+        clearInterval(this.pollTimer)
+        this.pollTimer = null
+      }
+
+      try {
+        const startRes = await this.$api.startSongbingAuth()
+        const { key, auth_url } = startRes.data
+
+        window.open(this.songbingConfig.platformUrl + auth_url, '_blank')
+        this.$message.info('请在打开的页面完成授权，认证中...')
+
+        let attempts = 0
+        this.pollTimer = setInterval(async () => {
+          attempts++
+          if (attempts >= 100) {
+            clearInterval(this.pollTimer)
+            this.pollTimer = null
+            this.$message.warning('认证超时，请重试')
+            return
+          }
+          try {
+            const verifyRes = await this.$api.verifySongbingAuth(key)
+            if (verifyRes.data?.active) {
+              clearInterval(this.pollTimer)
+              this.pollTimer = null
+              this.$message.success(`松饼AI 认证成功！已同步 ${verifyRes.data.syncedModels} 个模型`)
+              await this.loadProviders()
+              await this.loadModels()
+              this.checkSongbingProvider()
+            }
+          } catch (e) { /* 单次失败不中断 */ }
+        }, 3000)
+      } catch (e) {
+        this.$message.error('认证失败: ' + e.message)
+      }
+    },
+
+    async syncSongbingModels() {
+      if (!this.songbingProvider) {
+        this.$message.warning('请先完成认证')
+        return
+      }
+      try {
+        const res = await this.$api.syncSongbingModels()
+        this.$message.success(`同步成功，新增 ${res.data.count} 个模型`)
+        await this.loadModels()
+      } catch (e) {
+        this.$message.error('同步模型失败: ' + e.message)
+      }
+    },
+  },
+
+  beforeDestroy() {
+    if (this.pollTimer) {
+      clearInterval(this.pollTimer)
+    }
   },
 }
 </script>

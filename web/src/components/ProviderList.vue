@@ -14,8 +14,43 @@
     </div>
 
     <div class="providers">
+      <!-- 官方服务商（硬编码，始终显示） -->
+      <div class="provider-item official-provider">
+        <div class="provider-main" @click="toggleProvider('songbing-official')">
+          <span class="expand-icon" :class="{ expanded: expandedProviders.includes('songbing-official') }">▶</span>
+          <div class="provider-logo official-logo">S</div>
+          <div class="provider-info">
+            <div class="provider-name">
+              松饼AI
+              <el-tag type="warning" size="mini">官方</el-tag>
+              <el-tag v-if="songbingProvider" type="success" size="mini">已认证</el-tag>
+            </div>
+            <div class="provider-url">{{ songbingBaseUrl }}</div>
+          </div>
+          <div class="provider-actions">
+            <el-button type="warning" size="small" @click.stop="$emit('auth-songbing')">
+              {{ songbingProvider ? '重新认证' : '认证' }}
+            </el-button>
+            <el-button type="primary" size="small" @click.stop="$emit('sync-songbing-models')">
+              同步模型
+            </el-button>
+          </div>
+        </div>
+
+        <div class="models-panel" :class="{ expanded: expandedProviders.includes('songbing-official') }">
+          <div class="model-item" v-for="model in songbingModels" :key="model.id">
+            <span class="model-name">{{ model.name }}</span>
+            <el-tag v-if="model.enabled" type="success" size="mini">启用</el-tag>
+            <el-tag v-else type="info" size="mini">禁用</el-tag>
+          </div>
+          <div v-if="songbingModels.length === 0" class="empty-models">
+            暂无模型，请先认证后同步
+          </div>
+        </div>
+      </div>
+
       <div
-        v-for="provider in providers"
+        v-for="provider in nonOfficialProviders"
         :key="provider.id"
         class="provider-item"
       >
@@ -55,7 +90,7 @@
         </div>
       </div>
 
-      <div v-if="providers.length === 0" class="empty">
+      <div v-if="nonOfficialProviders.length === 0" class="empty">
         暂无服务商
       </div>
     </div>
@@ -75,14 +110,31 @@ export default {
       type: Array,
       default: () => [],
     },
+    songbingProvider: {
+      type: Object,
+      default: null,
+    },
   },
 
-  emits: ['add-provider', 'edit-provider', 'delete-provider', 'add-model', 'edit-model', 'delete-model', 'export-config', 'import-config'],
+  emits: ['add-provider', 'edit-provider', 'delete-provider', 'add-model', 'edit-model', 'delete-model', 'export-config', 'import-config', 'auth-songbing', 'sync-songbing-models'],
 
   data() {
     return {
       expandedProviders: [],
     }
+  },
+
+  computed: {
+    nonOfficialProviders() {
+      return this.providers.filter(p => p.name !== '松饼AI');
+    },
+    songbingModels() {
+      if (!this.songbingProvider) return [];
+      return this.models.filter(m => m.providerId === this.songbingProvider.id);
+    },
+    songbingBaseUrl() {
+      return this.songbingProvider?.baseUrl || 'https://ai.songbingcloud.com/api/v1';
+    },
   },
 
   methods: {

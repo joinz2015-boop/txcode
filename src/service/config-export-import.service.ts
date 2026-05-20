@@ -3,6 +3,7 @@ import { dbService } from '../modules/db/index.js';
 export interface ExportData {
   providers?: any[];
   models?: any[];
+  providerAuth?: any[];
   gateway?: any;
   wafGateway?: any;
   email?: any;
@@ -35,6 +36,17 @@ export class ConfigExportImportService {
         supportsVision: Boolean(m.supports_vision),
         supportsTools: m.supports_tools !== 0,
         enabled: Boolean(m.enabled),
+      }));
+    }
+
+    const providerAuth = dbService.all<any>('SELECT * FROM provider_auth');
+    if (providerAuth.length > 0) {
+      data.providerAuth = providerAuth.map(a => ({
+        id: a.id,
+        providerName: a.provider_name,
+        key: a.key,
+        authUrl: a.auth_url,
+        active: Boolean(a.active),
       }));
     }
 
@@ -101,6 +113,23 @@ export class ConfigExportImportService {
             dbService.run(
               `INSERT INTO models (id, provider_id, name, context_window, max_output_tokens, supports_vision, supports_tools, enabled) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
               [m.id, m.providerId, m.name, m.contextWindow || 4096, m.maxOutputTokens || 4096, m.supportsVision ? 1 : 0, m.supportsTools !== false ? 1 : 0, m.enabled ? 1 : 0]
+            );
+          }
+        }
+      }
+
+      if (data.providerAuth && Array.isArray(data.providerAuth)) {
+        for (const a of data.providerAuth) {
+          const existing = dbService.get<any>('SELECT id FROM provider_auth WHERE id = ?', [a.id]);
+          if (existing) {
+            dbService.run(
+              `UPDATE provider_auth SET provider_name = ?, key = ?, auth_url = ?, active = ? WHERE id = ?`,
+              [a.providerName, a.key, a.authUrl || '', a.active ? 1 : 0, a.id]
+            );
+          } else {
+            dbService.run(
+              `INSERT INTO provider_auth (id, provider_name, key, auth_url, active) VALUES (?, ?, ?, ?, ?)`,
+              [a.id, a.providerName, a.key, a.authUrl || '', a.active ? 1 : 0]
             );
           }
         }
