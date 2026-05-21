@@ -94,7 +94,7 @@
 
 <script>
 import { marked } from 'marked'
-import { api } from '../../api'
+import { api } from '../../../api'
 import ResizableTextarea from '../ResizableTextarea.vue'
 
 export default {

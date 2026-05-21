@@ -13,7 +13,7 @@
 
 <script>
 import * as monaco from 'monaco-editor'
-import { api } from '../../api'
+import { api } from '../../../api'
 
 export default {
   name: 'DeployEditor',

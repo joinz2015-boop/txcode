@@ -34,9 +34,9 @@
 <script>
 import { deployApi } from '../../api/deploy/deployApi'
 import { api } from '../../api'
-import DeployEditor from '../../components/deploy/DeployEditor.vue'
-import DeployAssistant from '../../components/deploy/DeployAssistant.vue'
-import DeployImport from '../../components/deploy/DeployImport.vue'
+import DeployEditor from '../../components/pc/deploy/DeployEditor.vue'
+import DeployAssistant from '../../components/pc/deploy/DeployAssistant.vue'
+import DeployImport from '../../components/pc/deploy/DeployImport.vue'
 
 export default {
   name: 'deployView',

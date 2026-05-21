@@ -28,7 +28,7 @@
 </template>
 
 <script>
-import { zihaoApi } from '../../api/zihao/zihaoApi.js'
+import { zihaoApi } from '../../../api/zihao/zihaoApi.js'
 
 export default {
   name: 'ZihaoConfigDialog',

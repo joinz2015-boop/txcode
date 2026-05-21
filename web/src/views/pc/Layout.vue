@@ -103,7 +103,7 @@
 
 <script>
 import { api } from '../../api'
-import SelectProjectDialog from '../../components/SelectProjectDialog.vue'
+import SelectProjectDialog from '../../components/pc/SelectProjectDialog.vue'
 
 export default {
   name: 'Layout',

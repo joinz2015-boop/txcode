@@ -86,11 +86,11 @@
 </template>
 
 <script>
-import WorkflowSidebar from '../../components/WorkflowSidebar.vue'
-import Step1NewReq from '../../components/Step1NewReq.vue'
-import Step2Design from '../../components/Step2Design.vue'
-import Step3CodeGen from '../../components/Step3CodeGen.vue'
-import Step4Test from '../../components/Step4Test.vue'
+import WorkflowSidebar from '../../components/pc/WorkflowSidebar.vue'
+import Step1NewReq from '../../components/pc/Step1NewReq.vue'
+import Step2Design from '../../components/pc/Step2Design.vue'
+import Step3CodeGen from '../../components/pc/Step3CodeGen.vue'
+import Step4Test from '../../components/pc/Step4Test.vue'
 import { api } from '../../api'
 
 export default {

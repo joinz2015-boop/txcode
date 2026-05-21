@@ -129,7 +129,7 @@
 </template>
 
 <script>
-import { api } from '../api'
+import { api } from '../../api'
 import { marked } from 'marked'
 import ModelSelectDialog from './ModelSelectDialog.vue'
 import CommandDialog from './CommandDialog.vue'

@@ -44,7 +44,7 @@
 </template>
 
 <script>
-import { api } from '../../../../api'
+import { api } from '../../api'
 import FileTreeNode from './FileTreeNode.vue'
 
 export default {

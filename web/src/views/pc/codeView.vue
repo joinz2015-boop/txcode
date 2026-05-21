@@ -143,12 +143,12 @@
 
 <script>
 import { marked } from 'marked'
-import SessionsPanel from '../../components/SessionsPanel.vue'
-import FileSelectDialog from '../../components/FileSelectDialog.vue'
-import ModelSelectDialog from '../../components/ModelSelectDialog.vue'
-import CommandDialog from '../../components/CommandDialog.vue'
-import DevLogDialog from '../../components/DevLogDialog.vue'
-import ResizableTextarea from '../../components/ResizableTextarea.vue'
+import SessionsPanel from '../../components/pc/SessionsPanel.vue'
+import FileSelectDialog from '../../components/pc/FileSelectDialog.vue'
+import ModelSelectDialog from '../../components/pc/ModelSelectDialog.vue'
+import CommandDialog from '../../components/pc/CommandDialog.vue'
+import DevLogDialog from '../../components/pc/DevLogDialog.vue'
+import ResizableTextarea from '../../components/pc/ResizableTextarea.vue'
 import { ws } from '../../api/websocket/websocket_client.js'
 import * as sessions from '../../api/sessions.js'
 import * as config from '../../api/config.js'

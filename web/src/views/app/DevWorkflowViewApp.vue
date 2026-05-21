@@ -51,11 +51,11 @@
 </template>
 
 <script>
-import AppWorkflowStep from './components/AppWorkflowStep.vue'
-import AppStep1Req from './components/AppStep1Req.vue'
-import AppStep2Design from './components/AppStep2Design.vue'
-import AppStep3Code from './components/AppStep3Code.vue'
-import AppStep4Test from './components/AppStep4Test.vue'
+import AppWorkflowStep from '../../components/app/AppWorkflowStep.vue'
+import AppStep1Req from '../../components/app/AppStep1Req.vue'
+import AppStep2Design from '../../components/app/AppStep2Design.vue'
+import AppStep3Code from '../../components/app/AppStep3Code.vue'
+import AppStep4Test from '../../components/app/AppStep4Test.vue'
 import { api } from '../../api'
 
 export default {

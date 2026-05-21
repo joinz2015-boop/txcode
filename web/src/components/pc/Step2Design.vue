@@ -117,7 +117,7 @@
 </template>
 
 <script>
-import { api } from '../api'
+import { api } from '../../api'
 import { marked } from 'marked'
 import * as monaco from 'monaco-editor'
 import ModelSelectDialog from './ModelSelectDialog.vue'

@@ -17,7 +17,7 @@
 import { Terminal } from 'xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import 'xterm/css/xterm.css'
-import { api } from '../api'
+import { api } from '../../api'
 
 export default {
   name: 'TerminalPanel',

@@ -201,8 +201,8 @@
 <script>
 import { api } from '../../api'
 import { zihaoApi } from '../../api/zihao/zihaoApi.js'
-import ZihaoConfigDialog from '../../components/zihao/ZihaoConfigDialog.vue'
-import ZihaoContextMenu from '../../components/zihao/ZihaoContextMenu.vue'
+import ZihaoConfigDialog from '../../components/pc/zihao/ZihaoConfigDialog.vue'
+import ZihaoContextMenu from '../../components/pc/zihao/ZihaoContextMenu.vue'
 
 export default {
   name: 'FileZihao',

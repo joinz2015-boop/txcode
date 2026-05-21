@@ -6,8 +6,8 @@
 </template>
 
 <script>
-import WikiSidebar from '@/components/wiki/WikiSidebar.vue';
-import WikiContent from '@/components/wiki/WikiContent.vue';
+import WikiSidebar from '@/components/pc/wiki/WikiSidebar.vue';
+import WikiContent from '@/components/pc/wiki/WikiContent.vue';
 
 export default {
   name: 'WikiView',

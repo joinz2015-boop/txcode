@@ -140,7 +140,7 @@
 
 <script>
 import { api } from '../../api'
-import ConfirmDialog from '../../components/ConfirmDialog.vue'
+import ConfirmDialog from '../../components/pc/ConfirmDialog.vue'
 
 export default {
   name: 'GitChangesApp',

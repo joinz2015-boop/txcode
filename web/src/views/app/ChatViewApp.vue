@@ -235,7 +235,7 @@ import { marked } from 'marked'
 import { ws } from '../../api/websocket/websocket_client.js'
 import * as sessions from '../../api/sessions.js'
 import { api } from '../../api'
-import FileSelectDrawer from './components/chat/FileSelectDrawer.vue'
+import FileSelectDrawer from '../../components/app/FileSelectDrawer.vue'
 
 export default {
   name: 'ChatViewApp',

@@ -36,10 +36,10 @@
 
 <script>
 import { api } from '../../api'
-import GitChangesSidebar from '../../components/GitChangesSidebar.vue'
-import DiffViewer from '../../components/DiffViewer.vue'
-import FileViewerModal from '../../components/FileViewerModal.vue'
-import ConfirmDialog from '../../components/ConfirmDialog.vue'
+import GitChangesSidebar from '../../components/pc/GitChangesSidebar.vue'
+import DiffViewer from '../../components/pc/DiffViewer.vue'
+import FileViewerModal from '../../components/pc/FileViewerModal.vue'
+import ConfirmDialog from '../../components/pc/ConfirmDialog.vue'
 
 export default {
   name: 'GitChanges',

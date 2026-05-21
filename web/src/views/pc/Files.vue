@@ -192,8 +192,8 @@
 </template>
 
 <script>
-import FileTreeNode from '../../components/FileTreeNode.vue'
-import CopyPathDialog from '../../components/common/CopyPathDialog.vue'
+import FileTreeNode from '../../components/pc/FileTreeNode.vue'
+import CopyPathDialog from '../../components/pc/common/CopyPathDialog.vue'
 import { api } from '../../api'
 import * as monaco from 'monaco-editor'
 

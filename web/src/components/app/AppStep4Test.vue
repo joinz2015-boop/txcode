@@ -1,12 +1,12 @@
 <template>
-  <div class="step3-code">
+  <div class="step4-test">
     <div class="chat-toolbar">
       <span class="model-name" @click="showModelDrawer = true">
         {{ modelName || 'gpt-4o' }}
         <i class="fa-solid fa-chevron-down"></i>
       </span>
-      <button class="toolbar-btn" @click="insertGenerateCommand" :disabled="isProcessing">
-        <i class="fa-solid fa-code"></i>
+      <button class="toolbar-btn" @click="insertTestCommand" :disabled="isProcessing">
+        <i class="fa-solid fa-check-circle"></i>
       </button>
       <button class="toolbar-btn" @click="showCommandDrawer = true">
         <i class="fa-solid fa-terminal"></i>
@@ -18,8 +18,8 @@
 
     <div class="chat-area" ref="chatArea">
       <div v-if="!logItems.length" class="empty-state">
-        <i class="fa-solid fa-code"></i>
-        <p>描述代码需求，AI将生成代码</p>
+        <i class="fa-solid fa-clipboard-check"></i>
+        <p>描述测试需求，AI将进行验收测试</p>
       </div>
 
       <template v-for="(item, idx) in logItems" :key="item._id || idx">
@@ -62,7 +62,7 @@
       </template>
 
       <div v-if="isProcessing" class="message assistant thinking">
-        <div class="message-bubble">生成中...</div>
+        <div class="message-bubble">测试中...</div>
       </div>
     </div>
 
@@ -72,7 +72,7 @@
           ref="inputField"
           v-model="inputMessage"
           class="input-field"
-          placeholder="描述代码需求... (Enter发送)"
+          placeholder="描述测试需求... (Enter发送)"
           @keydown.enter.exact.prevent="sendMessage"
         ></textarea>
       </div>
@@ -89,7 +89,7 @@
     <div class="status-bar">
       <span class="status-indicator">
         <span class="status-dot" :class="{ processing: isProcessing }"></span>
-        {{ isProcessing ? '生成中...' : '就绪' }}
+        {{ isProcessing ? '测试中...' : '就绪' }}
       </span>
       <span>Token: {{ promptTokens || 0 }}</span>
     </div>
@@ -170,13 +170,13 @@
 
 <script>
 import { marked } from 'marked'
-import { ws } from '../../../api/websocket/websocket_client.js'
-import * as sessions from '../../../api/sessions.js'
-import { api } from '../../../api'
-import FileSelectDrawer from './chat/FileSelectDrawer.vue'
+import { ws } from '../../api/websocket/websocket_client.js'
+import * as sessions from '../../api/sessions.js'
+import { api } from '../../api'
+import FileSelectDrawer from './FileSelectDrawer.vue'
 
 export default {
-  name: 'AppStep3Code',
+  name: 'AppStep4Test',
   components: {
     FileSelectDrawer
   },
@@ -258,7 +258,7 @@ export default {
         const fileRes = await api.getFileContent(sessionFilePath)
         if (fileRes && fileRes.content) {
           const sessionData = JSON.parse(fileRes.content)
-          this.sessionId = sessionData.codeSessionId || ''
+          this.sessionId = sessionData.testSessionId || ''
         } else {
           this.sessionId = ''
         }
@@ -331,9 +331,9 @@ export default {
         }
       })
     },
-    insertGenerateCommand() {
+    insertTestCommand() {
       if (this.specFilePath) {
-        this.inputMessage = `根据 ${this.specFilePath} 方案开发相应功能，先不要修改方案文档。`
+        this.inputMessage = `根据 ${this.specFilePath} 方案测试相应功能是否实现。`
       }
     },
     async sendMessage() {
@@ -404,7 +404,7 @@ export default {
 </script>
 
 <style scoped>
-.step3-code {
+.step4-test {
   height: 100%;
   display: flex;
   flex-direction: column;

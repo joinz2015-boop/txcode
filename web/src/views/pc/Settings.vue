@@ -199,10 +199,10 @@
 </template>
 
 <script>
-import ProviderList from '../../components/ProviderList.vue'
-import ProviderDialog from '../../components/ProviderDialog.vue'
-import ModelDialog from '../../components/ModelDialog.vue'
-import SkillsList from '../../components/SkillsList.vue'
+import ProviderList from '../../components/pc/ProviderList.vue'
+import ProviderDialog from '../../components/pc/ProviderDialog.vue'
+import ModelDialog from '../../components/pc/ModelDialog.vue'
+import SkillsList from '../../components/pc/SkillsList.vue'
 
 export default {
   name: 'Settings',
