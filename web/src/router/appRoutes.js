@@ -1,42 +1,42 @@
 import AppLayout from '../views/app/AppLayout.vue'
-import IndexView from '../views/app/IndexView.vue'
-import AppFilesView from '../views/app/FilesView.vue'
-import ChatView from '../views/app/ChatView.vue'
-import Settings from '../views/Settings.vue'
+import IndexViewApp from '../views/app/IndexViewApp.vue'
+import AppFilesView from '../views/app/FilesViewApp.vue'
+import ChatViewApp from '../views/app/ChatViewApp.vue'
+import Settings from '../views/pc/Settings.vue'
 
 export default {
-  path: '/app',
+  path: '/views/app',
   component: AppLayout,
   children: [
     {
       path: '',
       name: 'app-index',
-      component: IndexView,
+      component: IndexViewApp,
     },
     {
-      path: 'code',
-      name: 'app-code',
-      component: ChatView,
+      path: 'ChatViewApp',
+      name: 'app-ChatViewApp',
+      component: ChatViewApp,
     },
     {
-      path: 'code/:id',
-      name: 'app-code-session',
-      component: ChatView,
+      path: 'ChatViewApp/:id',
+      name: 'app-ChatViewApp-session',
+      component: ChatViewApp,
     },
     {
-      path: 'files',
-      name: 'app-files',
+      path: 'FilesViewApp',
+      name: 'app-FilesViewApp',
       component: AppFilesView,
     },
     {
-      path: 'git',
-      name: 'app-git',
+      path: 'GitChangesApp',
+      name: 'app-GitChangesApp',
       component: () => import('../views/app/GitChangesApp.vue'),
     },
     {
-      path: 'dev',
-      name: 'app-dev',
-      component: () => import('../views/app/DevWorkflowView.vue'),
+      path: 'DevWorkflowViewApp',
+      name: 'app-DevWorkflowViewApp',
+      component: () => import('../views/app/DevWorkflowViewApp.vue'),
     },
     {
       path: 'settings',

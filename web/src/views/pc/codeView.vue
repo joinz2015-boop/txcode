@@ -143,15 +143,15 @@
 
 <script>
 import { marked } from 'marked'
-import SessionsPanel from '../components/SessionsPanel.vue'
-import FileSelectDialog from '../components/FileSelectDialog.vue'
-import ModelSelectDialog from '../components/ModelSelectDialog.vue'
-import CommandDialog from '../components/CommandDialog.vue'
-import DevLogDialog from '../components/DevLogDialog.vue'
-import ResizableTextarea from '../components/ResizableTextarea.vue'
-import { ws } from '../api/websocket/websocket_client.js'
-import * as sessions from '../api/sessions.js'
-import * as config from '../api/config.js'
+import SessionsPanel from '../../components/SessionsPanel.vue'
+import FileSelectDialog from '../../components/FileSelectDialog.vue'
+import ModelSelectDialog from '../../components/ModelSelectDialog.vue'
+import CommandDialog from '../../components/CommandDialog.vue'
+import DevLogDialog from '../../components/DevLogDialog.vue'
+import ResizableTextarea from '../../components/ResizableTextarea.vue'
+import { ws } from '../../api/websocket/websocket_client.js'
+import * as sessions from '../../api/sessions.js'
+import * as config from '../../api/config.js'
 
 export default {
   name: 'CodeView',

@@ -1,33 +1,32 @@
 /**
- * Vue Router 路由配置
- * 
- * 定义应用的路由结构：
- * - /           首页，重定向到聊天页
- * - /chat/:id   聊天页面，支持会话 ID 参数
- * - /files      文件管理页面
- * - /skills     Skills 页面
- * - /db         数据库页面
- * - /settings   设置页面
+ * Vue Router 路由配置（Hash 模式）
  */
 
 import Vue from 'vue';
 import VueRouter from 'vue-router';
-import CodeView from '../views/codeView.vue';
-import Settings from '../views/Settings.vue';
-import Files from '../views/Files.vue';
-import Skills from '../views/Skills.vue';
-import DbView from '../views/DbView.vue';
+import CodeView from '../views/pc/codeView.vue';
+import Settings from '../views/pc/Settings.vue';
+import Files from '../views/pc/Files.vue';
+import Skills from '../views/pc/Skills.vue';
+import DbView from '../views/pc/DbView.vue';
 import appRoutes from './appRoutes.js';
 
 Vue.use(VueRouter);
 
 const routes = [
-  appRoutes,
   {
     path: '/',
-    component: () => import('../views/Layout.vue'),
-    redirect: '/codeView',
+    redirect: '/views/pc/codeView',
+  },
+  appRoutes,
+  {
+    path: '/views/pc',
+    component: () => import('../views/pc/Layout.vue'),
     children: [
+      {
+        path: '',
+        redirect: '/views/pc/codeView',
+      },
       {
         path: 'codeView',
         name: 'codeView',
@@ -51,12 +50,12 @@ const routes = [
       {
         path: 'terminal',
         name: 'terminal',
-        component: () => import('../views/TerminalView.vue'),
+        component: () => import('../views/pc/TerminalView.vue'),
       },
       {
         path: 'terminal/:id',
         name: 'terminal-session',
-        component: () => import('../views/TerminalView.vue'),
+        component: () => import('../views/pc/TerminalView.vue'),
       },
       {
         path: 'db',
@@ -66,17 +65,17 @@ const routes = [
       {
         path: 'aiLogs',
         name: 'aiLogs',
-        component: () => import('../views/AiLogsView.vue'),
+        component: () => import('../views/pc/AiLogsView.vue'),
       },
       {
         path: 'tasks',
         name: 'tasks',
-        component: () => import('../views/TasksView.vue'),
+        component: () => import('../views/pc/TasksView.vue'),
       },
       {
         path: 'devWorkflow',
         name: 'devWorkflow',
-        component: () => import('../views/DevWorkflowView.vue'),
+        component: () => import('../views/pc/DevWorkflowView.vue'),
       },
       {
         path: 'settings',
@@ -86,34 +85,34 @@ const routes = [
       {
         path: 'git-changes',
         name: 'gitChanges',
-        component: () => import('../views/GitChanges.vue'),
+        component: () => import('../views/pc/GitChanges.vue'),
       },
       {
         path: 'custom-actions',
         name: 'customActions',
-        component: () => import('../views/CustomActionsView.vue'),
+        component: () => import('../views/pc/CustomActionsView.vue'),
       },
       {
         path: 'wiki',
         name: 'wiki',
-        component: () => import('../views/WikiView.vue'),
+        component: () => import('../views/pc/WikiView.vue'),
       },
       {
         path: 'fileZihao',
         name: 'fileZihao',
-        component: () => import('../views/fileZihao.vue'),
+        component: () => import('../views/pc/fileZihao.vue'),
       },
       {
         path: 'deploy',
         name: 'deploy',
-        component: () => import('../views/deployView.vue'),
+        component: () => import('../views/pc/deployView.vue'),
       },
     ],
   },
 ];
 
 const router = new VueRouter({
-  mode: 'history',
+  mode: 'hash',
   routes,
 });
 

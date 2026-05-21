@@ -35,8 +35,8 @@
 </template>
 
 <script>
-import { api } from '../api'
-import TerminalPanel from '../components/TerminalPanel.vue'
+import { api } from '../../api'
+import TerminalPanel from '../../components/TerminalPanel.vue'
 
 export default {
   name: 'TerminalView',

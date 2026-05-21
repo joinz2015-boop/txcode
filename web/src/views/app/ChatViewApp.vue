@@ -238,7 +238,7 @@ import { api } from '../../api'
 import FileSelectDrawer from './components/chat/FileSelectDrawer.vue'
 
 export default {
-  name: 'ChatView',
+  name: 'ChatViewApp',
   components: {
     FileSelectDrawer
   },
@@ -296,7 +296,7 @@ export default {
   },
   methods: {
     goBack() {
-      this.$router.push('/app')
+      this.$router.push('/views/app')
     },
 
     initGlobalWs() {
@@ -376,7 +376,7 @@ export default {
       this.isProcessing = session.status === 'processing'
 
       if (navigate && this.$route.params.id !== session.id) {
-        this.$router.push({ name: 'app-code-session', params: { id: session.id } }).catch(() => {})
+        this.$router.push({ name: 'app-ChatViewApp-session', params: { id: session.id } }).catch(() => {})
       }
 
       await this.loadMessages()

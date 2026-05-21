@@ -7,12 +7,12 @@
           <span>TXCode Agent</span>
         </div>
         <div class="relative">
-          <a href="/devWorkflow" target="_blank" @click.prevent="openDevWorkflow" class="hover:text-white px-3 py-1 rounded border border-transparent hover:border-accent transition-colors cursor-pointer" :class="$route.name === 'devWorkflow' ? 'text-accent border-accent' : 'text-gray-400'">
+          <a href="/#/views/pc/devWorkflow" target="_blank" class="hover:text-white px-3 py-1 rounded border border-transparent hover:border-accent transition-colors cursor-pointer" :class="$route.name === 'devWorkflow' ? 'text-accent border-accent' : 'text-gray-400'">
             <i class="fa-solid fa-laptop-code mr-1"></i> 软件研发
           </a>
         </div>
         <div class="relative">
-          <router-link to="/deploy" class="hover:text-white px-3 py-1 rounded border border-transparent hover:border-accent transition-colors cursor-pointer" :class="$route.name === 'deploy' ? 'text-accent border-accent' : 'text-gray-400'">
+          <router-link to="/views/pc/deploy" class="hover:text-white px-3 py-1 rounded border border-transparent hover:border-accent transition-colors cursor-pointer" :class="$route.name === 'deploy' ? 'text-accent border-accent' : 'text-gray-400'">
             <i class="fa-solid fa-rocket mr-1"></i> 部署
           </router-link>
         </div>
@@ -46,39 +46,39 @@
     <div class="flex-1 flex overflow-hidden">
       <nav class="w-12 bg-activityBar flex flex-col items-center py-2 shrink-0 border-r border-black z-10 justify-between">
         <div class="flex flex-col items-center w-full">
-          <router-link to="/codeView" class="w-10 h-10 mb-2 rounded flex items-center justify-center relative" :class="$route.name === 'codeView' || $route.name === 'codeView-session' ? 'text-white border-l-2 border-accent bg-sidebar' : 'text-textMuted hover:text-white border-l-2 border-transparent'" title="工作台">
+          <router-link to="/views/pc/codeView" class="w-10 h-10 mb-2 rounded flex items-center justify-center relative" :class="$route.name === 'codeView' || $route.name === 'codeView-session' ? 'text-white border-l-2 border-accent bg-sidebar' : 'text-textMuted hover:text-white border-l-2 border-transparent'" title="工作台">
             <i class="fa-regular fa-comments text-xl"></i>
           </router-link>
-          <router-link to="/files" class="w-10 h-10 mb-2 rounded flex items-center justify-center" :class="$route.name === 'files' ? 'text-white border-l-2 border-accent bg-sidebar' : 'text-textMuted hover:text-white border-l-2 border-transparent'" title="文件">
+          <router-link to="/views/pc/files" class="w-10 h-10 mb-2 rounded flex items-center justify-center" :class="$route.name === 'files' ? 'text-white border-l-2 border-accent bg-sidebar' : 'text-textMuted hover:text-white border-l-2 border-transparent'" title="文件">
             <i class="fa-solid fa-folder-open text-xl"></i>
           </router-link>
-          <router-link to="/git-changes" class="w-10 h-10 mb-2 rounded flex items-center justify-center" :class="$route.name === 'gitChanges' ? 'text-white border-l-2 border-accent bg-sidebar' : 'text-textMuted hover:text-white border-l-2 border-transparent'" title="Git 变更">
+          <router-link to="/views/pc/git-changes" class="w-10 h-10 mb-2 rounded flex items-center justify-center" :class="$route.name === 'gitChanges' ? 'text-white border-l-2 border-accent bg-sidebar' : 'text-textMuted hover:text-white border-l-2 border-transparent'" title="Git 变更">
             <i class="fa-brands fa-git-alt text-xl"></i>
           </router-link>
-          <router-link to="/terminal" class="w-10 h-10 mb-2 rounded flex items-center justify-center" :class="$route.name === 'terminal' || $route.name === 'terminal-session' ? 'text-white border-l-2 border-accent bg-sidebar' : 'text-textMuted hover:text-white border-l-2 border-transparent'" title="终端">
+          <router-link to="/views/pc/terminal" class="w-10 h-10 mb-2 rounded flex items-center justify-center" :class="$route.name === 'terminal' || $route.name === 'terminal-session' ? 'text-white border-l-2 border-accent bg-sidebar' : 'text-textMuted hover:text-white border-l-2 border-transparent'" title="终端">
             <i class="fa-solid fa-terminal text-xl"></i>
           </router-link>
-          <router-link to="/skills" class="w-10 h-10 mb-2 rounded flex items-center justify-center relative" :class="$route.name === 'skills' ? 'text-white border-l-2 border-accent bg-sidebar' : 'text-textMuted hover:text-white border-l-2 border-transparent'" title="Skill 管理">
+          <router-link to="/views/pc/skills" class="w-10 h-10 mb-2 rounded flex items-center justify-center relative" :class="$route.name === 'skills' ? 'text-white border-l-2 border-accent bg-sidebar' : 'text-textMuted hover:text-white border-l-2 border-transparent'" title="Skill 管理">
             <i class="fa-solid fa-shapes text-xl"></i>
           </router-link>
-          <router-link to="/db" class="w-10 h-10 mb-2 rounded flex items-center justify-center" :class="$route.name === 'db' ? 'text-white border-l-2 border-accent bg-sidebar' : 'text-textMuted hover:text-white border-l-2 border-transparent'" title="数据库">
+          <router-link to="/views/pc/db" class="w-10 h-10 mb-2 rounded flex items-center justify-center" :class="$route.name === 'db' ? 'text-white border-l-2 border-accent bg-sidebar' : 'text-textMuted hover:text-white border-l-2 border-transparent'" title="数据库">
             <i class="fa-solid fa-database text-xl"></i>
           </router-link>
-          <router-link to="/tasks" class="w-10 h-10 mb-2 rounded flex items-center justify-center" :class="$route.name === 'tasks' ? 'text-white border-l-2 border-accent bg-sidebar' : 'text-textMuted hover:text-white border-l-2 border-transparent'" title="任务">
+          <router-link to="/views/pc/tasks" class="w-10 h-10 mb-2 rounded flex items-center justify-center" :class="$route.name === 'tasks' ? 'text-white border-l-2 border-accent bg-sidebar' : 'text-textMuted hover:text-white border-l-2 border-transparent'" title="任务">
             <i class="fa-solid fa-clock text-xl"></i>
           </router-link>
-          <router-link to="/aiLogs" class="w-10 h-10 mb-2 rounded flex items-center justify-center" :class="$route.name === 'aiLogs' ? 'text-white border-l-2 border-accent bg-sidebar' : 'text-textMuted hover:text-white border-l-2 border-transparent'" title="AI 日志">
+          <router-link to="/views/pc/aiLogs" class="w-10 h-10 mb-2 rounded flex items-center justify-center" :class="$route.name === 'aiLogs' ? 'text-white border-l-2 border-accent bg-sidebar' : 'text-textMuted hover:text-white border-l-2 border-transparent'" title="AI 日志">
             <i class="fa-solid fa-robot text-xl"></i>
           </router-link>
-          <router-link to="/wiki" class="w-10 h-10 mb-2 rounded flex items-center justify-center" :class="$route.name === 'wiki' ? 'text-white border-l-2 border-accent bg-sidebar' : 'text-textMuted hover:text-white border-l-2 border-transparent'" title="文档">
+          <router-link to="/views/pc/wiki" class="w-10 h-10 mb-2 rounded flex items-center justify-center" :class="$route.name === 'wiki' ? 'text-white border-l-2 border-accent bg-sidebar' : 'text-textMuted hover:text-white border-l-2 border-transparent'" title="文档">
             <i class="fa-solid fa-book text-xl"></i>
           </router-link>
-          <router-link to="/fileZihao" class="w-10 h-10 mb-2 rounded flex items-center justify-center" :class="$route.name === 'fileZihao' ? 'text-white border-l-2 border-accent bg-sidebar' : 'text-textMuted hover:text-white border-l-2 border-transparent'" title="文件梓豪">
+          <router-link to="/views/pc/fileZihao" class="w-10 h-10 mb-2 rounded flex items-center justify-center" :class="$route.name === 'fileZihao' ? 'text-white border-l-2 border-accent bg-sidebar' : 'text-textMuted hover:text-white border-l-2 border-transparent'" title="文件梓豪">
             <i class="fa-solid fa-server text-xl"></i>
           </router-link>
         </div>
         <div class="flex flex-col items-center w-full mb-2">
-          <router-link to="/settings" class="w-10 h-10 mb-2 rounded flex items-center justify-center" :class="$route.name === 'settings' ? 'text-white border-l-2 border-accent bg-sidebar' : 'text-textMuted hover:text-white border-l-2 border-transparent hover:bg-white/5'" title="设置">
+          <router-link to="/views/pc/settings" class="w-10 h-10 mb-2 rounded flex items-center justify-center" :class="$route.name === 'settings' ? 'text-white border-l-2 border-accent bg-sidebar' : 'text-textMuted hover:text-white border-l-2 border-transparent hover:bg-white/5'" title="设置">
             <i class="fa-solid fa-gear text-xl"></i>
           </router-link>
         </div>
@@ -102,8 +102,8 @@
 </template>
 
 <script>
-import { api } from '../api'
-import SelectProjectDialog from '../components/SelectProjectDialog.vue'
+import { api } from '../../api'
+import SelectProjectDialog from '../../components/SelectProjectDialog.vue'
 
 export default {
   name: 'Layout',
@@ -123,9 +123,6 @@ export default {
     }
   },
   methods: {
-    openDevWorkflow() {
-      window.open('/devWorkflow', '_blank')
-    },
     toggleSidebar() {
       this.sidebarVisible = !this.sidebarVisible
     },

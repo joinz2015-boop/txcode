@@ -59,7 +59,7 @@ import AppStep4Test from './components/AppStep4Test.vue'
 import { api } from '../../api'
 
 export default {
-  name: 'AppDevWorkflowView',
+  name: 'DevWorkflowViewApp',
   components: {
     AppWorkflowStep,
     AppStep1Req,

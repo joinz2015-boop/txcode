@@ -452,7 +452,7 @@ export default {
       return text ? marked(text) : ''
     },
     openCustomActions() {
-      window.open('/custom-actions', '_blank')
+      window.open('/#/views/pc/custom-actions', '_blank')
     },
     async loadCustomActions() {
       try {

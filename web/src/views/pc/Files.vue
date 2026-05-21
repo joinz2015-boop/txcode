@@ -192,9 +192,9 @@
 </template>
 
 <script>
-import FileTreeNode from '../components/FileTreeNode.vue'
-import CopyPathDialog from '../components/common/CopyPathDialog.vue'
-import { api } from '../api'
+import FileTreeNode from '../../components/FileTreeNode.vue'
+import CopyPathDialog from '../../components/common/CopyPathDialog.vue'
+import { api } from '../../api'
 import * as monaco from 'monaco-editor'
 
 export default {

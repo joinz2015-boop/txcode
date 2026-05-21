@@ -146,17 +146,17 @@
 </template>
 
 <script>
-import { api } from '../api'
-import RemoteSkills from '../components/RemoteSkills.vue'
-import LocalSkillsList from '../components/LocalSkillsList.vue'
-import SkillRepositoryDialog from '../components/SkillRepositoryDialog.vue'
-import SkillViewer from '../components/SkillViewer.vue'
-import RemoteSpecs from '../components/RemoteSpecs.vue'
-import LocalSpecsList from '../components/LocalSpecsList.vue'
-import SpecRepositoryDialog from '../components/SpecRepositoryDialog.vue'
-import SpecViewer from '../components/SpecViewer.vue'
-import MemoryDisplay from '../components/MemoryDisplay.vue'
-import MemoryEditDialog from '../components/MemoryEditDialog.vue'
+import { api } from '../../api'
+import RemoteSkills from '../../components/RemoteSkills.vue'
+import LocalSkillsList from '../../components/LocalSkillsList.vue'
+import SkillRepositoryDialog from '../../components/SkillRepositoryDialog.vue'
+import SkillViewer from '../../components/SkillViewer.vue'
+import RemoteSpecs from '../../components/RemoteSpecs.vue'
+import LocalSpecsList from '../../components/LocalSpecsList.vue'
+import SpecRepositoryDialog from '../../components/SpecRepositoryDialog.vue'
+import SpecViewer from '../../components/SpecViewer.vue'
+import MemoryDisplay from '../../components/MemoryDisplay.vue'
+import MemoryEditDialog from '../../components/MemoryEditDialog.vue'
 
 export default {
   name: 'Skills',

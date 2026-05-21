@@ -120,7 +120,7 @@
 </template>
 
 <script>
-import { api } from '../api'
+import { api } from '../../api'
 
 const LOG_TYPES = [
   { key: 'ai_call_logs', name: 'AI 日志', icon: 'fa-solid fa-robot text-xs' },

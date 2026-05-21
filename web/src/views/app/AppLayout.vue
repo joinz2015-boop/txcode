@@ -20,7 +20,7 @@ export default {
   name: 'AppLayout',
   computed: {
     isHome() {
-      return this.$route.path === '/app'
+      return this.$route.path === '/views/app'
     }
   }
 }

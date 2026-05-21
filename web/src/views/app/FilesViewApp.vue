@@ -146,7 +146,7 @@ import { api } from '../../api'
 import * as monaco from 'monaco-editor'
 
 export default {
-  name: 'AppFilesView',
+  name: 'FilesViewApp',
   data() {
     return {
       projects: [],

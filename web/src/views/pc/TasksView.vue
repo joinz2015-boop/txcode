@@ -160,7 +160,7 @@
 </template>
 
 <script>
-import { api } from '../api'
+import { api } from '../../api'
 
 const SCHEDULE_LABELS = {
   '*/5 * * * *': '每5分钟',

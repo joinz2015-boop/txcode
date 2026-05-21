@@ -431,7 +431,7 @@ data() {
       })
     },
     openCustomActions() {
-      window.open('/custom-actions', '_blank')
+      window.open('/#/views/pc/custom-actions', '_blank')
     },
     async loadDevLog() {
       if (!this.sessionId) return

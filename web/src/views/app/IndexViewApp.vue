@@ -9,25 +9,25 @@
     </div>
 
     <div class="feature-grid">
-      <div class="feature-card code" @click="goTo('/app/code')">
+      <div class="feature-card code" @click="goTo('/views/app/ChatViewApp')">
         <i class="fa-regular fa-comments"></i>
         <h3>代码对话</h3>
         <p>与 AI 对话开发</p>
       </div>
 
-      <div class="feature-card workflow" @click="goTo('/app/dev')">
+      <div class="feature-card workflow" @click="goTo('/views/app/DevWorkflowViewApp')">
         <i class="fa-solid fa-laptop-code"></i>
         <h3>软件研发</h3>
         <p>规范研发流程</p>
       </div>
 
-      <div class="feature-card files" @click="goTo('/app/files')">
+      <div class="feature-card files" @click="goTo('/views/app/FilesViewApp')">
         <i class="fa-solid fa-folder-open"></i>
         <h3>文件管理</h3>
         <p>浏览项目文件</p>
       </div>
 
-      <div class="feature-card git" @click="goTo('/app/git')">
+      <div class="feature-card git" @click="goTo('/views/app/GitChangesApp')">
         <i class="fa-brands fa-git-alt"></i>
         <h3>Git变更</h3>
         <p>查看代码变更</p>
@@ -36,7 +36,7 @@
 
     <div class="section-header">
       <h2 class="section-title">最近会话</h2>
-      <a href="javascript:void(0)" class="section-more" @click="goTo('/app/code')">查看全部</a>
+      <a href="javascript:void(0)" class="section-more" @click="goTo('/views/app/ChatViewApp')">查看全部</a>
     </div>
 
     <div v-if="sessions.length > 0" class="session-list">
@@ -69,7 +69,7 @@
 import { api } from '../../api'
 
 export default {
-  name: 'IndexView',
+  name: 'IndexViewApp',
   data() {
     return {
       sessions: []
@@ -91,12 +91,12 @@ export default {
       }
     },
     goSession(session) {
-      this.$router.push({ name: 'app-code-session', params: { id: session.id } })
+      this.$router.push({ name: 'app-ChatViewApp-session', params: { id: session.id } })
     },
     async createSession() {
       try {
         const res = await api.createSession('新会话')
-        this.$router.push({ name: 'app-code-session', params: { id: res.data.id } })
+        this.$router.push({ name: 'app-ChatViewApp-session', params: { id: res.data.id } })
       } catch (e) {
         this.$message.error('创建会话失败')
       }

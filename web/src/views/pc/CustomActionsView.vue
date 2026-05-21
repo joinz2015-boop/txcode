@@ -112,7 +112,7 @@
 </template>
 
 <script>
-import { api } from '../api'
+import { api } from '../../api'
 
 const ACTION_TYPE_LABELS = {
   design: '方案设计',
