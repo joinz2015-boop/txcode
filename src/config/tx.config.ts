@@ -29,7 +29,6 @@ export interface TxConfig {
 
   songbing: {
     platformUrl: string;
-    apiBaseUrl: string;
   };
 }
 
@@ -59,12 +58,13 @@ const config: TxConfig = {
     },
   },
 
-  songbing: {
-    // platformUrl: 'http://ai.songbingcloud.com',
-    // apiBaseUrl: 'http://ai.songbingcloud.com/api/v1',
-    platformUrl: 'http://localhost:5174',
-    apiBaseUrl: 'http://localhost:5174/api/v1',
+songbing: {
+    platformUrl: 'https://ai.songbingcloud.com',
   },
 };
 
 export default config;
+
+export function getSongbingApiBaseUrl(): string {
+  return config.songbing?.platformUrl + '/api/v1';
+}

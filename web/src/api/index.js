@@ -1051,8 +1051,9 @@ export const api = {
     return request('GET', '/songbing/config');
   },
 
-  startSongbingAuth() {
-    return request('POST', '/songbing/auth/start');
+  startSongbingAuth(platformUrl) {
+    const data = platformUrl ? { platformUrl } : null;
+    return request('POST', '/songbing/auth/start', data);
   },
 
   verifySongbingAuth(key) {
@@ -1061,5 +1062,9 @@ export const api = {
 
   syncSongbingModels() {
     return request('POST', '/songbing/sync-models');
+  },
+
+  cancelSongbingAuth() {
+    return request('POST', '/songbing/auth/cancel');
   },
 };

@@ -21,11 +21,10 @@
           <div class="provider-logo official-logo">S</div>
           <div class="provider-info">
             <div class="provider-name">
-              松饼AI
-              <el-tag type="warning" size="mini">官方</el-tag>
+              自建AI平台
               <el-tag v-if="songbingProvider" type="success" size="mini">已认证</el-tag>
             </div>
-            <div class="provider-url">{{ songbingBaseUrl }}</div>
+            <div class="provider-url">{{ songbingPlatformUrl }}</div>
           </div>
           <div class="provider-actions">
             <el-button type="warning" size="small" @click.stop="$emit('auth-songbing')">
@@ -33,6 +32,9 @@
             </el-button>
             <el-button type="primary" size="small" @click.stop="$emit('sync-songbing-models')">
               同步模型
+            </el-button>
+            <el-button v-if="songbingProvider" type="danger" size="small" @click.stop="$emit('cancel-songbing-auth')">
+              取消认证
             </el-button>
           </div>
         </div>
@@ -116,7 +118,7 @@ export default {
     },
   },
 
-  emits: ['add-provider', 'edit-provider', 'delete-provider', 'add-model', 'edit-model', 'delete-model', 'export-config', 'import-config', 'auth-songbing', 'sync-songbing-models'],
+  emits: ['add-provider', 'edit-provider', 'delete-provider', 'add-model', 'edit-model', 'delete-model', 'export-config', 'import-config', 'auth-songbing', 'sync-songbing-models', 'cancel-songbing-auth'],
 
   data() {
     return {
@@ -126,14 +128,18 @@ export default {
 
   computed: {
     nonOfficialProviders() {
-      return this.providers.filter(p => p.name !== '松饼AI');
+      return this.providers.filter(p => p.name !== '自建AI平台');
     },
     songbingModels() {
       if (!this.songbingProvider) return [];
       return this.models.filter(m => m.providerId === this.songbingProvider.id);
     },
     songbingBaseUrl() {
-      return this.songbingProvider?.baseUrl || 'https://ai.songbingcloud.com/api/v1';
+      return this.songbingProvider?.baseUrl || '';
+    },
+    songbingPlatformUrl() {
+      const url = this.songbingBaseUrl;
+      return url.replace(/\/api\/v1$/, '');
     },
   },
 

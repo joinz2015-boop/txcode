@@ -33,6 +33,7 @@
             @import-config="handleImportConfig"
             @auth-songbing="authSongbing"
             @sync-songbing-models="syncSongbingModels"
+            @cancel-songbing-auth="cancelSongbingAuth"
           />
         </div>
 
@@ -169,6 +170,31 @@
       :default-provider-id="defaultProviderId"
       @success="loadModels"
     />
+
+    <el-dialog
+      title="自建AI平台认证"
+      :visible.sync="showAuthDialog"
+      width="500px"
+      :close-on-click-modal="false"
+    >
+      <el-form label-width="80px">
+        <el-form-item label="平台地址">
+          <el-input
+            v-model="authForm.platformUrl"
+          />
+        </el-form-item>
+        <el-alert
+          title="注意：填写您的自建AI平台服务地址"
+          type="info"
+          :closable="false"
+          style="margin-top: 10px;"
+        />
+      </el-form>
+      <span slot="footer" class="dialog-footer">
+        <el-button @click="showAuthDialog = false">取消</el-button>
+        <el-button type="primary" @click="confirmAuthSongbing" :loading="authLoading">开始认证</el-button>
+      </span>
+    </el-dialog>
   </div>
 </template>
 
@@ -244,6 +270,11 @@ export default {
       songbingConfig: { platformUrl: '', apiBaseUrl: '' },
       songbingProvider: null,
       pollTimer: null,
+      showAuthDialog: false,
+      authForm: {
+        platformUrl: '',
+      },
+      authLoading: false,
     }
   },
 
@@ -638,20 +669,37 @@ export default {
     },
 
     checkSongbingProvider() {
-      this.songbingProvider = this.providers.find(p => p.name === '松饼AI') || null
+      this.songbingProvider = this.providers.find(p => p.name === '自建AI平台') || null
     },
 
-    async authSongbing() {
+    authSongbing() {
+      this.authForm.platformUrl = this.songbingConfig.platformUrl
+      this.showAuthDialog = true
+    },
+
+    async confirmAuthSongbing() {
+      const { platformUrl } = this.authForm
+      if (!platformUrl) {
+        this.$message.error('请输入平台地址')
+        return
+      }
+      if (!platformUrl.startsWith('http://') && !platformUrl.startsWith('https://')) {
+        this.$message.error('平台地址必须以 http:// 或 https:// 开头')
+        return
+      }
+      this.showAuthDialog = false
+      this.authLoading = true
+
       if (this.pollTimer) {
         clearInterval(this.pollTimer)
         this.pollTimer = null
       }
 
       try {
-        const startRes = await this.$api.startSongbingAuth()
+        const startRes = await this.$api.startSongbingAuth(platformUrl)
         const { key, auth_url } = startRes.data
 
-        window.open(this.songbingConfig.platformUrl + auth_url, '_blank')
+        window.open(platformUrl + auth_url, '_blank')
         this.$message.info('请在打开的页面完成授权，认证中...')
 
         let attempts = 0
@@ -661,6 +709,7 @@ export default {
             clearInterval(this.pollTimer)
             this.pollTimer = null
             this.$message.warning('认证超时，请重试')
+            this.authLoading = false
             return
           }
           try {
@@ -668,15 +717,32 @@ export default {
             if (verifyRes.data?.active) {
               clearInterval(this.pollTimer)
               this.pollTimer = null
-              this.$message.success(`松饼AI 认证成功！已同步 ${verifyRes.data.syncedModels} 个模型`)
+              this.$message.success(`自建AI平台 认证成功！已同步 ${verifyRes.data.syncedModels} 个模型`)
               await this.loadProviders()
               await this.loadModels()
               this.checkSongbingProvider()
+              this.authLoading = false
             }
           } catch (e) { /* 单次失败不中断 */ }
         }, 3000)
       } catch (e) {
         this.$message.error('认证失败: ' + e.message)
+        this.authLoading = false
+      }
+    },
+
+    async cancelSongbingAuth() {
+      try {
+        await this.$confirm('确定要取消认证吗？取消后已同步的模型将被删除。', '提示', { type: 'warning' })
+        await this.$api.cancelSongbingAuth()
+        this.$message.success('已取消认证')
+        await this.loadProviders()
+        await this.loadModels()
+        this.songbingProvider = null
+      } catch (e) {
+        if (e !== 'cancel') {
+          this.$message.error('取消认证失败: ' + e.message)
+        }
       }
     },
 
