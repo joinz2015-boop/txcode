@@ -24,6 +24,7 @@ import { specsRouter } from './specs.routes.js';
 import { wikiRouter } from './wiki.routes.js';
 import { memoryRouter } from './memory.routes.js';
 import { devlogRouter } from './devlog.routes.js';
+import { systemRouter } from './system.routes.js';
 
 import { zihaoRouter } from './zihao.routes.js';
 import { configExportImportRouter } from './config-export-import.routes.js';
@@ -59,5 +60,6 @@ apiRouter.use('/zihao', zihaoRouter);
 apiRouter.use('/deploy', deployRouter);
 apiRouter.use('/settings', configExportImportRouter);
 apiRouter.use('/songbing', songbingRouter);
+apiRouter.use('/system', systemRouter);
 
 export type * from './api.types.js';

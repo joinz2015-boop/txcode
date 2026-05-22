@@ -144,7 +144,7 @@ import CommandDialog from './CommandDialog.vue'
 import FileSelectDialog from './FileSelectDialog.vue'
 import SkillSelectDialog from './SkillSelectDialog.vue'
 import ResizableTextarea from './ResizableTextarea.vue'
-import { scrollToBottom } from '../../utils/scroll'
+import { scrollToBottom, snapshotScroll } from '../../utils/scroll'
 
 export default {
   name: 'Step3CodeGen',
@@ -272,6 +272,7 @@ data() {
       this.disabled = true
       this.stopping = false
       this.logItems.push({ type: 'chat', content: content })
+      this.scrollChatToBottom(true)
 
       api.sessionWsSend(this.sessionId, 'chat', { message: content, sessionId: this.sessionId, modelName: this.modelName || undefined, enableDevLog: true })
     },
@@ -333,8 +334,10 @@ data() {
       })
     },
     scrollChatToBottom(force = false) {
+      const snap = snapshotScroll(this.$refs.messagesContainer)
+      console.log('[Step3CodeGen] scrollChatToBottom called, force:', force, 'snap:', JSON.stringify(snap))
       this.$nextTick(() => {
-        scrollToBottom(this.$refs.messagesContainer, { force })
+        scrollToBottom(this.$refs.messagesContainer, { force, prevSnapshot: snap })
       })
     },
     async loadMessages() {

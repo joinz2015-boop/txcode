@@ -133,7 +133,7 @@ import CommandDialog from './CommandDialog.vue'
 import FileSelectDialog from './FileSelectDialog.vue'
 import SkillSelectDialog from './SkillSelectDialog.vue'
 import ResizableTextarea from './ResizableTextarea.vue'
-import { scrollToBottom } from '../../utils/scroll'
+import { scrollToBottom, snapshotScroll } from '../../utils/scroll'
 
 export default {
   name: 'Step2Design',
@@ -312,6 +312,7 @@ export default {
       this.disabled = true
       this.stopping = false
       this.logItems.push({ type: 'chat', content: content })
+      this.scrollChatToBottom(true)
 
       api.sessionWsSend(this.sessionId, 'chat', { message: contextMsg, sessionId: this.sessionId, modelName: this.modelName || undefined })
     },
@@ -335,10 +336,12 @@ export default {
           this.disabled = isRunning
         },
         todos: (data) => {
+          console.log('[Step2Design] WS todos event, todos count:', data?.todos?.length)
           if (data?.todos) this.logItems.push({ type: 'todos', todos: data.todos })
           this.scrollChatToBottom()
         },
         step: (data) => {
+          console.log('[Step2Design] WS step event, has thought:', !!data.thought, 'toolCalls:', data?.toolCalls?.length)
           this.logItems.push({ type: 'step', thought: data.thought, toolCalls: data.toolCalls, success: data.success })
           if (data.usage?.promptTokens) this.promptTokens = data.usage.promptTokens
           this.scrollChatToBottom()
@@ -348,6 +351,7 @@ export default {
           this.loadMessages()
         },
         done: (data) => {
+          console.log('[Step2Design] WS done event')
           this.disabled = false
           this.stopping = false
           this.sessionStatus = 'completed'
@@ -358,6 +362,7 @@ export default {
           this.scrollChatToBottom()
         },
         stopped: () => {
+          console.log('[Step2Design] WS stopped event')
           this.disabled = false
           this.stopping = false
           this.sessionStatus = 'idle'
@@ -373,8 +378,10 @@ export default {
       })
     },
     scrollChatToBottom(force = false) {
+      const snap = snapshotScroll(this.$refs.messagesContainer)
+      console.log('[Step2Design] scrollChatToBottom called, force:', force, 'snap:', JSON.stringify(snap))
       this.$nextTick(() => {
-        scrollToBottom(this.$refs.messagesContainer, { force })
+        scrollToBottom(this.$refs.messagesContainer, { force, prevSnapshot: snap })
       })
     },
     async loadMessages() {

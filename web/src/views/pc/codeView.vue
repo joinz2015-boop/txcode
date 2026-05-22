@@ -161,7 +161,7 @@ import ResizableTextarea from '../../components/pc/ResizableTextarea.vue'
 import { ws } from '../../api/websocket/websocket_client.js'
 import * as sessions from '../../api/sessions.js'
 import * as config from '../../api/config.js'
-import { scrollToBottom } from '../../utils/scroll'
+import { scrollToBottom, snapshotScroll } from '../../utils/scroll'
 
 export default {
   name: 'CodeView',
@@ -426,7 +426,7 @@ export default {
       panel.dotIndex = 0
     },
 
-    schedulePanelScroll(panel) {
+    schedulePanelScroll(panel, snap = null) {
       if (this.scrollRafMap.get(panel)) return
       const rafId = requestAnimationFrame(() => {
         this.scrollRafMap.delete(panel)
@@ -434,10 +434,20 @@ export default {
         if (panelIdx > -1) {
           const el = this.$el?.querySelectorAll('.session-panel')?.[panelIdx]
           const logArea = el?.querySelector('.log-area')
-          scrollToBottom(logArea)
+          scrollToBottom(logArea, { prevSnapshot: snap })
         }
       })
       this.scrollRafMap.set(panel, rafId)
+    },
+
+    snapPanelScroll(panel) {
+      const panelIdx = this.activeSessions.indexOf(panel)
+      if (panelIdx > -1) {
+        const el = this.$el?.querySelectorAll('.session-panel')?.[panelIdx]
+        const logArea = el?.querySelector('.log-area')
+        return snapshotScroll(logArea)
+      }
+      return null
     },
 
     initGlobalWs() {
@@ -457,8 +467,9 @@ export default {
           this.updateSessionStatusesFromRunning(runningIds)
         },
         todos: (data) => {
+          const snap = this.snapPanelScroll(panel)
           this.pushLogItem(panel, { type: 'todos', todos: data.todos })
-          this.$nextTick(() => this.schedulePanelScroll(panel))
+          this.$nextTick(() => this.schedulePanelScroll(panel, snap))
         },
         session: (data) => {
           if (data?.sessionId && !panel.session?.id) {
@@ -466,9 +477,10 @@ export default {
           }
         },
         step: (data) => {
+          const snap = this.snapPanelScroll(panel)
           this.pushLogItem(panel, this.createStepItem(data))
           if (data?.usage?.promptTokens) panel.promptTokens = data.usage.promptTokens
-          this.$nextTick(() => this.schedulePanelScroll(panel))
+          this.$nextTick(() => this.schedulePanelScroll(panel, snap))
         },
         compact: (data) => {
           this.pushLogItem(panel, { type: 'system', content: `【压缩完成】${data.summary || ''}` })
@@ -481,15 +493,19 @@ export default {
           panel.sessionStatus = 'completed'
           if (data?.modelName) panel.modelName = data.modelName
           if (data?.usage?.promptTokens) panel.promptTokens = data.usage.promptTokens
-          if (data?.response) this.pushLogItem(panel, this.createThinkItem(data.response))
+          if (data?.response) {
+            const snap = this.snapPanelScroll(panel)
+            this.pushLogItem(panel, this.createThinkItem(data.response))
+            this.$nextTick(() => this.schedulePanelScroll(panel, snap))
+          }
           this.loadSessions()
-          this.$nextTick(() => this.schedulePanelScroll(panel))
         },
         stopped: (data) => {
           this.stopThinking(panel)
           panel.sessionStatus = 'idle'
+          const snap = this.snapPanelScroll(panel)
           this.pushLogItem(panel, this.createThinkItem('【已停止】'))
-          this.$nextTick(() => this.schedulePanelScroll(panel))
+          this.$nextTick(() => this.schedulePanelScroll(panel, snap))
         },
         error: (data) => {
           this.$message.error(data?.error || '发生错误')
@@ -675,7 +691,9 @@ export default {
       panel.disabled = true
       panel.stopping = false
       panel.userQuestion = content
+      const snap = this.snapPanelScroll(panel)
       this.pushLogItem(panel, { type: 'chat', content: content })
+      this.$nextTick(() => this.schedulePanelScroll(panel, snap))
 
       ws.send('chat', { message: content, sessionId: panel.session?.id, modelName: panel.modelName || undefined, enableDevLog: panel.enableDevLog })
     },

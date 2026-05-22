@@ -1067,4 +1067,10 @@ export const api = {
   cancelSongbingAuth() {
     return request('POST', '/songbing/auth/cancel');
   },
+
+  // ==================== 系统信息 ====================
+
+  getSystemInfo() {
+    return request('GET', '/system/info');
+  },
 };

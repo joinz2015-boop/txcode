@@ -37,6 +37,7 @@
           :visible.sync="selectProjectDialogVisible"
           @success="handleProjectDialogSuccess"
         />
+        <span class="text-xs text-textMuted" v-if="systemVersion">v{{ systemVersion }}</span>
         <span class="text-xs text-textMuted mr-2"><i class="fa-solid fa-circle text-green-500 text-[8px]"></i> Server Connected</span>
         <button v-show="$route.name === 'chat'" @click="toggleSidebar" class="hover:text-white" :title="sidebarVisible ? '关闭侧栏' : '显示侧栏'"><i class="fa-solid fa-columns"></i></button>
         <!-- <router-link to="/settings" class="hover:text-white" title="设置"><i class="fa-solid fa-gear"></i></router-link> -->
@@ -119,7 +120,8 @@ export default {
       currentSessionName: '',
       projects: [],
       currentProject: null,
-      selectProjectDialogVisible: false
+      selectProjectDialogVisible: false,
+      systemVersion: ''
     }
   },
   methods: {
@@ -194,11 +196,20 @@ export default {
       this.loadProjects().then(() => {
         location.reload()
       })
+    },
+    async loadSystemVersion() {
+      try {
+        const res = await api.getSystemInfo()
+        this.systemVersion = res.data?.version || ''
+      } catch (e) {
+        console.error('获取版本号失败:', e)
+      }
     }
   },
   async created() {
     await this.loadProjects()
     await this.loadSessions()
+    this.loadSystemVersion()
     document.addEventListener('click', (e) => {
       if (!this.$el.contains(e.target)) {
         this.showSessionDropdown = false
