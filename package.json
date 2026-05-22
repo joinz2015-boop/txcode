@@ -9,8 +9,7 @@
     "txcode": "dist/index.js"
   },
   "scripts": {
-    "build": "tsc && tsc-alias && npm run sync-version && npm run copy-txt",
-    "sync-version": "node scripts/sync-version.js",
+    "build": "tsc && tsc-alias && npm run copy-txt",
     "copy-txt": "node scripts/copy-txt.js",
     "dev": "tsx src/index.ts",
     "demo:ink-scroll": "tsx scripts/ink-scroll-demo.tsx",

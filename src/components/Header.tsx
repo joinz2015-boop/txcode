@@ -1,6 +1,6 @@
 import React from 'react';
 import { Box, Text } from 'ink';
-import config from '../config/tx.config.js';
+import { getVersion } from '../utils/version.js';
 
 export const Header = React.memo(function Header() {
 	return (
@@ -12,7 +12,7 @@ export const Header = React.memo(function Header() {
 			paddingY={1}
 		>
 			<Text bold cyan>                            </Text>
-			<Text bold cyan>    Txcode v{config.version}        </Text>
+			<Text bold cyan>    Txcode v{getVersion()}        </Text>
 			<Text bold cyan>                            </Text>
 			<Text dimColor>    输入@ 选择文件            </Text>
 			<Text dimColor>    输入 /new 新建会话        </Text>
