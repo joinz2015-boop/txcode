@@ -161,6 +161,7 @@ import ResizableTextarea from '../../components/pc/ResizableTextarea.vue'
 import { ws } from '../../api/websocket/websocket_client.js'
 import * as sessions from '../../api/sessions.js'
 import * as config from '../../api/config.js'
+import { scrollToBottom } from '../../utils/scroll'
 
 export default {
   name: 'CodeView',
@@ -433,7 +434,7 @@ export default {
         if (panelIdx > -1) {
           const el = this.$el?.querySelectorAll('.session-panel')?.[panelIdx]
           const logArea = el?.querySelector('.log-area')
-          if (logArea) logArea.scrollTop = logArea.scrollHeight
+          scrollToBottom(logArea)
         }
       })
       this.scrollRafMap.set(panel, rafId)

@@ -144,6 +144,7 @@ import CommandDialog from './CommandDialog.vue'
 import FileSelectDialog from './FileSelectDialog.vue'
 import SkillSelectDialog from './SkillSelectDialog.vue'
 import ResizableTextarea from './ResizableTextarea.vue'
+import { scrollToBottom } from '../../utils/scroll'
 
 export default {
   name: 'Step3CodeGen',
@@ -295,12 +296,12 @@ data() {
         },
         todos: (data) => {
           if (data?.todos) this.logItems.push({ type: 'todos', todos: data.todos })
-          this.scrollToBottom()
+          this.scrollChatToBottom()
         },
         step: (data) => {
           this.logItems.push({ type: 'step', thought: data.thought, toolCalls: data.toolCalls, success: data.success })
           if (data.usage?.promptTokens) this.promptTokens = data.usage.promptTokens
-          this.scrollToBottom()
+          this.scrollChatToBottom()
         },
         compact: (data) => {
           this.logItems.push({ type: 'system', content: `【压缩完成】${data.summary || ''}` })
@@ -314,14 +315,14 @@ data() {
           if (data?.usage?.promptTokens) this.promptTokens = data.usage.promptTokens
           if (data?.response) this.logItems.push({ type: 'think', content: data.response })
           this.loadDevLog()
-          this.scrollToBottom()
+          this.scrollChatToBottom()
         },
         stopped: () => {
           this.disabled = false
           this.stopping = false
           this.sessionStatus = 'idle'
           this.logItems.push({ type: 'think', content: '【已停止】' })
-          this.scrollToBottom()
+          this.scrollChatToBottom()
         },
         error: (data) => {
           this.$message.error(data?.error || '发生错误')
@@ -331,12 +332,9 @@ data() {
         }
       })
     },
-    scrollToBottom() {
+    scrollChatToBottom(force = false) {
       this.$nextTick(() => {
-        const container = this.$refs.messagesContainer
-        if (container) {
-          container.scrollTop = container.scrollHeight
-        }
+        scrollToBottom(this.$refs.messagesContainer, { force })
       })
     },
     async loadMessages() {
@@ -344,7 +342,7 @@ data() {
       try {
         const res = await api.getMessages(this.sessionId)
         this.logItems = res.data || []
-        this.scrollToBottom()
+        this.scrollChatToBottom(true)
       } catch (e) {
         console.error('Load messages failed:', e)
       }
