@@ -93,6 +93,8 @@
           <span class="status-action" @click="openCommandDialog" @mousedown.prevent>命令</span>
           <span class="separator">|</span>
           <span class="status-action" @click="openFileSelect" @mousedown.prevent>选择文件</span>
+          <span class="separator">|</span>
+          <span class="status-action" @click="openSkillSelect" @mousedown.prevent>选择Skill</span>
         </div>
       </div>
     </div>
@@ -113,6 +115,12 @@
       @select="onFileSelected"
       @close="cancelFileSelect"
     />
+
+    <SkillSelectDialog
+      :visible.sync="skillSelectVisible"
+      @select="onSkillSelected"
+      @close="cancelSkillSelect"
+    />
   </div>
 </template>
 
@@ -123,11 +131,12 @@ import * as monaco from 'monaco-editor'
 import ModelSelectDialog from './ModelSelectDialog.vue'
 import CommandDialog from './CommandDialog.vue'
 import FileSelectDialog from './FileSelectDialog.vue'
+import SkillSelectDialog from './SkillSelectDialog.vue'
 import ResizableTextarea from './ResizableTextarea.vue'
 
 export default {
   name: 'Step2Design',
-  components: { ModelSelectDialog, CommandDialog, FileSelectDialog, ResizableTextarea },
+  components: { ModelSelectDialog, CommandDialog, FileSelectDialog, SkillSelectDialog, ResizableTextarea },
   props: {
     category: { type: String, default: '' },
     name: { type: String, default: '' },
@@ -146,6 +155,7 @@ export default {
       modelSelectVisible: false,
       commandDialogVisible: false,
       fileSelectVisible: false,
+      skillSelectVisible: false,
       sessionId: '',
       sessionStatus: 'idle',
       customActions: []
@@ -218,6 +228,7 @@ export default {
     async loadSession() {
       if (!this.category || !this.name) {
         this.sessionId = ''
+        this.$emit('update:sessionId', '')
         return
       }
       try {
@@ -229,6 +240,7 @@ export default {
         } else {
           this.sessionId = ''
         }
+        this.$emit('update:sessionId', this.sessionId)
         if (this.sessionId) {
           await this.loadMessages()
           this.subscribeSession()
@@ -238,6 +250,7 @@ export default {
       } catch (e) {
         console.error('Load session failed:', e)
         this.sessionId = ''
+        this.$emit('update:sessionId', '')
         this.logItems = []
       }
     },
@@ -420,6 +433,22 @@ export default {
     },
     cancelFileSelect() {
       this.fileSelectVisible = false
+    },
+    openSkillSelect() {
+      this.skillSelectVisible = true
+    },
+    onSkillSelected(skillName) {
+      const tag = `[${skillName}] `
+      const existingIdx = this.inputMessage.lastIndexOf('[')
+      if (existingIdx !== -1 && this.inputMessage.slice(existingIdx).match(/^\[[\w-]+\] /)) {
+        this.inputMessage = this.inputMessage.slice(0, existingIdx) + tag
+      } else {
+        this.inputMessage = tag + this.inputMessage
+      }
+      this.cancelSkillSelect()
+    },
+    cancelSkillSelect() {
+      this.skillSelectVisible = false
     },
     getTodoStatusIcon(status) {
       const icons = { completed: '✅', in_progress: '🔄', pending: '⬜', cancelled: '❌' }

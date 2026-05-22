@@ -100,6 +100,8 @@
           <span class="separator">|</span>
           <span class="status-action" @click.stop="openFileSelectFromStatus">选择文件</span>
           <span class="separator">|</span>
+          <span class="status-action" @click.stop="openSkillSelectFromStatus">选择Skill</span>
+          <span class="separator">|</span>
           <el-checkbox v-model="panel.enableDevLog" size="small">启用记录</el-checkbox>
           <span class="separator">|</span>
           <span class="status-action" @click.stop="openDevLogDialog">查看记录</span>
@@ -119,6 +121,12 @@
       :visible.sync="fileSelectVisible"
       @select="onFileSelected"
       @close="cancelFileSelect"
+    />
+
+    <SkillSelectDialog
+      :visible.sync="skillSelectVisible"
+      @select="onSkillSelected"
+      @close="cancelSkillSelect"
     />
 
     <ModelSelectDialog
@@ -145,6 +153,7 @@
 import { marked } from 'marked'
 import SessionsPanel from '../../components/pc/SessionsPanel.vue'
 import FileSelectDialog from '../../components/pc/FileSelectDialog.vue'
+import SkillSelectDialog from '../../components/pc/SkillSelectDialog.vue'
 import ModelSelectDialog from '../../components/pc/ModelSelectDialog.vue'
 import CommandDialog from '../../components/pc/CommandDialog.vue'
 import DevLogDialog from '../../components/pc/DevLogDialog.vue'
@@ -155,7 +164,7 @@ import * as config from '../../api/config.js'
 
 export default {
   name: 'CodeView',
-  components: { SessionsPanel, FileSelectDialog, ModelSelectDialog, CommandDialog, DevLogDialog, ResizableTextarea },
+  components: { SessionsPanel, FileSelectDialog, SkillSelectDialog, ModelSelectDialog, CommandDialog, DevLogDialog, ResizableTextarea },
   MAX_LOG_ITEMS: 400,
 
   props: {
@@ -176,6 +185,7 @@ export default {
       loadingMore: false,
       draggedSession: null,
       fileSelectVisible: false,
+      skillSelectVisible: false,
       currentPanel: null,
       modelSelectVisible: false,
       selectedPanel: null,
@@ -277,6 +287,29 @@ export default {
     openFileSelectFromStatus() {
       this.currentPanel = this.activeSessions[this.focusedPanelIndex]
       this.fileSelectVisible = true
+    },
+
+    openSkillSelectFromStatus() {
+      this.currentPanel = this.activeSessions[this.focusedPanelIndex]
+      this.skillSelectVisible = true
+    },
+
+    onSkillSelected(skillName) {
+      const panel = this.currentPanel
+      if (!panel) return
+      const tag = `[${skillName}] `
+      const existingIdx = panel.input.lastIndexOf('[')
+      if (existingIdx !== -1 && panel.input.slice(existingIdx).match(/^\[[\w-]+\] /)) {
+        panel.input = panel.input.slice(0, existingIdx) + tag
+      } else {
+        panel.input = tag + panel.input
+      }
+      this.cancelSkillSelect()
+    },
+
+    cancelSkillSelect() {
+      this.skillSelectVisible = false
+      this.currentPanel = null
     },
 
     openDevLogDialog() {

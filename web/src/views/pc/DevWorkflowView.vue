@@ -113,7 +113,12 @@ export default {
       categories: [],
       projects: {},
       reqBasePath: '',
-      isLoadingProjects: false
+      isLoadingProjects: false,
+      designSessionId: '',
+      codeSessionId: '',
+      testSessionId: '',
+      taskStatus: 'idle',
+      unsubRunning: null
     }
   },
   computed: {
@@ -144,7 +149,72 @@ export default {
     this.loadState()
     this.loadCategories()
   },
+  mounted() {
+    console.log('[DevWorkflow][mounted] subscribing to running_sessions')
+    api.ws.init()
+    this.unsubRunning = api.ws.on('running_sessions', (msg) => {
+      const runningIds = msg.data?.runningSessionIds || []
+      console.log('[DevWorkflow][ws] running_sessions event:', runningIds)
+      this.updateTaskStatus(runningIds)
+    })
+  },
+  beforeDestroy() {
+    if (this.unsubRunning) {
+      this.unsubRunning()
+      this.unsubRunning = null
+    }
+  },
+  watch: {
+    currentProject() {
+      this.updateTitle()
+    },
+    taskStatus() {
+      this.updateTitle()
+    }
+  },
   methods: {
+    updateDesignSessionId(id) {
+      console.log('[DevWorkflow][sessionId] design:', id)
+      this.designSessionId = id
+    },
+    updateCodeSessionId(id) {
+      console.log('[DevWorkflow][sessionId] code:', id)
+      this.codeSessionId = id
+    },
+    updateTestSessionId(id) {
+      console.log('[DevWorkflow][sessionId] test:', id)
+      this.testSessionId = id
+    },
+    updateTaskStatus(runningIds) {
+      const mySessions = [this.designSessionId, this.codeSessionId, this.testSessionId].filter(Boolean)
+      console.log('[DevWorkflow][taskStatus] mySessions:', mySessions, 'runningIds:', runningIds)
+      if (mySessions.length === 0) {
+        console.log('[DevWorkflow][taskStatus] -> idle (no sessions)')
+        this.taskStatus = 'idle'
+        return
+      }
+      const isRunning = mySessions.some(id => runningIds.includes(id))
+      console.log('[DevWorkflow][taskStatus] isRunning:', isRunning, 'prevStatus:', this.taskStatus)
+      if (isRunning) {
+        console.log('[DevWorkflow][taskStatus] -> running')
+        this.taskStatus = 'running'
+      } else if (this.taskStatus === 'running') {
+        console.log('[DevWorkflow][taskStatus] -> completed')
+        this.taskStatus = 'completed'
+      }
+    },
+    updateTitle() {
+      const base = this.$route.meta?.title || '软件研发'
+      if (!this.currentProject) {
+        document.title = `${base} - TXCode`
+        return
+      }
+      let prefix = ''
+      if (this.taskStatus === 'running') prefix = '⏳ '
+      else if (this.taskStatus === 'completed') prefix = '✅ '
+      console.log('[DevWorkflow][updateTitle] status:', this.taskStatus, 'title:', `${prefix}${this.currentProject} · ${base} - TXCode`)
+      document.title = `${prefix}${this.currentProject} · ${base} - TXCode`
+    },
     async loadState() {
       try {
         const res = await api.getWorkflowState()

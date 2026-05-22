@@ -87,6 +87,16 @@ export default {
     await this.loadState()
     await this.loadCategories()
   },
+  watch: {
+    currentProject(val) {
+      const base = this.$route.meta?.title || '软件研发'
+      if (val) {
+        document.title = `${val} · ${base} - TXCode`
+      } else {
+        document.title = `${base} - TXCode`
+      }
+    }
+  },
   methods: {
     async loadState() {
       try {
