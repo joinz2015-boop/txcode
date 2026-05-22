@@ -32,12 +32,16 @@ function initProjectSkillsPath(req: Request): void {
 
 // ==================== 原有路由（兼容） ====================
 
-skillsRouter.get('/', async (req: Request, res: Response) => {
-  await skillsManager.loadAll();
-  const skills = skillsManager.getAvailableSkills();
+skillsRouter.get('/', (req: Request, res: Response) => {
+  initProjectSkillsPath(req);
+  const skills = skillsManager.getLocalSkills();
   res.json({
     success: true,
-    data: skills,
+    data: skills.map(s => ({
+      name: s.name,
+      description: s.description,
+      filePath: s.filePath,
+    })),
   });
 });
 
