@@ -12,6 +12,7 @@ export interface ContextConfig {
 }
 
 export interface TxConfig {
+  version: string;
   debug: boolean;
   
   log: {
@@ -37,6 +38,7 @@ export interface TxConfig {
  * 这是应用程序的默认配置，可以在运行时通过其他方式覆盖
  */
 const config: TxConfig = {
+  version: '__VERSION__',
   debug: true,
   
   log: {
