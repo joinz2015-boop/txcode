@@ -92,7 +92,7 @@ songbingRouter.post('/auth/start', async (req: Request, res: Response) => {
     const resp = await fetch(`${resolvedPlatformUrl}/api/appkey/generate_appkey`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: '{}',
+      body: JSON.stringify({ industry: 'sold' }),
     });
 
     if (!resp.ok) {
