@@ -69,9 +69,12 @@
                 @change="saveConfig('web.port', $event)"
               />
             </el-form-item>
+          </el-form>
+        </div>
 
-            <el-divider content-position="left">代理配置</el-divider>
-
+        <div v-show="activeTab === 'proxy'">
+          <h3 class="text-xl text-white mb-4">代理设置</h3>
+          <el-form label-width="150px" class="advanced-form">
             <el-form-item label="启用代理">
               <el-switch v-model="proxyConfig.enabled" @change="saveProxyConfig" />
             </el-form-item>
@@ -244,6 +247,7 @@ export default {
       tabs: [
         { name: 'providers', label: 'AI 服务商', icon: 'fa-solid fa-server' },
         { name: 'advanced', label: '高级', icon: 'fa-solid fa-gear' },
+        { name: 'proxy', label: '代理设置', icon: 'fa-solid fa-globe' },
         { name: 'gateway', label: '网关', icon: 'fa-solid fa-plug' },
         { name: 'email', label: '邮件配置', icon: 'fa-solid fa-envelope' },
       ],
@@ -333,6 +337,8 @@ export default {
         this.loadGatewayStatus()
         this.loadWafConfig()
         this.loadWafStatus()
+      } else if (newTab === 'proxy') {
+        this.loadProxyConfig()
       } else if (newTab === 'email') {
         this.loadEmailConfig()
       }
