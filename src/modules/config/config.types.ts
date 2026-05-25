@@ -45,6 +45,13 @@ export interface Model {
   enabled: boolean;
 }
 
+export interface ProxyConfig {
+  enabled: boolean;
+  type: 'http' | 'socks5';
+  host: string;
+  port: number;
+}
+
 export const PREDEFINED_MODELS: Partial<Model>[] = [
   { id: 'gpt-4o', contextWindow: 128000, maxOutputTokens: 4096, supportsVision: true, supportsTools: true },
   { id: 'gpt-4o-mini', contextWindow: 128000, maxOutputTokens: 4096, supportsVision: true, supportsTools: true },

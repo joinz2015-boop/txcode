@@ -7,3 +7,11 @@ export async function getConfig(key) {
 export async function setConfig(key, value) {
   return request('PUT', `/config/${key}`, { value })
 }
+
+export async function getProxyConfig() {
+  return request('GET', '/config/proxy')
+}
+
+export async function updateProxyConfig(data) {
+  return request('PUT', '/config/proxy', data)
+}

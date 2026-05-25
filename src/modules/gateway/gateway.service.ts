@@ -31,13 +31,6 @@ export class GatewayService {
       return;
     }
 
-    process.env.NO_PROXY = '*';
-    process.env.no_proxy = '*';
-    process.env.HTTP_PROXY = '';
-    process.env.HTTPS_PROXY = '';
-    process.env.http_proxy = '';
-    process.env.https_proxy = '';
-
     this.loadConfig();
 
     if (!this.config.enabled || !this.config.clientId || !this.config.clientSecret) {

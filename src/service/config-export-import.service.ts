@@ -7,6 +7,7 @@ export interface ExportData {
   gateway?: any;
   wafGateway?: any;
   email?: any;
+  proxy?: { enabled: boolean; type: string; host: string; port: number };
 }
 
 export class ConfigExportImportService {
@@ -76,6 +77,16 @@ export class ConfigExportImportService {
         user: email.user,
         password: email.password,
         fromName: email.from_name || '',
+      };
+    }
+
+    const proxy = dbService.get<any>('SELECT * FROM proxy_config WHERE id = 1');
+    if (proxy) {
+      data.proxy = {
+        enabled: Boolean(proxy.enabled),
+        type: proxy.type || 'http',
+        host: proxy.host || '',
+        port: proxy.port || 1080,
       };
     }
 
@@ -170,6 +181,13 @@ export class ConfigExportImportService {
             ['Default', data.email.host, data.email.port, data.email.secure ? 1 : 0, data.email.user, data.email.password, data.email.fromName || '']
           );
         }
+      }
+
+      if (data.proxy) {
+        dbService.run(
+          `INSERT OR REPLACE INTO proxy_config (id, enabled, type, host, port, updated_at) VALUES (1, ?, ?, ?, ?, datetime('now'))`,
+          [data.proxy.enabled ? 1 : 0, data.proxy.type || 'http', data.proxy.host || '', data.proxy.port || 1080]
+        );
       }
 
       return { success: true, message: '配置导入成功' };

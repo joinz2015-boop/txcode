@@ -8,7 +8,7 @@
  */
 
 import { DbService, dbService as defaultDbService } from '../db/db.service.js';
-import { Provider, Model, ProviderInput, ModelInput } from './config.types.js';
+import { Provider, Model, ProviderInput, ModelInput, ProxyConfig } from './config.types.js';
 import { v4 as uuidv4 } from 'uuid';
 
 export class ConfigService {
@@ -246,6 +246,45 @@ export class ConfigService {
       clientSecret: row.client_secret || '',
       botName: row.bot_name || '',
     };
+  }
+
+  getProxyConfig(): ProxyConfig | null {
+    const row = this.db.get<any>('SELECT * FROM proxy_config WHERE id = 1');
+    if (!row) return null;
+    return {
+      enabled: Boolean(row.enabled),
+      type: row.type as 'http' | 'socks5',
+      host: row.host || '',
+      port: row.port || 1080,
+    };
+  }
+
+  updateProxyConfig(data: Partial<ProxyConfig>): void {
+    const updates: string[] = [];
+    const values: unknown[] = [];
+
+    if (data.enabled !== undefined) {
+      updates.push('enabled = ?');
+      values.push(data.enabled ? 1 : 0);
+    }
+    if (data.type !== undefined) {
+      updates.push('type = ?');
+      values.push(data.type);
+    }
+    if (data.host !== undefined) {
+      updates.push('host = ?');
+      values.push(data.host);
+    }
+    if (data.port !== undefined) {
+      updates.push('port = ?');
+      values.push(data.port);
+    }
+
+    if (updates.length > 0) {
+      updates.push('updated_at = CURRENT_TIMESTAMP');
+      values.push(1);
+      this.db.run(`UPDATE proxy_config SET ${updates.join(', ')} WHERE id = ?`, values);
+    }
   }
 
   updateDingdingConfig(data: { enabled?: boolean; clientId?: string; clientSecret?: string; botName?: string }): void {

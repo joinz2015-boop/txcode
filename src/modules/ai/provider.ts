@@ -1,6 +1,8 @@
 import { OpenAIProvider } from './openai.provider.js';
 import { DeepSeekProvider } from './deepseek.provider.js';
 import { BaseProvider } from './ai.types.js';
+import { ProxyAgent } from 'undici';
+import { configService } from '../config/config.service.js';
 
 export interface ProviderConfig {
   apiKey: string;
@@ -9,6 +11,15 @@ export interface ProviderConfig {
 }
 
 export function createProvider(config: ProviderConfig): BaseProvider {
+  const proxyConfig = configService.getProxyConfig();
+  const fetchOptions: Record<string, any> = {};
+
+  if (proxyConfig && proxyConfig.enabled && proxyConfig.host && proxyConfig.port) {
+    const scheme = proxyConfig.type === 'socks5' ? 'socks5://' : 'http://';
+    const proxyUrl = `${scheme}${proxyConfig.host}:${proxyConfig.port}`;
+    fetchOptions.dispatcher = new ProxyAgent(proxyUrl);
+  }
+
   const baseUrl = config.baseUrl || '';
   const model = config.defaultModel || '';
 
@@ -17,6 +28,7 @@ export function createProvider(config: ProviderConfig): BaseProvider {
       apiKey: config.apiKey,
       baseUrl: baseUrl,
       defaultModel: config.defaultModel,
+      fetchOptions,
     });
   }
 
@@ -25,6 +37,7 @@ export function createProvider(config: ProviderConfig): BaseProvider {
       apiKey: config.apiKey,
       baseUrl: baseUrl,
       defaultModel: config.defaultModel,
+      fetchOptions,
     });
   }
 
@@ -32,5 +45,6 @@ export function createProvider(config: ProviderConfig): BaseProvider {
     apiKey: config.apiKey,
     baseUrl: baseUrl,
     defaultModel: config.defaultModel,
+    fetchOptions,
   });
 }

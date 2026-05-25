@@ -188,3 +188,22 @@ configRouter.put('/:key', (req: Request, res: Response) => {
   configService.set(key, value);
   res.json({ success: true, message: 'Config updated' });
 });
+
+// ==================== 代理配置 ====================
+
+/**
+ * 获取代理配置
+ */
+configRouter.get('/proxy', (req: Request, res: Response) => {
+  const proxyConfig = configService.getProxyConfig();
+  res.json({ success: true, data: proxyConfig });
+});
+
+/**
+ * 更新代理配置
+ */
+configRouter.put('/proxy', (req: Request, res: Response) => {
+  const { enabled, type, host, port } = req.body;
+  configService.updateProxyConfig({ enabled, type, host, port });
+  res.json({ success: true, message: 'Proxy config updated' });
+});

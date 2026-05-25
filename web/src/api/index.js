@@ -361,6 +361,14 @@ export const api = {
     return request('PUT', `/config/${key}`, { value });
   },
 
+  getProxyConfig() {
+    return request('GET', '/config/proxy');
+  },
+
+  updateProxyConfig(data) {
+    return request('PUT', '/config/proxy', data);
+  },
+
   // ==================== 文件管理 ====================
 
   /**

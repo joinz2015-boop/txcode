@@ -60,6 +60,33 @@
               @change="saveConfig('web.port', $event)"
             />
           </el-form-item>
+
+          <el-divider content-position="left">代理配置</el-divider>
+
+          <el-form-item label="启用代理">
+            <el-switch v-model="proxyConfig.enabled" @change="saveProxyConfig" />
+          </el-form-item>
+
+          <el-form-item label="代理类型">
+            <el-select v-model="proxyConfig.type" @change="saveProxyConfig" :disabled="!proxyConfig.enabled">
+              <el-option label="HTTP" value="http" />
+              <el-option label="SOCKS5" value="socks5" />
+            </el-select>
+          </el-form-item>
+
+          <el-form-item label="代理IP">
+            <el-input v-model="proxyConfig.host" @blur="saveProxyConfig" :disabled="!proxyConfig.enabled" />
+          </el-form-item>
+
+          <el-form-item label="代理端口">
+            <el-input-number
+              v-model="proxyConfig.port"
+              :min="1"
+              :max="65535"
+              @change="saveProxyConfig"
+              :disabled="!proxyConfig.enabled"
+            />
+          </el-form-item>
         </el-form>
       </el-tab-pane>
     </el-tabs>
@@ -108,6 +135,12 @@ export default {
         maxSessionCompression: 5,
         webPort: 40000,
       },
+      proxyConfig: {
+        enabled: false,
+        type: 'http',
+        host: '',
+        port: 1080,
+      },
     };
   },
 
@@ -118,6 +151,7 @@ export default {
         this.loadModels();
         this.loadSkills();
         this.loadConfig();
+        this.loadProxyConfig();
       }
     },
   },
@@ -198,6 +232,37 @@ export default {
       try {
         await this.$api.setConfig(key, value);
         this.$message.success('配置已保存');
+      } catch (e) {
+        this.$message.error('保存失败: ' + e.message);
+      }
+    },
+
+    /**
+     * 加载代理配置
+     */
+    async loadProxyConfig() {
+      try {
+        const res = await this.$api.getProxyConfig();
+        if (res.data) {
+          this.proxyConfig = {
+            enabled: res.data.enabled || false,
+            type: res.data.type || 'http',
+            host: res.data.host || '',
+            port: res.data.port || 1080,
+          };
+        }
+      } catch (e) {
+        // 使用默认值
+      }
+    },
+
+    /**
+     * 保存代理配置
+     */
+    async saveProxyConfig() {
+      try {
+        await this.$api.updateProxyConfig(this.proxyConfig);
+        this.$message.success('代理配置已保存');
       } catch (e) {
         this.$message.error('保存失败: ' + e.message);
       }

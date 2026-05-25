@@ -13,13 +13,14 @@ export interface OpenAIConfig {
   apiKey: string;
   baseUrl?: string;
   defaultModel?: string;
+  fetchOptions?: Record<string, any>;
 }
 
 export class OpenAIProvider implements BaseProvider {
   private client: OpenAI;
 
   constructor(config: OpenAIConfig) {
-    this.client = new OpenAI({
+    const clientConfig: Record<string, any> = {
       apiKey: config.apiKey,
       baseURL: config.baseUrl || 'https://api.openai.com/v1',
       defaultHeaders: {
@@ -27,7 +28,13 @@ export class OpenAIProvider implements BaseProvider {
         'X-Title': 'txcode',
         'X-OpenRouter-Title': 'txcode',
       },
-    });
+    };
+
+    if (config.fetchOptions && Object.keys(config.fetchOptions).length > 0) {
+      clientConfig.fetchOptions = config.fetchOptions;
+    }
+
+    this.client = new OpenAI(clientConfig);
     this.defaultModel = config.defaultModel || 'gpt-4';
   }
 

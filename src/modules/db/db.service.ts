@@ -218,6 +218,7 @@ export class DbService {
       () => this.migration014AddZihaoConfig(),
       () => this.migration015ProviderAuth(),
       () => this.migration016ProviderAuth(),
+      () => this.migration017ProxyConfig(),
     ];
 
     for (let i = 0; i < migrations.length; i++) {
@@ -708,6 +709,23 @@ private migration012AddSpecRepositories(): void {
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )
     `)
+  }
+
+  private migration017ProxyConfig(): void {
+    if (!this.db) return
+
+    this.db.run(`
+      CREATE TABLE IF NOT EXISTS proxy_config (
+        id INTEGER PRIMARY KEY DEFAULT 1,
+        enabled INTEGER DEFAULT 0,
+        type TEXT DEFAULT 'http',
+        host TEXT DEFAULT '',
+        port INTEGER DEFAULT 1080,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `)
+
+    this.db.run(`INSERT OR IGNORE INTO proxy_config (id) VALUES (1)`)
   }
 
   private getTableColumns(tableName: string): string[] {

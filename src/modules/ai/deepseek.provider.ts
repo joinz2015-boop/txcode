@@ -13,16 +13,23 @@ export interface DeepSeekConfig {
   apiKey: string;
   baseUrl?: string;
   defaultModel?: string;
+  fetchOptions?: Record<string, any>;
 }
 
 export class DeepSeekProvider implements BaseProvider {
   private client: OpenAI;
 
   constructor(config: DeepSeekConfig) {
-    this.client = new OpenAI({
+    const clientConfig: Record<string, any> = {
       apiKey: config.apiKey,
       baseURL: config.baseUrl || 'https://api.deepseek.com/v1',
-    });
+    };
+
+    if (config.fetchOptions && Object.keys(config.fetchOptions).length > 0) {
+      clientConfig.fetchOptions = config.fetchOptions;
+    }
+
+    this.client = new OpenAI(clientConfig);
     this.defaultModel = config.defaultModel || 'deepseek-chat';
   }
 
