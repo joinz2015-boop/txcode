@@ -48,10 +48,10 @@ const config: TxConfig = {
   maxToolIterations: 50,
   
   ai: {
-    maxContextTokens: 100000,
+    maxContextTokens: 150000,
     context: {
       mode: 'fixed',
-      maxTokens: 100000,
+      maxTokens: 150000,
       //maxTokens: 8000,
       percentage: 0.95,
       autoCompact: true,
