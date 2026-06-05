@@ -26,4 +26,6 @@ agents.forEach(agent => {
   );
 });
 
+copyFile('src/modules/ai/agents/dream/prompts/init.txt', 'dist/modules/ai/agents/dream/prompts/init.txt');
+
 console.log('Copied .txt files to dist');
