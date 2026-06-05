@@ -19,6 +19,7 @@ import type { SessionService } from '../../../session/session.service.js';
 import { specInjector } from '../../../spec/index.js';
 import { hooks } from '../../../hooks/index.js';
 import { loadMemory } from '../../../tools/provider/memory.js';
+import { loadProjectContext } from '../../../context/project.context.js';
 
 async function loadRoleTemplate(): Promise<string> {
   try {
@@ -55,7 +56,13 @@ async function buildCodePrompt(
     memoryBlock = `\n<memory-context>\n${memory}\n</memory-context>`;
   }
 
-  return `${roleTemplate}${memoryBlock}
+  const projectContext = loadProjectContext(workdir);
+  let projectBlock = '';
+  if (projectContext) {
+    projectBlock = `\n<project-context>\n${projectContext}\n</project-context>`;
+  }
+
+  return `${roleTemplate}${projectBlock}${memoryBlock}
 
  ## 可用 Skills
  {skills}

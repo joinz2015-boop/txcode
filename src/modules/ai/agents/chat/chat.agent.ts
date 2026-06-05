@@ -15,6 +15,7 @@ import {
 import type { MemoryService } from '../../../memory/memory.service.js';
 import { buildAvailableSkillsPrompt } from '../../../skill/skill.tool.js';
 import { loadMemory } from '../../../tools/provider/memory.js';
+import { loadProjectContext } from '../../../context/project.context.js';
 
 export interface ChatAgentConfig {
   provider: BaseProvider;
@@ -268,7 +269,13 @@ export class ChatAgent implements AIProvider {
       memoryBlock = `\n<memory-context>\n${memory}\n</memory-context>`;
     }
 
-    const promptTemplate = `${roleTemplate}${memoryBlock}
+    const projectContext = loadProjectContext(workdir);
+    let projectBlock = '';
+    if (projectContext) {
+      projectBlock = `\n<project-context>\n${projectContext}\n</project-context>`;
+    }
+
+    const promptTemplate = `${roleTemplate}${projectBlock}${memoryBlock}
 
   你通过 OpenAI Function Calling 模式工作：
 

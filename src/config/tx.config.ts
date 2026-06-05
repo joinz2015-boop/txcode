@@ -37,10 +37,10 @@ export interface TxConfig {
  * 这是应用程序的默认配置，可以在运行时通过其他方式覆盖
  */
 const config: TxConfig = {
-  debug: true,
+  debug: false,
   
   log: {
-    enabled: true,
+    enabled: false,
     dir: 'log',
     accessLog: 'access.log',
   },

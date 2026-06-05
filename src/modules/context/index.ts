@@ -8,3 +8,4 @@
  */
 
 export { ContextService, contextService } from './context.service.js';
+export { loadProjectContext } from './project.context.js';

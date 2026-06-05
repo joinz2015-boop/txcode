@@ -7,6 +7,7 @@ import { configService } from '../modules/config/index.js';
 import { skillsManager } from '../modules/skill/index.js';
 import { memoryService } from '../modules/memory/index.js';
 import { SummarizerService } from '../modules/ai/summarizer/index.js';
+import { dreamService } from '../modules/dream/dream.service.js';
 import { CommandResult } from './cli.types.js';
 
 export type CommandHandler = (args: string[]) => CommandResult | Promise<CommandResult>;
@@ -87,6 +88,7 @@ Available commands:
   /token         - Show token stats
   /config <k=v>  - Set config
   /clear         - Clear current session
+  /init          - Trigger dream init
   /exit          - Exit program
 `,
 }));
@@ -337,4 +339,9 @@ registerCommand('compact', async () => {
 
 registerCommand('exit', () => {
   return { success: true, message: '退出程序...', data: { exit: true } };
+});
+
+registerCommand('init', () => {
+  dreamService.enqueue();
+  return { success: true, message: '已入队 init 任务，等待 DreamAgent 处理' };
 });
