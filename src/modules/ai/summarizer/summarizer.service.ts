@@ -32,18 +32,15 @@ export class SummarizerService {
   }
 
   private getProvider(): BaseProvider {
-    const provider = this.configService.getDefaultProvider();
-    if (!provider) {
-      throw new Error('No default AI provider configured');
+    const modelName = this.configService.getDefaultModel();
+    const providerConfig = this.configService.getModelProvider(modelName);
+    if (!providerConfig) {
+      throw new Error(`Provider not found for model: ${modelName}`);
     }
-
-    const models = this.configService.getModels(provider.id);
-    const defaultModel = models.find(m => m.enabled) || models[0] || { name: 'gpt-4' };
-
     return createProvider({
-      apiKey: provider.apiKey,
-      baseUrl: provider.baseUrl,
-      defaultModel: defaultModel.name,
+      apiKey: providerConfig.apiKey,
+      baseUrl: providerConfig.baseUrl,
+      defaultModel: modelName,
     });
   }
 
@@ -52,15 +49,9 @@ export class SummarizerService {
   }
 
   private getCurrentModel() {
-    const providers = this.configService.getProviders();
-    for (const provider of providers) {
-      const models = this.configService.getModels(provider.id);
-      const enabledModel = models.find(m => m.enabled);
-      if (enabledModel) {
-        return enabledModel;
-      }
-    }
-    return null;
+    const modelName = this.configService.getDefaultModel();
+    const models = this.configService.getAllModels();
+    return models.find(m => m.name === modelName) || null;
   }
 
   async compact(options: SummarizerOptions): Promise<SummarizerResult> {
@@ -154,7 +145,6 @@ export class SummarizerService {
       console.log(`[Compact] /compact msgId=${summaryMessageId}, summary msgId=${assistantMsgId}`);
       
       this.sessionService.updateSummary(sessionId, assistantMsgId);
-      this.memoryService.deleteMessagesBefore(sessionId, assistantMsgId);
       this.sessionService.resetTokens(sessionId);
 
       return {
