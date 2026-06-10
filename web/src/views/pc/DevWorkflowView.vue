@@ -26,6 +26,9 @@
             <el-button type="info" plain @click="refreshSpec">
               <i class="el-icon-refresh"></i> 刷新方案
             </el-button>
+            <el-button type="success" plain @click="createSubScheme" :disabled="!currentProject">
+              <i class="el-icon-plus"></i> 新建子方案
+            </el-button>
           </template>
         </div>
       </div>
@@ -72,6 +75,15 @@
           @update:sessionId="updateTestSessionId"
           ref="step4Ref"
         />
+
+        <SubSchemeDialog
+          :visible.sync="subSchemeDialogVisible"
+          :category="currentCategory"
+          :parent-name="currentProject"
+          :default-name="subSchemeDefaultName"
+          @confirm="onSubSchemeConfirm"
+          @cancel="subSchemeDialogVisible = false"
+        />
       </div>
 
       <div class="status-bar">
@@ -91,6 +103,7 @@ import Step1NewReq from '../../components/pc/Step1NewReq.vue'
 import Step2Design from '../../components/pc/Step2Design.vue'
 import Step3CodeGen from '../../components/pc/Step3CodeGen.vue'
 import Step4Test from '../../components/pc/Step4Test.vue'
+import SubSchemeDialog from '../../components/pc/SubSchemeDialog.vue'
 import { api } from '../../api'
 
 export default {
@@ -100,7 +113,8 @@ export default {
     Step1NewReq,
     Step2Design,
     Step3CodeGen,
-    Step4Test
+    Step4Test,
+    SubSchemeDialog
   },
   props: {
     sidebarVisible: { type: Boolean, default: true }
@@ -118,7 +132,9 @@ export default {
       codeSessionId: '',
       testSessionId: '',
       taskStatus: 'idle',
-      unsubRunning: null
+      unsubRunning: null,
+      subSchemeDialogVisible: false,
+      subSchemeDefaultName: ''
     }
   },
   computed: {
@@ -146,8 +162,20 @@ export default {
     }
   },
   created() {
-    this.loadState()
+    const qCategory = this.$route.query?.category
+    const qProject = this.$route.query?.project
+    const qStep = parseInt(this.$route.query?.step) || 1
+    const hasQueryParams = !!(qCategory && qProject)
+
     this.loadCategories()
+
+    if (hasQueryParams) {
+      this.currentCategory = qCategory
+      this.currentProject = qProject
+      this.currentStep = qStep
+    } else {
+      this.loadState()
+    }
   },
   mounted() {
     console.log('[DevWorkflow][mounted] subscribing to running_sessions')
@@ -413,6 +441,98 @@ export default {
       this.$nextTick(() => {
         this.currentStep = 2
       })
+    },
+    async createSubScheme() {
+      if (!this.currentProject || !this.currentCategory) {
+        this.$message.warning('请先选择一个方案')
+        return
+      }
+
+      const parentName = this.currentProject
+      try {
+        const catPath = `${this.reqBasePath}/${this.currentCategory}`
+        const res = await api.browseFilesystem(catPath)
+        const items = res.data?.items || []
+        let maxNum = 0
+        const pattern = new RegExp(`^${this.escapeRegex(parentName)}_(\\d+)$`)
+        items.filter(item => item.is_directory).forEach(item => {
+          const match = item.name.match(pattern)
+          if (match) {
+            const num = parseInt(match[1], 10)
+            if (num > maxNum) maxNum = num
+          }
+        })
+        const nextNum = String(maxNum + 1).padStart(2, '0')
+        this.subSchemeDefaultName = `${parentName}_${nextNum}`
+        this.subSchemeDialogVisible = true
+      } catch (e) {
+        console.error('Browse category failed:', e)
+        this.$message.error('获取子方案列表失败')
+      }
+    },
+    escapeRegex(str) {
+      return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    },
+    async onSubSchemeConfirm(subName) {
+      this.subSchemeDialogVisible = false
+      const parentName = this.currentProject
+      const category = this.currentCategory
+
+      try {
+        const reqDirPath = `${this.reqBasePath}/${category}/${subName}`
+        await api.createDirectory(reqDirPath)
+      } catch (e) {
+        console.error('Create sub-scheme directory failed:', e)
+        this.$message.error('创建子方案目录失败')
+        return
+      }
+
+      const parentSpecPath = `${this.reqBasePath}/${category}/${parentName}/${parentName}_方案.md`
+      const specContent = `# ${subName}_方案
+
+> 所属大类：${category}
+> 父方案：[../${parentName}/${parentName}_方案.md](../${parentName}/${parentName}_方案.md)
+
+## 业务目标
+
+## 功能点
+
+`
+
+      try {
+        const specPath = `${this.reqBasePath}/${category}/${subName}/${subName}_方案.md`
+        await api.writeFile(specPath, specContent)
+      } catch (e) {
+        console.error('Write spec file failed:', e)
+      }
+
+      let sessionData = { designSessionId: '', codeSessionId: '', testSessionId: '' }
+      try {
+        const [designRes, codeRes, testRes] = await Promise.all([
+          api.createSession(`workflow:${category}/${subName}:design`),
+          api.createSession(`workflow:${category}/${subName}:code`),
+          api.createSession(`workflow:${category}/${subName}:test`)
+        ])
+        sessionData = {
+          designSessionId: designRes.data?.id || '',
+          codeSessionId: codeRes.data?.id || '',
+          testSessionId: testRes.data?.id || '',
+          parent: {
+            name: parentName,
+            specPath: parentSpecPath
+          }
+        }
+        const sessionPath = `${this.reqBasePath}/${category}/${subName}/session.json`
+        await api.writeFile(sessionPath, JSON.stringify(sessionData, null, 2))
+      } catch (e) {
+        console.error('Create sessions failed:', e)
+      }
+
+      const key = `${category}/${subName}`
+      this.$set(this.projects, key, { name: subName, stepStatus: {} })
+      this.$message.success(`子方案「${subName}」创建成功`)
+
+      window.open(`#/views/pc/devWorkflow?category=${encodeURIComponent(category)}&project=${encodeURIComponent(subName)}&step=2`, '_blank')
     },
     async onSaveSpec(content) {
       if (!this.projectKey) return

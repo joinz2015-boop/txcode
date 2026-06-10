@@ -245,7 +245,8 @@ export default {
       showFileDrawer: false,
       models: [],
       logSeq: 0,
-      wsUnsubscribe: null
+      wsUnsubscribe: null,
+      parentInfo: null
     }
   },
   computed: {
@@ -259,7 +260,14 @@ export default {
   },
   watch: {
     category: { handler() { this.loadData() } },
-    name: { handler() { this.loadData() } }
+    name: { handler() { this.loadData() } },
+    reqBasePath: {
+      handler(newVal) {
+        if (newVal) {
+          this.loadData()
+        }
+      }
+    }
   },
   async mounted() {
     ws.init()
@@ -274,6 +282,7 @@ export default {
   },
   methods: {
     async loadData() {
+      if (!this.reqBasePath) return
       await Promise.all([this.loadSpec(), this.loadSession()])
     },
     async loadSpec() {
@@ -291,6 +300,7 @@ export default {
     async loadSession() {
       if (!this.category || !this.name) {
         this.sessionId = ''
+        this.parentInfo = null
         return
       }
       try {
@@ -299,8 +309,10 @@ export default {
         if (fileRes && fileRes.content) {
           const sessionData = JSON.parse(fileRes.content)
           this.sessionId = sessionData.designSessionId || ''
+          this.parentInfo = sessionData.parent || null
         } else {
           this.sessionId = ''
+          this.parentInfo = null
         }
         if (this.sessionId) {
           await this.loadMessages()
@@ -308,6 +320,7 @@ export default {
         }
       } catch (e) {
         this.sessionId = ''
+        this.parentInfo = null
       }
     },
     async saveSpec() {
@@ -416,7 +429,12 @@ export default {
         this.subscribeSession()
       }
 
-      const contextMsg = `先在 ${this.specFilePath} 生成方案，先不要修改代码。\n\n用户输入: ${content}`
+      let extraContext = ''
+      if (this.logItems.length === 0 && this.parentInfo) {
+        extraContext = `\n\n注意：当前方案是「${this.parentInfo.name}」的子方案，请参考父方案内容。父方案路径：${this.parentInfo.specPath}`
+      }
+
+      const contextMsg = `先在 ${this.specFilePath} 生成方案，先不要修改代码。${extraContext}\n\n用户输入: ${content}`
 
       this.inputMessage = ''
       this.isProcessing = true
