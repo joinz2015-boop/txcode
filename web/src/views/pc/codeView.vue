@@ -102,9 +102,9 @@
           <span class="separator">|</span>
           <span class="status-action" @click.stop="openSkillSelectFromStatus">选择Skill</span>
           <span class="separator">|</span>
-          <el-checkbox v-model="panel.enableDevLog" size="small">启用记录</el-checkbox>
-          <span class="separator">|</span>
-          <span class="status-action" @click.stop="openDevLogDialog">查看记录</span>
+          <span class="status-action" @click.stop="toggleChatMode(panel)">
+            模式：{{ panel.chatMode === 'plan' ? '计划' : '编码' }} ▾
+          </span>
         </div>
       </div>
     </div>
@@ -142,10 +142,6 @@
       @close="commandDialogVisible = false"
     />
 
-    <DevLogDialog
-      :visible.sync="devLogVisible"
-      :session-id="selectedPanel?.session?.id"
-    />
   </div>
 </template>
 
@@ -156,7 +152,6 @@ import FileSelectDialog from '../../components/pc/FileSelectDialog.vue'
 import SkillSelectDialog from '../../components/pc/SkillSelectDialog.vue'
 import ModelSelectDialog from '../../components/pc/ModelSelectDialog.vue'
 import CommandDialog from '../../components/pc/CommandDialog.vue'
-import DevLogDialog from '../../components/pc/DevLogDialog.vue'
 import ResizableTextarea from '../../components/pc/ResizableTextarea.vue'
 import { ws } from '../../api/websocket/websocket_client.js'
 import * as sessions from '../../api/sessions.js'
@@ -165,7 +160,7 @@ import { scrollToBottom, snapshotScroll } from '../../utils/scroll'
 
 export default {
   name: 'CodeView',
-  components: { SessionsPanel, FileSelectDialog, SkillSelectDialog, ModelSelectDialog, CommandDialog, DevLogDialog, ResizableTextarea },
+  components: { SessionsPanel, FileSelectDialog, SkillSelectDialog, ModelSelectDialog, CommandDialog, ResizableTextarea },
   MAX_LOG_ITEMS: 400,
 
   props: {
@@ -191,9 +186,6 @@ export default {
       modelSelectVisible: false,
       selectedPanel: null,
       commandDialogVisible: false,
-      enableDevLog: true,
-      devLogVisible: false,
-      devLogContent: '',
       scrollRafMap: new WeakMap(),
       logSeq: 0,
       wsUnsubscribers: []
@@ -313,14 +305,9 @@ export default {
       this.currentPanel = null
     },
 
-    openDevLogDialog() {
-      this.selectedPanel = this.activeSessions[this.focusedPanelIndex]
-      const session = this.selectedPanel?.session
-      if (!session?.id) {
-        this.$message.warning('请先选择会话')
-        return
-      }
-      this.devLogVisible = true
+    toggleChatMode(panel) {
+      if (!panel) return
+      panel.chatMode = panel.chatMode === 'plan' ? 'code' : 'plan'
     },
 
     async handleExecuteCommand(cmd) {
@@ -528,7 +515,7 @@ export default {
           session: null, logItems: [], userQuestion: '', modelName: '',
           input: '', disabled: false, stopping: false, wsConnected: false,
           promptTokens: 0, dotInterval: null, compactionRatio: 0,
-          sessionStatus: 'idle', enableDevLog: false
+          sessionStatus: 'idle', enableDevLog: false, chatMode: 'code'
         })
       }
       this.activeSessions = newActive
@@ -565,6 +552,7 @@ export default {
       panel.disabled = false
       panel.stopping = false
       panel.promptTokens = 0
+      panel.chatMode = 'code'
       panel.sessionStatus = this.draggedSession.status || 'idle'
       if (panel.sessionStatus === 'processing') {
         panel.disabled = true
@@ -582,7 +570,7 @@ export default {
         Object.assign(panel, {
           session, logItems: [], userQuestion: '', disabled: isProcessing,
           stopping: false, promptTokens: 0, compactionRatio: 0,
-          sessionStatus: session.status || 'idle'
+          sessionStatus: session.status || 'idle', chatMode: 'code'
         })
         this.loadMessagesForPanel(panel, session.id)
         this.subscribePanel(panel)
@@ -687,15 +675,19 @@ export default {
       const content = panel.input.trim()
       if (!content || panel.disabled) return
 
+      const finalContent = panel.chatMode === 'plan'
+        ? `【计划模式】禁止修改任何代码，仅对用户输入进行分析并输出分析结果。\n\n用户输入：${content}`
+        : content
+
       panel.input = ''
       panel.disabled = true
       panel.stopping = false
       panel.userQuestion = content
       const snap = this.snapPanelScroll(panel)
-      this.pushLogItem(panel, { type: 'chat', content: content })
+      this.pushLogItem(panel, { type: 'chat', content: finalContent })
       this.$nextTick(() => this.schedulePanelScroll(panel, snap))
 
-      ws.send('chat', { message: content, sessionId: panel.session?.id, modelName: panel.modelName || undefined, enableDevLog: panel.enableDevLog })
+      ws.send('chat', { message: finalContent, sessionId: panel.session?.id, modelName: panel.modelName || undefined, enableDevLog: panel.enableDevLog })
     },
 
     stopPanel(panel) {

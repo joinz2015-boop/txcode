@@ -9,93 +9,115 @@
         <div class="editor-container" ref="editorContainer"></div>
       </div>
       <div class="chat-panel">
-        <div class="panel-header">
-          <span><i class="el-icon-chat-dot-round"></i> AI 方案助手</span>
-        </div>
-        <div class="chat-messages" ref="messagesContainer">
-          <div v-if="!logItems.length" class="empty-state">
-            <i class="el-icon-chat-dot-round"></i>
-            <p>输入需求描述，AI将协助您完善方案</p>
+        <div class="panel-header panel-tabs">
+          <div
+            class="panel-tab"
+            :class="{ active: chatTab === 'assistant' }"
+            @click="chatTab = 'assistant'"
+          >
+            <i class="el-icon-chat-dot-round"></i> AI生成方案
           </div>
-          <template v-for="(item, idx) in logItems" :key="idx">
-            <div v-if="item.type === 'todos'" class="todos-list">
-              <div v-for="(todo, tIdx) in item.todos" :key="tIdx" class="todo-item">
-                <span class="todo-status">{{ getTodoStatusIcon(todo.status) }}</span>
-                <span class="todo-name">{{ todo.name }}</span>
-              </div>
+          <div
+            class="panel-tab"
+            :class="{ active: chatTab === 'discuss' }"
+            @click="chatTab = 'discuss'"
+          >
+            <i class="el-icon-chat-dot-square"></i> AI方案交流
+          </div>
+        </div>
+        <template v-if="chatTab === 'assistant'">
+          <div class="chat-messages" ref="messagesContainer">
+            <div v-if="!logItems.length" class="empty-state">
+              <i class="el-icon-chat-dot-round"></i>
+              <p>输入需求描述，AI将协助您完善方案</p>
             </div>
-            <div v-if="item.type === 'chat'" class="flex justify-end">
-              <div class="user-question">{{ item.content }}</div>
-            </div>
-            <div v-else-if="item.type === 'system'" class="system-message" v-html="renderMarkdown(item.content)"></div>
-            <template v-else-if="item.type === 'step'">
-              <div v-if="item.thought" class="ai-thought" v-html="renderMarkdown(item.thought)"></div>
-              <div v-for="(tc, aIdx) in item.toolCalls" :key="aIdx" class="log-mute">
-                <span :class="item.success !== false ? 'tool-success' : 'tool-fail'">
-                  {{ item.success !== false ? '✓' : '✗' }}
-                </span>
-                {{ tc.function.name }}
-                <span v-if="tc.function.arguments" class="tool-input">{{ formatInput(tc.function.name, tc.function.arguments) }}</span>
+            <template v-for="(item, idx) in logItems" :key="idx">
+              <div v-if="item.type === 'todos'" class="todos-list">
+                <div v-for="(todo, tIdx) in item.todos" :key="tIdx" class="todo-item">
+                  <span class="todo-status">{{ getTodoStatusIcon(todo.status) }}</span>
+                  <span class="todo-name">{{ todo.name }}</span>
+                </div>
               </div>
+              <div v-if="item.type === 'chat'" class="flex justify-end">
+                <div class="user-question">{{ item.content }}</div>
+              </div>
+              <div v-else-if="item.type === 'system'" class="system-message" v-html="renderMarkdown(item.content)"></div>
+              <template v-else-if="item.type === 'step'">
+                <div v-if="item.thought" class="ai-thought" v-html="renderMarkdown(item.thought)"></div>
+                <div v-for="(tc, aIdx) in item.toolCalls" :key="aIdx" class="log-mute">
+                  <span :class="item.success !== false ? 'tool-success' : 'tool-fail'">
+                    {{ item.success !== false ? '✓' : '✗' }}
+                  </span>
+                  {{ tc.function.name }}
+                  <span v-if="tc.function.arguments" class="tool-input">{{ formatInput(tc.function.name, tc.function.arguments) }}</span>
+                </div>
+              </template>
+              <div v-else-if="item.type === 'think'" class="ai-thought" v-html="renderMarkdown(item.content)"></div>
             </template>
-          </template>
-          <div class="build-info" v-if="modelName">
-            <span class="icon">▣</span> Build · {{ modelName }}
+            <div class="build-info" v-if="modelName">
+              <span class="icon">▣</span> Build · {{ modelName }}
+            </div>
           </div>
-        </div>
-        <div class="chat-input-area">
-          <div class="input-row">
-            <ResizableTextarea
-              v-model="inputMessage"
-              :rows="5"
-              placeholder="输入消息... (Enter 发送, Ctrl+Enter 换行, @ 选择文件)"
-              :disabled="disabled && !stopping"
-              class="input-area"
-              @keydown.enter.native="handleKeydown"
-            />
-            <div class="input-actions">
-            <el-button
-              v-for="action in customActions"
-              :key="action.id"
-              type="info"
-              size="small"
-              @click="executeCustomAction(action)"
-              :disabled="disabled"
-            >
-              {{ action.name }}
-            </el-button>
-            <el-button v-if="disabled && !stopping" type="danger" @click="stopChat" class="stop-btn">
-              ■ 停止
-            </el-button>
-            <el-button v-else-if="stopping" type="info" disabled class="stop-btn">
-              停止中...
-            </el-button>
-            <el-button v-else type="primary" :disabled="!inputMessage.trim()" @click="sendMessage" class="send-btn">
-              发送
-            </el-button>
+          <div class="chat-input-area">
+            <div class="input-row">
+              <ResizableTextarea
+                v-model="inputMessage"
+                :rows="5"
+                placeholder="输入消息... (Enter 发送, Ctrl+Enter 换行, @ 选择文件)"
+                :disabled="disabled && !stopping"
+                class="input-area"
+                @keydown.enter.native="handleKeydown"
+              />
+              <div class="input-actions">
+              <el-button
+                v-for="action in customActions"
+                :key="action.id"
+                type="info"
+                size="small"
+                @click="executeCustomAction(action)"
+                :disabled="disabled"
+              >
+                {{ action.name }}
+              </el-button>
+              <el-button v-if="disabled && !stopping" type="danger" @click="stopChat" class="stop-btn">
+                ■ 停止
+              </el-button>
+              <el-button v-else-if="stopping" type="info" disabled class="stop-btn">
+                停止中...
+              </el-button>
+              <el-button v-else type="primary" :disabled="!inputMessage.trim()" @click="sendMessage" class="send-btn">
+                发送
+              </el-button>
+            </div>
+            </div>
           </div>
+          <div class="status-bar">
+            <span :class="sessionStatus === 'processing' ? 'status-thinking' : 'status-ready'">
+              <span v-if="sessionStatus === 'processing'" class="thinking-spinner"></span>
+              {{ sessionStatus === 'processing' ? '思考中' : '✓ 就绪' }}
+            </span>
+            <span class="separator">|</span>
+            <span class="model-selector" @click="openModelSelector" @mousedown.prevent>
+              模型：{{ modelName || '-' }} ▾
+            </span>
+            <span class="separator">|</span>
+            <span>会话：{{ sessionId ? sessionId.slice(0, 8) : '--------' }}</span>
+            <span class="separator">|</span>
+            <span>token：{{ promptTokens || 0 }}</span>
+            <span class="separator">|</span>
+            <span class="status-action" @click="openCommandDialog" @mousedown.prevent>命令</span>
+            <span class="separator">|</span>
+            <span class="status-action" @click="openFileSelect" @mousedown.prevent>选择文件</span>
+            <span class="separator">|</span>
+            <span class="status-action" @click="openSkillSelect" @mousedown.prevent>选择Skill</span>
           </div>
-        </div>
-        <div class="status-bar">
-          <span :class="sessionStatus === 'processing' ? 'status-thinking' : 'status-ready'">
-            <span v-if="sessionStatus === 'processing'" class="thinking-spinner"></span>
-            {{ sessionStatus === 'processing' ? '思考中' : '✓ 就绪' }}
-          </span>
-          <span class="separator">|</span>
-          <span class="model-selector" @click="openModelSelector" @mousedown.prevent>
-            模型：{{ modelName || '-' }} ▾
-          </span>
-          <span class="separator">|</span>
-          <span>会话：{{ sessionId ? sessionId.slice(0, 8) : '--------' }}</span>
-          <span class="separator">|</span>
-          <span>token：{{ promptTokens || 0 }}</span>
-          <span class="separator">|</span>
-          <span class="status-action" @click="openCommandDialog" @mousedown.prevent>命令</span>
-          <span class="separator">|</span>
-          <span class="status-action" @click="openFileSelect" @mousedown.prevent>选择文件</span>
-          <span class="separator">|</span>
-          <span class="status-action" @click="openSkillSelect" @mousedown.prevent>选择Skill</span>
-        </div>
+        </template>
+        <DesignDiscuss
+          v-if="chatTab === 'discuss'"
+          :category="category"
+          :name="name"
+          :reqBasePath="reqBasePath"
+        />
       </div>
     </div>
 
@@ -133,11 +155,12 @@ import CommandDialog from './CommandDialog.vue'
 import FileSelectDialog from './FileSelectDialog.vue'
 import SkillSelectDialog from './SkillSelectDialog.vue'
 import ResizableTextarea from './ResizableTextarea.vue'
+import DesignDiscuss from './DesignDiscuss.vue'
 import { scrollToBottom, snapshotScroll } from '../../utils/scroll'
 
 export default {
   name: 'Step2Design',
-  components: { ModelSelectDialog, CommandDialog, FileSelectDialog, SkillSelectDialog, ResizableTextarea },
+  components: { ModelSelectDialog, CommandDialog, FileSelectDialog, SkillSelectDialog, ResizableTextarea, DesignDiscuss },
   props: {
     category: { type: String, default: '' },
     name: { type: String, default: '' },
@@ -159,7 +182,8 @@ export default {
       skillSelectVisible: false,
       sessionId: '',
       sessionStatus: 'idle',
-      customActions: []
+      customActions: [],
+      chatTab: 'assistant'
     }
   },
   computed: {
@@ -518,6 +542,10 @@ export default {
 .editor-container { flex: 1; min-height: 0; }
 .chat-panel { width: 480px; background: #121212; border: 1px solid #1e1e1e; border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; flex-shrink: 0; }
 .panel-header { background: #121212; border-bottom: 1px solid #1e1e1e; padding: 12px 16px; font-size: 14px; font-weight: 500; color: #f4f4f5; flex-shrink: 0; }
+.panel-tabs { display: flex; gap: 0; padding: 0; }
+.panel-tab { flex: 1; text-align: center; padding: 10px 16px; cursor: pointer; color: #84848a; font-size: 13px; border-bottom: 2px solid transparent; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px; }
+.panel-tab:hover { color: #d4d4d8; }
+.panel-tab.active { color: #60a5fa; border-bottom-color: #60a5fa; }
 .chat-messages { flex: 1; overflow-y: auto; padding: 0 16px 16px; font-size: 14px; line-height: 1.6; }
 .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #84848a; }
 .empty-state i { font-size: 48px; margin-bottom: 16px; opacity: 0.5; }
@@ -562,4 +590,6 @@ export default {
 }
 .model-selector { cursor: pointer; }
 .model-selector:hover { color: #60a5fa; }
+.status-action { cursor: pointer; }
+.status-action:hover { color: #60a5fa; }
 </style>
