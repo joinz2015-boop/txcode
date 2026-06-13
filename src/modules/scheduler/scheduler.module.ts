@@ -2,12 +2,10 @@ import cron, { ScheduledTask } from 'node-cron';
 import { v4 as uuid } from 'uuid';
 import { schedulerRepository } from '../../repository/scheduler.repository.js';
 import type { ScheduledTaskRow, TaskSkillRow, ScheduledTaskConfig, ScheduleType, NotifyType } from '../../entity/scheduler.entity.js';
-import { configService } from '../../services/config/config.service.js';
-import { OpenAIProvider } from '../../core/ai/provider/openai.provider.js';
-import { createProvider } from '../../core/ai/provider/factory.js';
+import { getProvider } from '../../core/ai/provider/provider.router.js';
 import { TaskAgent } from '../../core/ai/agents/task/task.agent.js';
-import { taskLogService, TaskLog } from './task-log.service.js';
-import { notifyService } from './notify.service.js';
+import { taskLogService, TaskLog } from './task-log.module.js';
+import { notifyService } from './notify.module.js';
 
 export type { ScheduleType, ScheduledTaskConfig };
 
@@ -170,15 +168,7 @@ export class SchedulerService {
     const startTime = Date.now();
 
     try {
-      const providerConfig = configService.getProvider(configService.getModelProvider(taskConfig.model)?.id || '');
-      const models = providerConfig ? configService.getModels(providerConfig.id) : [];
-      const modelName = taskConfig.model || models.find(m => m.enabled)?.name || 'gpt-4';
-
-      const provider = createProvider({
-        baseUrl: providerConfig?.baseUrl || '',
-        apiKey: providerConfig?.apiKey || '',
-        defaultModel: modelName,
-      });
+      const provider = getProvider(taskConfig.model);
 
       const agent = new TaskAgent({
         provider,

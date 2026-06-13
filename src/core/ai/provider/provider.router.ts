@@ -1,6 +1,6 @@
 import { OpenAIProvider } from './openai.provider.js';
 import { DeepSeekProvider } from './deepseek.provider.js';
-import { BaseProvider } from '../ai.types.js';
+import { BaseProvider } from '../../../entity/ai.entity.js';
 import { ProxyAgent } from 'undici';
 import { configService } from '../../../services/config/config.service.js';
 
@@ -46,5 +46,18 @@ export function createProvider(config: ProviderConfig): BaseProvider {
     baseUrl: baseUrl,
     defaultModel: config.defaultModel,
     fetchOptions,
+  });
+}
+
+export function getProvider(modelName?: string): BaseProvider {
+  const model = modelName || configService.getDefaultModel();
+  const providerConfig = configService.getModelProvider(model);
+  if (!providerConfig) {
+    throw new Error(`Provider not found for model: ${model}`);
+  }
+  return createProvider({
+    apiKey: providerConfig.apiKey,
+    baseUrl: providerConfig.baseUrl,
+    defaultModel: model,
   });
 }

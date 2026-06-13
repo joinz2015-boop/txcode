@@ -1,2 +1,2 @@
-export { wafGatewayService, WafGatewayService } from '../../services/gateway/waf-gateway.service.js';
+export { wafGatewayService, WafGatewayService } from './waf-gateway.module.js';
 export type { WafGatewayConfig } from '../../entity/gateway.entity.js';

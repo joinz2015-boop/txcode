@@ -17,6 +17,20 @@
 import initSqlJs, { Database as SqlJsDatabase } from 'sql.js';
 import * as path from 'path';
 import * as fs from 'fs';
+import { initSessionTables } from './init_sql/session.init.js';
+import { initProjectTables } from './init_sql/project.init.js';
+import { initCodeSnippetTables } from './init_sql/code_snippet.init.js';
+import { initProviderTables } from './init_sql/provider.init.js';
+import { initConfigTables } from './init_sql/config.init.js';
+import { initDingdingTables } from './init_sql/dingding.init.js';
+import { initLspTables } from './init_sql/lsp.init.js';
+import { initAiLogTables } from './init_sql/ai_log.init.js';
+import { initSchedulerTables } from './init_sql/scheduler.init.js';
+import { initEmailTables } from './init_sql/email.init.js';
+import { initCustomActionTables } from './init_sql/custom_action.init.js';
+import { initWafGatewayTables } from './init_sql/waf_gateway.init.js';
+import { initSpecTables } from './init_sql/spec.init.js';
+import { initZihaoTables } from './init_sql/zihao.init.js';
 
 export class DbService {
   private db: SqlJsDatabase | null = null;
@@ -242,124 +256,12 @@ export class DbService {
 
   private migration001Initial(): void {
     if (!this.db) return;
-
-    this.db.run(`
-      CREATE TABLE IF NOT EXISTS sessions (
-        id TEXT PRIMARY KEY,
-        title TEXT NOT NULL,
-        project_path TEXT,
-        summary_message_id INTEGER,
-        prompt_tokens INTEGER DEFAULT 0,
-        completion_tokens INTEGER DEFAULT 0,
-        cost REAL DEFAULT 0,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-
-    this.db.run(`
-      CREATE TABLE IF NOT EXISTS messages (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        session_id TEXT NOT NULL,
-        role TEXT NOT NULL CHECK (role IN ('user', 'assistant', 'system', 'tool')),
-        content TEXT NOT NULL,
-        keep_context INTEGER DEFAULT 1,
-        is_original INTEGER DEFAULT 0,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
-      )
-    `);
-
-    this.db.run(`
-      CREATE TABLE IF NOT EXISTS project_knowledge (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        project_path TEXT NOT NULL,
-        key TEXT NOT NULL,
-        value TEXT NOT NULL,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(project_path, key)
-      )
-    `);
-
-    this.db.run(`
-      CREATE TABLE IF NOT EXISTS code_snippets (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        session_id TEXT,
-        lang TEXT NOT NULL,
-        description TEXT,
-        code TEXT NOT NULL,
-        tags TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE SET NULL
-      )
-    `);
-
-    this.db.run(`
-      CREATE TABLE IF NOT EXISTS providers (
-        id TEXT PRIMARY KEY,
-        name TEXT NOT NULL,
-        api_key TEXT NOT NULL,
-        base_url TEXT DEFAULT 'https://api.openai.com/v1',
-        enabled INTEGER DEFAULT 1,
-        is_default INTEGER DEFAULT 0,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-
-    this.db.run(`
-      CREATE TABLE IF NOT EXISTS models (
-        id TEXT PRIMARY KEY,
-        provider_id TEXT NOT NULL,
-        name TEXT NOT NULL,
-        context_window INTEGER DEFAULT 4096,
-        max_output_tokens INTEGER DEFAULT 4096,
-        supports_vision INTEGER DEFAULT 0,
-        supports_tools INTEGER DEFAULT 1,
-        enabled INTEGER DEFAULT 1,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (provider_id) REFERENCES providers(id) ON DELETE CASCADE
-      )
-    `);
-
-    this.db.run(`
-      CREATE TABLE IF NOT EXISTS config (
-        key TEXT PRIMARY KEY,
-        value TEXT NOT NULL,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-
-    this.db.run(`
-      CREATE TABLE IF NOT EXISTS dingding_config (
-        id INTEGER PRIMARY KEY CHECK (id = 1),
-        enabled INTEGER DEFAULT 0,
-        client_id TEXT DEFAULT '',
-        client_secret TEXT DEFAULT '',
-        bot_name TEXT DEFAULT '',
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-
-    this.db.run(`INSERT OR IGNORE INTO dingding_config (id) VALUES (1)`);
-
-    this.db.run(`CREATE INDEX IF NOT EXISTS idx_messages_session_id ON messages(session_id)`);
-    this.db.run(`CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at)`);
-    this.db.run(`CREATE INDEX IF NOT EXISTS idx_messages_keep_context ON messages(session_id, keep_context)`);
-    this.db.run(`CREATE INDEX IF NOT EXISTS idx_project_knowledge_path ON project_knowledge(project_path)`);
-    this.db.run(`CREATE INDEX IF NOT EXISTS idx_code_snippets_session ON code_snippets(session_id)`);
-    this.db.run(`CREATE INDEX IF NOT EXISTS idx_models_provider ON models(provider_id)`);
-    this.db.run(`CREATE INDEX IF NOT EXISTS idx_sessions_summary ON sessions(summary_message_id)`);
-
-    this.db.run(`INSERT OR IGNORE INTO config (key, value) VALUES ('ai.maxToolIterations', '10')`);
-    this.db.run(`INSERT OR IGNORE INTO config (key, value) VALUES ('ai.maxSessionCompression', '5')`);
-    this.db.run(`INSERT OR IGNORE INTO config (key, value) VALUES ('web.port', '40000')`);
-    this.db.run(`INSERT OR IGNORE INTO config (key, value) VALUES ('ai.context.mode', '"fixed"')`);
-    this.db.run(`INSERT OR IGNORE INTO config (key, value) VALUES ('ai.context.maxTokens', '100000')`);
-    this.db.run(`INSERT OR IGNORE INTO config (key, value) VALUES ('ai.context.percentage', '0.95')`);
-    this.db.run(`INSERT OR IGNORE INTO config (key, value) VALUES ('ai.context.autoCompact', 'true')`);
+    initSessionTables(this.db);
+    initProjectTables(this.db);
+    initCodeSnippetTables(this.db);
+    initProviderTables(this.db);
+    initConfigTables(this.db);
+    initDingdingTables(this.db);
   }
 
   private migration002AddContextFields(): void {
@@ -436,158 +338,32 @@ export class DbService {
 
   private migration003AddLspServers(): void {
     if (!this.db) return;
-
-    this.db.run(`
-      CREATE TABLE IF NOT EXISTS lsp_server (
-        id TEXT PRIMARY KEY,
-        enabled INTEGER NOT NULL DEFAULT 0,
-        auto_start INTEGER NOT NULL DEFAULT 1,
-        created_at INTEGER NOT NULL,
-        updated_at INTEGER NOT NULL
-      )
-    `);
-
-    const now = Date.now();
-    const defaultServers = [
-      { id: "typescript", enabled: 1, auto_start: 1 },
-      { id: "python", enabled: 1, auto_start: 1 },
-      { id: "java", enabled: 1, auto_start: 1 },
-      { id: "cpp", enabled: 0, auto_start: 0 },
-    ];
-
-    for (const server of defaultServers) {
-      this.db.run(
-        "INSERT OR IGNORE INTO lsp_server (id, enabled, auto_start, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
-        [server.id, server.enabled, server.auto_start, now, now]
-      );
-    }
+    initLspTables(this.db);
   }
 
   private migration004AddProjects(): void {
     if (!this.db) return;
-
-    this.db.run(`
-      CREATE TABLE IF NOT EXISTS projects (
-        id TEXT PRIMARY KEY,
-        name TEXT NOT NULL,
-        path TEXT NOT NULL UNIQUE,
-        description TEXT DEFAULT '',
-        is_active INTEGER DEFAULT 0,
-        is_favorite INTEGER DEFAULT 0,
-        last_opened_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-
-    this.db.run(`CREATE INDEX IF NOT EXISTS idx_projects_path ON projects(path)`);
-    this.db.run(`CREATE INDEX IF NOT EXISTS idx_projects_active ON projects(is_active)`);
+    initProjectTables(this.db);
   }
 
   private migration005AddAiCallLogs(): void {
     if (!this.db) return;
-
-    this.db.run(`
-      CREATE TABLE IF NOT EXISTS ai_call_logs (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        model_address TEXT NOT NULL,
-        model_name TEXT NOT NULL,
-        request_time DATETIME DEFAULT (datetime('now', 'localtime')),
-        response_time DATETIME,
-        duration_ms INTEGER DEFAULT 0,
-        input_tokens INTEGER DEFAULT 0,
-        output_tokens INTEGER DEFAULT 0,
-        cost REAL DEFAULT 0,
-        call_type TEXT NOT NULL CHECK (call_type IN ('tool_call', 'normal')),
-        session_id TEXT,
-        created_at DATETIME DEFAULT (datetime('now', 'localtime'))
-      )
-    `);
-
-    this.db.run(`CREATE INDEX IF NOT EXISTS idx_ai_logs_request_time ON ai_call_logs(request_time)`);
-    this.db.run(`CREATE INDEX IF NOT EXISTS idx_ai_logs_session_id ON ai_call_logs(session_id)`);
-    this.db.run(`CREATE INDEX IF NOT EXISTS idx_ai_logs_call_type ON ai_call_logs(call_type)`);
+    initAiLogTables(this.db);
   }
 
   private migration006AddDingdingConfig(): void {
     if (!this.db) return;
-
-    this.db.run(`
-      CREATE TABLE IF NOT EXISTS dingding_config (
-        id INTEGER PRIMARY KEY CHECK (id = 1),
-        enabled INTEGER DEFAULT 0,
-        client_id TEXT DEFAULT '',
-        client_secret TEXT DEFAULT '',
-        bot_name TEXT DEFAULT '',
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-
-    this.db.run(`INSERT OR IGNORE INTO dingding_config (id) VALUES (1)`);
+    initDingdingTables(this.db);
   }
 
   private migration007AddScheduledTasks(): void {
     if (!this.db) return;
-
-    this.db.run(`
-      CREATE TABLE IF NOT EXISTS scheduled_tasks (
-        id TEXT PRIMARY KEY,
-        name TEXT NOT NULL,
-        schedule_type TEXT NOT NULL,
-        model TEXT NOT NULL,
-        content TEXT NOT NULL,
-        notify_type TEXT NOT NULL DEFAULT 'message',
-        enabled INTEGER DEFAULT 1,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-
-    this.db.run(`
-      CREATE TABLE IF NOT EXISTS task_skills (
-        id TEXT PRIMARY KEY,
-        task_id TEXT NOT NULL,
-        skill TEXT NOT NULL,
-        skill_order INTEGER DEFAULT 0,
-        FOREIGN KEY (task_id) REFERENCES scheduled_tasks(id) ON DELETE CASCADE
-      )
-    `);
-
-    this.db.run(`
-      CREATE TABLE IF NOT EXISTS task_logs (
-        id TEXT PRIMARY KEY,
-        task_id TEXT NOT NULL,
-        status TEXT NOT NULL CHECK (status IN ('success', 'failed')),
-        prompt TEXT,
-        result TEXT,
-        error TEXT,
-        duration INTEGER,
-        executed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (task_id) REFERENCES scheduled_tasks(id) ON DELETE CASCADE
-      )
-    `);
-
-    this.db.run(`CREATE INDEX IF NOT EXISTS idx_task_skills_task_id ON task_skills(task_id)`);
-    this.db.run(`CREATE INDEX IF NOT EXISTS idx_task_logs_task_id ON task_logs(task_id)`);
-    this.db.run(`CREATE INDEX IF NOT EXISTS idx_task_logs_executed_at ON task_logs(executed_at)`);
+    initSchedulerTables(this.db);
   }
 
   private migration008AddEmailConfig(): void {
     if (!this.db) return
-
-    this.db.run(`
-      CREATE TABLE IF NOT EXISTS email_config (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        host TEXT NOT NULL,
-        port INTEGER DEFAULT 587,
-        secure INTEGER DEFAULT 0,
-        user TEXT NOT NULL,
-        password TEXT NOT NULL,
-        from_name TEXT,
-        is_default INTEGER DEFAULT 0,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )
-    `)
+    initEmailTables(this.db)
   }
 
   private migration009AddSessionStatus(): void {
@@ -601,131 +377,45 @@ export class DbService {
 
   private migration010AddCustomActions(): void {
     if (!this.db) return
-
-    this.db.run(`
-      CREATE TABLE IF NOT EXISTS custom_actions (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        action_type TEXT NOT NULL CHECK(action_type IN ('design', 'code', 'test')),
-        name TEXT NOT NULL,
-        prompt TEXT NOT NULL,
-        auto_send INTEGER DEFAULT 0,
-        sort_order INTEGER DEFAULT 0,
-        created_at TEXT DEFAULT (datetime('now'))
-      )
-    `)
+    initCustomActionTables(this.db)
   }
 
   private migration011AddWafGatewayConfig(): void {
     if (!this.db) return
-
-    this.db.run(`
-      CREATE TABLE IF NOT EXISTS waf_gateway_config (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        secret_key TEXT DEFAULT '',
-        server_ip TEXT DEFAULT '',
-        status TEXT DEFAULT 'stopped',
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )
-    `)
-
-    this.db.run(`INSERT OR IGNORE INTO waf_gateway_config (id) VALUES (1)`)
+    initWafGatewayTables(this.db)
   }
 
-private migration012AddSpecRepositories(): void {
+  private migration012AddSpecRepositories(): void {
     if (!this.db) return
 
-    this.db.run(`
-      CREATE TABLE IF NOT EXISTS spec_repositories (
-        id TEXT PRIMARY KEY,
-        name TEXT NOT NULL,
-        url TEXT NOT NULL,
-        type TEXT DEFAULT 'default',
-        enabled INTEGER DEFAULT 1,
-        repo_path TEXT,
-        last_sync_at DATETIME,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )
-    `)
+    initSpecTables(this.db)
 
     const columns = this.getTableColumns('spec_repositories');
     if (!columns.includes('repo_path')) {
       this.db.run('ALTER TABLE spec_repositories ADD COLUMN repo_path TEXT');
     }
-
-    this.db.run(`
-      INSERT OR IGNORE INTO spec_repositories (id, name, url, type, repo_path)
-      VALUES ('default', 'txcode官方规范库', 'https://gitee.com/homecommunity/txcode', 'default', '')
-    `)
   }
 
 
 
   private migration014AddZihaoConfig(): void {
     if (!this.db) return
-
-    this.db.run(`
-      CREATE TABLE IF NOT EXISTS zihao_config (
-        id TEXT PRIMARY KEY,
-        name TEXT NOT NULL,
-        url TEXT NOT NULL,
-        username TEXT NOT NULL,
-        password TEXT NOT NULL,
-        is_active INTEGER DEFAULT 0,
-        created_at TEXT DEFAULT (datetime('now')),
-        updated_at TEXT DEFAULT (datetime('now'))
-      )
-    `)
+    initZihaoTables(this.db)
   }
 
   private migration015ProviderAuth(): void {
     if (!this.db) return
-
-    this.db.run(`
-      CREATE TABLE IF NOT EXISTS provider_auth (
-        id TEXT PRIMARY KEY,
-        provider_name TEXT NOT NULL,
-        key TEXT NOT NULL DEFAULT '',
-        auth_url TEXT DEFAULT '',
-        active INTEGER DEFAULT 0,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )
-    `)
+    initProviderTables(this.db)
   }
 
   private migration016ProviderAuth(): void {
     if (!this.db) return
-
-    this.db.run(`
-      CREATE TABLE IF NOT EXISTS provider_auth (
-        id TEXT PRIMARY KEY,
-        provider_name TEXT NOT NULL,
-        key TEXT NOT NULL DEFAULT '',
-        auth_url TEXT DEFAULT '',
-        active INTEGER DEFAULT 0,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )
-    `)
+    initProviderTables(this.db)
   }
 
   private migration017ProxyConfig(): void {
     if (!this.db) return
-
-    this.db.run(`
-      CREATE TABLE IF NOT EXISTS proxy_config (
-        id INTEGER PRIMARY KEY DEFAULT 1,
-        enabled INTEGER DEFAULT 0,
-        type TEXT DEFAULT 'http',
-        host TEXT DEFAULT '',
-        port INTEGER DEFAULT 1080,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )
-    `)
-
-    this.db.run(`INSERT OR IGNORE INTO proxy_config (id) VALUES (1)`)
+    initConfigTables(this.db)
   }
 
   private getTableColumns(tableName: string): string[] {

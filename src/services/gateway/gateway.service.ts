@@ -2,7 +2,7 @@
 import { configService } from '../../services/config/index.js';
 import { sessionService } from '../../services/session/index.js';
 import { memoryService } from '../../services/memory/index.js';
-import { createProvider } from '../../core/ai/provider/factory.js';
+import { getProvider } from '../../core/ai/provider/provider.router.js';
 import { ChatAgent } from '../../core/ai/agents/chat/chat.agent.js';
 import { toolService } from '../../core/tools/index.js';
 import { skillsManager } from '../../services/skill/index.js';
@@ -248,16 +248,7 @@ export class GatewayService {
     try {
       await this.sendThinking(msg.webhook, '正在处理...');
 
-      const defaultModel = configService.getDefaultModel();
-      const providerConfig = configService.getModelProvider(defaultModel);
-      if (!providerConfig) {
-        throw new Error(`Provider not found for model: ${defaultModel}`);
-      }
-      const provider = createProvider({
-        apiKey: providerConfig.apiKey,
-        baseUrl: providerConfig.baseUrl,
-        defaultModel: defaultModel,
-      });
+      const provider = getProvider();
 
       const agent = new ChatAgent({
         provider,

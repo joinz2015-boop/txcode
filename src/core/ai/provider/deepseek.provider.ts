@@ -5,7 +5,7 @@ import {
   ChatResponse,
   ToolDefinition,
   BaseProvider,
-} from '../ai.types.js';
+} from '../../../entity/ai.entity.js';
 import { logger } from '../../../modules/logger/index.js';
 import { aiLogService } from '../../../services/ai/ai-log.service.js';
 

@@ -1,6 +1,5 @@
 import { ConfigService, configService } from '../../../../services/config/config.service.js';
-import { createProvider } from '../../provider/factory.js';
-import { BaseProvider } from '../../ai.types.js';
+import { getProvider } from '../../provider/provider.router.js';
 import { SummarizerResult, SummarizerOptions, CompactionCheckResult } from '../../../../entity/summarizer.entity.js';
 import { SessionService } from '../../../../services/session/session.service.js';
 import { MemoryService } from '../../../../services/memory/memory.service.js';
@@ -40,19 +39,6 @@ export class SummarizerAgent {
       this.roleTemplate = await loadRoleTemplate();
     }
     return this.roleTemplate;
-  }
-
-  private getProvider(): BaseProvider {
-    const modelName = this.configService.getDefaultModel();
-    const providerConfig = this.configService.getModelProvider(modelName);
-    if (!providerConfig) {
-      throw new Error(`Provider not found for model: ${modelName}`);
-    }
-    return createProvider({
-      apiKey: providerConfig.apiKey,
-      baseUrl: providerConfig.baseUrl,
-      defaultModel: modelName,
-    });
   }
 
   private getContextConfig() {
@@ -136,7 +122,7 @@ export class SummarizerAgent {
         },
       ];
 
-      const provider = this.getProvider();
+      const provider = getProvider();
       const response = await provider.chat(summarizerMessages, {
         maxTokens: 2000,
       });

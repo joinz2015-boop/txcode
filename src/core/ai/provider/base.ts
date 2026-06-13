@@ -1,4 +1,4 @@
-import { ChatMessage, ToolDefinition } from '../ai.types.js';
+import { ChatMessage, ToolDefinition } from '../../../entity/ai.entity.js';
 import type { MemoryService } from '../../../services/memory/memory.service.js';
 
 export interface ProviderResponse {

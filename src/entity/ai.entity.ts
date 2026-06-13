@@ -1,0 +1,77 @@
+export type MultimodalContent =
+  | { type: 'text'; text: string }
+  | { type: 'image_url'; image_url: { url: string; detail?: 'low' | 'high' | 'auto' } };
+
+export interface ChatMessage {
+  role: 'user' | 'assistant' | 'system' | 'tool';
+  content: string | MultimodalContent[];
+  name?: string;
+  toolCallId?: string;
+  toolCalls?: ToolCall[];
+}
+
+export interface ToolCall {
+  id: string;
+  type: 'function';
+  function: {
+    name: string;
+    arguments: string;
+  };
+}
+
+export interface ChatOptions {
+  temperature?: number;
+  maxTokens?: number;
+  model?: string;
+  tools?: ToolDefinition[];
+  abortSignal?: AbortSignal;
+  sessionId?: string;
+  modelName?: string;
+}
+
+export interface ToolDefinition {
+  type: 'function';
+  function: {
+    name: string;
+    description: string;
+    parameters: Record<string, any>;
+  };
+}
+
+export interface ChatResponse {
+  content: string;
+  reasoning?: string;
+  finishReason: 'stop' | 'length' | 'tool_calls';
+  toolCalls?: ToolCall[];
+  usage?: {
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+  };
+}
+
+export interface ReActState {
+  thought: string;
+  toolCalls: { id?: string; type?: string; function: { name: string; arguments: string | any } }[];
+  success?: boolean;
+  answer?: string;
+  keepContext?: boolean;
+  usage?: {
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+  };
+}
+
+export interface BaseProvider {
+  chat(
+    messages: ChatMessage[],
+    options?: ChatOptions
+  ): Promise<ChatResponse>;
+  chatStream(
+    messages: ChatMessage[],
+    options?: ChatOptions
+  ): AsyncGenerator<string, void, unknown>;
+  getModel(): string;
+  getBaseUrl(): string;
+}

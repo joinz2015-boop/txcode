@@ -1,7 +1,6 @@
 import { IDreamHandler, DreamTask } from '../dream.types.js'
 import { DreamAgent } from '../../../core/ai/agents/dream/dream.agent.js'
-import { configService } from '../../../services/config/config.service.js'
-import { createProvider } from '../../../core/ai/provider/factory.js'
+import { getProvider } from '../../../core/ai/provider/provider.router.js'
 import { projectService } from '../../../services/project/project.service.js'
 import * as fs from 'fs'
 import * as path from 'path'
@@ -43,19 +42,7 @@ export class InitHandler implements IDreamHandler {
 
   private async runAgent(workDir: string, userMessage: string): Promise<void> {
     try {
-      const defaultModel = configService.getDefaultModel()
-      const providerConfig = configService.getModelProvider(defaultModel)
-
-      if (!providerConfig) {
-        console.error('[Dream:init] 未找到可用 provider')
-        return
-      }
-
-      const provider = createProvider({
-        apiKey: providerConfig.apiKey,
-        baseUrl: providerConfig.baseUrl || '',
-        defaultModel: defaultModel,
-      })
+      const provider = getProvider()
 
       const agent = new DreamAgent({
         provider,

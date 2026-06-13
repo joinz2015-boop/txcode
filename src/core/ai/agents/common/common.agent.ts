@@ -1,4 +1,4 @@
-﻿import { BaseProvider, ChatMessage, MultimodalContent } from '../../ai.types.js';
+﻿import { BaseProvider, ChatMessage, MultimodalContent } from '../../../entity/ai.entity.js';
 import { buildProviderPrompt } from './prompts.js';
 import { getOpenAITools, openaiTools } from '../../../tools/provider/tools.js';
 import { getProviderTools } from '../../../tools/provider/index.js';

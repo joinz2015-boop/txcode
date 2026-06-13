@@ -15,7 +15,7 @@ import { memoryService } from '../../services/memory/index.js'
 import { CallerChatInput, CallerChatOptions, CallerChatResult, CallerStep, CallerInitInput, CallerInitResult } from './callerChat.types.js'
 import type { Session } from '../../entity/session.entity.js'
 import { ConfigService } from '../../services/config/config.service.js'
-import { createProvider } from '../../core/ai/provider/factory.js'
+import { createProvider, getProvider } from '../../core/ai/provider/provider.router.js'
 import { CallerAgent } from '../../core/ai/agents/caller/caller.agent.js'
 import { SummarizerAgent } from '../../core/ai/agents/summarizer/summarizer.agent.js'
 import { ChatMessage, BaseProvider } from '../../core/ai/ai.types.js'
@@ -113,18 +113,7 @@ export class CallerChatService {
       })
     }
 
-    const defaultModel = modelName || this.configService.getDefaultModel()
-    const providerConfig = this.configService.getModelProvider(defaultModel)
-
-    if (!providerConfig) {
-      throw new Error(`Provider not found for model: ${defaultModel}`)
-    }
-
-    return createProvider({
-      apiKey: providerConfig.apiKey,
-      baseUrl: providerConfig.baseUrl,
-      defaultModel: defaultModel,
-    })
+    return getProvider(modelName)
   }
 
   /** 处理聊天请求：获取或创建 session，执行 AI 对话 */

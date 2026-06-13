@@ -4,10 +4,10 @@ import { memoryService } from '../../services/memory/index.js';
 import { ChatInput, ChatOptions, ChatResult, Step } from './codeChat.types.js';
 import type { Session } from '../../entity/session.entity.js';
 import { ConfigService } from '../../services/config/config.service.js';
-import { createProvider } from '../../core/ai/provider/factory.js';
+import { getProvider } from '../../core/ai/provider/provider.router.js';
 import { CodeAgent } from '../../core/ai/agents/index.js';
 import { SummarizerAgent } from '../../core/ai/agents/summarizer/summarizer.agent.js';
-import { ChatMessage, BaseProvider } from '../../core/ai/ai.types.js';
+import { ChatMessage } from '../../core/ai/ai.types.js';
 
 export class CodeChatService {
   private configService: ConfigService;
@@ -16,21 +16,6 @@ export class CodeChatService {
   constructor(config?: { configService?: ConfigService; sessionService?: typeof defaultSessionService }) {
     this.configService = config?.configService || defaultConfigService;
     this.sessionService = config?.sessionService || defaultSessionService;
-  }
-
-  private getProvider(modelName?: string): BaseProvider {
-    const defaultModel = modelName || this.configService.getDefaultModel();
-    const providerConfig = this.configService.getModelProvider(defaultModel);
-
-    if (!providerConfig) {
-      throw new Error(`Provider not found for model: ${defaultModel}`);
-    }
-
-    return createProvider({
-      apiKey: providerConfig.apiKey,
-      baseUrl: providerConfig.baseUrl,
-      defaultModel: defaultModel,
-    });
   }
 
   async handleChat(input: ChatInput): Promise<ChatResult> {
@@ -61,7 +46,7 @@ export class CodeChatService {
     const reactSteps: any[] = [];
     const sessionId = options.sessionId;
 
-    const provider = this.getProvider(options.modelName);
+    const provider = getProvider(options.modelName);
 
     const summarizer = new SummarizerAgent(
       this.sessionService,

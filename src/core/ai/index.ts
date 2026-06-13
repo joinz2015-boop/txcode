@@ -6,4 +6,4 @@ export type {
   ChatResponse,
   ToolCall,
   ToolDefinition,
-} from './ai.types.js';
+} from '../../entity/ai.entity.js';

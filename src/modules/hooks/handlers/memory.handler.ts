@@ -3,8 +3,7 @@ import * as path from 'path';
 import { HookMessage, HookTrigger } from '../hook.types.js';
 import { HookHandler } from './hook.handler.js';
 import { MemAgent } from '../../../core/ai/agents/mem/mem.agent.js';
-import { configService } from '../../../services/config/index.js';
-import { createProvider } from '../../../core/ai/provider/factory.js';
+import { getProvider } from '../../../core/ai/provider/provider.router.js';
 
 export class MemoryHandler extends HookHandler {
   trigger: HookTrigger = 'round';
@@ -12,17 +11,7 @@ export class MemoryHandler extends HookHandler {
 
   async handle(message: HookMessage): Promise<void> {
     try {
-      const defaultModel = configService.getDefaultModel();
-      const providerConfig = configService.getModelProvider(defaultModel);
-      if (!providerConfig) {
-        return;
-      }
-
-      const provider = createProvider({
-        apiKey: providerConfig.apiKey,
-        baseUrl: providerConfig.baseUrl,
-        defaultModel,
-      });
+      const provider = getProvider();
 
       const projectPath = this.getProjectPath(message);
       const memAgent = new MemAgent({ provider, workDir: projectPath });

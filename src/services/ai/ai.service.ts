@@ -16,9 +16,9 @@
 import { ConfigService, configService as defaultConfigService } from '../config/config.service.js';
 import { OpenAIProvider } from '../../core/ai/provider/openai.provider.js';
 import { DeepSeekProvider } from '../../core/ai/provider/deepseek.provider.js';
-import { createProvider } from '../../core/ai/provider/factory.js';
+import { getProvider } from '../../core/ai/provider/provider.router.js';
 import { CommonAgent } from '../../core/ai/agents/common/common.agent.js';
-import { BaseProvider, ChatMessage, ChatOptions, ChatResponse } from '../../core/ai/ai.types.js';
+import { ChatMessage, ChatOptions, ChatResponse } from '../../core/ai/ai.types.js';
 import { ProviderRunResult } from '../../core/ai/provider/base.js';
 import { ToolService, toolService as defaultToolService } from '../../core/tools/tool.service.js';
 import { MemoryService } from '../memory/memory.service.js';
@@ -81,54 +81,11 @@ export class AIService {
     this.maxToolIterations = config?.maxToolIterations || txConfig.maxToolIterations;
   }
 
-  /**
-   * 获取 AI Provider 实例
-   * 
-   * 使用延迟初始化模式：
-   * - 第一次调用时创建 Provider 实例
-   * - 后续调用直接返回缓存的实例
-   * 
-   * Provider 创建流程：
-   * 1. 从配置服务获取默认 AI 提供商
-   * 2. 获取该提供商的模型列表
-   * 3. 找到启用的模型 (或默认使用 gpt-4)
-   * 4. 创建 OpenAIProvider 实例
-   * 
-   * @returns {BaseProvider} AI Provider 实例
-   * @throws {Error} 如果没有配置默认 AI 提供商
-   */
-  private getProvider(modelName?: string): BaseProvider {
-    const defaultModel = modelName || this.configService.getDefaultModel();
-    
-    const providerConfig = this.configService.getModelProvider(defaultModel);
-    if (!providerConfig) {
-      throw new Error(`Provider not found for model: ${defaultModel}`);
-    }
-    
-    return createProvider({
-      apiKey: providerConfig.apiKey,
-      baseUrl: providerConfig.baseUrl,
-      defaultModel: defaultModel,
-    });
-  }
-
-  /**
-   * 简单的 AI 对话接口
-   * 
-   * 与 chatWithTools 的区别：
-   * - 不执行 Function Calling 循环
-   * - 不支持工具调用
-   * - 适用于简单的问答场景
-   * 
-   * @param messages - 消息数组 (包含 role 和 content)
-   * @param options - 可选配置 (temperature, maxTokens, model 等)
-   * @returns {Promise<ChatResponse>} AI 响应
-   */
   async chat(
     messages: ChatMessage[],
     options: ChatOptions = {}
   ): Promise<ChatResponse> {
-    const provider = this.getProvider();
+    const provider = getProvider();
     return provider.chat(messages, options);
   }
 
@@ -168,7 +125,7 @@ export class AIService {
       modelName?: string;
     }
   ): Promise<ProviderRunResult> {
-    const provider = this.getProvider(options?.modelName);
+    const provider = getProvider(options?.modelName);
     const sessionId = options?.sessionId;
     const externalAbort = options?.abortSignal;
 
@@ -283,7 +240,7 @@ export class AIService {
     messages: ChatMessage[],
     options: ChatOptions = {}
   ): AsyncGenerator<string, void, unknown> {
-    const provider = this.getProvider();
+    const provider = getProvider();
     yield* provider.chatStream(messages, options);
   }
 
