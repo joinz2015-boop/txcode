@@ -1,51 +1,61 @@
 import { BaseRepository } from './base.repository.js';
 
-export class AiLogRepository extends BaseRepository {
+export interface AiCallLogRow {
+  id: number;
+  model_address: string;
+  model_name: string;
+  request_time: string;
+  response_time: string | null;
+  duration_ms: number;
+  input_tokens: number;
+  output_tokens: number;
+  cost: number;
+  call_type: string;
+  session_id: string | null;
+  created_at: string;
+}
 
-  async save(log: {
-    sessionId: string;
+export class AiLogRepository extends BaseRepository {
+  insert(log: {
+    modelAddress: string;
     modelName: string;
+    requestTime: string;
+    responseTime: string | null;
+    durationMs: number;
     inputTokens: number;
     outputTokens: number;
-    totalTokens: number;
-    latency: number;
-    success: boolean;
-    error?: string;
-  }): Promise<void> {
-    const sql = `
-      INSERT INTO ai_logs 
-        (session_id, model_name, input_tokens, output_tokens, total_tokens, latency, success, error, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
-    `;
-    await this.execute(sql, [
-      log.sessionId,
-      log.modelName,
-      log.inputTokens,
-      log.outputTokens,
-      log.totalTokens,
-      log.latency,
-      log.success ? 1 : 0,
-      log.error || null
-    ]);
+    cost: number;
+    callType: string;
+    sessionId: string | null;
+  }): void {
+    this.execute(
+      `INSERT INTO ai_call_logs (model_address, model_name, request_time, response_time, duration_ms, input_tokens, output_tokens, cost, call_type, session_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [log.modelAddress, log.modelName, log.requestTime, log.responseTime, log.durationMs,
+       log.inputTokens, log.outputTokens, log.cost, log.callType, log.sessionId]
+    );
   }
 
-  async getBySessionId(sessionId: string): Promise<any[]> {
-    const sql = `SELECT * FROM ai_logs WHERE session_id = ? ORDER BY created_at DESC`;
-    return this.query(sql, [sessionId]);
+  count(): number {
+    const row = this.queryOne<{ cnt: number }>('SELECT COUNT(*) as cnt FROM ai_call_logs');
+    return row?.cnt || 0;
   }
 
-  async getStats(sessionId: string): Promise<any | null> {
-    const sql = `
-      SELECT 
-        COUNT(*) as total_calls,
-        SUM(input_tokens) as total_input,
-        SUM(output_tokens) as total_output,
-        SUM(total_tokens) as total_tokens,
-        AVG(latency) as avg_latency
-      FROM ai_logs
-      WHERE session_id = ?
-    `;
-    return this.queryOne(sql, [sessionId]);
+  cleanup(keepLogs: number): void {
+    this.execute(
+      `DELETE FROM ai_call_logs WHERE id NOT IN (SELECT id FROM ai_call_logs ORDER BY request_time DESC LIMIT ?)`,
+      [keepLogs]
+    );
+  }
+
+  getLogs(page: number, pageSize: number): { rows: AiCallLogRow[]; total: number } {
+    const offset = (page - 1) * pageSize;
+    const total = this.queryOne<{ cnt: number }>('SELECT COUNT(*) as cnt FROM ai_call_logs')?.cnt || 0;
+    const rows = this.query<AiCallLogRow>(
+      'SELECT * FROM ai_call_logs ORDER BY request_time DESC LIMIT ? OFFSET ?',
+      [pageSize, offset]
+    );
+    return { rows, total };
   }
 }
 

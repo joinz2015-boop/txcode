@@ -10,10 +10,10 @@
  * - 支持外部传入 apiUrl/apiKey/modelName 覆盖系统默认 AI 配置
  */
 import { configService as defaultConfigService } from '../../core/config/config.service.js'
-import { sessionService as defaultSessionService } from '../../modules/session/session.service.js'
+import { sessionService as defaultSessionService } from '../../services/session/session.service.js'
 import { memoryService } from '../../core/memory/index.js'
 import { CallerChatInput, CallerChatOptions, CallerChatResult, CallerStep, CallerInitInput, CallerInitResult } from './callerChat.types.js'
-import { Session } from '../../modules/session/session.types.js'
+import { Session } from '../../services/session/session.types.js'
 import { ConfigService } from '../../core/config/config.service.js'
 import { createProvider } from '../../core/ai/provider.js'
 import { CallerAgent } from '../../core/ai/agents/caller/caller.agent.js'

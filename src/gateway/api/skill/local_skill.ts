@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
-import { skillsManager } from '../../../modules/skill/index.js';
-import { sessionService } from '../../../modules/session/index.js';
+import { skillsManager } from '../../../services/skill/index.js';
+import { sessionService } from '../../../services/session/index.js';
 import { projectService } from '../../../services/project/project.service.js';
 
 export async function GET(req: Request, res: Response) {

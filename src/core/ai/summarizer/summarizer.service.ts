@@ -12,7 +12,7 @@ import { createProvider } from '../provider.js';
 import { BaseProvider } from '../ai.types.js';
 import { buildSummarizerMessages } from './summarizer.prompts.js';
 import { SummarizerResult, SummarizerOptions, CompactionCheckResult } from './summarizer.types.js';
-import { SessionService } from '../../../modules/session/session.service.js';
+import { SessionService } from '../../../services/session/session.service.js';
 import { MemoryService } from '../../memory/memory.service.js';
 import txConfig from '../../../config/tx.config.js';
 

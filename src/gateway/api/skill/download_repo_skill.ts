@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
-import { skillRepositoryService } from '../../../modules/skill/index.js';
-import { sessionService } from '../../../modules/session/index.js';
+import { skillRepositoryService } from '../../../services/skill/index.js';
+import { sessionService } from '../../../services/session/index.js';
 import { projectService } from '../../../services/project/project.service.js';
 
 export async function POST(req: Request, res: Response) {

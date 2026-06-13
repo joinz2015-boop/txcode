@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { sessionService } from '../../../modules/session/index.js';
+import { sessionService } from '../../../services/session/index.js';
 import { projectService } from '../../../services/project/project.service.js';
 import { SessionCreateRequest } from '../api.types.js';
 

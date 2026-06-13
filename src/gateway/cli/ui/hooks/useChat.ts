@@ -14,7 +14,7 @@
 
 import { useState, useCallback, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { sessionService } from '../../../../modules/session/index.js';
+import { sessionService } from '../../../../services/session/index.js';
 import { codeChatService } from '../../../../services/codeChat/index.js';
 import { commandChatService } from '../../../../services/commandChat/index.js';
 

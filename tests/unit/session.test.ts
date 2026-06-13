@@ -3,7 +3,7 @@
  */
 
 import { DbService } from '../../src/core/db/db.service';
-import { SessionService } from '../../src/modules/session/session.service';
+import { SessionService } from '../../src/services/session/session.service';
 
 describe('Session 模块', () => {
   let dbService: DbService;

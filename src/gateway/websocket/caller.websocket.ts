@@ -12,7 +12,7 @@
  * 5. 所有 S→C 消息广播给所有 /ws/caller 客户端，客户端根据 sessionId 过滤
  */
 import { WebSocket } from 'ws'
-import { sessionService } from '../../modules/session/index.js'
+import { sessionService } from '../../services/session/index.js'
 import { callerChatService } from '../../services/callerChat/index.js'
 import { projectService } from '../../services/project/project.service.js'
 import * as path from 'path'

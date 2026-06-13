@@ -35,7 +35,7 @@ import { MessageList } from './MessageList.js';
 import { useChat } from './hooks/useChat.js';
 import { useFileSelect } from './hooks/useFileSelect.js';
 import { useModelSelect } from './hooks/useModelSelect.js';
-import { sessionService } from '../../../modules/session/index.js';
+import { sessionService } from '../../../services/session/index.js';
 import { memoryService } from '../../../core/memory/index.js';
 import { configService } from '../../../core/config/index.js';
 import { v4 as uuidv4 } from 'uuid';

@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { sessionService } from '../../../modules/session/index.js';
+import { sessionService } from '../../../services/session/index.js';
 
 export async function POST(req: Request, res: Response) {
   const { sessionIds } = req.body as { sessionIds?: string[] };

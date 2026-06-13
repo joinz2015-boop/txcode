@@ -2,9 +2,9 @@
  * CLI 命令处理
  */
 
-import { sessionService } from '../../modules/session/index.js';
+import { sessionService } from '../../services/session/index.js';
 import { configService } from '../../core/config/index.js';
-import { skillsManager } from '../../modules/skill/index.js';
+import { skillsManager } from '../../services/skill/index.js';
 import { memoryService } from '../../core/memory/index.js';
 import { SummarizerService } from '../../core/ai/summarizer/index.js';
 import { dreamService } from '../../modules/dream/dream.service.js';

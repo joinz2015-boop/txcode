@@ -7,11 +7,11 @@
 import * as path from 'path';
 import * as fs from 'fs';
 import { DbService } from '../../src/core/db/db.service';
-import { SessionService } from '../../src/modules/session/session.service';
+import { SessionService } from '../../src/services/session/session.service';
 import { MemoryService } from '../../src/core/memory/memory.service';
 import { ConfigService } from '../../src/core/config/config.service';
 import { ToolService } from '../../src/core/tools/tool.service';
-import { SkillsManager } from '../../src/modules/skill/skills.manager';
+import { SkillsManager } from '../../src/services/skill/skills.manager';
 
 describe('集成测试', () => {
   let dbService: DbService;

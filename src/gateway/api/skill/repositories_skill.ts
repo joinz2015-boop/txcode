@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { skillRepositoryService } from '../../../modules/skill/index.js';
+import { skillRepositoryService } from '../../../services/skill/index.js';
 
 export async function GET(_req: Request, res: Response) {
   const repos = skillRepositoryService.getAllRepositories();

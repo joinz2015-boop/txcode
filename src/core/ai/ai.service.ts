@@ -23,7 +23,7 @@ import { ProviderRunResult } from './provider/base.js';
 import { ToolService, toolService as defaultToolService } from '../tools/tool.service.js';
 import { MemoryService } from '../memory/memory.service.js';
 import { ContextService } from '../context/context.service.js';
-import { SessionService, sessionService as defaultSessionService } from '../../modules/session/session.service.js';
+import { SessionService, sessionService as defaultSessionService } from '../../services/session/session.service.js';
 import { SummarizerService } from './summarizer/index.js';
 import txConfig from '../../config/tx.config.js';
 

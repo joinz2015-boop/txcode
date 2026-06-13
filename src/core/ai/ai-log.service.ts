@@ -1,4 +1,4 @@
-import { dbService } from '../db/db.service.js';
+import { aiLogRepository, AiCallLogRow } from '../../repository/ai_log.repository.js';
 
 export interface AiCallLog {
   model_address: string;
@@ -33,40 +33,25 @@ class AiLogService {
   private readonly KEEP_LOGS = 1000;
 
   async logAiCall(log: AiCallLog): Promise<void> {
-    dbService.run(
-      `INSERT INTO ai_call_logs 
-       (model_address, model_name, request_time, response_time, duration_ms,
-        input_tokens, output_tokens, cost, call_type, session_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        log.model_address,
-        log.model_name,
-        log.request_time?.toISOString() || new Date().toISOString(),
-        log.response_time?.toISOString() || null,
-        log.duration_ms || 0,
-        log.input_tokens || 0,
-        log.output_tokens || 0,
-        log.cost || 0,
-        log.call_type,
-        log.session_id || null,
-      ]
-    );
-
+    aiLogRepository.insert({
+      modelAddress: log.model_address,
+      modelName: log.model_name,
+      requestTime: log.request_time?.toISOString() || new Date().toISOString(),
+      responseTime: log.response_time?.toISOString() || null,
+      durationMs: log.duration_ms || 0,
+      inputTokens: log.input_tokens || 0,
+      outputTokens: log.output_tokens || 0,
+      cost: log.cost || 0,
+      callType: log.call_type,
+      sessionId: log.session_id || null,
+    });
     await this.cleanupIfNeeded();
   }
 
   private cleanupIfNeeded(): void {
-    const count = dbService.get<{ cnt: number }>('SELECT COUNT(*) as cnt FROM ai_call_logs');
-    
-    if (count && count.cnt > this.MAX_LOGS) {
-      dbService.run(`
-        DELETE FROM ai_call_logs 
-        WHERE id NOT IN (
-          SELECT id FROM ai_call_logs 
-          ORDER BY request_time DESC 
-          LIMIT ?
-        )
-      `, [this.KEEP_LOGS]);
+    const count = aiLogRepository.count();
+    if (count > this.MAX_LOGS) {
+      aiLogRepository.cleanup(this.KEEP_LOGS);
     }
   }
 
@@ -77,18 +62,15 @@ class AiLogService {
     pageSize: number;
     totalPages: number;
   } {
-    const offset = (page - 1) * pageSize;
-    const total = dbService.get<{ cnt: number }>('SELECT COUNT(*) as cnt FROM ai_call_logs')?.cnt || 0;
-    const rows = dbService.all<AiLogRow>(
-      'SELECT * FROM ai_call_logs ORDER BY request_time DESC LIMIT ? OFFSET ?',
-      [pageSize, offset]
-    );
-
+    const { rows, total } = aiLogRepository.getLogs(page, pageSize);
     return {
-      rows,
-      total,
-      page,
-      pageSize,
+      rows: rows.map(r => ({
+        id: r.id, model_address: r.model_address, model_name: r.model_name,
+        request_time: r.request_time, response_time: r.response_time,
+        duration_ms: r.duration_ms, input_tokens: r.input_tokens, output_tokens: r.output_tokens,
+        cost: r.cost, call_type: r.call_type, session_id: r.session_id, created_at: r.created_at,
+      })),
+      total, page, pageSize,
       totalPages: Math.max(1, Math.ceil(total / pageSize)),
     };
   }

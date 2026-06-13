@@ -31,7 +31,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const packageRoot = path.resolve(__dirname, '..', '..');
 import { dbService } from '../core/db/db.service.js';
-import { sessionService } from '../modules/session/index.js';
+import { sessionService } from '../services/session/index.js';
 import { configService } from '../core/config/config.service.js';
 import { logger } from '../modules/logger/logger.js';
 

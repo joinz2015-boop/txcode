@@ -1,5 +1,5 @@
 import { openaiTools } from '../../../tools/provider/tools.js';
-import { buildAvailableSkillsPrompt } from '../../../../modules/skill/skill.tool.js';
+import { buildAvailableSkillsPrompt } from '../../../../services/skill/skill.tool.js';
 
 function getProviderPromptTemplate(roleTemplate: string): string {
   return `${roleTemplate}

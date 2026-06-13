@@ -1,43 +1,109 @@
 import { BaseRepository } from './base.repository.js';
 
+export interface SessionRow {
+  id: string;
+  title: string;
+  project_path: string | null;
+  summary_message_id: number | null;
+  prompt_tokens: number;
+  completion_tokens: number;
+  cost: number;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export class SessionRepository extends BaseRepository {
-
-  async save(session: {
-    id: string;
-    name: string;
-    projectPath?: string;
-    created_at?: string;
-  }): Promise<void> {
-    const sql = `
-      INSERT OR REPLACE INTO sessions (id, name, project_path, created_at, updated_at)
-      VALUES (?, ?, ?, ?, datetime('now'))
-    `;
-    await this.execute(sql, [
-      session.id,
-      session.name,
-      session.projectPath || null,
-      session.created_at || new Date().toISOString()
-    ]);
+  insert(session: { id: string; title: string; projectPath?: string }): void {
+    this.execute(
+      'INSERT INTO sessions (id, title, project_path) VALUES (?, ?, ?)',
+      [session.id, session.title, session.projectPath || null]
+    );
   }
 
-  async getById(id: string): Promise<any | null> {
-    const sql = `SELECT * FROM sessions WHERE id = ?`;
-    return this.queryOne(sql, [id]);
+  getById(id: string): SessionRow | undefined {
+    return this.queryOne<SessionRow>('SELECT * FROM sessions WHERE id = ?', [id]) || undefined;
   }
 
-  async getAll(): Promise<any[]> {
-    const sql = `SELECT * FROM sessions ORDER BY updated_at DESC`;
-    return this.query(sql);
+  getAll(): SessionRow[] {
+    return this.query<SessionRow>('SELECT * FROM sessions ORDER BY updated_at DESC');
   }
 
-  async delete(id: string): Promise<void> {
-    const sql = `DELETE FROM sessions WHERE id = ?`;
-    await this.execute(sql, [id]);
+  getRecent(limit: number): SessionRow[] {
+    return this.query<SessionRow>('SELECT * FROM sessions ORDER BY updated_at DESC LIMIT ?', [limit]);
   }
 
-  async updateUpdatedAt(id: string): Promise<void> {
-    const sql = `UPDATE sessions SET updated_at = datetime('now') WHERE id = ?`;
-    await this.execute(sql, [id]);
+  search(query: string): SessionRow[] {
+    return this.query<SessionRow>(
+      "SELECT * FROM sessions WHERE title LIKE ? OR project_path LIKE ? ORDER BY updated_at DESC",
+      [`%${query}%`, `%${query}%`]
+    );
+  }
+
+  getByProjectPath(projectPath: string, limit: number, offset: number): SessionRow[] {
+    return this.query<SessionRow>(
+      'SELECT * FROM sessions WHERE project_path = ? ORDER BY updated_at DESC LIMIT ? OFFSET ?',
+      [projectPath, limit, offset]
+    );
+  }
+
+  getFirstByProjectPath(projectPath: string): SessionRow | undefined {
+    return this.queryOne<SessionRow>(
+      'SELECT * FROM sessions WHERE project_path = ? ORDER BY updated_at DESC LIMIT 1',
+      [projectPath]
+    ) || undefined;
+  }
+
+  update(id: string, data: Partial<{ title: string; project_path: string; status: string }>): void {
+    const updates: string[] = [];
+    const values: unknown[] = [];
+    if (data.title !== undefined) { updates.push('title = ?'); values.push(data.title); }
+    if (data.project_path !== undefined) { updates.push('project_path = ?'); values.push(data.project_path); }
+    if (data.status !== undefined) { updates.push('status = ?'); values.push(data.status); }
+    if (updates.length > 0) {
+      updates.push('updated_at = CURRENT_TIMESTAMP');
+      values.push(id);
+      this.execute(`UPDATE sessions SET ${updates.join(', ')} WHERE id = ?`, values);
+    }
+  }
+
+  delete(id: string): void {
+    this.execute('DELETE FROM messages WHERE session_id = ?', [id]);
+    this.execute('DELETE FROM sessions WHERE id = ?', [id]);
+  }
+
+  touch(id: string): void {
+    this.execute('UPDATE sessions SET updated_at = CURRENT_TIMESTAMP WHERE id = ?', [id]);
+  }
+
+  updateTokenUsage(sessionId: string, promptTokens: number, completionTokens: number, cost: number): void {
+    this.execute(
+      `UPDATE sessions SET prompt_tokens = prompt_tokens + ?, completion_tokens = completion_tokens + ?,
+       cost = cost + ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+      [promptTokens, completionTokens, cost, sessionId]
+    );
+  }
+
+  updateSummary(sessionId: string, summaryMessageId: number): void {
+    this.execute(
+      'UPDATE sessions SET summary_message_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      [summaryMessageId, sessionId]
+    );
+  }
+
+  resetTokens(sessionId: string): void {
+    this.execute(
+      'UPDATE sessions SET prompt_tokens = 0, completion_tokens = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      [sessionId]
+    );
+  }
+
+  getStaleProcessing(): SessionRow[] {
+    return this.query<SessionRow>("SELECT id FROM sessions WHERE status = 'processing'");
+  }
+
+  resetAllProcessing(): void {
+    this.execute("UPDATE sessions SET status = 'idle' WHERE status = 'processing'");
   }
 }
 

@@ -15,7 +15,7 @@ import {
 } from '../base.js';
 import type { MemoryService } from '../../../memory/memory.service.js';
 import type { SummarizerService } from '../../../ai/summarizer/index.js';
-import type { SessionService } from '../../../../modules/session/session.service.js';
+import type { SessionService } from '../../../../services/session/session.service.js';
 import { specInjector } from '../../../../modules/spec/index.js';
 
 export interface OpenAIAgentConfig {

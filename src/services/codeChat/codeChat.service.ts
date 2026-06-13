@@ -1,8 +1,8 @@
 ﻿import { configService as defaultConfigService } from '../../core/config/config.service.js';
-import { sessionService as defaultSessionService } from '../../modules/session/session.service.js';
+import { sessionService as defaultSessionService } from '../../services/session/session.service.js';
 import { memoryService } from '../../core/memory/index.js';
 import { ChatInput, ChatOptions, ChatResult, Step } from './codeChat.types.js';
-import { Session } from '../../modules/session/session.types.js';
+import { Session } from '../../services/session/session.types.js';
 import { ConfigService } from '../../core/config/config.service.js';
 import { createProvider } from '../../core/ai/provider.js';
 import { CodeAgent } from '../../core/ai/agents/index.js';

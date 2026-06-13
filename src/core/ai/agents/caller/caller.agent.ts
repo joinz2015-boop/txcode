@@ -18,10 +18,10 @@ import {
   ProviderToolResult,
   ProviderTokenUsage,
 } from '../../provider/base.js'
-import { buildAvailableSkillsPrompt } from '../../../../modules/skill/skill.tool.js'
+import { buildAvailableSkillsPrompt } from '../../../../services/skill/skill.tool.js'
 import type { MemoryService } from '../../../memory/memory.service.js'
 import type { SummarizerService } from '../../../ai/summarizer/index.js'
-import type { SessionService } from '../../../../modules/session/session.service.js'
+import type { SessionService } from '../../../../services/session/session.service.js'
 import { ExtendedToolDef } from './types.js'
 import { CALLER_DEFAULT_TOOLS } from './agent_tool.js'
 
