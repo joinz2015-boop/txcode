@@ -160,66 +160,7 @@ export class WebService {
     const webDistPath = fs.existsSync(devWebDistPath) ? devWebDistPath : prodWebDistPath;
     
     if (fs.existsSync(webDistPath)) {
-      // ========== 静态文件服务模式 ==========
-      // 前端已构建，提供静态文件服务
       this.app.use(express.static(webDistPath));
-
-      /**
-       * SPA Fallback 路由
-       * 
-       * 捕获所有非 API 请求，返回 index.html
-       * 这样前端路由 (Vue Router) 可以处理路径
-       * 
-       * 处理逻辑：
-       * 1. 检查请求路径是否以 /api 开头
-       * 2. 如果是 API 请求，返回 404 (让 API 路由处理)
-       * 3. 如果不是，返回 index.html
-       */
-      this.app.get('/{*splat}', (req: Request, res: Response) => {
-        // 跳过 API 路由请求
-        if (req.path.startsWith('/api')) {
-          return res.status(404).json({
-            success: false,
-            error: 'Not Found',
-          });
-        }
-        // 返回 index.html 让前端处理路由
-        res.sendFile(path.join(webDistPath, 'index.html'));
-      });
-    } else {
-      // ========== 前端未构建模式 ==========
-      // 返回提示信息，指导用户构建前端
-      this.app.use('/{*splat}', (req: Request, res: Response) => {
-        if (req.path.startsWith('/api')) {
-          return res.status(404).json({
-            success: false,
-            error: 'Not Found',
-          });
-        }
-        res.send(`
-          <h1>TXCode Web</h1>
-          <p>前端未构建。请运行以下命令：</p>
-          <pre>
-cd web
-npm install
-npm run build
-          </pre>
-          <p>或者使用开发模式：</p>
-          <pre>
-cd web
-npm install
-npm run dev
-          </pre>
-          <h2>API 文档</h2>
-          <ul>
-            <li>GET /api/config/providers - 获取提供商列表</li>
-            <li>POST /api/config/providers - 添加提供商</li>
-            <li>GET /api/config/models - 获取模型列表</li>
-            <li>GET /api/sessions - 获取会话列表</li>
-            <li>POST /api/chat - 发送聊天消息</li>
-          </ul>
-        `);
-      });
     }
 
     /**
@@ -257,6 +198,27 @@ npm run dev
 
     // 注册新的显式路由系统（自动扫描 gateway/api/**/*_routes.ts）
     await registerAllRoutes(this.app as any);
+
+    // SPA fallback：必须在 API 路由之后注册，否则会拦截所有 /api/* 请求返回 404
+    const devWebDistPath = path.join(process.cwd(), 'web', 'dist');
+    const prodWebDistPath = path.join(packageRoot, 'web', 'dist');
+    const webDistPath = fs.existsSync(devWebDistPath) ? devWebDistPath : prodWebDistPath;
+
+    if (fs.existsSync(webDistPath)) {
+      this.app.get('/{*splat}', (req: Request, res: Response) => {
+        if (req.path.startsWith('/api')) {
+          return res.status(404).json({ success: false, error: 'Not Found' });
+        }
+        res.sendFile(path.join(webDistPath, 'index.html'));
+      });
+    } else {
+      this.app.use('/{*splat}', (req: Request, res: Response) => {
+        if (req.path.startsWith('/api')) {
+          return res.status(404).json({ success: false, error: 'Not Found' });
+        }
+        res.send(`<h1>TXCode Web</h1><p>前端未构建。请运行：cd web && npm install && npm run build</p>`);
+      });
+    }
 
     const { initJobs } = await import('../../modules/job/index.js');
     await initJobs();

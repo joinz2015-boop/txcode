@@ -30,9 +30,7 @@ function scanRoutesFiles(dir: string): string[] {
 export async function registerAllRoutes(app: { use: (path: string, router: Router) => void }) {
   const apiRouter = Router();
   const apiDir = path.join(__dirname, 'api');
-  console.log(`[api_routes] __dirname=${__dirname}, apiDir=${apiDir}, exists=${fs.existsSync(apiDir)}`);
   const files = scanRoutesFiles(apiDir);
-  console.log(`[api_routes] scan results: ${files.length} files:`, files.map(f => path.basename(f)));
 
   let registered = 0;
   for (const filePath of files) {
