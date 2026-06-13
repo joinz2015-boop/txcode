@@ -22,7 +22,7 @@ txcode web
 ```
 
 访问http://localhost:4000 页面 设置里配置模型提供商和模型，然后可以web端交互，也可以ctrl+c 关闭后启动命令行方式
-![配置提供商和模型](https://github.com/joinz2015-boop/txcode/blob/2102880c0cbcaad909aae7f0a00b069538b00189/doc/001.png)
+![配置提供商和模型](https://github.com/joinz2015-boop/txcode/blob/main/docs/001.png)
 
 ```bash
 txcode

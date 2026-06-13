@@ -1,4 +1,5 @@
-import { QueuedMessage, ProcessingSession, QueueStatus } from './gateway.types.js';
+import type { QueuedMessage } from '../../services/gateway/gateway.types.js';
+import { ProcessingSession, QueueStatus } from './gateway.types.js';
 
 export class GatewayQueue {
   private queue: QueuedMessage[] = [];

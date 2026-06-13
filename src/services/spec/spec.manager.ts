@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as yaml from 'js-yaml';
-import { Spec, SpecMetadata } from '../../modules/spec/spec.types.js';
+import type { Spec, SpecMetadata } from '../../entity/spec.entity.js';
 
 export class SpecManager {
   private projectSpecsPath: string | null = null;

@@ -11,10 +11,12 @@ export interface SessionRow {
   updated_at: string;
 }
 
+export type SessionStatus = 'idle' | 'processing' | 'completed';
+
 export interface Session {
   id: string;
   title: string;
-  projectPath: string;
+  projectPath: string | null;
   summaryMessageId: number | null;
   promptTokens: number;
   completionTokens: number;

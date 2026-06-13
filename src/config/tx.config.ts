@@ -4,33 +4,8 @@
  * 主要用于控制应用程序的基本行为，如调试模式和日志记录
  */
 
-export interface ContextConfig {
-  mode: 'fixed' | 'percentage';
-  maxTokens: number;
-  percentage: number;
-  autoCompact: boolean;
-}
-
-export interface TxConfig {
-  debug: boolean;
-  
-  log: {
-    enabled: boolean;
-    dir: string;
-    accessLog: string;
-  };
-  
-  maxToolIterations: number;
-  
-  ai: {
-    maxContextTokens: number;
-    context: ContextConfig;
-  };
-
-  songbing: {
-    platformUrl: string;
-  };
-}
+import type { TxConfig } from '../entity/tx-config.entity.js';
+export type { ContextConfig, TxConfig } from '../entity/tx-config.entity.js';
 
 /**
  * TxCode 默认配置

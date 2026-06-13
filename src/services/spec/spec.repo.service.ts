@@ -2,14 +2,9 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { execSync } from 'child_process';
 import { dbService } from '../../core/db/db.service.js';
-import { SpecRepository, SpecRepositoryInput, Spec } from '../../modules/spec/spec.types.js';
+import type { SpecRepository, SpecRepositoryInput, Spec } from '../../entity/spec.entity.js';
 import { specManager } from './spec.manager.js';
-
-interface RepoInfo {
-  type: 'github' | 'gitee' | 'unknown';
-  owner: string;
-  repo: string;
-}
+import type { RepoInfo } from '../skill/skill.types.js';
 
 export class SpecRepositoryService {
   private cachePath: string;

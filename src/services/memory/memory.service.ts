@@ -1,5 +1,5 @@
 import { messageRepository, MessageRow } from '../../repository/message.repository.js';
-import { Message } from './memory.types.js';
+import type { Message } from '../../entity/message.entity.js';
 
 export class MemoryService {
   addMessage(

@@ -1,56 +1,11 @@
-export interface DingtalkConfig {
-  enabled: boolean;
-  clientId: string;
-  clientSecret: string;
-  botName?: string;
-}
-
 export interface GatewayConfig {
-  dingtalk: DingtalkConfig;
-}
-
-export interface DingtalkMessage {
-  conversationId?: string;
-  chatbotCorpId?: string;
-  chatbotMessageId?: string;
-  msgId?: string;
-  senderNick?: string;
-  isAdmin?: boolean;
-  senderStaffId?: string;
-  sessionWebhookExpiredTime?: number;
-  createAt?: number;
-  senderCorpId?: string;
-  conversationType?: string;
-  senderId?: string;
-  sessionWebhook?: string;
-  chatBotId?: string;
-  robotCode?: string;
-  msgType?: string;
-  text?: { content: string };
-  sessionId?: string;
-}
-
-export interface QueuedMessage {
-  id: string;
-  userId: string;
-  userName?: string;
-  content: string;
-  sessionId?: string;
-  webhook: string;
-  messageId?: string;
-  timestamp: number;
+  dingtalk: import('../../entity/gateway.entity.js').DingtalkConfig;
 }
 
 export interface ProcessingSession {
   userId: string;
   sessionId: string;
   messageId: string;
-}
-
-export interface GatewayStatus {
-  running: boolean;
-  connectedAt?: number;
-  config: DingtalkConfig;
 }
 
 export interface QueueStatus {
@@ -80,7 +35,7 @@ export interface DingtalkReplyData {
   text: { content: string };
 }
 
-export type MessageHandler = (message: DingtalkMessage) => Promise<void>;
+export type MessageHandler = (message: import('../../services/gateway/gateway.types.js').DingtalkMessage) => Promise<void>;
 
 export interface DingtalkAdapter {
   start(config: DingtalkAdapterConfig): Promise<void>;

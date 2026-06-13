@@ -40,6 +40,12 @@ export interface SkillsConfig {
   permissions?: Record<string, 'allow' | 'deny' | 'ask'>;
 }
 
+export interface RepoInfo {
+  type: 'github' | 'gitee' | 'unknown';
+  owner: string;
+  repo: string;
+}
+
 export interface AvailableSkill {
   name: string;
   description: string;

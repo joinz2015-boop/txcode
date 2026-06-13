@@ -1,9 +1,1 @@
-export interface SkillRepoRow {
-  id: number;
-  name: string;
-  url: string;
-  branch: string;
-  enabled: number;
-  created_at: string;
-  updated_at: string;
-}
+export type { SpecRepoRow as SkillRepoRow } from './spec.entity.js';

@@ -1,4 +1,4 @@
-export type NotifyType = 'message' | 'email';
+import type { NotifyType } from '../../entity/scheduler.entity.js';
 
 export interface NotifyOptions {
   taskName: string;

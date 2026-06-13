@@ -2,20 +2,9 @@
  * Session 模块类型定义
  */
 
-export type SessionStatus = 'idle' | 'processing' | 'completed';
+import type { Session, SessionStatus } from '../../entity/session.entity.js';
 
-export interface Session {
-  id: string;
-  title: string;
-  projectPath: string | null;
-  summaryMessageId: number | null;
-  promptTokens: number;
-  completionTokens: number;
-  cost: number;
-  createdAt: string;
-  updatedAt: string;
-  status?: SessionStatus;
-}
+export type { Session, SessionStatus };
 
 export interface SessionState {
   currentSessionId: string | null;

@@ -7,7 +7,7 @@
 
 import { WebSocket } from 'ws';
 import { sessionService } from '../../services/session/index.js';
-import { Session } from '../../services/session/session.types.js';
+import type { Session } from '../../entity/session.entity.js';
 import { codeChatService } from '../../services/codeChat/index.js';
 import { commandChatService } from '../../services/commandChat/index.js';
 import {  isCommand } from '../cli/commands.js';

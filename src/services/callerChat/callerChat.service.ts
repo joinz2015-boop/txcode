@@ -13,7 +13,7 @@ import { configService as defaultConfigService } from '../../services/config/con
 import { sessionService as defaultSessionService } from '../../services/session/session.service.js'
 import { memoryService } from '../../services/memory/index.js'
 import { CallerChatInput, CallerChatOptions, CallerChatResult, CallerStep, CallerInitInput, CallerInitResult } from './callerChat.types.js'
-import { Session } from '../../services/session/session.types.js'
+import type { Session } from '../../entity/session.entity.js'
 import { ConfigService } from '../../services/config/config.service.js'
 import { createProvider } from '../../core/ai/provider.js'
 import { CallerAgent } from '../../core/ai/agents/caller/caller.agent.js'

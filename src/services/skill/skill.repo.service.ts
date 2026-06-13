@@ -3,14 +3,8 @@ import * as path from 'path';
 import * as yaml from 'js-yaml';
 import { execSync } from 'child_process';
 import { dbService } from '../../core/db/db.service.js';
-import { Skill, SkillMetadata } from './skill.types.js';
+import { Skill, SkillMetadata, RepoInfo } from './skill.types.js';
 import { skillsManager } from './skills.manager.js';
-
-interface RepoInfo {
-  type: 'github' | 'gitee' | 'unknown';
-  owner: string;
-  repo: string;
-}
 
 interface SkillRepository {
   id: string;
