@@ -1,4 +1,4 @@
-import { DreamQueue } from './dream.queue.js'
+import { DreamQueue } from '../../queue/queues/dream/dream.queue.js'
 import { InitHandler } from './handlers/init.handler.js'
 import { v4 as uuidv4 } from 'uuid'
 

@@ -31,7 +31,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const packageRoot = path.resolve(__dirname, '..', '..', '..');
 import { dbService } from '../../core/db/db.service.js';
-import { sessionService } from '../../services/session/index.js';
 import { configService } from '../../services/config/config.service.js';
 import { logger } from '../../modules/logger/logger.js';
 
@@ -259,12 +258,8 @@ npm run dev
     // 注册新的显式路由系统（自动扫描 gateway/api/**/*_routes.ts）
     await registerAllRoutes(this.app as any);
 
-    const { schedulerService } = await import('../../modules/scheduler/index.js');
-    schedulerService.init();
-    const { dreamService } = await import('../../services/dream/dream.service.js');
-    dreamService.init();
-
-    sessionService.cleanStaleSessions();
+    const { initJobs } = await import('../../modules/job/index.js');
+    await initJobs();
 
     return new Promise((resolve, reject) => {
       this.server = http.createServer(this.app);
@@ -313,10 +308,8 @@ npm run dev
           console.log('\n正在关闭服务...');
           webSocketService.close();
           this.server?.close(async () => {
-            const { schedulerService } = await import('../../modules/scheduler/index.js');
-            schedulerService.shutdown();
-            const { dreamService } = await import('../../services/dream/dream.service.js');
-            dreamService.shutdown();
+            const { shutdownJobs } = await import('../../modules/job/index.js');
+            await shutdownJobs();
             dbService.close();
             console.log('服务已关闭');
             process.exit(0);

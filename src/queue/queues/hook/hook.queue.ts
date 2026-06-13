@@ -1,4 +1,4 @@
-import { HookTrigger, HookMessage, IHookHandler } from './hook.types.js';
+import { HookTrigger, HookMessage, IHookHandler } from '../../../modules/hooks/hook.types.js';
 
 export class HookQueue {
   private handlers: Map<HookTrigger, IHookHandler[]> = new Map();

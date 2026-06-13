@@ -1,4 +1,4 @@
-﻿import { BaseProvider, ChatMessage, MultimodalContent } from '../../../entity/ai.entity.js';
+﻿import { BaseProvider, ChatMessage, MultimodalContent } from '@/entity/ai.entity.js';
 import { buildProviderPrompt } from './prompts.js';
 import { getOpenAITools, openaiTools } from '../../../tools/provider/tools.js';
 import { getProviderTools } from '../../../tools/provider/index.js';
@@ -90,7 +90,7 @@ export class CommonAgent implements AIProvider {
       const firstUserIndex = baseMessages.findIndex(m => m.role === 'user');
       if (firstUserIndex >= 0) {
         const originalFirstUser = baseMessages[firstUserIndex].content;
-        const textContent = typeof originalFirstUser === 'string' ? originalFirstUser : (originalFirstUser.find(c => c.type === 'text') as any)?.text || '';
+        const textContent = typeof originalFirstUser === 'string' ? originalFirstUser : (originalFirstUser.find((c: MultimodalContent) => c.type === 'text') as any)?.text || '';
         const reinjected = specInjector.injectIntoMessage(textContent, process.cwd());
         baseMessages[firstUserIndex].content = reinjected;
       } 
