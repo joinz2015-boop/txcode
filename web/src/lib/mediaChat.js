@@ -1,7 +1,7 @@
 import { uploadSingleMedia } from '../api/chat/media.js'
 
 const MAX_IMAGES = 5
-const MAX_IMAGE_SIZE = 1 * 1024 * 1024
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024
 
 export function mediaChatMixin() {
   return {
@@ -23,7 +23,7 @@ export function mediaChatMixin() {
         for (let i = 0; i < toProcess; i++) {
           const file = files[i]
           if (file.size > MAX_IMAGE_SIZE) {
-            this.$message.error(`图片「${file.name || 'paste.png'}」超过 1MB，无法上传（当前 ${(file.size / 1024 / 1024).toFixed(2)}MB）`)
+            this.$message.error(`图片「${file.name || 'paste.png'}」超过 5MB，无法上传（当前 ${(file.size / 1024 / 1024).toFixed(2)}MB）`)
             continue
           }
           const id = Date.now() + '_' + i + '_' + Math.random().toString(36).slice(2)
@@ -60,8 +60,9 @@ export function mediaChatMixin() {
       async handleImageSelected(event) {
         const files = event.target.files
         if (!files || files.length === 0) return
+        const fileArray = Array.from(files)
         event.target.value = ''
-        await this._uploadFiles(Array.from(files))
+        await this._uploadFiles(fileArray)
       },
       async handlePasteImages(imageFiles) {
         if (this.disabled) return

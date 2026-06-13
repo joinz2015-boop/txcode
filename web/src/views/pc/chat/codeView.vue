@@ -686,6 +686,7 @@ export default {
     },
 
     async _uploadFiles(files, panel) {
+      console.log('[_uploadFiles] files:', files.length, 'panel.mediaFiles count:', (panel.mediaFiles || []).length)
       const currentCount = (panel.mediaFiles || []).length
       const maxImages = 5
       const remaining = maxImages - currentCount
@@ -717,20 +718,34 @@ export default {
     },
 
     handleImageUpload(idx) {
+      console.log('[handleImageUpload] idx:', idx, 'activeSessions:', this.activeSessions.length)
       const panel = this.activeSessions[idx]
-      if (!panel || panel.disabled) return
-      const inputEl = this.$refs['imgInput-' + idx]
+      if (!panel) { console.log('[handleImageUpload] panel is null/undefined'); return }
+      if (panel.disabled) { console.log('[handleImageUpload] panel.disabled=true'); return }
+      const refKey = 'imgInput-' + idx
+      const inputEl = this.$refs[refKey]
+      console.log('[handleImageUpload] refKey:', refKey, 'inputEl:', inputEl, 'isArray:', Array.isArray(inputEl))
       if (inputEl) {
-        if (Array.isArray(inputEl)) inputEl[0]?.click()
-        else inputEl.click()
+        if (Array.isArray(inputEl)) {
+          console.log('[handleImageUpload] clicking inputEl[0]')
+          inputEl[0]?.click()
+        } else {
+          console.log('[handleImageUpload] clicking inputEl directly')
+          inputEl.click()
+        }
+      } else {
+        console.log('[handleImageUpload] inputEl not found! available refs:', Object.keys(this.$refs).filter(k => k.startsWith('imgInput')))
       }
     },
 
     async handleImageSelected(event, panel) {
+      console.log('[handleImageSelected] triggered, event.target.files length:', event.target.files?.length)
       const files = event.target.files
-      if (!files || files.length === 0) return
+      if (!files || files.length === 0) { console.log('[handleImageSelected] no files selected'); return }
+      const fileArray = Array.from(files)
       event.target.value = ''
-      await this._uploadFiles(Array.from(files), panel)
+      console.log('[handleImageSelected] uploading', fileArray.length, 'files')
+      await this._uploadFiles(fileArray, panel)
     },
 
     async handlePasteImages(imageFiles, panel) {
