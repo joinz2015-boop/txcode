@@ -1,32 +1,5 @@
 import { aiLogRepository, AiCallLogRow } from '../../repository/ai_log.repository.js';
-
-export interface AiCallLog {
-  model_address: string;
-  model_name: string;
-  request_time: Date;
-  response_time?: Date;
-  duration_ms: number;
-  input_tokens: number;
-  output_tokens: number;
-  cost: number;
-  call_type: 'tool_call' | 'normal';
-  session_id?: string;
-}
-
-interface AiLogRow {
-  id: number;
-  model_address: string;
-  model_name: string;
-  request_time: string;
-  response_time: string | null;
-  duration_ms: number;
-  input_tokens: number;
-  output_tokens: number;
-  cost: number;
-  call_type: string;
-  session_id: string | null;
-  created_at: string;
-}
+import type { AiCallLog } from '../../entity/index.js';
 
 class AiLogService {
   private readonly MAX_LOGS = 5000;
@@ -56,23 +29,14 @@ class AiLogService {
   }
 
   getLogs(page: number = 1, pageSize: number = 50): {
-    rows: AiLogRow[];
+    rows: AiCallLogRow[];
     total: number;
     page: number;
     pageSize: number;
     totalPages: number;
   } {
     const { rows, total } = aiLogRepository.getLogs(page, pageSize);
-    return {
-      rows: rows.map(r => ({
-        id: r.id, model_address: r.model_address, model_name: r.model_name,
-        request_time: r.request_time, response_time: r.response_time,
-        duration_ms: r.duration_ms, input_tokens: r.input_tokens, output_tokens: r.output_tokens,
-        cost: r.cost, call_type: r.call_type, session_id: r.session_id, created_at: r.created_at,
-      })),
-      total, page, pageSize,
-      totalPages: Math.max(1, Math.ceil(total / pageSize)),
-    };
+    return { rows, total, page, pageSize, totalPages: Math.max(1, Math.ceil(total / pageSize)) };
   }
 }
 

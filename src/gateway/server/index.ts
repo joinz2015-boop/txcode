@@ -4,9 +4,9 @@
 
 import express, { Request, Response } from 'express';
 import path from 'path';
-import { WebService } from './web.service.js';
+import { WebService } from './web.server.js';
 
-export { WebService } from './web.service.js';
+export { WebService } from './web.server.js';
 
 /**
  * 静态文件服务

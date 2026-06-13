@@ -25,3 +25,10 @@ export interface EmailConfig {
   created_at?: string;
   updated_at?: string;
 }
+
+export interface SendEmailParams {
+  configId?: number;
+  to: string;
+  subject: string;
+  html: string;
+}

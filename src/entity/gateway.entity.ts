@@ -15,3 +15,10 @@ export interface WafGatewayConfig {
   created_at: string;
   updated_at: string;
 }
+
+export interface DingtalkConfig {
+  enabled: boolean;
+  clientId: string;
+  clientSecret: string;
+  botName?: string;
+}

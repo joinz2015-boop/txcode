@@ -1,5 +1,7 @@
 import { configRepository, ProviderRow, ModelRow, ProxyRow, DingTalkRow } from '../../repository/config.repository.js';
-import { Provider, Model, ProviderInput, ModelInput, ProxyConfig } from './config.types.js';
+import type { Provider, ProviderInput } from '../../entity/provider.entity.js';
+import type { Model, ModelInput } from '../../entity/model.entity.js';
+import type { ProxyConfig } from '../../entity/config.entity.js';
 import { v4 as uuidv4 } from 'uuid';
 
 export class ConfigService {

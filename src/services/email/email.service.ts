@@ -1,6 +1,6 @@
 import nodemailer from 'nodemailer'
 import { emailRepository } from '../../repository/email.repository.js'
-import { EmailConfig, SendEmailParams } from '../../modules/email/email.types.js'
+import { EmailConfig, SendEmailParams } from '../../entity/email.entity.js'
 
 export class EmailService {
   private getTransporter(config: EmailConfig) {

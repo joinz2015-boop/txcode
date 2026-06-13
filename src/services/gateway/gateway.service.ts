@@ -8,7 +8,8 @@ import { toolService } from '../../core/tools/index.js';
 import { skillsManager } from '../../services/skill/index.js';
 import { dingtalkAdapter } from '../../gateway/third/dingtalk/dingtalk.adapter.js';
 import { gatewayQueue } from '../../modules/gateway/gateway.queue.js';
-import { DingtalkConfig, DingtalkMessage, GatewayStatus, QueuedMessage } from '../../modules/gateway/gateway.types.js';
+import { DingtalkMessage, GatewayStatus, QueuedMessage } from '../../modules/gateway/gateway.types.js';
+import type { DingtalkConfig } from '../../entity/gateway.entity.js';
 
 export class GatewayService {
   private config: DingtalkConfig = {

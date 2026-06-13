@@ -53,7 +53,7 @@ async function main() {
       console.log(`端口 ${args.port} 被占用，使用端口 ${availablePort}`);
     }
 
-    const { WebService } = await import('./web/web.service.js');
+    const { WebService } = await import('./gateway/server/web.server.js');
     const webService = new WebService(availablePort);
     await webService.start();
   } else {
