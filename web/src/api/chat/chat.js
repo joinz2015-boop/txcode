@@ -3,7 +3,7 @@ const API_BASE = '/api'
 export async function uploadChatImage(file) {
   const formData = new FormData()
   formData.append('file', file)
-  const res = await fetch(`${API_BASE}/chat/upload-image`, {
+  const res = await fetch(`${API_BASE}/chat/upload_image_chat`, {
     method: 'POST',
     body: formData,
   })

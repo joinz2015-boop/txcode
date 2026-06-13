@@ -2,8 +2,8 @@
  * API 封装模块
  * 
  * 提供与后端 API 交互的所有方法
- * 包括：会话管理、消息管理、提供商配置、模型配置、AI 聊天
- * 支持：HTTP REST API、SSE 流式响应
+ * 路由规范: /api/{module}/{action}_{module}.ts
+ * 方法规范: GET(query参数) / POST(JSON body), 禁止PUT/DELETE
  */
 
 import { wsManager } from './websocket/websocket.js';
@@ -34,191 +34,99 @@ async function request(method, path, data = null) {
   return json;
 }
 
-/**
- * API 接口集合
- */
 export const api = {
   // ==================== 会话管理 ====================
 
-  /**
-   * 获取会话列表
-   * @param {number} limit - 返回数量限制
-   * @param {number} offset - 偏移量
-   */
   getSessions(limit = 20, offset = 0) {
-    return request('GET', `/sessions?limit=${limit}&offset=${offset}`);
+    return request('GET', `/session/list_session?limit=${limit}&offset=${offset}`);
   },
 
-  /**
-   * 创建新会话
-   * @param {string} title - 会话标题
-   * @param {string} projectPath - 项目路径（可选）
-   */
   createSession(title = '新会话', projectPath = null) {
-    return request('POST', '/sessions', { title, projectPath });
+    return request('POST', '/session/create_session', { title, projectPath });
   },
 
-  /**
-   * 获取单个会话
-   * @param {string} id - 会话 ID
-   */
   getSession(id) {
-    return request('GET', `/sessions/${id}`);
+    return request('GET', `/session/detail_session?id=${id}`);
   },
 
-  /**
-   * 更新会话
-   * @param {string} id - 会话 ID
-   * @param {object} data - 更新数据 { title }
-   */
   updateSession(id, data) {
-    return request('PUT', `/sessions/${id}`, data);
+    return request('POST', '/session/update_session', { id, ...data });
   },
 
-  /**
-   * 删除会话
-   * @param {string} id - 会话 ID
-   */
   deleteSession(id) {
-    return request('DELETE', `/sessions/${id}`);
+    return request('POST', '/session/delete_session', { id });
   },
 
-  /**
-   * 获取多个会话的状态
-   * @param {string[]} sessionIds - 会话 ID 数组
-   */
   getSessionStatuses(sessionIds) {
-    return request('POST', '/sessions/status', { sessionIds });
+    return request('POST', '/session/status_session', { sessionIds });
   },
 
-  /**
-   * 获取会话消息
-   * @param {string} sessionId - 会话 ID
-   */
   getMessages(sessionId) {
-    return request('GET', `/chat/history/${sessionId}`);
+    return request('GET', `/chat/history_chat?sessionId=${sessionId}`);
   },
 
   // ==================== 提供商管理 ====================
 
-  /**
-   * 获取提供商列表
-   */
   getProviders() {
-    return request('GET', '/config/providers');
+    return request('GET', '/config/list_providers_config');
   },
 
-  /**
-   * 获取单个提供商（包含 API Key）
-   * @param {string} id - 提供商 ID
-   */
   getProvider(id) {
-    return request('GET', `/config/providers/${id}`);
+    return request('GET', `/config/detail_provider_config?id=${id}`);
   },
 
-  /**
-   * 添加提供商
-   * @param {object} provider - 提供商信息
-   */
   addProvider(provider) {
-    return request('POST', '/config/providers', provider);
+    return request('POST', '/config/create_provider_config', provider);
   },
 
-  /**
-   * 更新提供商
-   * @param {string} id - 提供商 ID
-   * @param {object} data - 更新数据
-   */
   updateProvider(id, data) {
-    return request('PUT', `/config/providers/${id}`, data);
+    return request('POST', '/config/update_provider_config', { id, ...data });
   },
 
-  /**
-   * 删除提供商
-   * @param {string} id - 提供商 ID
-   */
   deleteProvider(id) {
-    return request('DELETE', `/config/providers/${id}`);
+    return request('POST', '/config/delete_provider_config', { id });
   },
 
-  /**
-   * 设置默认提供商
-   * @param {string} id - 提供商 ID
-   */
   setDefaultProvider(id) {
-    return request('PUT', `/config/providers/${id}/default`);
+    return request('POST', '/config/set_default_provider_config', { id });
   },
 
   // ==================== 模型管理 ====================
 
-  /**
-   * 获取所有模型
-   */
   getModels() {
-    return request('GET', '/config/models');
+    return request('GET', '/config/list_models_config');
   },
 
-  /**
-   * 获取指定提供商的模型
-   * @param {string} providerId - 提供商 ID
-   */
   getModelsByProvider(providerId) {
-    return request('GET', `/config/models?providerId=${providerId}`);
+    return request('GET', `/config/list_models_config?providerId=${providerId}`);
   },
 
-  /**
-   * 添加模型
-   * @param {object} model - 模型信息
-   */
   addModel(model) {
-    return request('POST', '/config/models', model);
+    return request('POST', '/config/create_model_config', model);
   },
 
-  /**
-   * 更新模型
-   * @param {string} id - 模型 ID
-   * @param {object} data - 更新数据
-   */
   updateModel(id, data) {
-    return request('PUT', `/config/models/${id}`, data);
+    return request('POST', '/config/update_model_config', { id, ...data });
   },
 
-  /**
-   * 删除模型
-   * @param {string} id - 模型 ID
-   */
   deleteModel(id) {
-    return request('DELETE', `/config/models/${id}`);
+    return request('POST', '/config/delete_model_config', { id });
   },
 
   // ==================== AI 聊天 ====================
 
-  /**
-   * 发送聊天消息
-   * @param {object} data - 聊天数据 { sessionId, message }
-   */
   chat(data) {
-    return request('POST', '/chat', data);
+    return request('POST', '/chat/send_chat', data);
   },
 
-  /**
-   * 执行命令
-   * @param {string} message - 命令内容 (以 / 开头)
-   * @param {string} sessionId - 会话 ID
-   */
   chatCommand(message, sessionId) {
-    return request('POST', '/chat/command', { message, sessionId });
+    return request('POST', '/chat/command_chat', { message, sessionId });
   },
 
-  /**
-   * 流式聊天
-   * @param {object} data - 聊天数据
-   * @param {function} onChunk - 收到数据块的回调
-   */
   chatStream(data, onChunk) {
     return new Promise((resolve, reject) => {
       const es = new EventSource(
-        `${API_BASE}/chat/stream?data=${encodeURIComponent(JSON.stringify(data))}`
+        `${API_BASE}/chat/stream_chat?data=${encodeURIComponent(JSON.stringify(data))}`
       );
 
       es.onmessage = (e) => {
@@ -241,215 +149,125 @@ export const api = {
     });
   },
 
+  uploadChatImage(file, sessionId) {
+    const formData = new FormData();
+    formData.append('image', file);
+    formData.append('sessionId', sessionId);
+    return fetch(`${API_BASE}/chat/upload_image_chat`, {
+      method: 'POST',
+      body: formData,
+    }).then(res => res.json());
+  },
+
   // ==================== 技能管理 ====================
 
-  /**
-   * 获取所有技能
-   */
   getSkills() {
-    return request('GET', '/skills');
+    return request('GET', '/skill/list_skill');
   },
 
-  /**
-   * 获取技能仓库列表
-   */
   getSkillRepositories() {
-    return request('GET', '/skills/repositories');
+    return request('GET', '/skill/repositories_skill');
   },
 
-  /**
-   * 添加技能仓库
-   * @param {object} data - { name, url }
-   */
   createSkillRepository(data) {
-    return request('POST', '/skills/repositories', data);
+    return request('POST', '/skill/create_repo_skill', data);
   },
 
-  /**
-   * 更新技能仓库
-   * @param {string} id - 仓库ID
-   * @param {object} data - { name, url }
-   */
   updateSkillRepository(id, data) {
-    return request('PUT', `/skills/repositories/${id}`, data);
+    return request('POST', '/skill/update_repo_skill', { id, ...data });
   },
 
-  /**
-   * 删除技能仓库
-   * @param {string} id - 仓库ID
-   */
   deleteSkillRepository(id) {
-    return request('DELETE', `/skills/repositories/${id}`);
+    return request('POST', '/skill/delete_repo_skill', { id });
   },
 
-  /**
-   * 同步技能仓库
-   * @param {string} id - 仓库ID
-   */
   syncSkillRepository(id) {
-    return request('POST', `/skills/repositories/${id}/sync`);
+    return request('POST', `/skill/sync_repo_skill`, { id });
   },
 
-  /**
-   * 获取仓库远程技能列表
-   * @param {string} repoId - 仓库ID
-   */
   getRemoteSkills(repoId) {
-    return request('GET', `/skills/repositories/${repoId}`);
+    return request('GET', `/skill/repositories_skill?repoId=${repoId}`);
   },
 
-  /**
-   * 下载单个技能到项目
-   * @param {string} repoId - 仓库ID
-   * @param {string} skillName - 技能名称
-   * @param {string} projectPath - 项目路径
-   */
   downloadSkill(repoId, skillName, projectPath) {
-    return request('POST', `/skills/repositories/${repoId}/download`, { skillName, projectPath });
+    return request('POST', `/skill/download_repo_skill`, { repoId, skillName, projectPath });
   },
 
-  /**
-   * 批量下载全部技能
-   * @param {string} repoId - 仓库ID
-   * @param {string} projectPath - 项目路径
-   */
   downloadAllSkills(repoId, projectPath) {
-    return request('POST', `/skills/repositories/${repoId}/download-all`, { projectPath });
+    return request('POST', `/skill/download_repo_skill`, { repoId, all: true, projectPath });
   },
 
-  /**
-   * 获取本地技能列表
-   * @param {string} projectPath - 项目路径
-   */
   getLocalSkills(projectPath) {
     const query = projectPath ? `?projectPath=${encodeURIComponent(projectPath)}` : '';
-    return request('GET', `/skills/local${query}`);
+    return request('GET', `/skill/local_skill${query}`);
   },
 
-  /**
-   * 获取技能内容
-   * @param {string} name - 技能名称
-   */
   getSkillContent(name) {
-    return request('GET', `/skills/local/${encodeURIComponent(name)}`);
+    return request('GET', `/skill/detail_skill?name=${encodeURIComponent(name)}`);
   },
 
-  /**
-   * 删除本地技能
-   * @param {string} name - 技能名称
-   */
   deleteLocalSkill(name) {
-    return request('DELETE', `/skills/local/${encodeURIComponent(name)}`);
+    return request('POST', '/skill/load_skill', { name, action: 'delete' });
   },
 
   // ==================== 配置管理 ====================
 
-  /**
-   * 获取配置项
-   * @param {string} key - 配置键名
-   */
   getConfig(key) {
-    return request('GET', `/config/${key}`);
+    return request('GET', `/config/get_config?key=${encodeURIComponent(key)}`);
   },
 
-  /**
-   * 设置配置项
-   * @param {string} key - 配置键名
-   * @param {any} value - 配置值
-   */
   setConfig(key, value) {
-    return request('PUT', `/config/${key}`, { value });
+    return request('POST', '/config/set_config', { key, value });
   },
 
   getProxyConfig() {
-    return request('GET', '/config/proxy');
+    return request('GET', '/config/proxy_config');
   },
 
   updateProxyConfig(data) {
-    return request('PUT', '/config/proxy', data);
+    return request('POST', '/config/proxy_config', data);
   },
 
   // ==================== 文件管理 ====================
 
-  /**
-   * 获取文件树
-   * @param {string} basePath - 基础路径
-   */
   getFileTree(basePath = "/") {
-    return request('GET', `/files/tree?base_path=${encodeURIComponent(basePath)}`);
+    return request('GET', `/file/tree_file?path=${encodeURIComponent(basePath)}`);
   },
 
-  /**
-   * 读取文件内容
-   * @param {string} path - 文件路径
-   */
   getFileContent(path) {
-    return request('GET', `/files/content?path=${encodeURIComponent(path)}`);
+    return request('GET', `/file/content_file?path=${encodeURIComponent(path)}`);
   },
 
-  /**
-   * 写入文件
-   * @param {string} path - 文件路径
-   * @param {string} content - 文件内容
-   */
   writeFile(path, content) {
-    return request('POST', '/files/write', { path, content });
+    return request('POST', '/file/write_file', { path, content });
   },
 
-  /**
-   * 编辑文件
-   * @param {string} path - 文件路径
-   * @param {string} oldString - 旧字符串
-   * @param {string} newString - 新字符串
-   */
   editFile(path, oldString, newString) {
-    return request('POST', `/files/edit?path=${encodeURIComponent(path)}&old_string=${encodeURIComponent(oldString)}&new_string=${encodeURIComponent(newString)}`);
+    return request('POST', '/file/edit_file', { path, oldString, newString });
   },
 
-  /**
-   * 删除文件
-   * @param {string} path - 文件路径
-   */
   deleteFile(path) {
-    return request('POST', '/files/delete', { path });
+    return request('POST', '/file/delete_file', { path });
   },
 
-  /**
-   * 创建目录
-   * @param {string} path - 目录路径
-   */
   createDirectory(path) {
-    return request('POST', '/files/mkdir', { path });
+    return request('POST', '/file/mkdir_file', { path });
   },
 
-  /**
-   * 重命名文件或目录
-   * @param {string} path - 原路径
-   * @param {string} newName - 新名称
-   */
   renameFile(path, newName) {
-    return request('POST', '/files/rename', { path, newName });
+    return request('POST', '/file/rename_file', { path, newName });
   },
 
-  /**
-   * 浏览文件系统
-   * @param {string} path - 路径
-   */
   browseFilesystem(path = "") {
-    return request('GET', `/filesystem/browse?path=${encodeURIComponent(path)}`);
+    return request('GET', `/file/browse_file?path=${encodeURIComponent(path)}`);
   },
 
-  /**
-   * 上传文件到本地文件系统
-   * @param {string} targetDir - 目标目录路径
-   * @param {File} file - 文件对象
-   */
   async uploadFilesystem(targetDir, file) {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('targetDir', targetDir);
     formData.append('filename', encodeURIComponent(file.name));
-    const res = await fetch(`${API_BASE}/filesystem/upload`, {
+    const res = await fetch(`${API_BASE}/file/upload_file`, {
       method: 'POST',
       body: formData
     });
@@ -460,12 +278,6 @@ export const api = {
     return json;
   },
 
-  /**
-   * 上传文件到本地文件系统（带进度回调，分片上传支持大文件）
-   * @param {string} targetDir - 目标目录路径
-   * @param {File} file - 文件对象
-   * @param {Function} onProgress - 进度回调 (percent: number)
-   */
   uploadFilesystemWithProgress(targetDir, file, onProgress) {
     const CHUNK_SIZE = 10 * 1024 * 1024
     const totalChunks = Math.ceil(file.size / CHUNK_SIZE)
@@ -489,15 +301,6 @@ export const api = {
     return doUpload()
   },
 
-  /**
-   * 上传分片（大文件分片上传）
-   * @param {string} uploadId - 上传会话ID
-   * @param {number} chunkIndex - 分片索引
-   * @param {number} totalChunks - 总分片数
-   * @param {string} fileName - 文件名
-   * @param {string} targetDir - 目标目录
-   * @param {Blob} chunk - 分片数据
-   */
   uploadChunk(uploadId, chunkIndex, totalChunks, fileName, targetDir, chunk) {
     const formData = new FormData();
     formData.append('uploadId', uploadId);
@@ -506,7 +309,7 @@ export const api = {
     formData.append('fileName', encodeURIComponent(fileName));
     formData.append('targetDir', targetDir);
     formData.append('chunk', chunk);
-    return fetch(`${API_BASE}/filesystem/upload/chunk`, {
+    return fetch(`${API_BASE}/file/upload_chunk_file`, {
       method: 'POST',
       body: formData,
     }).then(res => res.json()).then(json => {
@@ -517,23 +320,12 @@ export const api = {
     });
   },
 
-  /**
-   * 合并分片（大文件分片上传完成后合并）
-   * @param {string} uploadId - 上传会话ID
-   */
   mergeChunks(uploadId) {
-    return request('POST', '/filesystem/upload/merge', { uploadId });
+    return request('POST', '/file/upload_merge_file', { uploadId });
   },
 
-  /**
-   * 下载本地文件（带进度回调）
-   * @param {string} filePath - 文件路径
-   * @param {string} fileName - 文件名
-   * @param {Function} onProgress - 进度回调 (percent: number)
-   * @returns {Promise<{success: boolean}>}
-   */
   downloadFilesystemWithProgress(filePath, fileName, onProgress) {
-    const url = `${API_BASE}/filesystem/download?path=${encodeURIComponent(filePath)}`
+    const url = `${API_BASE}/file/download_file?path=${encodeURIComponent(filePath)}`
     return fetch(url).then((response) => {
       if (!response.ok) {
         throw new Error('下载失败: HTTP ' + response.status)
@@ -570,138 +362,88 @@ export const api = {
     })
   },
 
-  /**
-   * 保存文件到本地文件系统
-   * @param {string} targetPath - 目标文件路径
-   * @param {ArrayBuffer} content - 文件内容
-   */
   async saveFile(targetPath, content) {
-    const res = await fetch(`${API_BASE}/filesystem/save-file`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ targetPath, content: Array.from(new Uint8Array(content)) })
-    });
-    const json = await res.json();
-    if (json.success === false) {
-      throw new Error(json.error || json.message || '保存失败');
-    }
-    return json;
+    return request('POST', '/file/write_file', { path: targetPath, content: Array.from(new Uint8Array(content)) });
   },
 
-  /**
-   * 删除文件或目录
-   * @param {string} targetPath - 目标路径
-   */
-  deleteFile(targetPath) {
-    return request('POST', '/filesystem/delete', { path: targetPath });
+  removeFile(targetPath) {
+    return request('POST', '/file/delete_file', { path: targetPath });
   },
 
-  /**
-   * 重命名文件或目录
-   * @param {string} oldPath - 原路径
-   * @param {string} newName - 新名称
-   */
-  renameFile(oldPath, newName) {
-    return request('POST', '/filesystem/rename', { path: oldPath, newName });
+  moveFile(oldPath, newName) {
+    return request('POST', '/file/rename_file', { path: oldPath, newName });
   },
 
   getDrives() {
-    return request('GET', '/filesystem/drives');
+    return request('GET', '/file/browse_file?path=/');
   },
 
   getCwd() {
-    return request('GET', '/filesystem/cwd');
+    return request('GET', '/file/browse_file?path=.');
   },
 
   // ==================== 数据库管理 ====================
 
-  /**
-   * 获取数据库表列表
-   */
   getDbTables() {
-    return request('GET', '/db/tables');
+    return request('GET', '/db/tables_db');
   },
 
-  /**
-   * 获取表结构信息
-   * @param {string} tableName - 表名
-   */
   getTableInfo(tableName) {
-    return request('GET', `/db/tables/${encodeURIComponent(tableName)}`);
+    return request('GET', `/db/schema_db?name=${encodeURIComponent(tableName)}`);
   },
 
-  /**
-   * 获取表数据
-   * @param {string} tableName - 表名
-   * @param {number} page - 页码
-   * @param {number} pageSize - 每页数量
-   */
   getTableData(tableName, page = 1, pageSize = 50) {
-    return request('GET', `/db/tables/${encodeURIComponent(tableName)}/data?page=${page}&page_size=${pageSize}`);
+    return request('GET', `/db/data_db?name=${encodeURIComponent(tableName)}&page=${page}&pageSize=${pageSize}`);
   },
 
-  /**
-   * 获取表数据（简单版本）
-   * @param {string} tableName - 表名
-   * @param {number} limit - 限制数量
-   */
   getTableDataRaw(tableName, limit = 100) {
-    return request('GET', `/db/tables/${encodeURIComponent(tableName)}/data/raw?limit=${limit}`);
+    return request('GET', `/db/data_db?name=${encodeURIComponent(tableName)}&limit=${limit}`);
   },
 
-  /**
-   * 执行SQL语句
-   * @param {string} query - SQL语句
-   */
   executeSql(query) {
-    return request('POST', '/db/execute', { query });
+    return request('POST', '/db/data_db', { query });
   },
 
-  /**
-   * 获取AI调用日志
-   * @param {number} page - 页码
-   * @param {number} pageSize - 每页数量
-   */
   getAiCallLogs(page = 1, pageSize = 50) {
-    return request('GET', `/ai-logs/logs?page=${page}&pageSize=${pageSize}`);
+    return request('GET', `/ai_log/list_ai_log?page=${page}&pageSize=${pageSize}`);
   },
 
   // ==================== 定时任务管理 ====================
 
   getScheduledTasks() {
-    return request('GET', '/tasks');
+    return request('GET', '/scheduler/list_scheduler');
   },
 
   getScheduledTask(id) {
-    return request('GET', `/tasks/${id}`);
+    return request('GET', `/scheduler/logs_scheduler?id=${id}`);
   },
 
   createScheduledTask(task) {
-    return request('POST', '/tasks', task);
+    return request('POST', '/scheduler/create_scheduler', task);
   },
 
   updateScheduledTask(id, task) {
-    return request('PUT', `/tasks/${id}`, task);
+    return request('POST', '/scheduler/update_scheduler', { id, ...task });
   },
 
   deleteScheduledTask(id) {
-    return request('DELETE', `/tasks/${id}`);
+    return request('POST', '/scheduler/delete_scheduler', { id });
   },
 
   startScheduledTask(id) {
-    return request('POST', `/tasks/${id}/start`);
+    return request('POST', `/scheduler/start_scheduler`, { id });
   },
 
   stopScheduledTask(id) {
-    return request('POST', `/tasks/${id}/stop`);
+    return request('POST', `/scheduler/stop_scheduler`, { id });
   },
 
   runTaskNow(id) {
-    return request('POST', `/tasks/${id}/run`);
+    return request('POST', `/scheduler/run_scheduler`, { id });
   },
 
   getTaskLogs(taskId, limit = 50) {
-    return request('GET', `/tasks/${taskId}/logs?limit=${limit}`);
+    return request('GET', `/scheduler/logs_scheduler?id=${taskId}&limit=${limit}`);
   },
 
   // ==================== WebSocket 通信 ====================
@@ -723,93 +465,93 @@ export const api = {
   // ==================== 邮件管理 ====================
 
   getEmailConfigs() {
-    return request('GET', '/email/configs');
+    return request('GET', '/email/list_email');
   },
 
   getEmailConfig(id) {
-    return request('GET', `/email/configs/${id}`);
+    return request('GET', `/email/detail_email?id=${id}`);
   },
 
   createEmailConfig(config) {
-    return request('POST', '/email/configs', config);
+    return request('POST', '/email/create_email', config);
   },
 
   updateEmailConfig(id, config) {
-    return request('PUT', `/email/configs/${id}`, config);
+    return request('POST', '/email/update_email', { id, ...config });
   },
 
   deleteEmailConfig(id) {
-    return request('DELETE', `/email/configs/${id}`);
+    return request('POST', '/email/delete_email', { id });
   },
 
   setDefaultEmailConfig(id) {
-    return request('PUT', `/email/configs/${id}/default`);
+    return request('POST', '/email/set_default_email', { id });
   },
 
   validateEmailConfig(configId) {
-    return request('POST', '/email/validate', { configId });
+    return request('POST', '/email/validate_email', { configId });
   },
 
   // ==================== 网关管理 ====================
 
   getDingtalkConfig() {
-    return request('GET', '/gateway/dingtalk/config');
+    return request('GET', '/gateway/dingtalk_config_gateway');
   },
 
   updateDingtalkConfig(config) {
-    return request('PUT', '/gateway/dingtalk/config', config);
+    return request('POST', '/gateway/dingtalk_update_gateway', config);
   },
 
   startDingtalk() {
-    return request('POST', '/gateway/dingtalk/start');
+    return request('POST', '/gateway/dingtalk_start_gateway');
   },
 
   stopDingtalk() {
-    return request('POST', '/gateway/dingtalk/stop');
+    return request('POST', '/gateway/dingtalk_stop_gateway');
   },
 
   getGatewayStatus() {
-    return request('GET', '/gateway/dingtalk/status');
+    return request('GET', '/gateway/dingtalk_status_gateway');
   },
 
   getQueueStatus() {
-    return request('GET', '/gateway/queue/status');
+    return request('GET', '/gateway/queue_gateway');
   },
 
   // ==================== WAF 网关管理 ====================
 
   getWafConfig() {
-    return request('GET', '/gateway/waf/config');
+    return request('GET', '/gateway/waf_config_gateway');
   },
 
   updateWafConfig(config) {
-    return request('PUT', '/gateway/waf/config', config);
+    return request('POST', '/gateway/waf_update_gateway', config);
   },
 
   startWaf() {
-    return request('POST', '/gateway/waf/start');
+    return request('POST', '/gateway/waf_start_gateway');
   },
 
   stopWaf() {
-    return request('POST', '/gateway/waf/stop');
+    return request('POST', '/gateway/waf_stop_gateway');
   },
 
   getWafStatus() {
-    return request('GET', '/gateway/waf/status');
+    return request('GET', '/gateway/waf_status_gateway');
   },
 
   // ==================== 终端会话管理 ====================
 
   getTerminalSessions() {
-    return request('GET', '/terminal/sessions');
+    return request('GET', '/terminal/list_terminal');
   },
 
   createTerminalSession() {
-    return request('POST', '/terminal/sessions');
+    return request('POST', '/terminal/create_terminal');
   },
 
   deleteTerminalSession(id) {
-    return request('DELETE', `/terminal/sessions/${id}`);
+    return request('POST', '/terminal/delete_terminal', { id });
   },
 
   terminalWsConnect(sessionId, onMessage, onOpen, onClose, onError) {
@@ -878,168 +620,168 @@ export const api = {
   // ==================== 工作流状态管理 ====================
 
   getWorkflowState() {
-    return request('GET', '/workflow/state');
+    return request('GET', '/workflow/state_workflow');
   },
 
   updateWorkflowState(currentCategory, currentProject, currentStep) {
-    return request('PUT', '/workflow/state', { currentCategory, currentProject, currentStep });
+    return request('POST', '/workflow/update_workflow', { currentCategory, currentProject, currentStep });
   },
 
   // ==================== Git 变更管理 ====================
 
   gitIsRepo() {
-    return request('GET', '/git/is-repo');
+    return request('GET', '/git/is_repo_git');
   },
 
   gitStatus() {
-    return request('GET', '/git/status');
+    return request('GET', '/git/status_git');
   },
 
   gitDiff(filePath) {
-    return request('GET', `/git/diff/${encodeURIComponent(filePath)}`);
+    return request('GET', `/git/diff_git?file=${encodeURIComponent(filePath)}`);
   },
 
   gitRevert(filePath) {
-    return request('POST', `/git/revert/${encodeURIComponent(filePath)}`);
+    return request('POST', '/git/revert_git', { file: filePath });
   },
 
   gitRevertAll() {
-    return request('POST', '/git/revert-all');
+    return request('POST', '/git/revert_all_git');
   },
 
   gitDeleteFile(filePath) {
-    return request('POST', `/git/delete-file/${encodeURIComponent(filePath)}`);
+    return request('POST', '/git/delete_file_git', { file: filePath });
   },
 
   gitDiscardUntracked() {
-    return request('POST', '/git/discard-untracked');
+    return request('POST', '/git/discard_untracked_git');
   },
 
   // ==================== 自定义动作管理 ====================
 
   getCustomActions(type) {
     const query = type ? `?type=${type}` : '';
-    return request('GET', `/custom-actions${query}`);
+    return request('GET', `/custom_action/list_custom_action${query}`);
   },
 
   createCustomAction(action) {
-    return request('POST', '/custom-actions', action);
+    return request('POST', '/custom_action/create_custom_action', action);
   },
 
   updateCustomAction(id, action) {
-    return request('PUT', `/custom-actions/${id}`, action);
+    return request('POST', '/custom_action/update_custom_action', { id, ...action });
   },
 
   deleteCustomAction(id) {
-    return request('DELETE', `/custom-actions/${id}`);
+    return request('POST', '/custom_action/delete_custom_action', { id });
   },
 
   // ==================== 规范管理 ====================
 
   getLocalSpecs(projectPath) {
     const query = projectPath ? `?projectPath=${encodeURIComponent(projectPath)}` : '';
-    return request('GET', `/specs/local${query}`);
+    return request('GET', `/spec/local_spec${query}`);
   },
 
   getSpecContent(name) {
-    return request('GET', `/specs/local/${encodeURIComponent(name)}/SPEC.md`);
+    return request('GET', `/spec/detail_spec?name=${encodeURIComponent(name)}`);
   },
 
   deleteLocalSpec(name) {
-    return request('DELETE', `/specs/local/${encodeURIComponent(name)}`);
+    return request('POST', '/spec/delete_spec', { name });
   },
 
   uploadSpec(name, content) {
-    return request('POST', '/specs/local/upload', { name, content });
+    return request('POST', '/spec/upload_spec', { name, content });
   },
 
   getSpecRepositories() {
-    return request('GET', '/specs/repositories');
+    return request('GET', '/spec/repositories_spec');
   },
 
   createSpecRepository(data) {
-    return request('POST', '/specs/repositories', data);
+    return request('POST', '/spec/create_repo_spec', data);
   },
 
   updateSpecRepository(id, data) {
-    return request('PUT', `/specs/repositories/${id}`, data);
+    return request('POST', '/spec/update_repo_spec', { id, ...data });
   },
 
   deleteSpecRepository(id) {
-    return request('DELETE', `/specs/repositories/${id}`);
+    return request('POST', '/spec/delete_repo_spec', { id });
   },
 
   getRepoSpecs(repoId) {
-    return request('GET', `/specs/repositories/${repoId}/specs`);
+    return request('GET', `/spec/repositories_spec?repoId=${repoId}`);
   },
 
   syncSpecRepository(repoId) {
-    return request('POST', `/specs/repositories/${repoId}/sync`);
+    return request('POST', '/spec/sync_repo_spec', { repoId });
   },
 
   downloadSpec(repoId, specName, projectPath) {
-    return request('POST', `/specs/repositories/${repoId}/download`, { specName, projectPath });
+    return request('POST', '/spec/download_repo_spec', { repoId, specName, projectPath });
   },
 
   downloadAll(repoId, projectPath) {
-    return request('POST', `/specs/repositories/${repoId}/download-all`, { projectPath });
+    return request('POST', '/spec/download_repo_spec', { repoId, all: true, projectPath });
   },
 
   downloadAllSpecs(repoId, projectPath) {
-    return request('POST', `/specs/repositories/${repoId}/download-all`, { projectPath });
+    return request('POST', '/spec/download_repo_spec', { repoId, all: true, projectPath });
   },
 
   getProjectPath() {
-    return request('GET', '/specs/project-path');
+    return request('GET', '/project/current_project');
   },
 
   // ==================== Wiki ====================
 
   getWikiMenu() {
-    return request('GET', '/wiki/menu');
+    return request('GET', '/wiki/menu_wiki');
   },
 
   getWikiContent(path) {
-    return request('GET', `/wiki/content?path=${encodeURIComponent(path)}`);
+    return request('GET', `/wiki/content_wiki?path=${encodeURIComponent(path)}`);
   },
 
   getWikiAsset(path) {
-    return `/api/wiki/asset?path=${encodeURIComponent(path)}`;
+    return `${API_BASE}/wiki/asset_wiki?path=${encodeURIComponent(path)}`;
   },
 
   // ==================== 记忆管理 ====================
 
   getMemory(projectPath) {
     const query = projectPath ? `?projectPath=${encodeURIComponent(projectPath)}` : '';
-    return request('GET', `/memory${query}`);
+    return request('GET', `/memory/get_memory${query}`);
   },
 
   saveMemory(projectPath, content) {
-    return request('POST', '/memory/save', { projectPath, content });
+    return request('POST', '/memory/save_memory', { projectPath, content });
   },
 
   // ==================== 项目管理 ====================
 
   getProjects() {
-    return request('GET', '/projects');
+    return request('GET', '/project/list_project');
   },
 
   getCurrentProject() {
-    return request('GET', '/projects/current');
+    return request('GET', '/project/current_project');
   },
 
   setCurrentProject(projectId) {
-    return request('POST', '/projects/current', { projectId });
+    return request('POST', '/project/set_current_project', { projectId });
   },
 
   createProject(name, path, description = '') {
-    return request('POST', '/projects', { name, path, description });
+    return request('POST', '/project/create_project', { name, path, description });
   },
 
   // ==================== 配置导出导入 ====================
 
   exportConfig() {
-    return fetch(`${API_BASE}/settings/export`, {
+    return fetch(`${API_BASE}/config/export_config`, {
       method: 'GET',
     }).then(res => {
       if (!res.ok) {
@@ -1050,35 +792,12 @@ export const api = {
   },
 
   importConfig(content) {
-    return request('POST', '/settings/import', { content });
-  },
-
-  // ==================== 松饼认证 ====================
-
-  getSongbingConfig() {
-    return request('GET', '/songbing/config');
-  },
-
-  startSongbingAuth(platformUrl) {
-    const data = platformUrl ? { platformUrl } : null;
-    return request('POST', '/songbing/auth/start', data);
-  },
-
-  verifySongbingAuth(key) {
-    return request('POST', '/songbing/auth/verify', { key });
-  },
-
-  syncSongbingModels() {
-    return request('POST', '/songbing/sync-models');
-  },
-
-  cancelSongbingAuth() {
-    return request('POST', '/songbing/auth/cancel');
+    return request('POST', '/config/import_config', { content });
   },
 
   // ==================== 系统信息 ====================
 
   getSystemInfo() {
-    return request('GET', '/system/info');
+    return request('GET', '/system/info_system');
   },
 };
