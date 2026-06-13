@@ -5,13 +5,12 @@
 import * as path from "path";
 import * as fs from "fs";
 import { execSync } from "child_process";
-import { dbService } from "../db/index.js";
+import { lspRepository } from "../../repository/lsp.repository.js";
 import { servers, getServer } from "./server.js";
 import { LSPClient } from "./client.js";
 import { LSPDownloader } from "./downloader.js";
 import { LSPServerStatus } from "./types.js";
 import type { ServerStatus, LSPConfig, JavaVersionCheck } from "./types.js";
-import { lspServerTable, insertLSPServerSQL, defaultLSPServers } from "./sql.js";
 
 const TXCODE_BIN_DIR = path.join(
   process.env.HOME || process.env.USERPROFILE || ".",
@@ -31,18 +30,11 @@ export namespace LSPManager {
   const configCache: Map<string, LSPConfig> = new Map();
 
   export async function initDatabase(): Promise<void> {
-    dbService.run(lspServerTable);
-
-    const now = Date.now();
-    for (const server of defaultLSPServers) {
-      dbService.run(insertLSPServerSQL, [server.id, server.enabled, server.auto_start, now, now]);
-    }
+    lspRepository.initTable();
   }
 
   export async function loadConfig(): Promise<Map<string, LSPConfig>> {
-    const rows = dbService.all<{ id: string; enabled: number; auto_start: number }>(
-      "SELECT id, enabled, auto_start FROM lsp_server"
-    );
+    const rows = lspRepository.loadConfigs();
 
     configCache.clear();
     for (const row of rows) {
@@ -56,13 +48,8 @@ export namespace LSPManager {
   }
 
   export async function saveConfig(config: Map<string, LSPConfig>): Promise<void> {
-    const now = Date.now();
-
     for (const [id, cfg] of config.entries()) {
-      dbService.run(
-        "UPDATE lsp_server SET enabled = ?, auto_start = ?, updated_at = ? WHERE id = ?",
-        [cfg.enabled ? 1 : 0, cfg.autoStart ? 1 : 0, now, id]
-      );
+      lspRepository.updateConfig(id, cfg.enabled ? 1 : 0, cfg.autoStart ? 1 : 0);
     }
 
     configCache.clear();
@@ -75,11 +62,7 @@ export namespace LSPManager {
     const current = configCache.get(id) || { enabled: false, autoStart: false };
     const updated = { ...current, ...config };
 
-    const now = Date.now();
-    dbService.run(
-      "UPDATE lsp_server SET enabled = ?, auto_start = ?, updated_at = ? WHERE id = ?",
-      [updated.enabled ? 1 : 0, updated.autoStart ? 1 : 0, now, id]
-    );
+    lspRepository.updateConfig(id, updated.enabled ? 1 : 0, updated.autoStart ? 1 : 0);
 
     configCache.set(id, updated);
 

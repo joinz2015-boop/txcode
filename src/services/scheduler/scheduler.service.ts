@@ -1,58 +1,22 @@
 import cron, { ScheduledTask } from 'node-cron';
 import { v4 as uuid } from 'uuid';
-import { dbService } from '../../core/db/db.service.js';
+import { schedulerRepository } from '../../repository/scheduler.repository.js';
+import type { ScheduledTaskRow, TaskSkillRow, ScheduledTaskConfig, ScheduleType, NotifyType } from '../../entity/scheduler.entity.js';
 import { configService } from '../../services/config/config.service.js';
 import { OpenAIProvider } from '../../core/ai/openai.provider.js';
 import { createProvider } from '../../core/ai/provider.js';
 import { TaskAgent } from '../../core/ai/agents/task/task.agent.js';
 import { taskLogService, TaskLog } from './task-log.service.js';
-import { notifyService, NotifyType } from './notify.service.js';
+import { notifyService } from './notify.service.js';
 
-export type ScheduleType =
-  | '*/5 * * * *'
-  | '*/30 * * * *'
-  | '0 * * * *'
-  | '0 */2 * * *'
-  | '0 */12 * * *'
-  | '0 0 * * *'
-  | '0 0 1 * *';
-
-export interface ScheduledTaskConfig {
-  id?: string;
-  name: string;
-  scheduleType: ScheduleType;
-  model: string;
-  skills: string[];
-  content: string;
-  notifyType: NotifyType;
-  enabled?: boolean;
-}
-
-interface ScheduledTaskRow {
-  id: string;
-  name: string;
-  schedule_type: string;
-  model: string;
-  content: string;
-  notify_type: string;
-  enabled: number;
-  created_at: string;
-  updated_at: string;
-}
-
-interface TaskSkillRow {
-  id: string;
-  task_id: string;
-  skill: string;
-  skill_order: number;
-}
+export type { ScheduleType, ScheduledTaskConfig };
 
 export class SchedulerService {
   private tasks: Map<string, ScheduledTask> = new Map();
   private runningTasks: Set<string> = new Set();
 
   init(): void {
-    const taskRows = dbService.all<ScheduledTaskRow>('SELECT * FROM scheduled_tasks');
+    const taskRows = schedulerRepository.listTasks();
     for (const row of taskRows) {
       this.createTaskFromDb(row);
     }
@@ -60,10 +24,7 @@ export class SchedulerService {
   }
 
   private createTaskFromDb(row: ScheduledTaskRow): void {
-    const skillRows = dbService.all<TaskSkillRow>(
-      'SELECT * FROM task_skills WHERE task_id = ? ORDER BY skill_order ASC',
-      [row.id]
-    );
+    const skillRows = schedulerRepository.getTaskSkills(row.id);
     const skills = skillRows.map(s => s.skill);
 
     const config: ScheduledTaskConfig = {
@@ -88,12 +49,9 @@ export class SchedulerService {
   }
 
   getAllTasks(): ScheduledTaskConfig[] {
-    const rows = dbService.all<ScheduledTaskRow>('SELECT * FROM scheduled_tasks ORDER BY created_at DESC');
+    const rows = schedulerRepository.listTasks();
     return rows.map(row => {
-      const skillRows = dbService.all<TaskSkillRow>(
-        'SELECT skill FROM task_skills WHERE task_id = ? ORDER BY skill_order ASC',
-        [row.id]
-      );
+      const skillRows = schedulerRepository.getTaskSkills(row.id);
       return {
         id: row.id,
         name: row.name,
@@ -108,13 +66,10 @@ export class SchedulerService {
   }
 
   getTask(id: string): ScheduledTaskConfig | undefined {
-    const row = dbService.get<ScheduledTaskRow>('SELECT * FROM scheduled_tasks WHERE id = ?', [id]);
+    const row = schedulerRepository.getTask(id);
     if (!row) return undefined;
 
-    const skillRows = dbService.all<TaskSkillRow>(
-      'SELECT skill FROM task_skills WHERE task_id = ? ORDER BY skill_order ASC',
-      [row.id]
-    );
+    const skillRows = schedulerRepository.getTaskSkills(row.id);
 
     return {
       id: row.id,
@@ -129,20 +84,7 @@ export class SchedulerService {
   }
 
   createTask(config: ScheduledTaskConfig): string {
-    const id = config.id || uuid();
-
-    dbService.run(
-      `INSERT INTO scheduled_tasks (id, name, schedule_type, model, content, notify_type, enabled, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-      [id, config.name, config.scheduleType, config.model, config.content, config.notifyType, config.enabled !== false ? 1 : 0]
-    );
-
-    for (let i = 0; i < config.skills.length; i++) {
-      dbService.run(
-        'INSERT INTO task_skills (id, task_id, skill, skill_order) VALUES (?, ?, ?, ?)',
-        [uuid(), id, config.skills[i], i]
-      );
-    }
+    const id = schedulerRepository.createTask(config);
 
     const task = cron.schedule(config.scheduleType, async () => {
       await this.executeTask(id);
@@ -160,49 +102,15 @@ export class SchedulerService {
     const existing = this.getTask(id);
     if (!existing) return;
 
-    const updates: string[] = [];
-    const values: unknown[] = [];
-
-    if (config.name !== undefined) {
-      updates.push('name = ?');
-      values.push(config.name);
-    }
-    if (config.scheduleType !== undefined) {
-      updates.push('schedule_type = ?');
-      values.push(config.scheduleType);
-    }
-    if (config.model !== undefined) {
-      updates.push('model = ?');
-      values.push(config.model);
-    }
-    if (config.content !== undefined) {
-      updates.push('content = ?');
-      values.push(config.content);
-    }
-    if (config.notifyType !== undefined) {
-      updates.push('notify_type = ?');
-      values.push(config.notifyType);
-    }
-    if (config.enabled !== undefined) {
-      updates.push('enabled = ?');
-      values.push(config.enabled ? 1 : 0);
-    }
-
-    if (updates.length > 0) {
-      updates.push('updated_at = CURRENT_TIMESTAMP');
-      values.push(id);
-      dbService.run(`UPDATE scheduled_tasks SET ${updates.join(', ')} WHERE id = ?`, values);
-    }
-
-    if (config.skills !== undefined) {
-      dbService.run('DELETE FROM task_skills WHERE task_id = ?', [id]);
-      for (let i = 0; i < config.skills.length; i++) {
-        dbService.run(
-          'INSERT INTO task_skills (id, task_id, skill, skill_order) VALUES (?, ?, ?, ?)',
-          [uuid(), id, config.skills[i], i]
-        );
-      }
-    }
+    schedulerRepository.updateTask(id, {
+      name: config.name,
+      scheduleType: config.scheduleType,
+      model: config.model,
+      content: config.content,
+      notifyType: config.notifyType,
+      enabled: config.enabled,
+      skills: config.skills,
+    });
 
     this.removeTask(id);
     const updated = this.getTask(id);
@@ -222,9 +130,7 @@ export class SchedulerService {
   }
 
   deleteTask(id: string): void {
-    dbService.run('DELETE FROM task_skills WHERE task_id = ?', [id]);
-    dbService.run('DELETE FROM task_logs WHERE task_id = ?', [id]);
-    dbService.run('DELETE FROM scheduled_tasks WHERE id = ?', [id]);
+    schedulerRepository.deleteTask(id);
     this.removeTask(id);
   }
 
@@ -232,7 +138,7 @@ export class SchedulerService {
     const task = this.tasks.get(id);
     if (task) {
       task.start();
-      dbService.run('UPDATE scheduled_tasks SET enabled = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [id]);
+      schedulerRepository.startTask(id);
     }
   }
 
@@ -240,7 +146,7 @@ export class SchedulerService {
     const task = this.tasks.get(id);
     if (task) {
       task.stop();
-      dbService.run('UPDATE scheduled_tasks SET enabled = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [id]);
+      schedulerRepository.stopTask(id);
     }
   }
 

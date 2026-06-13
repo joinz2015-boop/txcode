@@ -20,7 +20,11 @@ export type { ScheduledTaskRow, TaskSkillRow, TaskLogRow } from '../entity/sched
 export { EmailRepository, emailRepository } from './email.repository.js';
 export type { EmailConfigRow } from '../entity/email.entity.js';
 export { GatewayRepository, gatewayRepository } from './gateway.repository.js';
-export type { WafGatewayConfigRow } from '../entity/gateway.entity.js';
+export type { WafGatewayConfigRow, WafGatewayConfig } from '../entity/gateway.entity.js';
+export { ProviderAuthRepository, providerAuthRepository } from './provider_auth.repository.js';
+export type { ProviderAuthRow } from './provider_auth.repository.js';
+export { LspRepository, lspRepository } from './lsp.repository.js';
+export type { LspServerRow } from '../entity/lsp.entity.js';
 export { CustomActionRepository, customActionRepository } from './custom_action.repository.js';
 export type { CustomActionRow } from '../entity/custom-action.entity.js';
 export { ProjectRepository, projectRepository } from './project.repository.js';

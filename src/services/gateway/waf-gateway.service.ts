@@ -2,16 +2,8 @@ import * as os from 'os';
 import * as path from 'path';
 import * as fs from 'fs';
 import { spawn, ChildProcess } from 'child_process';
-import { dbService } from '../../core/db/db.service.js';
-
-export interface WafGatewayConfig {
-  id: number;
-  secret_key: string;
-  server_ip: string;
-  status: 'running' | 'stopped';
-  created_at: string;
-  updated_at: string;
-}
+import { gatewayRepository } from '../../repository/gateway.repository.js';
+import type { WafGatewayConfig, WafGatewayConfigRow } from '../../entity/gateway.entity.js';
 
 interface TunnelClientConfig {
   server_host: string;
@@ -41,35 +33,18 @@ export class WafGatewayService {
   }
 
   getConfig(): WafGatewayConfig | undefined {
-    return dbService.get<WafGatewayConfig>('SELECT * FROM waf_gateway_config WHERE id = 1');
+    return gatewayRepository.getWafConfig() as WafGatewayConfig | undefined;
   }
 
   updateConfig(config: Partial<Pick<WafGatewayConfig, 'secret_key' | 'server_ip'>>): void {
-    const now = new Date().toISOString();
-    const current = this.getConfig();
-    
-    if (current) {
-      dbService.run(
-        `UPDATE waf_gateway_config SET 
-          secret_key = ?, 
-          server_ip = ?, 
-          updated_at = ? 
-        WHERE id = 1`,
-        [
-          config.secret_key ?? current.secret_key,
-          config.server_ip ?? current.server_ip,
-          now
-        ]
-      );
-    }
+    gatewayRepository.updateWafConfig({
+      secret_key: config.secret_key,
+      server_ip: config.server_ip,
+    });
   }
 
   updateStatus(status: 'running' | 'stopped'): void {
-    const now = new Date().toISOString();
-    dbService.run(
-      `UPDATE waf_gateway_config SET status = ?, updated_at = ? WHERE id = 1`,
-      [status, now]
-    );
+    gatewayRepository.updateWafStatus(status);
   }
 
   private getClientFileName(): string {

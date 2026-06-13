@@ -1,6 +1,7 @@
-import { dbService } from '../../core/db/index.js';
 import { configRepository } from '../../repository/config.repository.js';
 import { emailRepository } from '../../repository/email.repository.js';
+import { gatewayRepository } from '../../repository/gateway.repository.js';
+import { providerAuthRepository } from '../../repository/provider_auth.repository.js';
 
 export interface ExportData {
   providers?: any[];
@@ -42,7 +43,7 @@ export class ConfigExportImportService {
       }));
     }
 
-    const providerAuth = dbService.all<any>('SELECT * FROM provider_auth');
+    const providerAuth = providerAuthRepository.listAll();
     if (providerAuth.length > 0) {
       data.providerAuth = providerAuth.map(a => ({
         id: a.id,
@@ -62,7 +63,7 @@ export class ConfigExportImportService {
       };
     }
 
-    const waf = dbService.get<any>('SELECT * FROM waf_gateway_config WHERE id = 1');
+    const waf = gatewayRepository.getWafConfig();
     if (waf && (waf.server_ip || waf.secret_key)) {
       data.wafGateway = {
         serverIp: waf.server_ip || '',
@@ -99,7 +100,7 @@ export class ConfigExportImportService {
     try {
       if (data.providers && Array.isArray(data.providers)) {
         for (const p of data.providers) {
-          const existing = dbService.get<any>('SELECT id FROM providers WHERE id = ?', [p.id]);
+          const existing = configRepository.getProvider(p.id);
           if (existing) {
             configRepository.updateProvider(p.id, {
               name: p.name,
@@ -123,7 +124,7 @@ export class ConfigExportImportService {
 
       if (data.models && Array.isArray(data.models)) {
         for (const m of data.models) {
-          const existing = dbService.get<any>('SELECT id FROM models WHERE id = ?', [m.id]);
+          const existing = configRepository.getModel(m.id);
           if (existing) {
             configRepository.updateModel(m.id, {
               name: m.name,
@@ -146,18 +147,13 @@ export class ConfigExportImportService {
 
       if (data.providerAuth && Array.isArray(data.providerAuth)) {
         for (const a of data.providerAuth) {
-          const existing = dbService.get<any>('SELECT id FROM provider_auth WHERE id = ?', [a.id]);
-          if (existing) {
-            dbService.run(
-              `UPDATE provider_auth SET provider_name = ?, key = ?, auth_url = ?, active = ? WHERE id = ?`,
-              [a.providerName, a.key, a.authUrl || '', a.active ? 1 : 0, a.id]
-            );
-          } else {
-            dbService.run(
-              `INSERT INTO provider_auth (id, provider_name, key, auth_url, active) VALUES (?, ?, ?, ?, ?)`,
-              [a.id, a.providerName, a.key, a.authUrl || '', a.active ? 1 : 0]
-            );
-          }
+          providerAuthRepository.upsert({
+            id: a.id,
+            providerName: a.providerName,
+            key: a.key,
+            authUrl: a.authUrl || '',
+            active: a.active,
+          });
         }
       }
 
@@ -170,18 +166,10 @@ export class ConfigExportImportService {
       }
 
       if (data.wafGateway) {
-        const existing = dbService.get<any>('SELECT id FROM waf_gateway_config WHERE id = 1');
-        if (existing) {
-          dbService.run(
-            `UPDATE waf_gateway_config SET server_ip = ?, secret_key = ?, updated_at = datetime('now') WHERE id = 1`,
-            [data.wafGateway.serverIp || '', data.wafGateway.secretKey || '']
-          );
-        } else {
-          dbService.run(
-            `INSERT INTO waf_gateway_config (id, server_ip, secret_key) VALUES (1, ?, ?)`,
-            [data.wafGateway.serverIp || '', data.wafGateway.secretKey || '']
-          );
-        }
+        gatewayRepository.upsertWafConfig({
+          secret_key: data.wafGateway.secretKey || '',
+          server_ip: data.wafGateway.serverIp || '',
+        });
       }
 
       if (data.email) {

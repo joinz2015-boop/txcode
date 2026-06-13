@@ -90,6 +90,10 @@ export class ConfigRepository extends BaseRepository {
     this.execute('DELETE FROM models WHERE id = ?', [id]);
   }
 
+  getModel(id: string): ModelRow | undefined {
+    return this.queryOne<ModelRow>('SELECT * FROM models WHERE id = ?', [id]) || undefined;
+  }
+
   getConfig(key: string): string | undefined {
     const row = this.queryOne<ConfigRow>('SELECT value FROM config WHERE key = ?', [key]);
     return row?.value;

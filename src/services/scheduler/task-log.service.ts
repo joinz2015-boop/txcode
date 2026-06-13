@@ -1,4 +1,5 @@
-import { dbService } from '../../core/db/db.service.js';
+import { schedulerRepository } from '../../repository/scheduler.repository.js';
+import type { TaskLogRow } from '../../entity/scheduler.entity.js';
 
 export interface TaskLog {
   id: string;
@@ -13,47 +14,28 @@ export interface TaskLog {
 
 export class TaskLogService {
   createLog(log: TaskLog): void {
-    dbService.run(
-      `INSERT INTO task_logs (id, task_id, status, prompt, result, error, duration, executed_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        log.id,
-        log.taskId,
-        log.status,
-        log.prompt,
-        log.result,
-        log.error,
-        log.duration,
-        log.executedAt instanceof Date ? log.executedAt.toISOString() : log.executedAt,
-      ]
-    );
+    schedulerRepository.createLog(log);
   }
 
   getLogsByTaskId(taskId: string, limit = 50): TaskLog[] {
-    const rows = dbService.all<any>(
-      'SELECT * FROM task_logs WHERE task_id = ? ORDER BY executed_at DESC LIMIT ?',
-      [taskId, limit]
-    );
+    const rows = schedulerRepository.getLogsByTaskId(taskId, limit);
     return rows.map(this.rowToLog);
   }
 
   getAllLogs(limit = 100): TaskLog[] {
-    const rows = dbService.all<any>(
-      'SELECT * FROM task_logs ORDER BY executed_at DESC LIMIT ?',
-      [limit]
-    );
+    const rows = schedulerRepository.getAllLogs(limit);
     return rows.map(this.rowToLog);
   }
 
   deleteLog(id: string): void {
-    dbService.run('DELETE FROM task_logs WHERE id = ?', [id]);
+    schedulerRepository.deleteLog(id);
   }
 
   deleteLogsByTaskId(taskId: string): void {
-    dbService.run('DELETE FROM task_logs WHERE task_id = ?', [taskId]);
+    schedulerRepository.deleteLogsByTaskId(taskId);
   }
 
-  private rowToLog(row: any): TaskLog {
+  private rowToLog(row: TaskLogRow): TaskLog {
     return {
       id: row.id,
       taskId: row.task_id,
