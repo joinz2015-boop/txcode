@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
-import { dbService } from "../../../core/db/index.js";
+import { gatewayRepository } from "../../../repository/gateway.repository.js";
 
 export async function GET(_req: Request, res: Response) {
-  const config = dbService.get("SELECT * FROM gateway_config WHERE type = ?", ["waf"]);
+  const config = gatewayRepository.getConfig("waf");
   res.json({ success: true, data: config });
 }

@@ -1,4 +1,6 @@
 import { dbService } from '../../core/db/index.js';
+import { configRepository } from '../../repository/config.repository.js';
+import { emailRepository } from '../../repository/email.repository.js';
 
 export interface ExportData {
   providers?: any[];
@@ -14,7 +16,7 @@ export class ConfigExportImportService {
   exportAll(): ExportData {
     const data: ExportData = {};
 
-    const providers = dbService.all<any>('SELECT * FROM providers');
+    const providers = configRepository.listProviders();
     if (providers.length > 0) {
       data.providers = providers.map(p => ({
         id: p.id,
@@ -26,7 +28,7 @@ export class ConfigExportImportService {
       }));
     }
 
-    const models = dbService.all<any>('SELECT * FROM models');
+    const models = configRepository.allModels();
     if (models.length > 0) {
       data.models = models.map(m => ({
         id: m.id,
@@ -51,7 +53,7 @@ export class ConfigExportImportService {
       }));
     }
 
-    const dingding = dbService.get<any>('SELECT * FROM dingding_config WHERE id = 1');
+    const dingding = configRepository.getDingTalkConfig();
     if (dingding) {
       data.gateway = {
         enabled: Boolean(dingding.enabled),
@@ -68,7 +70,7 @@ export class ConfigExportImportService {
       };
     }
 
-    const email = dbService.get<any>('SELECT * FROM email_config WHERE is_default = 1');
+    const email = emailRepository.findDefault();
     if (email) {
       data.email = {
         host: email.host,
@@ -80,7 +82,7 @@ export class ConfigExportImportService {
       };
     }
 
-    const proxy = dbService.get<any>('SELECT * FROM proxy_config WHERE id = 1');
+    const proxy = configRepository.getProxyConfig();
     if (proxy) {
       data.proxy = {
         enabled: Boolean(proxy.enabled),
@@ -99,15 +101,22 @@ export class ConfigExportImportService {
         for (const p of data.providers) {
           const existing = dbService.get<any>('SELECT id FROM providers WHERE id = ?', [p.id]);
           if (existing) {
-            dbService.run(
-              `UPDATE providers SET name = ?, api_key = ?, base_url = ?, enabled = ?, is_default = ? WHERE id = ?`,
-              [p.name, p.apiKey, p.baseUrl, p.enabled ? 1 : 0, p.isDefault ? 1 : 0, p.id]
-            );
+            configRepository.updateProvider(p.id, {
+              name: p.name,
+              apiKey: p.apiKey,
+              baseUrl: p.baseUrl,
+              enabled: p.enabled,
+              isDefault: p.isDefault,
+            });
           } else {
-            dbService.run(
-              `INSERT INTO providers (id, name, api_key, base_url, enabled, is_default) VALUES (?, ?, ?, ?, ?, ?)`,
-              [p.id, p.name, p.apiKey, p.baseUrl, p.enabled ? 1 : 0, p.isDefault ? 1 : 0]
-            );
+            configRepository.insertProvider({
+              id: p.id,
+              name: p.name,
+              apiKey: p.apiKey,
+              baseUrl: p.baseUrl,
+              enabled: p.enabled,
+              isDefault: p.isDefault,
+            });
           }
         }
       }
@@ -116,15 +125,21 @@ export class ConfigExportImportService {
         for (const m of data.models) {
           const existing = dbService.get<any>('SELECT id FROM models WHERE id = ?', [m.id]);
           if (existing) {
-            dbService.run(
-              `UPDATE models SET name = ?, enabled = ? WHERE id = ?`,
-              [m.name, m.enabled ? 1 : 0, m.id]
-            );
+            configRepository.updateModel(m.id, {
+              name: m.name,
+              enabled: m.enabled,
+            });
           } else {
-            dbService.run(
-              `INSERT INTO models (id, provider_id, name, context_window, max_output_tokens, supports_vision, supports_tools, enabled) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-              [m.id, m.providerId, m.name, m.contextWindow || 4096, m.maxOutputTokens || 4096, m.supportsVision ? 1 : 0, m.supportsTools !== false ? 1 : 0, m.enabled ? 1 : 0]
-            );
+            configRepository.insertModel({
+              id: m.id,
+              providerId: m.providerId,
+              name: m.name,
+              contextWindow: m.contextWindow,
+              maxOutputTokens: m.maxOutputTokens,
+              supportsVision: m.supportsVision,
+              supportsTools: m.supportsTools,
+              enabled: m.enabled,
+            });
           }
         }
       }
@@ -147,10 +162,11 @@ export class ConfigExportImportService {
       }
 
       if (data.gateway) {
-        dbService.run(
-          `INSERT OR REPLACE INTO dingding_config (id, enabled, client_id, client_secret, updated_at) VALUES (1, ?, ?, ?, datetime('now'))`,
-          [data.gateway.enabled ? 1 : 0, data.gateway.clientId || '', data.gateway.clientSecret || '']
-        );
+        configRepository.updateDingTalkConfig({
+          enabled: data.gateway.enabled,
+          clientId: data.gateway.clientId || '',
+          clientSecret: data.gateway.clientSecret || '',
+        });
       }
 
       if (data.wafGateway) {
@@ -169,25 +185,37 @@ export class ConfigExportImportService {
       }
 
       if (data.email) {
-        const existing = dbService.get<any>('SELECT id FROM email_config WHERE is_default = 1');
+        const existing = emailRepository.findDefault();
         if (existing) {
-          dbService.run(
-            `UPDATE email_config SET host = ?, port = ?, secure = ?, user = ?, password = ?, from_name = ?, updated_at = datetime('now') WHERE id = ?`,
-            [data.email.host, data.email.port, data.email.secure ? 1 : 0, data.email.user, data.email.password, data.email.fromName || '', existing.id]
-          );
+          emailRepository.update(existing.id, {
+            host: data.email.host,
+            port: data.email.port,
+            secure: data.email.secure ? 1 : 0,
+            user: data.email.user,
+            password: data.email.password,
+            from_name: data.email.fromName || '',
+          });
         } else {
-          dbService.run(
-            `INSERT INTO email_config (name, host, port, secure, user, password, from_name, is_default) VALUES (?, ?, ?, ?, ?, ?, ?, 1)`,
-            ['Default', data.email.host, data.email.port, data.email.secure ? 1 : 0, data.email.user, data.email.password, data.email.fromName || '']
-          );
+          emailRepository.create({
+            name: 'Default',
+            host: data.email.host,
+            port: data.email.port,
+            secure: data.email.secure ? 1 : 0,
+            user: data.email.user,
+            password: data.email.password,
+            from_name: data.email.fromName || '',
+            is_default: 1,
+          });
         }
       }
 
       if (data.proxy) {
-        dbService.run(
-          `INSERT OR REPLACE INTO proxy_config (id, enabled, type, host, port, updated_at) VALUES (1, ?, ?, ?, ?, datetime('now'))`,
-          [data.proxy.enabled ? 1 : 0, data.proxy.type || 'http', data.proxy.host || '', data.proxy.port || 1080]
-        );
+        configRepository.updateProxyConfig({
+          enabled: data.proxy.enabled,
+          type: data.proxy.type || 'http',
+          host: data.proxy.host || '',
+          port: data.proxy.port || 1080,
+        });
       }
 
       return { success: true, message: '配置导入成功' };
