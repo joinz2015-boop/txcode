@@ -21,7 +21,18 @@
               </div>
             </div>
             <div v-if="item.type === 'chat'" class="flex justify-end">
-              <div class="user-question">{{ item.content }}</div>
+              <div class="user-question">
+                <div v-if="item.mediaFiles && item.mediaFiles.length > 0" class="chat-images">
+                  <img
+                    v-for="mf in item.mediaFiles"
+                    :key="mf.filePath"
+                    :src="mf.url || mf.dataUrl || mf.filePath"
+                    class="chat-image-thumb"
+                    @click.stop="openImagePreview(mf)"
+                  />
+                </div>
+                <div>{{ item.content }}</div>
+              </div>
             </div>
             <div v-else-if="item.type === 'think'" class="ai-thought" v-html="renderMarkdown(item.content)"></div>
             <div v-else-if="item.type === 'system'" class="system-message" v-html="renderMarkdown(item.content)"></div>
@@ -41,6 +52,12 @@
           </div>
         </div>
         <div class="chat-input-area">
+          <ImagePreviewList
+            v-if="mediaFiles && mediaFiles.length > 0"
+            :files="mediaFiles"
+            :disabled="disabled"
+            @remove="removeMedia"
+          />
           <div class="input-row">
             <ResizableTextarea
               v-model="inputMessage"
@@ -49,8 +66,18 @@
               :disabled="disabled && !stopping"
               class="input-area"
               @keydown.enter.native="handleKeydown"
+              @paste-image="handlePasteImages"
+            />
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              ref="mediaInput"
+              style="display:none"
+              @change="handleImageSelected"
             />
             <div class="input-actions">
+            <el-button @click="handleImageUpload" :disabled="disabled" class="upload-btn">图片</el-button>
             <el-button
               v-for="action in customActions"
               :key="action.id"
@@ -67,7 +94,7 @@
             <el-button v-else-if="stopping" type="info" disabled class="stop-btn">
               停止中...
             </el-button>
-            <el-button v-else type="primary" :disabled="!inputMessage.trim()" @click="sendMessage" class="send-btn">
+            <el-button v-else type="primary" :disabled="!inputMessage.trim() && mediaFiles.length === 0" @click="sendMessage" class="send-btn">
               发送
             </el-button>
           </div>
@@ -118,6 +145,11 @@
       @select="onSkillSelected"
       @close="cancelSkillSelect"
     />
+
+    <div v-if="previewImage" class="image-lightbox" @click="closeImagePreview">
+      <span class="lightbox-close" @click="closeImagePreview">&times;</span>
+      <img :src="previewImage.url || previewImage.dataUrl || previewImage.filePath" class="lightbox-image" @click.stop />
+    </div>
   </div>
 </template>
 
@@ -129,11 +161,14 @@ import CommandDialog from '../common/CommandDialog.vue'
 import FileSelectDialog from '../file/FileSelectDialog.vue'
 import SkillSelectDialog from '../skill/SkillSelectDialog.vue'
 import ResizableTextarea from '../chat/ResizableTextarea.vue'
+import ImagePreviewList from '../chat/ImagePreviewList.vue'
 import { scrollToBottom, snapshotScroll } from '../../../utils/scroll'
+import { mediaChatMixin } from '../../../lib/mediaChat.js'
 
 export default {
   name: 'Step4Test',
-  components: { ModelSelectDialog, CommandDialog, FileSelectDialog, SkillSelectDialog, ResizableTextarea },
+  components: { ModelSelectDialog, CommandDialog, FileSelectDialog, SkillSelectDialog, ResizableTextarea, ImagePreviewList },
+  mixins: [mediaChatMixin()],
   props: {
     category: { type: String, default: '' },
     name: { type: String, default: '' },
@@ -237,7 +272,8 @@ export default {
     },
     async sendMessage() {
       const content = this.inputMessage.trim()
-      if (!content || this.disabled) return
+      const hasMedia = this.mediaFiles && this.mediaFiles.length > 0
+      if ((!content && !hasMedia) || this.disabled) return
 
       if (!this.sessionId) {
         this.$message.error('会话不存在，请刷新页面')
@@ -251,10 +287,19 @@ export default {
       this.inputMessage = ''
       this.disabled = true
       this.stopping = false
-      this.logItems.push({ type: 'chat', content: content })
+      const sentMediaFiles = (this.mediaFiles || [])
+        .filter(f => !f.uploading && f.filePath)
+        .map(f => ({ filePath: f.filePath, type: f.type, dataUrl: f.dataUrl }))
+      this.logItems.push({ type: 'chat', content: content, mediaFiles: sentMediaFiles })
       this.scrollChatToBottom(true)
 
-      api.sessionWsSend(this.sessionId, 'chat', { message: content, sessionId: this.sessionId, modelName: this.modelName || undefined })
+      api.sessionWsSend(this.sessionId, 'chat', {
+        message: content,
+        sessionId: this.sessionId,
+        modelName: this.modelName || undefined,
+        mediaFiles: sentMediaFiles.map(f => ({ filePath: f.filePath, type: f.type }))
+      })
+      this.mediaFiles = []
     },
     stopChat() {
       if (!this.sessionId || this.stopping) return
@@ -493,4 +538,41 @@ export default {
 }
 .model-selector { cursor: pointer; }
 .model-selector:hover { color: #60a5fa; }
+.chat-images { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.chat-image-thumb {
+  width: 120px;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid #3f3f46;
+  cursor: zoom-in;
+  transition: border-color 0.2s;
+}
+.chat-image-thumb:hover { border-color: #60a5fa; }
+.image-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(0, 0, 0, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: zoom-out;
+}
+.lightbox-close {
+  position: absolute;
+  top: 20px;
+  right: 30px;
+  color: #fff;
+  font-size: 40px;
+  cursor: pointer;
+  z-index: 1;
+}
+.lightbox-image {
+  max-width: 90vw;
+  max-height: 90vh;
+  object-fit: contain;
+  cursor: default;
+}
+.upload-btn { height: auto; }
 </style>
