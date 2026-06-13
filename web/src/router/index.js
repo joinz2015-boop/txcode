@@ -112,12 +112,6 @@ const routes = [
         meta: { title: '文档' },
       },
       {
-        path: 'fileZihao',
-        name: 'fileZihao',
-        component: () => import('../views/pc/file/fileZihao.vue'),
-        meta: { title: '文件梓豪' },
-      },
-      {
         path: 'deploy',
         name: 'deploy',
         component: () => import('../views/pc/deploy/deployView.vue'),

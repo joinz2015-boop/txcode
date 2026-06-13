@@ -14,7 +14,7 @@ function logError(msg: string, error: unknown): void {
 
 export class DeployService {
   checkReleaseMd(projectPath: string): { exists: boolean; path: string; content?: string } {
-    const releasePath = path.join(projectPath, '.txcode', 'release', 'release-zihao', 'RELEASE.md');
+    const releasePath = path.join(projectPath, '.txcode', 'release', 'release', 'RELEASE.md');
     if (fs.existsSync(releasePath)) {
       const content = fs.readFileSync(releasePath, 'utf-8');
       return { exists: true, path: releasePath, content };
@@ -58,7 +58,7 @@ export class DeployService {
     const isMd = url.endsWith('.md');
     const isZip = url.endsWith('.zip');
 
-    const targetDir = path.join(releaseDir, 'release-zihao');
+    const targetDir = path.join(releaseDir, 'release');
     if (!fs.existsSync(targetDir)) {
       fs.mkdirSync(targetDir, { recursive: true });
     }
@@ -85,7 +85,7 @@ export class DeployService {
       fs.mkdirSync(releaseDir, { recursive: true });
     }
 
-    const targetDir = path.join(releaseDir, 'release-zihao');
+    const targetDir = path.join(releaseDir, 'release');
     if (!fs.existsSync(targetDir)) {
       fs.mkdirSync(targetDir, { recursive: true });
     }

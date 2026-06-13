@@ -74,9 +74,6 @@
           <router-link to="/views/pc/wiki" class="w-10 h-10 mb-2 rounded flex items-center justify-center" :class="$route.name === 'wiki' ? 'text-white border-l-2 border-accent bg-sidebar' : 'text-textMuted hover:text-white border-l-2 border-transparent'" title="文档">
             <i class="fa-solid fa-book text-xl"></i>
           </router-link>
-          <router-link to="/views/pc/fileZihao" class="w-10 h-10 mb-2 rounded flex items-center justify-center" :class="$route.name === 'fileZihao' ? 'text-white border-l-2 border-accent bg-sidebar' : 'text-textMuted hover:text-white border-l-2 border-transparent'" title="文件梓豪">
-            <i class="fa-solid fa-server text-xl"></i>
-          </router-link>
         </div>
         <div class="flex flex-col items-center w-full mb-2">
           <router-link to="/views/pc/settings" class="w-10 h-10 mb-2 rounded flex items-center justify-center" :class="$route.name === 'settings' ? 'text-white border-l-2 border-accent bg-sidebar' : 'text-textMuted hover:text-white border-l-2 border-transparent hover:bg-white/5'" title="设置">

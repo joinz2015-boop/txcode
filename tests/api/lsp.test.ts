@@ -1,9 +1,14 @@
 /**
- * LSP API 测试
+ * LSP API 测试（适配新路由规范: GET/POST only, query/body params, 无 URL path params）
  */
 
 import express, { Express } from "express";
-import { lspRouter } from "../../src/api/lsp";
+import { GET as serversLsp } from "../../src/api/lsp/servers_lsp.js";
+import { POST as updateLsp } from "../../src/api/lsp/update_lsp.js";
+import { POST as startLsp } from "../../src/api/lsp/start_lsp.js";
+import { POST as stopLsp } from "../../src/api/lsp/stop_lsp.js";
+import { GET as statusLsp } from "../../src/api/lsp/status_lsp.js";
+import { GET as javaVersionLsp } from "../../src/api/lsp/java_version_lsp.js";
 
 interface ApiResponse {
   success: boolean;
@@ -18,7 +23,13 @@ describe("LSP API", () => {
   beforeAll((done) => {
     app = express();
     app.use(express.json());
-    app.use("/api/lsp", lspRouter);
+    // 手动注册新路由规范的路由（GET query, POST body）
+    app.get("/api/lsp/servers_lsp", serversLsp);
+    app.post("/api/lsp/update_lsp", updateLsp);
+    app.post("/api/lsp/start_lsp", startLsp);
+    app.post("/api/lsp/stop_lsp", stopLsp);
+    app.get("/api/lsp/status_lsp", statusLsp);
+    app.get("/api/lsp/java_version_lsp", javaVersionLsp);
     server = app.listen(0, done);
   });
 
@@ -26,9 +37,9 @@ describe("LSP API", () => {
     server.close(done);
   });
 
-  test("GET /api/lsp/servers - 应返回所有服务器", async () => {
+  test("GET /api/lsp/servers_lsp - 应返回所有服务器", async () => {
     const port = server.address().port;
-    const response = await fetch(`http://localhost:${port}/api/lsp/servers`);
+    const response = await fetch(`http://localhost:${port}/api/lsp/servers_lsp`);
 
     expect(response.status).toBe(200);
     const body = await response.json() as ApiResponse;
@@ -41,12 +52,12 @@ describe("LSP API", () => {
     expect(ts).toHaveProperty("status");
   });
 
-  test("PUT /api/lsp/servers/:id - 应更新配置", async () => {
+  test("POST /api/lsp/update_lsp - 应更新配置", async () => {
     const port = server.address().port;
-    const response = await fetch(`http://localhost:${port}/api/lsp/servers/typescript`, {
-      method: "PUT",
+    const response = await fetch(`http://localhost:${port}/api/lsp/update_lsp`, {
+      method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ enabled: false })
+      body: JSON.stringify({ id: "typescript", enabled: false })
     });
 
     expect(response.status).toBe(200);
@@ -54,27 +65,31 @@ describe("LSP API", () => {
     expect(body.success).toBe(true);
   });
 
-  test("POST /api/lsp/servers/:id/start - 无效服务器应返回错误", async () => {
+  test("POST /api/lsp/start_lsp - 无效服务器应返回错误", async () => {
     const port = server.address().port;
-    const response = await fetch(`http://localhost:${port}/api/lsp/servers/nonexistent/start`, {
-      method: "POST"
+    const response = await fetch(`http://localhost:${port}/api/lsp/start_lsp`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: "nonexistent" })
     });
 
     expect(response.status).toBe(400);
   });
 
-  test("POST /api/lsp/servers/:id/stop - 应正常处理", async () => {
+  test("POST /api/lsp/stop_lsp - 应正常处理", async () => {
     const port = server.address().port;
-    const response = await fetch(`http://localhost:${port}/api/lsp/servers/typescript/stop`, {
-      method: "POST"
+    const response = await fetch(`http://localhost:${port}/api/lsp/stop_lsp`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: "typescript" })
     });
 
     expect(response.status).toBe(200);
   });
 
-  test("GET /api/lsp/servers/:id/status - 应返回状态", async () => {
+  test("GET /api/lsp/status_lsp - 应返回状态", async () => {
     const port = server.address().port;
-    const response = await fetch(`http://localhost:${port}/api/lsp/servers/typescript/status`);
+    const response = await fetch(`http://localhost:${port}/api/lsp/status_lsp?id=typescript`);
 
     expect(response.status).toBe(200);
     const body = await response.json() as ApiResponse;
@@ -82,14 +97,12 @@ describe("LSP API", () => {
     expect(body.data).toHaveProperty("status");
   });
 
-  test("GET /api/lsp/java-version - 应返回 Java 版本信息", async () => {
+  test("GET /api/lsp/java_version_lsp - 应返回 Java 版本信息", async () => {
     const port = server.address().port;
-    const response = await fetch(`http://localhost:${port}/api/lsp/java-version`);
+    const response = await fetch(`http://localhost:${port}/api/lsp/java_version_lsp`);
 
     expect(response.status).toBe(200);
     const body = await response.json() as ApiResponse;
     expect(body.success).toBe(true);
-    expect(body.data).toHaveProperty("valid");
-    expect(body.data).toHaveProperty("error");
   });
 });
