@@ -45,7 +45,7 @@
 </template>
 
 <script>
-import { api } from '../../api'
+import { api } from '../../../api/index.js'
 import * as monaco from 'monaco-editor'
 
 const origError = console.error

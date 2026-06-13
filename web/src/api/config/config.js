@@ -1,4 +1,4 @@
-import { request } from './request.js'
+import { request } from '../request.js'
 
 export async function getConfig(key) {
   return request('GET', `/config/${key}`)

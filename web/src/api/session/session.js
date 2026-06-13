@@ -1,4 +1,4 @@
-import { request } from './request.js'
+import { request } from '../request.js'
 
 export async function getSessions(limit = 20, offset = 0) {
   return request('GET', `/sessions?limit=${limit}&offset=${offset}`)

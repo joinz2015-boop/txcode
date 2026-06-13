@@ -1,65 +1,14 @@
 /**
  * API 模块入口
+ * 
+ * 此文件提供向后兼容的 apiRouter。
+ * 路由注册已迁移至 register.ts（自动扫描 api/** 下所有 {action}_{module}.ts 文件）。
+ * 此 Router 仅作为兜底，实际无路由挂载。
  */
 
 import { Router } from 'express';
-import { chatRouter } from './chat.routes.js';
-import { sessionRouter } from './session.routes.js';
-import { configRouter } from './config.routes.js';
-import { skillsRouter } from './skills.routes.js';
-import { lspRouter } from './lsp.js';
-import { projectsRouter } from './projects.routes.js';
-import { dbRouter } from './db.routes.js';
-import { filesRouter } from './files.routes.js';
-import { filesystemRouter } from './filesystem.routes.js';
-import { aiLogRouter } from './ai-log.routes.js';
-import { gatewayRouter } from './gateway.routes.js';
-import { terminalRouter } from './terminal.routes.js';
-import { schedulerRouter } from './scheduler.routes.js';
-import { emailRouter } from './email.routes.js';
-import { workflowRouter } from './workflow.routes.js';
-import { gitRouter } from './git.routes.js';
-import { customActionsRouter } from './custom-actions.routes.js';
-import { specsRouter } from './specs.routes.js';
-import { wikiRouter } from './wiki.routes.js';
-import { memoryRouter } from './memory.routes.js';
-import { devlogRouter } from './devlog.routes.js';
-import { systemRouter } from './system.routes.js';
-
-import { zihaoRouter } from './zihao.routes.js';
-import { configExportImportRouter } from './config-export-import.routes.js';
-import { deployRouter } from './deploy.routes.js';
-import { songbingRouter } from './songbing.routes.js';
 
 export const apiRouter = Router();
 
-apiRouter.use('/chat', chatRouter);
-apiRouter.use('/sessions', sessionRouter);
-apiRouter.use('/config', configExportImportRouter);
-apiRouter.use('/config', configRouter);
-apiRouter.use('/skills', skillsRouter);
-apiRouter.use('/lsp', lspRouter);
-apiRouter.use('/projects', projectsRouter);
-apiRouter.use('/db', dbRouter);
-apiRouter.use('/files', filesRouter);
-apiRouter.use('/filesystem', filesystemRouter);
-apiRouter.use('/ai-logs', aiLogRouter);
-apiRouter.use('/gateway', gatewayRouter);
-apiRouter.use('/terminal', terminalRouter);
-apiRouter.use('/tasks', schedulerRouter);
-apiRouter.use('/email', emailRouter);
-apiRouter.use('/workflow', workflowRouter);
-apiRouter.use('/git', gitRouter);
-apiRouter.use('/custom-actions', customActionsRouter);
-apiRouter.use('/specs', specsRouter);
-apiRouter.use('/wiki', wikiRouter);
-apiRouter.use('/memory', memoryRouter);
-apiRouter.use('/devlog', devlogRouter);
-
-apiRouter.use('/zihao', zihaoRouter);
-apiRouter.use('/deploy', deployRouter);
-apiRouter.use('/settings', configExportImportRouter);
-apiRouter.use('/songbing', songbingRouter);
-apiRouter.use('/system', systemRouter);
-
-export type * from './api.types.js';
+// 所有 API 路由由 register.ts 自动注册，无需手动导入
+// 旧 *.routes.ts 文件已废弃并删除

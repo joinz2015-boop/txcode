@@ -122,14 +122,14 @@
 </template>
 
 <script>
-import { api } from '../../api'
+import { api } from '../../../api/index.js'
 import { marked } from 'marked'
 import ModelSelectDialog from '../model/ModelSelectDialog.vue'
 import CommandDialog from '../common/CommandDialog.vue'
 import FileSelectDialog from '../file/FileSelectDialog.vue'
 import SkillSelectDialog from '../skill/SkillSelectDialog.vue'
 import ResizableTextarea from '../chat/ResizableTextarea.vue'
-import { scrollToBottom, snapshotScroll } from '../../utils/scroll'
+import { scrollToBottom, snapshotScroll } from '../../../utils/scroll'
 
 export default {
   name: 'Step4Test',

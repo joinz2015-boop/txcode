@@ -48,7 +48,7 @@
 </template>
 
 <script>
-import { api } from '../../api'
+import { api } from '../../../api/index.js'
 
 export default {
   name: 'SkillSelectDialog',
