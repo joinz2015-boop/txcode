@@ -1,13 +1,7 @@
 import { BaseRepository } from './base.repository.js';
+import type { WafGatewayConfigRow } from '../entity/gateway.entity.js';
 
-export interface WafGatewayConfigRow {
-  id: number;
-  type: string;
-  enabled: number;
-  config: string;
-  created_at: string;
-  updated_at: string;
-}
+export type { WafGatewayConfigRow };
 
 export class GatewayRepository extends BaseRepository {
   getConfig(type: string): WafGatewayConfigRow | undefined {

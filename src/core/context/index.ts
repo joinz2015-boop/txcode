@@ -7,5 +7,5 @@
  * - 文件结构
  */
 
-export { ContextService, contextService } from './context.service.js';
+export { ContextService, contextService } from '../../services/context/context.service.js';
 export { loadProjectContext } from './project.context.js';

@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { memoryService } from '../../../core/memory/index.js';
+import { memoryService } from '../../../services/memory/index.js';
 
 export async function GET(req: Request, res: Response) {
   const sessionId = req.query.sessionId as string;

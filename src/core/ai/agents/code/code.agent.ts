@@ -12,7 +12,7 @@ import {
   ProviderToolResult,
   ProviderTokenUsage,
 } from '../../provider/base.js';
-import type { MemoryService } from '../../../memory/memory.service.js';
+import type { MemoryService } from '../../../../services/memory/memory.service.js';
 import { buildAvailableSkillsPrompt } from '../../../../services/skill/skill.tool.js';
 import type { SummarizerService } from '../../../ai/summarizer/index.js';
 import type { SessionService } from '../../../../services/session/session.service.js';

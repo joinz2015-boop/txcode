@@ -3,7 +3,7 @@ import * as path from 'path';
 import { HookMessage, HookTrigger } from '../hook.types.js';
 import { HookHandler } from './hook.handler.js';
 import { MemAgent } from '../../../core/ai/agents/mem/mem.agent.js';
-import { configService } from '../../../core/config/index.js';
+import { configService } from '../../../services/config/index.js';
 import { createProvider } from '../../../core/ai/provider.js';
 
 export class MemoryHandler extends HookHandler {

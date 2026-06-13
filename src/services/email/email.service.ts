@@ -1,6 +1,6 @@
 import nodemailer from 'nodemailer'
-import { emailConfigRepository } from './email.config.repository.js'
-import { EmailConfig, SendEmailParams } from './email.types.js'
+import { emailRepository } from '../../repository/email.repository.js'
+import { EmailConfig, SendEmailParams } from '../../modules/email/email.types.js'
 
 export class EmailService {
   private getTransporter(config: EmailConfig) {
@@ -17,15 +17,15 @@ export class EmailService {
 
   async validateConfig(configId?: number): Promise<{ valid: boolean; error?: string }> {
     const config = configId
-      ? emailConfigRepository.findById(configId)
-      : emailConfigRepository.findDefault()
+      ? emailRepository.findById(configId)
+      : emailRepository.findDefault()
 
     if (!config) {
       return { valid: false, error: '未找到邮件配置' }
     }
 
     try {
-      const transporter = this.getTransporter(config)
+      const transporter = this.getTransporter(config as EmailConfig)
       await transporter.verify()
       return { valid: true }
     } catch (err: any) {
@@ -35,15 +35,15 @@ export class EmailService {
 
   async sendEmail(params: SendEmailParams): Promise<{ success: boolean; error?: string }> {
     const config = params.configId
-      ? emailConfigRepository.findById(params.configId)
-      : emailConfigRepository.findDefault()
+      ? emailRepository.findById(params.configId)
+      : emailRepository.findDefault()
 
     if (!config) {
       return { success: false, error: '未找到邮件配置' }
     }
 
     try {
-      const transporter = this.getTransporter(config)
+      const transporter = this.getTransporter(config as EmailConfig)
       await transporter.sendMail({
         from: config.from_name ? `"${config.from_name}" <${config.user}>` : config.user,
         to: params.to,

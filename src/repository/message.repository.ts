@@ -1,14 +1,7 @@
 import { BaseRepository } from './base.repository.js';
+import type { MessageRow } from '../entity/message.entity.js';
 
-export interface MessageRow {
-  id: number;
-  session_id: string;
-  role: string;
-  content: string;
-  keep_context: number;
-  is_original: number;
-  created_at: string;
-}
+export type { MessageRow };
 
 export class MessageRepository extends BaseRepository {
   insert(data: { sessionId: string; role: string; content: string; keepContext?: boolean; isOriginal?: boolean }): number {

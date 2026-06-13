@@ -1,39 +1,32 @@
 import { BaseRepository } from './base.repository.js';
+import type { ProjectRow } from '../entity/project.entity.js';
 
-export interface Project {
-  id: string;
-  name: string;
-  path: string;
-  description: string;
-  is_active: number;
-  is_favorite: number;
-  last_opened_at: string;
-}
+export type { ProjectRow };
 
 export class ProjectRepository extends BaseRepository {
 
-  findAll(): Project[] {
+  findAll(): ProjectRow[] {
     const sql = `SELECT * FROM projects ORDER BY last_opened_at DESC`;
-    return this.query<Project>(sql);
+    return this.query<ProjectRow>(sql);
   }
 
-  findById(id: string | string[]): Project | null {
+  findById(id: string | string[]): ProjectRow | null {
     const normalizedId = Array.isArray(id) ? id[0] : id;
     const sql = `SELECT * FROM projects WHERE id = ?`;
-    return this.queryOne<Project>(sql, [normalizedId]);
+    return this.queryOne<ProjectRow>(sql, [normalizedId]);
   }
 
-  findByPath(projectPath: string): Project | null {
+  findByPath(projectPath: string): ProjectRow | null {
     const sql = `SELECT * FROM projects WHERE path = ?`;
-    return this.queryOne<Project>(sql, [projectPath]);
+    return this.queryOne<ProjectRow>(sql, [projectPath]);
   }
 
-  findActive(): Project | null {
+  findActive(): ProjectRow | null {
     const sql = `SELECT * FROM projects WHERE is_active = 1`;
-    return this.queryOne<Project>(sql);
+    return this.queryOne<ProjectRow>(sql);
   }
 
-  insert(data: { name: string; path: string; description?: string }): Project {
+  insert(data: { name: string; path: string; description?: string }): ProjectRow {
     const id = crypto.randomUUID();
     const sql = `
       INSERT INTO projects (id, name, path, description, is_active, is_favorite, last_opened_at)

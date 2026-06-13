@@ -4,7 +4,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { ContextService } from '../../src/core/context/context.service';
+import { ContextService } from '../../src/services/context/context.service';
 
 describe('Context 模块', () => {
   let contextService: ContextService;

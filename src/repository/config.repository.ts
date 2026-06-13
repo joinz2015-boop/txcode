@@ -1,52 +1,10 @@
 import { BaseRepository } from './base.repository.js';
 import { v4 as uuidv4 } from 'uuid';
+import type { ProviderRow } from '../entity/provider.entity.js';
+import type { ModelRow } from '../entity/model.entity.js';
+import type { ConfigRow, ProxyRow, DingTalkRow } from '../entity/config.entity.js';
 
-export interface ProviderRow {
-  id: string;
-  name: string;
-  api_key: string;
-  base_url: string;
-  enabled: number;
-  is_default: number;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface ModelRow {
-  id: string;
-  provider_id: string;
-  name: string;
-  context_window: number;
-  max_output_tokens: number;
-  supports_vision: number;
-  supports_tools: number;
-  enabled: number;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface ConfigRow {
-  key: string;
-  value: string;
-  updated_at: string;
-}
-
-export interface ProxyRow {
-  id: number;
-  enabled: number;
-  type: string;
-  host: string;
-  port: number;
-  updated_at: string;
-}
-
-export interface DingTalkRow {
-  id: number;
-  enabled: number;
-  client_id: string;
-  client_secret: string;
-  bot_name: string;
-}
+export type { ProviderRow, ModelRow, ConfigRow, ProxyRow, DingTalkRow };
 
 export class ConfigRepository extends BaseRepository {
   listProviders(): ProviderRow[] {

@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
-import { schedulerService, taskLogService } from "../../../modules/scheduler/index.js";
+import { schedulerService } from "../../../services/scheduler/scheduler.service.js";
+import { taskLogService } from "../../../services/scheduler/task-log.service.js";
 
 export async function GET(req: Request, res: Response) {
   const id = req.query.id as string;

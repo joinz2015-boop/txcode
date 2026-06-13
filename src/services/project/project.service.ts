@@ -1,10 +1,10 @@
 import * as path from 'path';
-import { ProjectRepository, type Project } from '../../repository/project.repository.js';
+import { ProjectRepository, type ProjectRow } from '../../repository/project.repository.js';
 
 export class ProjectService {
   private projectRepo = new ProjectRepository();
 
-  getCurrentProject(): Project | null {
+  getCurrentProject(): ProjectRow | null {
     return this.projectRepo.findActive();
   }
 
@@ -13,11 +13,11 @@ export class ProjectService {
     return project?.path || process.cwd();
   }
 
-  getAllProjects(): Project[] {
+  getAllProjects(): ProjectRow[] {
     return this.projectRepo.findAll();
   }
 
-  getProjectById(id: string | string[]): Project | null {
+  getProjectById(id: string | string[]): ProjectRow | null {
     return this.projectRepo.findById(id);
   }
 
@@ -30,7 +30,7 @@ export class ProjectService {
     this.projectRepo.setActive(normalizedId);
   }
 
-  createProject(name: string, projectPath: string, description?: string): Project {
+  createProject(name: string, projectPath: string, description?: string): ProjectRow {
     const existing = this.projectRepo.findByPath(projectPath);
     if (existing) {
       this.projectRepo.setActive(existing.id);
@@ -39,7 +39,7 @@ export class ProjectService {
     return this.projectRepo.insert({ name, path: projectPath, description });
   }
 
-  createOrGetProject(): Project {
+  createOrGetProject(): ProjectRow {
     const cwd = process.cwd();
     const name = path.basename(cwd);
     return this.createProject(name, cwd);

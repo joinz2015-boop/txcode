@@ -1,13 +1,7 @@
 import { BaseRepository } from './base.repository.js';
+import type { ProjectKnowledgeRow } from '../entity/memory.entity.js';
 
-export interface ProjectKnowledgeRow {
-  id: number;
-  project_path: string;
-  key: string;
-  value: string;
-  created_at: string;
-  updated_at: string;
-}
+export type { ProjectKnowledgeRow };
 
 export class MemoryRepository extends BaseRepository {
   get(projectPath: string, key: string): ProjectKnowledgeRow | undefined {

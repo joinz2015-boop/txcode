@@ -12,7 +12,7 @@ import {
   ProviderToolResult,
   ProviderTokenUsage,
 } from '../../provider/base.js';
-import type { MemoryService } from '../../../memory/memory.service.js';
+import type { MemoryService } from '../../../../services/memory/memory.service.js';
 import { buildAvailableSkillsPrompt } from '../../../../services/skill/skill.tool.js';
 
 export interface TaskAgentConfig {

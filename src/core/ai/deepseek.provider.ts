@@ -7,7 +7,7 @@ import {
   BaseProvider,
 } from './ai.types.js';
 import { logger } from '../../modules/logger/index.js';
-import { aiLogService } from './ai-log.service.js';
+import { aiLogService } from '../../services/ai/ai-log.service.js';
 
 export interface DeepSeekConfig {
   apiKey: string;

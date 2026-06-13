@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { configService } from "../../../core/config/index.js";
+import { configService } from "../../../services/config/index.js";
 
 export async function GET(req: Request, res: Response) {
   const providerId = req.query.providerId as string;

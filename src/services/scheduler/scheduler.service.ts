@@ -1,7 +1,7 @@
 import cron, { ScheduledTask } from 'node-cron';
 import { v4 as uuid } from 'uuid';
 import { dbService } from '../../core/db/db.service.js';
-import { configService } from '../../core/config/config.service.js';
+import { configService } from '../../services/config/config.service.js';
 import { OpenAIProvider } from '../../core/ai/openai.provider.js';
 import { createProvider } from '../../core/ai/provider.js';
 import { TaskAgent } from '../../core/ai/agents/task/task.agent.js';

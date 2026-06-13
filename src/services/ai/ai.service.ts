@@ -14,16 +14,16 @@
  */
 
 import { ConfigService, configService as defaultConfigService } from '../config/config.service.js';
-import { OpenAIProvider } from './openai.provider.js';
-import { DeepSeekProvider } from './deepseek.provider.js';
-import { createProvider } from './provider.js';
-import { OpenAIAgent } from './provider/openai/openai-agent.js';
-import { BaseProvider, ChatMessage, ChatOptions, ChatResponse } from './ai.types.js';
-import { ProviderRunResult } from './provider/base.js';
-import { ToolService, toolService as defaultToolService } from '../tools/tool.service.js';
+import { OpenAIProvider } from '../../core/ai/openai.provider.js';
+import { DeepSeekProvider } from '../../core/ai/deepseek.provider.js';
+import { createProvider } from '../../core/ai/provider.js';
+import { OpenAIAgent } from '../../core/ai/provider/openai/openai-agent.js';
+import { BaseProvider, ChatMessage, ChatOptions, ChatResponse } from '../../core/ai/ai.types.js';
+import { ProviderRunResult } from '../../core/ai/provider/base.js';
+import { ToolService, toolService as defaultToolService } from '../../core/tools/tool.service.js';
 import { MemoryService } from '../memory/memory.service.js';
 import { ContextService } from '../context/context.service.js';
-import { SessionService, sessionService as defaultSessionService } from '../../services/session/session.service.js';
+import { SessionService, sessionService as defaultSessionService } from '../session/session.service.js';
 import { SummarizerService } from './summarizer/index.js';
 import txConfig from '../../config/tx.config.js';
 

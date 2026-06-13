@@ -1,8 +1,8 @@
 import { Request, Response } from 'express';
 import { sessionService } from '../../../services/session/index.js';
-import { memoryService } from '../../../core/memory/index.js';
-import { configService } from '../../../core/config/index.js';
-import { SummarizerService } from '../../../core/ai/summarizer/index.js';
+import { memoryService } from '../../../services/memory/index.js';
+import { configService } from '../../../services/config/index.js';
+import { SummarizerService } from '../../../services/ai/summarizer/index.js';
 
 const summarizerService = new SummarizerService(sessionService, memoryService, configService);
 

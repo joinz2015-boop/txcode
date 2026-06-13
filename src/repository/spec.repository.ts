@@ -1,14 +1,7 @@
 import { BaseRepository } from './base.repository.js';
+import type { SpecRepoRow } from '../entity/spec.entity.js';
 
-export interface SpecRepoRow {
-  id: number;
-  name: string;
-  url: string;
-  branch: string;
-  enabled: number;
-  created_at: string;
-  updated_at: string;
-}
+export type { SpecRepoRow };
 
 export class SpecRepository extends BaseRepository {
   list(): SpecRepoRow[] {

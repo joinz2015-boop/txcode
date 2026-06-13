@@ -1,5 +1,5 @@
 import { executeCommand } from '../../gateway/cli/commands.js';
-import { memoryService } from '../../core/memory/index.js';
+import { memoryService } from '../../services/memory/index.js';
 
 export interface CommandInput {
   message: string;

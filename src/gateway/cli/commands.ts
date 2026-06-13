@@ -3,11 +3,11 @@
  */
 
 import { sessionService } from '../../services/session/index.js';
-import { configService } from '../../core/config/index.js';
+import { configService } from '../../services/config/index.js';
 import { skillsManager } from '../../services/skill/index.js';
-import { memoryService } from '../../core/memory/index.js';
-import { SummarizerService } from '../../core/ai/summarizer/index.js';
-import { dreamService } from '../../modules/dream/dream.service.js';
+import { memoryService } from '../../services/memory/index.js';
+import { SummarizerService } from '../../services/ai/summarizer/index.js';
+import { dreamService } from '../../services/dream/dream.service.js';
 import { CommandResult } from './cli.types.js';
 
 export type CommandHandler = (args: string[]) => CommandResult | Promise<CommandResult>;

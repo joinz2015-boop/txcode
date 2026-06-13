@@ -6,4 +6,4 @@
  * - 会话压缩
  */
 
-export { MemoryService, memoryService } from './memory.service.js';
+export { MemoryService, memoryService } from '../../services/memory/memory.service.js';

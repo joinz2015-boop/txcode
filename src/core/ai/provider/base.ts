@@ -1,5 +1,5 @@
 import { ChatMessage, ToolDefinition } from '../ai.types.js';
-import type { MemoryService } from '../../memory/memory.service.js';
+import type { MemoryService } from '../../../services/memory/memory.service.js';
 
 export interface ProviderResponse {
   content?: string;

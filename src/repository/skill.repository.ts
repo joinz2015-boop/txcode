@@ -1,14 +1,7 @@
 import { BaseRepository } from './base.repository.js';
+import type { SkillRepoRow } from '../entity/skill.entity.js';
 
-export interface SkillRepoRow {
-  id: number;
-  name: string;
-  url: string;
-  branch: string;
-  enabled: number;
-  created_at: string;
-  updated_at: string;
-}
+export type { SkillRepoRow };
 
 export class SkillRepository extends BaseRepository {
   list(): SkillRepoRow[] {

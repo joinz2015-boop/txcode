@@ -20,7 +20,7 @@
  */
 
 import { useState, useCallback } from 'react';
-import { configService } from '../../../../core/config/index.js';
+import { configService } from '../../../../services/config/index.js';
 
 /**
  * 模型信息类型定义

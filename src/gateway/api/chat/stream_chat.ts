@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { aiService } from '../../../core/ai/index.js';
 import { sessionService } from '../../../services/session/index.js';
-import { memoryService } from '../../../core/memory/index.js';
+import { memoryService } from '../../../services/memory/index.js';
 import { ChatRequest } from '../api.types.js';
 
 export async function POST(req: Request, res: Response) {

@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { aiLogService } from '../../../core/ai/ai-log.service.js';
+import { aiLogService } from '../../../services/ai/ai-log.service.js';
 
 export async function GET(req: Request, res: Response) {
   const page = parseInt(req.query.page as string) || 1;

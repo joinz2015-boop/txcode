@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { sessionService } from '../../../services/session/index.js';
-import { memoryService } from '../../../core/memory/index.js';
+import { memoryService } from '../../../services/memory/index.js';
 
 export async function GET(req: Request, res: Response) {
   const id = req.query.id as string;

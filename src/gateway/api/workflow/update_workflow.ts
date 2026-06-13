@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { workflowService } from '../../../modules/workflow/workflow.service.js';
+import { workflowService } from '../../../services/workflow/workflow.service.js';
 
 export async function POST(req: Request, res: Response) {
   const { currentCategory, currentProject, currentStep } = req.body;

@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { sessionService } from '../../../services/session/index.js';
-import { memoryService } from '../../../core/memory/index.js';
+import { memoryService } from '../../../services/memory/index.js';
 import { executeCommand } from '../../../gateway/cli/commands.js';
 import { ChatRequest } from '../api.types.js';
 

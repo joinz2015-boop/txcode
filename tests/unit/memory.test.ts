@@ -4,7 +4,7 @@
 
 import { DbService } from '../../src/core/db/db.service';
 import { SessionService } from '../../src/services/session/session.service';
-import { MemoryService } from '../../src/core/memory/memory.service';
+import { MemoryService } from '../../src/services/memory/memory.service';
 
 describe('Memory 模块', () => {
   let dbService: DbService;

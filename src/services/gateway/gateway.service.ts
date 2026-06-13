@@ -1,14 +1,14 @@
 ﻿import { v4 as uuidv4 } from 'uuid';
-import { configService } from '../../core/config/index.js';
+import { configService } from '../../services/config/index.js';
 import { sessionService } from '../../services/session/index.js';
-import { memoryService } from '../../core/memory/index.js';
+import { memoryService } from '../../services/memory/index.js';
 import { createProvider } from '../../core/ai/provider.js';
 import { ChatAgent } from '../../core/ai/agents/chat/chat.agent.js';
 import { toolService } from '../../core/tools/index.js';
 import { skillsManager } from '../../services/skill/index.js';
 import { dingtalkAdapter } from '../../gateway/third/dingtalk/dingtalk.adapter.js';
-import { gatewayQueue } from './gateway.queue.js';
-import { DingtalkConfig, DingtalkMessage, GatewayStatus, QueuedMessage } from './gateway.types.js';
+import { gatewayQueue } from '../../modules/gateway/gateway.queue.js';
+import { DingtalkConfig, DingtalkMessage, GatewayStatus, QueuedMessage } from '../../modules/gateway/gateway.types.js';
 
 export class GatewayService {
   private config: DingtalkConfig = {

@@ -1,17 +1,7 @@
 import { BaseRepository } from './base.repository.js';
+import type { SessionRow } from '../entity/session.entity.js';
 
-export interface SessionRow {
-  id: string;
-  title: string;
-  project_path: string | null;
-  summary_message_id: number | null;
-  prompt_tokens: number;
-  completion_tokens: number;
-  cost: number;
-  status: string;
-  created_at: string;
-  updated_at: string;
-}
+export type { SessionRow };
 
 export class SessionRepository extends BaseRepository {
   insert(session: { id: string; title: string; projectPath?: string }): void {

@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { specInjector } from "../../../modules/spec/index.js";
-import { memoryService } from "../../../core/memory/index.js";
+import { memoryService } from "../../../services/memory/index.js";
 
 export async function POST(req: Request, res: Response) {
   const { message, sessionId } = req.body;

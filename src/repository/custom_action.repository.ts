@@ -1,15 +1,7 @@
 import { BaseRepository } from './base.repository.js';
+import type { CustomActionRow } from '../entity/custom-action.entity.js';
 
-export interface CustomActionRow {
-  id: number;
-  action_type: string;
-  name: string;
-  prompt: string;
-  auto_send: number;
-  sort_order: number;
-  created_at: string;
-  updated_at: string;
-}
+export type { CustomActionRow };
 
 export class CustomActionRepository extends BaseRepository {
   list(): CustomActionRow[] {

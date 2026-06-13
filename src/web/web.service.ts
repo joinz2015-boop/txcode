@@ -32,7 +32,7 @@ const __dirname = path.dirname(__filename);
 const packageRoot = path.resolve(__dirname, '..', '..');
 import { dbService } from '../core/db/db.service.js';
 import { sessionService } from '../services/session/index.js';
-import { configService } from '../core/config/config.service.js';
+import { configService } from '../services/config/config.service.js';
 import { logger } from '../modules/logger/logger.js';
 
 /**
@@ -261,7 +261,7 @@ npm run dev
 
     const { schedulerService } = await import('../modules/scheduler/index.js');
     schedulerService.init();
-    const { dreamService } = await import('../modules/dream/dream.service.js');
+    const { dreamService } = await import('../services/dream/dream.service.js');
     dreamService.init();
 
     sessionService.cleanStaleSessions();
@@ -315,7 +315,7 @@ npm run dev
           this.server?.close(async () => {
             const { schedulerService } = await import('../modules/scheduler/index.js');
             schedulerService.shutdown();
-            const { dreamService } = await import('../modules/dream/dream.service.js');
+            const { dreamService } = await import('../services/dream/dream.service.js');
             dreamService.shutdown();
             dbService.close();
             console.log('服务已关闭');
