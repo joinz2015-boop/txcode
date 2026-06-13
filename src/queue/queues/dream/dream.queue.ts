@@ -1,4 +1,4 @@
-import { DreamTask, IDreamHandler } from '../../../services/dream/dream.types.js'
+import { DreamTask, IDreamHandler } from './dream.types.js'
 
 export class DreamQueue {
   private handlers: Map<string, IDreamHandler[]> = new Map()

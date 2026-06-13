@@ -7,7 +7,7 @@ import { configService } from '../../services/config/index.js';
 import { skillsManager } from '../../services/skill/index.js';
 import { memoryService } from '../../services/memory/index.js';
 import { SummarizerAgent } from '../../core/ai/agents/summarizer/summarizer.agent.js';
-import { dreamService } from '../../services/dream/dream.service.js';
+import { dreamService } from '../../queue/queues/dream/dream.service.js';
 import { CommandResult } from './cli.types.js';
 
 export type CommandHandler = (args: string[]) => CommandResult | Promise<CommandResult>;
