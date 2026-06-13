@@ -16,9 +16,9 @@
 
 import { Router, Request, Response } from 'express';
 import { sessionService } from '../modules/session/index.js';
-import { memoryService } from '../modules/memory/index.js';
-import { configService } from '../modules/config/index.js';
-import { SummarizerService } from '../modules/ai/summarizer/index.js';
+import { memoryService } from '../core/memory/index.js';
+import { configService } from '../core/config/index.js';
+import { SummarizerService } from '../core/ai/summarizer/index.js';
 import { projectService } from '../services/project/project.service.js';
 import { ApiResponse, SessionCreateRequest } from './api.types.js';
 

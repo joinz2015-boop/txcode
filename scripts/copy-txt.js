@@ -14,18 +14,18 @@ function copyFile(srcPath, dstPath) {
   copyFileSync(srcPath, dstPath);
 }
 
-copyDirFiles('src/modules/tools/provider', 'dist/modules/tools/provider', f => f.endsWith('.txt'));
+copyDirFiles('src/core/tools/provider', 'dist/core/tools/provider', f => f.endsWith('.txt'));
 copyFile('src/modules/skill/skill.txt', 'dist/modules/skill/skill.txt');
-copyFile('src/modules/ai/provider/openai/prompt/role.txt', 'dist/modules/ai/provider/openai/prompt/role.txt');
+copyFile('src/core/ai/provider/openai/prompt/role.txt', 'dist/core/ai/provider/openai/prompt/role.txt');
 
 const agents = ['code', 'chat', 'task', 'mem', 'skill', 'caller'];
 agents.forEach(agent => {
   copyFile(
-    `src/modules/ai/agents/${agent}/prompts/role.txt`,
-    `dist/modules/ai/agents/${agent}/prompts/role.txt`
+    `src/core/ai/agents/${agent}/prompts/role.txt`,
+    `dist/core/ai/agents/${agent}/prompts/role.txt`
   );
 });
 
-copyFile('src/modules/ai/agents/dream/prompts/init.txt', 'dist/modules/ai/agents/dream/prompts/init.txt');
+copyFile('src/core/ai/agents/dream/prompts/init.txt', 'dist/core/ai/agents/dream/prompts/init.txt');
 
 console.log('Copied .txt files to dist');

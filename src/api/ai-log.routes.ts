@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { aiLogService } from '../modules/ai/ai-log.service.js';
+import { aiLogService } from '../core/ai/ai-log.service.js';
 
 export const aiLogRouter = Router();
 

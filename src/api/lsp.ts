@@ -12,7 +12,7 @@ import {
   LSPConfig,
   ServerStatus,
   JavaVersionCheck,
-} from "../lsp/index.js";
+} from "../core/lsp/index.js";
 
 export const lspRouter = Router();
 

@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import * as path from 'path';
 import * as os from 'os';
 import { specManager, specRepositoryService, specInjector } from '../modules/spec/index.js';
-import { memoryService } from '../modules/memory/index.js';
+import { memoryService } from '../core/memory/index.js';
 import { sessionService } from '../modules/session/index.js';
 import { projectService } from '../services/project/project.service.js';
 

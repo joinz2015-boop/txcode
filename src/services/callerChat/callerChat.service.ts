@@ -9,17 +9,17 @@
  * - agent 不在构造时创建，而是 init 阶段创建（需要 callbackUrl 和扩展工具）
  * - 支持外部传入 apiUrl/apiKey/modelName 覆盖系统默认 AI 配置
  */
-import { configService as defaultConfigService } from '../../modules/config/config.service.js'
+import { configService as defaultConfigService } from '../../core/config/config.service.js'
 import { sessionService as defaultSessionService } from '../../modules/session/session.service.js'
-import { memoryService } from '../../modules/memory/index.js'
+import { memoryService } from '../../core/memory/index.js'
 import { CallerChatInput, CallerChatOptions, CallerChatResult, CallerStep, CallerInitInput, CallerInitResult } from './callerChat.types.js'
 import { Session } from '../../modules/session/session.types.js'
-import { ConfigService } from '../../modules/config/config.service.js'
-import { createProvider } from '../../modules/ai/provider.js'
-import { CallerAgent } from '../../modules/ai/agents/caller/caller.agent.js'
-import { SummarizerService } from '../../modules/ai/summarizer/index.js'
-import { ChatMessage, BaseProvider } from '../../modules/ai/ai.types.js'
-import { ExtendedToolDef } from '../../modules/ai/agents/caller/types.js'
+import { ConfigService } from '../../core/config/config.service.js'
+import { createProvider } from '../../core/ai/provider.js'
+import { CallerAgent } from '../../core/ai/agents/caller/caller.agent.js'
+import { SummarizerService } from '../../core/ai/summarizer/index.js'
+import { ChatMessage, BaseProvider } from '../../core/ai/ai.types.js'
+import { ExtendedToolDef } from '../../core/ai/agents/caller/types.js'
 
 interface AgentSession {
   sessionId: string

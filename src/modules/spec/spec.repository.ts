@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { execSync } from 'child_process';
-import { dbService } from '../db/db.service.js';
+import { dbService } from '../../core/db/db.service.js';
 import { SpecRepository, SpecRepositoryInput, Spec } from './spec.types.js';
 import { specManager } from './spec.manager.js';
 

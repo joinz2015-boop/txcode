@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { dbService } from '../modules/db/index.js';
+import { dbService } from '../core/db/index.js';
 
 export const customActionsRouter = Router();
 

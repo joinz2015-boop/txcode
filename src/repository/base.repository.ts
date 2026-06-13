@@ -1,4 +1,4 @@
-import { dbService } from '../modules/db/db.service.js';
+import { dbService } from '../core/db/db.service.js';
 
 export class BaseRepository {
 

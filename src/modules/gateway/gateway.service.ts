@@ -1,10 +1,10 @@
 ﻿import { v4 as uuidv4 } from 'uuid';
-import { configService } from '../config/index.js';
+import { configService } from '../../core/config/index.js';
 import { sessionService } from '../session/index.js';
-import { memoryService } from '../memory/index.js';
-import { createProvider } from '../ai/provider.js';
-import { ChatAgent } from '../ai/agents/chat/chat.agent.js';
-import { toolService } from '../tools/index.js';
+import { memoryService } from '../../core/memory/index.js';
+import { createProvider } from '../../core/ai/provider.js';
+import { ChatAgent } from '../../core/ai/agents/chat/chat.agent.js';
+import { toolService } from '../../core/tools/index.js';
 import { skillsManager } from '../skill/index.js';
 import { dingtalkAdapter } from './adapters/dingtalk.adapter.js';
 import { gatewayQueue } from './gateway.queue.js';

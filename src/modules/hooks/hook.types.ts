@@ -1,4 +1,4 @@
-import { ChatMessage } from '../ai/ai.types.js';
+import { ChatMessage } from '../../core/ai/ai.types.js';
 
 export type HookTrigger = 'round' | 'before_compact' | 'chat_end';
 

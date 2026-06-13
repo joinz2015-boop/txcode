@@ -13,7 +13,7 @@
  */
 
 import { parseArgs } from './cli/args.js';
-import { dbService } from './modules/db/index.js';
+import { dbService } from './core/db/index.js';
 import { projectService } from './services/project/project.service.js';
 
 /**
@@ -78,7 +78,7 @@ async function main() {
      */
     const { render } = await import('ink');
     const React = await import('react');
-    const { App } = await import('./components/App.js');
+    const { App } = await import('./cli/ui/App.js');
 
     render(React.createElement(App));
   }

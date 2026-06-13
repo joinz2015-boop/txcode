@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import multer from 'multer';
-import { zihaoService } from '../services/zihao.service.js';
+import { zihaoService } from '../services/zihao/zihao.service.js';
 
 export const zihaoRouter = Router();
 

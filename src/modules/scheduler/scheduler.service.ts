@@ -1,10 +1,10 @@
 import cron, { ScheduledTask } from 'node-cron';
 import { v4 as uuid } from 'uuid';
-import { dbService } from '../db/db.service.js';
-import { configService } from '../config/config.service.js';
-import { OpenAIProvider } from '../ai/openai.provider.js';
-import { createProvider } from '../ai/provider.js';
-import { TaskAgent } from '../ai/agents/task/task.agent.js';
+import { dbService } from '../../core/db/db.service.js';
+import { configService } from '../../core/config/config.service.js';
+import { OpenAIProvider } from '../../core/ai/openai.provider.js';
+import { createProvider } from '../../core/ai/provider.js';
+import { TaskAgent } from '../../core/ai/agents/task/task.agent.js';
 import { taskLogService, TaskLog } from './task-log.service.js';
 import { notifyService, NotifyType } from './notify.service.js';
 

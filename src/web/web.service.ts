@@ -24,15 +24,16 @@ import * as http from 'http';
 import * as os from 'os';
 import { exec } from 'child_process';
 import { apiRouter } from '../api/index.js';
+import { registerRoutes } from '../register.js';
 import { webSocketService } from '../api/websocket/websocket.service.js';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const packageRoot = path.resolve(__dirname, '..', '..');
-import { dbService } from '../modules/db/db.service.js';
+import { dbService } from '../core/db/db.service.js';
 import { sessionService } from '../modules/session/index.js';
-import { configService } from '../modules/config/config.service.js';
+import { configService } from '../core/config/config.service.js';
 import { logger } from '../modules/logger/logger.js';
 
 /**
@@ -132,12 +133,12 @@ export class WebService {
     /**
      * API 路由注册
      * 
-     * 所有 /api/* 路径的请求都会路由到 apiRouter
-     * apiRouter 在 src/api/index.ts 中定义，包含：
-     * - /api/chat      -> 聊天 API (发送消息、流式响应、历史记录)
-     * - /api/sessions  -> 会话管理 API (CRUD)
-     * - /api/config    -> 配置管理 API (AI 提供商、模型)
-     * - /api/skills    -> 技能管理 API
+     * 使用 register.ts 自动扫描 api/ 目录注册路由（新方式）
+     * 旧 apiRouter 作为兼容回退
+     * 
+     * 注册顺序：
+     * 1. registerRoutes - 自动扫描 api/{module}/{action}_{module}.ts → /api/{module}/{action}_{module}
+     * 2. apiRouter（旧）- 逐步迁移完成后废弃
      */
     this.app.use('/api', apiRouter);
 
@@ -260,6 +261,11 @@ npm run dev
    */
   async start(): Promise<void> {
     await dbService.init();
+
+    // 注册新的文件路由系统（自动扫描 api/ 目录）
+    const newRouter = await registerRoutes();
+    this.app.use('/api', newRouter);
+
     const { schedulerService } = await import('../modules/scheduler/index.js');
     schedulerService.init();
     const { dreamService } = await import('../modules/dream/dream.service.js');

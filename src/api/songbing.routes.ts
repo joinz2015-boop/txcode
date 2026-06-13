@@ -8,8 +8,8 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { dbService } from '../modules/db/db.service.js';
-import { configService } from '../modules/config/config.service.js';
+import { dbService } from '../core/db/db.service.js';
+import { configService } from '../core/config/config.service.js';
 import config, { getSongbingApiBaseUrl } from '../config/tx.config.js';
 import { v4 as uuidv4 } from 'uuid';
 

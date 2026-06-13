@@ -1,4 +1,4 @@
-import { dbService } from '../db/db.service.js'
+import { dbService } from '../../core/db/db.service.js'
 import { EmailConfig } from './email.types.js'
 
 export class EmailConfigRepository {

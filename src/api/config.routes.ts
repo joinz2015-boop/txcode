@@ -8,7 +8,7 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { configService } from '../modules/config/index.js';
+import { configService } from '../core/config/index.js';
 import { ApiResponse, ProviderCreateRequest } from './api.types.js';
 
 export const configRouter = Router();

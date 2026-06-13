@@ -24,10 +24,10 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
-import { DbService, dbService as defaultDbService } from '../db/db.service.js';
-import { memoryService } from '../memory/index.js';
+import { DbService, dbService as defaultDbService } from '../../core/db/db.service.js';
+import { memoryService } from '../../core/memory/index.js';
 import { Session, SessionState, CompactionResult, SessionStats } from './session.types.js';
-import { Message } from '../memory/memory.types.js';
+import { Message } from '../../core/memory/memory.types.js';
 
 /**
  * SessionService 类

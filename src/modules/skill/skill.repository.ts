@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as yaml from 'js-yaml';
 import { execSync } from 'child_process';
-import { dbService } from '../db/db.service.js';
+import { dbService } from '../../core/db/db.service.js';
 import { Skill, SkillMetadata } from './skill.types.js';
 import { skillsManager } from './skills.manager.js';
 

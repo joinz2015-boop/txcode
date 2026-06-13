@@ -1,13 +1,13 @@
-﻿import { configService as defaultConfigService } from '../../modules/config/config.service.js';
+﻿import { configService as defaultConfigService } from '../../core/config/config.service.js';
 import { sessionService as defaultSessionService } from '../../modules/session/session.service.js';
-import { memoryService } from '../../modules/memory/index.js';
+import { memoryService } from '../../core/memory/index.js';
 import { ChatInput, ChatOptions, ChatResult, Step } from './codeChat.types.js';
 import { Session } from '../../modules/session/session.types.js';
-import { ConfigService } from '../../modules/config/config.service.js';
-import { createProvider } from '../../modules/ai/provider.js';
-import { CodeAgent } from '../../modules/ai/agents/index.js';
-import { SummarizerService } from '../../modules/ai/summarizer/index.js';
-import { ChatMessage, BaseProvider } from '../../modules/ai/ai.types.js';
+import { ConfigService } from '../../core/config/config.service.js';
+import { createProvider } from '../../core/ai/provider.js';
+import { CodeAgent } from '../../core/ai/agents/index.js';
+import { SummarizerService } from '../../core/ai/summarizer/index.js';
+import { ChatMessage, BaseProvider } from '../../core/ai/ai.types.js';
 
 export class CodeChatService {
   private configService: ConfigService;

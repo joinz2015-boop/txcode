@@ -1,4 +1,4 @@
-import { dbService } from '../db/db.service.js';
+import { dbService } from '../../core/db/db.service.js';
 
 export interface TaskLog {
   id: string;

@@ -6,7 +6,7 @@
 import path from 'path'
 import { pathToFileURL } from 'url'
 import { skillsManager } from './skills.manager.js'
-import { Tool, ToolContext, ToolResult } from '../tools/tool.types.js'
+import { Tool, ToolContext, ToolResult } from '../../core/tools/tool.types.js'
 
 export const skillTool: Tool = {
   name: 'skill',

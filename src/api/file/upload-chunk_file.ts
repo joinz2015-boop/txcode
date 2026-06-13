@@ -1,0 +1,5 @@
+import { Request, Response } from "express";
+
+export async function POST(req: Request, res: Response) {
+  res.json({ success: true, message: "chunk upload not implemented" });
+}

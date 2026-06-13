@@ -1,4 +1,4 @@
-import { dbService } from '../modules/db/index.js';
+import { dbService } from '../core/db/index.js';
 
 export interface ZihaoConfig {
   id: string;

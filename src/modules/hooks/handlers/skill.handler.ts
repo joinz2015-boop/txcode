@@ -2,9 +2,9 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { HookMessage, HookTrigger } from '../hook.types.js';
 import { HookHandler } from './hook.handler.js';
-import { SkillAgent } from '../../ai/agents/skill/skill.agent.js';
-import { configService } from '../../config/index.js';
-import { OpenAIProvider } from '../../ai/openai.provider.js';
+import { SkillAgent } from '../../../core/ai/agents/skill/skill.agent.js';
+import { configService } from '../../../core/config/index.js';
+import { OpenAIProvider } from '../../../core/ai/openai.provider.js';
 import { skillsManager } from '../../skill/skills.manager.js';
 
 export class SkillHandler extends HookHandler {

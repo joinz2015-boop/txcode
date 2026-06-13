@@ -3,10 +3,10 @@
  */
 
 import { sessionService } from '../modules/session/index.js';
-import { configService } from '../modules/config/index.js';
+import { configService } from '../core/config/index.js';
 import { skillsManager } from '../modules/skill/index.js';
-import { memoryService } from '../modules/memory/index.js';
-import { SummarizerService } from '../modules/ai/summarizer/index.js';
+import { memoryService } from '../core/memory/index.js';
+import { SummarizerService } from '../core/ai/summarizer/index.js';
 import { dreamService } from '../modules/dream/dream.service.js';
 import { CommandResult } from './cli.types.js';
 

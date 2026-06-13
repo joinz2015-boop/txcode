@@ -2,7 +2,7 @@ import * as os from 'os';
 import * as path from 'path';
 import * as fs from 'fs';
 import { spawn, ChildProcess } from 'child_process';
-import { dbService } from '../db/db.service.js';
+import { dbService } from '../../core/db/db.service.js';
 
 export interface WafGatewayConfig {
   id: number;
