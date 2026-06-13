@@ -82,8 +82,8 @@ export default {
     async checkRepo() {
       try {
         const res = await api.gitIsRepo()
-        this.isRepo = res.isRepo
-        this.gitRoot = res.gitRoot
+        this.isRepo = res.data?.isRepo || false
+        this.gitRoot = res.data?.gitRoot || null
       } catch (e) {
         this.isRepo = false
       }
@@ -94,7 +94,7 @@ export default {
       this.loading = true
       try {
         const res = await api.gitStatus()
-        this.changes = res.changes || []
+        this.changes = res.data || []
         if (this.selectedChange) {
           const stillExists = this.changes.find(c => c.path === this.selectedChange.path)
           if (!stillExists) {
@@ -124,7 +124,7 @@ export default {
       this.diffContent = null
       try {
         const res = await api.gitDiff(change.path)
-        this.diffContent = res.diff || ''
+        this.diffContent = res.data?.diff || ''
       } catch (e) {
         console.error('Failed to get diff:', e)
         this.diffContent = ''

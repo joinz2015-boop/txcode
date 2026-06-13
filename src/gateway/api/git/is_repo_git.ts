@@ -5,6 +5,7 @@ export async function GET(req: Request, res: Response) {
   const projectPath = req.query.path as string || process.cwd();
   try {
     execSync("git rev-parse --git-dir", { cwd: projectPath, stdio: "ignore" });
-    res.json({ success: true, data: { isRepo: true } });
-  } catch { res.json({ success: true, data: { isRepo: false } }); }
+    const gitRoot = execSync("git rev-parse --show-toplevel", { cwd: projectPath, encoding: "utf-8" }).trim();
+    res.json({ success: true, data: { isRepo: true, gitRoot } });
+  } catch { res.json({ success: true, data: { isRepo: false, gitRoot: null } }); }
 }

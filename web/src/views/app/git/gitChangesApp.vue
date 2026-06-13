@@ -170,7 +170,7 @@ export default {
     tabs() {
       return [
         { key: 'modified', label: '已修改', count: this.changes.filter(c => c.status === 'modified').length },
-        { key: 'staged', label: '已暂存', count: this.changes.filter(c => c.status === 'staged').length },
+        { key: 'added', label: '已添加', count: this.changes.filter(c => c.status === 'added').length },
         { key: 'untracked', label: '未跟踪', count: this.changes.filter(c => c.status === 'untracked').length }
       ]
     },
@@ -183,20 +183,20 @@ export default {
     },
     stats() {
       return {
-        add: this.changes.filter(c => c.status === 'add' || c.status === 'new').length,
-        mod: this.changes.filter(c => c.status === 'mod' || c.status === 'modified').length,
-        del: this.changes.filter(c => c.status === 'del' || c.status === 'deleted').length
+        add: this.changes.filter(c => c.status === 'added').length,
+        mod: this.changes.filter(c => c.status === 'modified').length,
+        del: this.changes.filter(c => c.status === 'deleted').length
       }
     },
     filteredChanges() {
       let result = this.changes
 
       if (this.currentTab === 'modified') {
-        result = result.filter(c => c.status === 'modified' || c.status === 'mod')
-      } else if (this.currentTab === 'staged') {
-        result = result.filter(c => c.status === 'staged')
+        result = result.filter(c => c.status === 'modified')
+      } else if (this.currentTab === 'added') {
+        result = result.filter(c => c.status === 'added' || c.status === 'renamed')
       } else if (this.currentTab === 'untracked') {
-        result = result.filter(c => c.status === 'untracked' || c.status === 'new' || c.status === 'add')
+        result = result.filter(c => c.status === 'untracked')
       }
 
       if (this.currentFilter === 'file') {
@@ -216,8 +216,8 @@ export default {
     async checkRepo() {
       try {
         const res = await api.gitIsRepo()
-        this.isRepo = res.isRepo
-        this.branch = res.branch || ''
+        this.isRepo = res.data?.isRepo || false
+        this.branch = res.data?.branch || ''
       } catch (e) {
         this.isRepo = false
       }
@@ -228,13 +228,8 @@ export default {
       this.loading = true
       try {
         const res = await api.gitStatus()
-        this.changes = (res.changes || []).map(c => {
-          let status = 'modified'
-          if (c.isNew || c.status === 'new') status = 'untracked'
-          else if (c.isStaged || c.status === 'staged') status = 'staged'
-          else if (c.isDeleted || c.status === 'deleted') status = 'del'
-          else if (c.isModified || c.status === 'modified') status = 'mod'
-          else if (c.isAdded || c.status === 'added') status = 'add'
+        this.changes = (res.data || []).map(c => {
+          let status = c.status || 'modified'
           return { ...c, status }
         })
         if (this.selectedChange) {
@@ -259,7 +254,7 @@ export default {
       this.diffLines = []
       try {
         const res = await api.gitDiff(change.path)
-        this.diffLines = this.parseDiff(res.diff || '')
+        this.diffLines = this.parseDiff(res.data?.diff || '')
       } catch (e) {
         console.error('Failed to get diff:', e)
       } finally {
@@ -298,26 +293,21 @@ export default {
     },
     getStatusClass(status) {
       const map = {
-        add: 'add',
-        new: 'new',
-        mod: 'mod',
+        added: 'add',
         modified: 'mod',
-        del: 'del',
         deleted: 'del',
-        untracked: 'new'
+        untracked: 'new',
+        renamed: 'mod'
       }
       return map[status] || 'mod'
     },
     getStatusIcon(status) {
       const map = {
-        add: 'fa-solid fa-plus',
-        new: 'fa-solid fa-star',
-        mod: 'fa-solid fa-pen',
+        added: 'fa-solid fa-plus',
         modified: 'fa-solid fa-pen',
-        del: 'fa-solid fa-trash',
         deleted: 'fa-solid fa-trash',
-        staged: 'fa-solid fa-check',
-        untracked: 'fa-solid fa-star'
+        untracked: 'fa-solid fa-star',
+        renamed: 'fa-solid fa-pen'
       }
       return map[status] || 'fa-solid fa-pen'
     },

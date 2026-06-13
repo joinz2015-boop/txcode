@@ -79,37 +79,41 @@
             :disabled="panel.disabled"
             @remove="(id) => removeMedia(panel, id)"
           />
-          <ResizableTextarea
-            v-model="panel.input"
-            :rows="5"
-            placeholder="输入消息... (Enter 发送, Ctrl+Enter 换行, @ 选择文件)"
-            :disabled="panel.disabled || !panel.session?.id"
-            class="input-area"
-            @input="onInputChange($event, panel)"
-            @keydown.enter.native="handleKeydown($event, panel)"
-            @keydown.esc.native="cancelFileSelect"
-            @paste-image="handlePasteImages($event, panel)"
-          />
-          <input
-            type="file"
-            accept="image/*"
-            multiple
-            :ref="'imgInput-' + index"
-            style="display:none"
-            @change="(e) => handleImageSelected(e, panel)"
-          />
-          <el-button @click="handleImageUpload(panel)" :disabled="panel.disabled || !panel.session?.id" class="upload-btn">
-            🖼
-          </el-button>
-          <el-button v-if="panel.disabled && !panel.stopping" type="danger" @click.stop="stopPanel(panel)" class="stop-btn">
-            ■ 停止
-          </el-button>
-          <el-button v-else-if="panel.stopping" type="info" disabled class="stop-btn">
-            停止中...
-          </el-button>
-          <el-button v-else type="primary" :disabled="!panel.session?.id" @click.stop="sendToPanel(panel)" class="send-btn">
-            发送
-          </el-button>
+          <div class="input-wrapper">
+            <ResizableTextarea
+              v-model="panel.input"
+              :rows="5"
+              placeholder="输入消息... (Enter 发送, Ctrl+Enter 换行, @ 选择文件)"
+              :disabled="panel.disabled || !panel.session?.id"
+              class="input-area"
+              @input="onInputChange($event, panel)"
+              @keydown.enter.native="handleKeydown($event, panel)"
+              @keydown.esc.native="cancelFileSelect"
+              @paste-image="handlePasteImages($event, panel)"
+            />
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              :ref="'imgInput-' + index"
+              style="display:none"
+              @change="(e) => handleImageSelected(e, panel)"
+            />
+            <div class="input-actions">
+              <el-button @click="handleImageUpload(panel)" :disabled="panel.disabled || !panel.session?.id" class="upload-btn">
+                图片
+              </el-button>
+              <el-button v-if="panel.disabled && !panel.stopping" type="danger" @click.stop="stopPanel(panel)" class="stop-btn">
+                ■ 停止
+              </el-button>
+              <el-button v-else-if="panel.stopping" type="info" disabled class="stop-btn">
+                停止中...
+              </el-button>
+              <el-button v-else type="primary" :disabled="!panel.session?.id" @click.stop="sendToPanel(panel)" class="send-btn">
+                发送
+              </el-button>
+            </div>
+          </div>
         </div>
         <div class="status-bar">
           <span v-if="panel.sessionStatus === 'processing' || (panel.disabled && !panel.stopping)" class="status-thinking">
@@ -180,7 +184,6 @@
 </template>
 
 <script>
-import { marked } from 'marked'
 import SessionsPanel from '../../../components/pc/session/SessionsPanel.vue'
 import FileSelectDialog from '../../../components/pc/file/FileSelectDialog.vue'
 import SkillSelectDialog from '../../../components/pc/skill/SkillSelectDialog.vue'
@@ -191,8 +194,9 @@ import ImagePreviewList from '../../../components/pc/chat/ImagePreviewList.vue'
 import { ws } from '../../../api/websocket/websocket.js'
 import * as sessions from '../../../api/session/session.js'
 import * as config from '../../../api/config/config.js'
-import { uploadChatImage } from '../../../api/chat/chat.js'
-import { compressImage } from '../../../utils/imageCompress.js'
+import { buildChatPayload } from '../../../api/chat/chat.js'
+import { uploadSingleMedia } from '../../../api/chat/media.js'
+import { getTodoStatusIcon, getTitleText, formatInput, getToolCallName, getToolCallArguments, renderMarkdown, createThinkItem, createStepItem, withLogId as withLogIdImpl } from '../../../lib/render.js'
 import { scrollToBottom, snapshotScroll } from '../../../utils/scroll'
 
 export default {
@@ -368,75 +372,17 @@ export default {
       })
     },
 
-    getTodoStatusIcon(status) {
-      const icons = { completed: '✅', in_progress: '🔄', pending: '⬜', cancelled: '❌' }
-      return icons[status] || '⬜'
-    },
-
-    getTitleText(text, defaultText) {
-      if (!text) return defaultText
-      return text.length > 30 ? text.slice(0, 30) + '...' : text
-    },
-
-    formatInput(action, input) {
-      try {
-        const parsed = JSON.parse(input)
-        if (action === 'bash' || action === 'execute_bash') {
-          return parsed.command + (parsed.workdir ? ` (${parsed.workdir})` : '')
-        }
-        if (action === 'read_file') {
-          return parsed.file_path + (parsed.offset ? `:${parsed.offset}` : '')
-        }
-        if (action === 'edit_file' || action === 'write_file') {
-          return parsed.file_path
-        }
-        if (action === 'glob' || action === 'find_files') {
-          return parsed.pattern + (parsed.directory ? ` (${parsed.directory})` : '')
-        }
-        if (action === 'grep' || action === 'search_content') {
-          return `"${parsed.pattern}" (${parsed.directory || ''})`
-        }
-        return input
-      } catch {
-        return input
-      }
-    },
-
-    getToolCallName(toolCall) {
-      return toolCall?.function?.name || 'unknown_tool'
-    },
-
-    getToolCallArguments(toolCall) {
-      return toolCall?.function?.arguments || ''
-    },
-
-    renderMarkdown(text) {
-      return text ? marked(text) : ''
-    },
-
-    createThinkItem(content) {
-      return {
-        type: 'think',
-        content,
-        renderedContent: this.renderMarkdown(content)
-      }
-    },
-
-    createStepItem(data) {
-      const thought = data?.thought || ''
-      return {
-        type: 'step',
-        thought,
-        renderedThought: this.renderMarkdown(thought),
-        toolCalls: Array.isArray(data?.toolCalls) ? data.toolCalls.filter(Boolean) : [],
-        success: data?.success
-      }
-    },
+    getTodoStatusIcon,
+    getTitleText,
+    formatInput,
+    getToolCallName,
+    getToolCallArguments,
+    renderMarkdown,
+    createThinkItem,
+    createStepItem,
 
     withLogId(item) {
-      if (!item || typeof item !== 'object') return { type: 'system', content: String(item), _id: `log-${++this.logSeq}` }
-      if (item._id) return item
-      return { ...item, _id: `log-${++this.logSeq}` }
+      return withLogIdImpl(item, () => ++this.logSeq)
     },
 
     pushLogItem(panel, item) {
@@ -724,9 +670,7 @@ export default {
       const content = panel.input.trim()
       if (!content || panel.disabled) return
 
-      const finalContent = panel.chatMode === 'plan'
-        ? `【计划模式】禁止修改任何代码，仅对用户输入进行分析并输出分析结果。\n\n用户输入：${content}`
-        : content
+      const payload = buildChatPayload(panel)
 
       panel.input = ''
       panel.disabled = true
@@ -734,17 +678,42 @@ export default {
       panel.userQuestion = content
       const snap = this.snapPanelScroll(panel)
       const mediaFiles = (panel.mediaFiles || []).filter(f => !f.uploading && f.filePath)
-      this.pushLogItem(panel, { type: 'chat', content: finalContent, mediaFiles: mediaFiles.map(f => ({ filePath: f.filePath, type: f.type, dataUrl: f.dataUrl })) })
+      this.pushLogItem(panel, { type: 'chat', content: payload.message, mediaFiles: mediaFiles.map(f => ({ filePath: f.filePath, type: f.type, dataUrl: f.dataUrl })) })
       this.$nextTick(() => this.schedulePanelScroll(panel, snap))
 
-      ws.send('chat', {
-        message: finalContent,
-        sessionId: panel.session?.id,
-        modelName: panel.modelName || undefined,
-        enableDevLog: panel.enableDevLog,
-        mediaFiles: mediaFiles.map(f => ({ filePath: f.filePath, type: f.type }))
-      })
+      ws.send('chat', payload)
       panel.mediaFiles = []
+    },
+
+    async _uploadFiles(files, panel) {
+      const currentCount = (panel.mediaFiles || []).length
+      const maxImages = 5
+      const remaining = maxImages - currentCount
+      if (remaining <= 0) {
+        this.$message.warning('最多上传5张图片')
+        return
+      }
+      const toProcess = Math.min(files.length, remaining)
+      if (!panel.mediaFiles) panel.mediaFiles = []
+      for (let i = 0; i < toProcess; i++) {
+        const file = files[i]
+        const id = Date.now() + '_' + i + '_' + Math.random().toString(36).slice(2)
+        panel.mediaFiles.push({ id, name: file.name || 'paste.png', dataUrl: '', filePath: '', type: file.type || 'image/png', uploading: true })
+      }
+      for (let i = 0; i < toProcess; i++) {
+        const file = files[i]
+        const idx = panel.mediaFiles.length - toProcess + i
+        try {
+          const result = await uploadSingleMedia(file)
+          panel.mediaFiles[idx].dataUrl = result.dataUrl
+          panel.mediaFiles[idx].filePath = result.filePath
+          panel.mediaFiles[idx].type = result.type
+          panel.mediaFiles[idx].uploading = false
+        } catch (e) {
+          this.$message.error('图片上传失败: ' + e.message)
+          panel.mediaFiles.splice(idx, 1)
+        }
+      }
     },
 
     handleImageUpload(panel) {
@@ -760,76 +729,13 @@ export default {
     async handleImageSelected(event, panel) {
       const files = event.target.files
       if (!files || files.length === 0) return
-      const currentCount = (panel.mediaFiles || []).length
-      const maxImages = 5
-      const remaining = maxImages - currentCount
-      if (remaining <= 0) {
-        this.$message.warning('最多上传5张图片')
-        event.target.value = ''
-        return
-      }
-      const toProcess = Math.min(files.length, remaining)
-      const newFiles = []
-      for (let i = 0; i < toProcess; i++) {
-        const file = files[i]
-        const id = Date.now() + '_' + i + '_' + Math.random().toString(36).slice(2)
-        newFiles.push({ id, name: file.name, dataUrl: '', filePath: '', type: file.type, uploading: true })
-      }
-      if (!panel.mediaFiles) panel.mediaFiles = []
-      panel.mediaFiles.push(...newFiles)
-      for (let i = 0; i < toProcess; i++) {
-        const file = files[i]
-        const idx = panel.mediaFiles.length - toProcess + i
-        try {
-          const compressed = await compressImage(file)
-          const uploadFile = new File([compressed.blob], file.name || 'image.png', { type: 'image/jpeg' })
-          const res = await uploadChatImage(uploadFile)
-          panel.mediaFiles[idx].dataUrl = compressed.dataUrl
-          panel.mediaFiles[idx].filePath = res.data.filePath
-          panel.mediaFiles[idx].type = res.data.filePath.endsWith('.png') ? 'image/png' : 'image/jpeg'
-          panel.mediaFiles[idx].uploading = false
-        } catch (e) {
-          this.$message.error('图片上传失败: ' + e.message)
-          panel.mediaFiles.splice(idx, 1)
-        }
-      }
       event.target.value = ''
+      await this._uploadFiles(Array.from(files), panel)
     },
 
     async handlePasteImages(imageFiles, panel) {
       if (!panel || panel.disabled) return
-      const currentCount = (panel.mediaFiles || []).length
-      const maxImages = 5
-      const remaining = maxImages - currentCount
-      if (remaining <= 0) {
-        this.$message.warning('最多上传5张图片')
-        return
-      }
-      const toProcess = Math.min(imageFiles.length, remaining)
-      const newFiles = []
-      for (let i = 0; i < toProcess; i++) {
-        const file = imageFiles[i]
-        const id = Date.now() + '_' + i + '_' + Math.random().toString(36).slice(2)
-        newFiles.push({ id, name: file.name || 'paste.png', dataUrl: '', filePath: '', type: file.type || 'image/png', uploading: true })
-      }
-      if (!panel.mediaFiles) panel.mediaFiles = []
-      panel.mediaFiles.push(...newFiles)
-      for (let i = 0; i < toProcess; i++) {
-        const file = imageFiles[i]
-        const idx = panel.mediaFiles.length - toProcess + i
-        try {
-          const compressed = await compressImage(file)
-          const uploadFile = new File([compressed.blob], 'paste.png', { type: 'image/jpeg' })
-          const res = await uploadChatImage(uploadFile)
-          panel.mediaFiles[idx].dataUrl = compressed.dataUrl
-          panel.mediaFiles[idx].filePath = res.data.filePath
-          panel.mediaFiles[idx].type = 'image/jpeg'
-          panel.mediaFiles[idx].uploading = false
-        } catch (e) {
-          this.$message.error('图片上传失败: ' + e.message)
-          panel.mediaFiles.splice(idx, 1)
-        }
-      }
+      await this._uploadFiles(imageFiles, panel)
     },
 
     removeMedia(panel, fileId) {
@@ -999,13 +905,32 @@ export default {
   padding: 12px 16px;
   border-top: 1px solid #27272a;
   display: flex;
-  gap: 12px;
-  align-items: flex-end;
+  flex-direction: column;
+  gap: 8px;
   flex-shrink: 0;
 }
 
+.input-wrapper {
+  position: relative;
+  flex: 1;
+}
+
 .input-area { flex: 1; }
+
+.input-actions {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  display: flex;
+  gap: 6px;
+  z-index: 5;
+}
+
 .send-btn, .stop-btn, .upload-btn { height: auto; }
+
+.input-wrapper ::v-deep .el-textarea__inner {
+  padding-right: 120px;
+}
 
 .status-bar {
   display: flex;

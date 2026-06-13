@@ -117,7 +117,7 @@ export default {
       this.loading = true
       try {
         const res = await api.getDbTables()
-        this.tables = res.tables || []
+        this.tables = (res.data || []).map(t => t.name)
       } catch (e) {
         console.error('Load tables failed:', e)
         this.tables = []
@@ -134,7 +134,8 @@ export default {
     async loadTableInfo() {
       if (!this.selectedTable) return
       try {
-        this.tableInfo = await api.getTableInfo(this.selectedTable)
+        const res = await api.getTableInfo(this.selectedTable)
+        this.tableInfo = res.data || {}
         this.totalPages = Math.max(1, Math.ceil((this.tableInfo.row_count || 0) / this.pageSize))
       } catch (e) {
         console.error('Load table info failed:', e)
@@ -144,7 +145,8 @@ export default {
     async loadTableData() {
       if (!this.selectedTable) return
       try {
-        this.tableData = await api.getTableData(this.selectedTable, this.page, this.pageSize)
+        const res = await api.getTableData(this.selectedTable, this.page, this.pageSize)
+        this.tableData = { rows: res.data || [] }
       } catch (e) {
         console.error('Load table data failed:', e)
         this.tableData = { columns: [], rows: [] }

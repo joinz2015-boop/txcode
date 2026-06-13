@@ -13,3 +13,18 @@ export async function uploadChatImage(file) {
   }
   return json
 }
+
+export function buildChatPayload(panel) {
+  const content = panel.input.trim()
+  const finalContent = panel.chatMode === 'plan'
+    ? `【计划模式】禁止修改任何代码，仅对用户输入进行分析并输出分析结果。\n\n用户输入：${content}`
+    : content
+  const mediaFiles = (panel.mediaFiles || []).filter(f => !f.uploading && f.filePath)
+  return {
+    message: finalContent,
+    sessionId: panel.session?.id,
+    modelName: panel.modelName || undefined,
+    enableDevLog: panel.enableDevLog,
+    mediaFiles: mediaFiles.map(f => ({ filePath: f.filePath, type: f.type }))
+  }
+}
