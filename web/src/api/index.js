@@ -123,31 +123,6 @@ export const api = {
     return request('POST', '/chat/command_chat', { message, sessionId });
   },
 
-  chatStream(data, onChunk) {
-    return new Promise((resolve, reject) => {
-      const es = new EventSource(
-        `${API_BASE}/chat/stream_chat?data=${encodeURIComponent(JSON.stringify(data))}`
-      );
-
-      es.onmessage = (e) => {
-        try {
-          const chunk = JSON.parse(e.data);
-          onChunk(chunk);
-          if (chunk.done) {
-            es.close();
-            resolve();
-          }
-        } catch (err) {
-          console.error('Parse error:', err);
-        }
-      };
-
-      es.onerror = (err) => {
-        es.close();
-        reject(err);
-      };
-    });
-  },
 
   uploadChatImage(file, sessionId) {
     const formData = new FormData();
