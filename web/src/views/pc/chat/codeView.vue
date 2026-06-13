@@ -100,7 +100,7 @@
               @change="(e) => handleImageSelected(e, panel)"
             />
             <div class="input-actions">
-              <el-button @click="handleImageUpload(panel)" :disabled="panel.disabled || !panel.session?.id" class="upload-btn">
+              <el-button @click="handleImageUpload(index)" :disabled="panel.disabled || !panel.session?.id" class="upload-btn">
                 图片
               </el-button>
               <el-button v-if="panel.disabled && !panel.stopping" type="danger" @click.stop="stopPanel(panel)" class="stop-btn">
@@ -716,9 +716,9 @@ export default {
       }
     },
 
-    handleImageUpload(panel) {
+    handleImageUpload(idx) {
+      const panel = this.activeSessions[idx]
       if (!panel || panel.disabled) return
-      const idx = this.activeSessions.indexOf(panel)
       const inputEl = this.$refs['imgInput-' + idx]
       if (inputEl) {
         if (Array.isArray(inputEl)) inputEl[0]?.click()

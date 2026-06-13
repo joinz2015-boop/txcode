@@ -63,7 +63,7 @@
             :disabled="disabled"
             @remove="removeMedia"
           />
-          <div class="input-row">
+          <div class="input-wrapper">
             <ResizableTextarea
               v-model="inputMessage"
               :rows="5"
@@ -82,27 +82,27 @@
               @change="handleImageSelected"
             />
             <div class="input-actions">
-            <el-button @click="handleImageUpload" :disabled="disabled" class="upload-btn">图片</el-button>
-            <el-button
-              v-for="action in customActions"
-              :key="action.id"
-              type="info"
-              size="small"
-              @click="executeCustomAction(action)"
-              :disabled="disabled"
-            >
-              {{ action.name }}
-            </el-button>
-            <el-button v-if="disabled && !stopping" type="danger" @click="stopChat" class="stop-btn">
-              ■ 停止
-            </el-button>
-            <el-button v-else-if="stopping" type="info" disabled class="stop-btn">
-              停止中...
-            </el-button>
-            <el-button v-else type="primary" :disabled="!inputMessage.trim() && mediaFiles.length === 0" @click="sendMessage" class="send-btn">
-              发送
-            </el-button>
-          </div>
+              <el-button @click="handleImageUpload" :disabled="disabled" class="upload-btn">图片</el-button>
+              <el-button
+                v-for="action in customActions"
+                :key="action.id"
+                type="info"
+                size="small"
+                @click="executeCustomAction(action)"
+                :disabled="disabled"
+              >
+                {{ action.name }}
+              </el-button>
+              <el-button v-if="disabled && !stopping" type="danger" @click="stopChat" class="stop-btn">
+                ■ 停止
+              </el-button>
+              <el-button v-else-if="stopping" type="info" disabled class="stop-btn">
+                停止中...
+              </el-button>
+              <el-button v-else type="primary" :disabled="!inputMessage.trim() && mediaFiles.length === 0" @click="sendMessage" class="send-btn">
+                发送
+              </el-button>
+            </div>
           </div>
         </div>
         <div class="status-bar">
@@ -561,9 +561,19 @@ data() {
 .tool-input { color: #60a5fa; margin-left: 8px; }
 .build-info { color: #84848a; display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
 .chat-input-area { padding: 12px 16px; background: #121212; border-top: 1px solid #1e1e1e; }
-.input-row { display: flex; gap: 12px; align-items: flex-end; }
-.input-row .input-area { flex: 1; }
-.input-row .input-actions { display: flex; flex-direction: column; gap: 8px; align-items: flex-end; }
+.input-wrapper { position: relative; flex: 1; }
+.input-area { flex: 1; }
+.input-wrapper .input-actions {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  display: flex;
+  gap: 6px;
+  z-index: 5;
+}
+.input-wrapper ::v-deep .el-textarea__inner {
+  padding-right: 210px;
+}
 .status-bar { display: flex; gap: 8px; align-items: center; padding: 6px 16px; font-size: 12px; color: #84848a; border-top: 1px solid #1e1e1e; flex-shrink: 0; flex-wrap: wrap; background: #0a0a09; }
 .status-bar .separator { color: #3f3f46; }
 .status-ready { color: #22c55e; }

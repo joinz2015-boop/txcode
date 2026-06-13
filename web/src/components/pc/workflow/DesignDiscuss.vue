@@ -87,7 +87,7 @@
           :disabled="disabled"
           @remove="removeMedia"
         />
-        <div class="input-row">
+        <div class="input-wrapper">
           <ResizableTextarea
             v-model="inputMessage"
             :rows="5"
@@ -755,9 +755,19 @@ export default {
 .tool-input { color: #60a5fa; margin-left: 8px; }
 .build-info { color: #84848a; display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
 .chat-input-area { padding: 12px 16px; background: #121212; border-top: 1px solid #1e1e1e; flex-shrink: 0; }
-.input-row { display: flex; gap: 12px; align-items: flex-end; }
-.input-row .input-area { flex: 1; }
-.input-row .input-actions { display: flex; flex-direction: column; gap: 8px; align-items: flex-end; }
+.input-wrapper { position: relative; flex: 1; }
+.input-area { flex: 1; }
+.input-wrapper .input-actions {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  display: flex;
+  gap: 6px;
+  z-index: 5;
+}
+.input-wrapper ::v-deep .el-textarea__inner {
+  padding-right: 210px;
+}
 .status-bar {
   display: flex;
   gap: 8px;
