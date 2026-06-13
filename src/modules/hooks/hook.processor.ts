@@ -1,5 +1,5 @@
 import { HookMessage } from './hook.types.js';
-import { HookQueue } from '../../queue/queues/hook/hook.queue.js';
+import { HookQueue } from '../../queue/hook/hook.queue.js';
 
 export class HookProcessor {
   private queue: HookQueue;

@@ -1,5 +1,5 @@
 import type { IJob } from '../../types.js'
-import { dreamService } from '../../../../queue/queues/dream/dream.service.js'
+import { dreamService } from '../../../../queue/dream/dream.service.js'
 
 export class DreamJob implements IJob {
   name = 'dream'

@@ -1,4 +1,4 @@
-export { HookQueue } from '../../queue/queues/hook/hook.queue.js';
+export { HookQueue } from '../../queue/hook/hook.queue.js';
 export { HookProcessor } from './hook.processor.js';
 export type { HookTrigger, HookMessage, IHookHandler } from './hook.types.js';
 export { HookHandler, MemoryHandler, SkillHandler } from './handlers/index.js';

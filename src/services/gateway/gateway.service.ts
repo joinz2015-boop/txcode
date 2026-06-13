@@ -7,7 +7,7 @@ import { ChatAgent } from '../../core/ai/agents/chat/chat.agent.js';
 import { toolService } from '../../core/tools/index.js';
 import { skillsManager } from '../../services/skill/index.js';
 import { dingtalkAdapter } from '../../gateway/third/dingtalk/dingtalk.adapter.js';
-import { gatewayQueue } from '../../queue/queues/gateway/gateway.queue.js';
+import { gatewayQueue } from '../../queue/gateway/gateway.queue.js';
 import { DingtalkMessage, GatewayStatus, QueuedMessage } from './gateway.types.js';
 import type { DingtalkConfig } from '../../entity/gateway.entity.js';
 
