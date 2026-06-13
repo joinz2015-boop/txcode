@@ -7,7 +7,7 @@
  * - 不支持 specInjector / hooks
  * - 扩展工具通过 HTTP POST 到 callbackUrl 执行，默认 30s 超时
  */
-import { BaseProvider, ChatMessage } from '../../ai.types.js'
+import { BaseProvider, ChatMessage, MultimodalContent } from '../../ai.types.js'
 import { AgentToolRegistry, buildToolContext } from '../agent.tool.js'
 import {
   AIProvider,
@@ -177,8 +177,8 @@ export class CallerAgent implements AIProvider {
     }
 
     // 追加当前用户消息
-    baseMessages.push({ role: 'user', content: userMessage })
-    this.addMessage('user', userMessage, true, true, undefined, undefined, this.sessionId)
+    this.pushUserMessage(baseMessages, userMessage, options?.mediaFiles);
+    this.addMessage('user', userMessage, true, true, undefined, undefined, this.sessionId, options?.mediaFiles);
 
     let iteration = 0
     let finalAnswer = ''
@@ -413,7 +413,8 @@ export class CallerAgent implements AIProvider {
     isOriginal: boolean = false,
     toolCalls?: any[],
     toolCallId?: string,
-    sessionId?: string
+    sessionId?: string,
+    mediaFiles?: { filePath: string; type: string; dataUrl?: string }[]
   ): void {
     if (!sessionId || !this.memoryService) return
 
@@ -424,6 +425,29 @@ export class CallerAgent implements AIProvider {
       savedContent = JSON.stringify({ type: 'tool_result', toolCallId, output: content })
     }
 
-    this.memoryService.addMessage(sessionId, role, savedContent, keepContext, isOriginal)
+    this.memoryService.addMessage(sessionId, role, savedContent, keepContext, isOriginal,
+      role === 'user' && mediaFiles ? mediaFiles.map(mf => ({ filePath: mf.filePath, type: mf.type })) : undefined
+    )
+  }
+
+  private pushUserMessage(
+    baseMessages: ChatMessage[],
+    userMessage: string,
+    mediaFiles?: { filePath: string; type: string; dataUrl?: string }[]
+  ): void {
+    if (mediaFiles && mediaFiles.length > 0) {
+      const content: MultimodalContent[] = [
+        { type: 'text', text: userMessage },
+      ];
+      for (const mf of mediaFiles) {
+        content.push({
+          type: 'image_url',
+          image_url: { url: mf.filePath },
+        });
+      }
+      baseMessages.push({ role: 'user', content });
+    } else {
+      baseMessages.push({ role: 'user', content: userMessage });
+    }
   }
 }

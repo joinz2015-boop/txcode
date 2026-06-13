@@ -107,7 +107,7 @@ export class CommonAgent implements AIProvider {
       ? specInjector.injectIntoMessage(userMessage, process.cwd())
       : userMessage;
 
-    this.addMessage('user', userMessage, true, true, undefined, undefined, this.sessionId);
+    this.addMessage('user', userMessage, true, true, undefined, undefined, this.sessionId, options?.mediaFiles);
 
     let iteration = 0;
     let finalAnswer = '';
@@ -295,7 +295,8 @@ export class CommonAgent implements AIProvider {
     isOriginal: boolean = false,
     toolCalls?: any[],
     toolCallId?: string,
-    sessionId?: string
+    sessionId?: string,
+    mediaFiles?: { filePath: string; type: string; dataUrl?: string }[]
   ): void {
     if (!sessionId || !this.memoryService) return;
 
@@ -306,7 +307,9 @@ export class CommonAgent implements AIProvider {
       savedContent = JSON.stringify({ type: 'tool_result', toolCallId, output: content });
     }
 
-    this.memoryService.addMessage(sessionId, role, savedContent, keepContext, isOriginal);
+    this.memoryService.addMessage(sessionId, role, savedContent, keepContext, isOriginal,
+      role === 'user' && mediaFiles ? mediaFiles.map(mf => ({ filePath: mf.filePath, type: mf.type })) : undefined
+    );
   }
 
   private pushUserMessage(
@@ -319,12 +322,10 @@ export class CommonAgent implements AIProvider {
         { type: 'text', text: userMessage },
       ];
       for (const mf of mediaFiles) {
-        if (mf.dataUrl) {
-          content.push({
-            type: 'image_url',
-            image_url: { url: mf.dataUrl },
-          });
-        }
+        content.push({
+          type: 'image_url',
+          image_url: { url: mf.filePath },
+        });
       }
       baseMessages.push({ role: 'user', content });
     } else {

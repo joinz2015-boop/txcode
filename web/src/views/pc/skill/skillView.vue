@@ -234,7 +234,7 @@ export default {
       try {
         const res = await api.getProjectPath()
         if (res.success && res.data) {
-          this.projectPath = res.data.projectPath || ''
+          this.projectPath = res.data.path || ''
         }
       } catch (e) {
         console.error('Failed to load project path:', e)

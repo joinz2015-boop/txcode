@@ -1,6 +1,7 @@
 ﻿import { configService as defaultConfigService } from '../../services/config/config.service.js';
 import { sessionService as defaultSessionService } from '../../services/session/session.service.js';
 import { memoryService } from '../../services/memory/index.js';
+import { messageFileRepository } from '../../repository/message_file.repository.js';
 import { ChatInput, ChatOptions, ChatResult, Step } from './codeChat.types.js';
 import type { Session } from '../../entity/session.entity.js';
 import { ConfigService } from '../../services/config/config.service.js';
@@ -59,7 +60,26 @@ export class CodeChatService {
       const session = this.sessionService.get(sessionId);
       const summaryMessageId = session?.summaryMessageId || null;
       const msgs = memoryService.getMessagesForAI(sessionId, summaryMessageId);
+
+      const fileRows = messageFileRepository.getBySessionId(sessionId);
+      const filesByMsg: Map<number, { filePath: string; type: string }[]> = new Map();
+      for (const row of fileRows) {
+        if (!filesByMsg.has(row.message_id)) {
+          filesByMsg.set(row.message_id, []);
+        }
+        filesByMsg.get(row.message_id)!.push({ filePath: row.file_path, type: row.file_type });
+      }
+
       historyMessages = msgs.map(m => {
+        const msgFiles = filesByMsg.get(m.id);
+        if (m.role === 'user' && msgFiles && msgFiles.length > 0) {
+          const content: any[] = [
+            { type: 'text', text: m.content },
+            ...msgFiles.map(mf => ({ type: 'image_url', image_url: { url: mf.filePath } })),
+          ];
+          return { role: 'user' as const, content };
+        }
+
         const chatMsg: ChatMessage = {
           role: m.role as 'user' | 'assistant' | 'system' | 'tool',
           content: m.content,

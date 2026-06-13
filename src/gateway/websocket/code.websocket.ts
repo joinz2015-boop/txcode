@@ -110,22 +110,10 @@ export class CodeWebSocketHandler {
 
     let processedMediaFiles: any[] | undefined;
     if (mediaFiles?.length > 0) {
-      const fs = await import('fs');
-      const path = await import('path');
-      processedMediaFiles = [];
-      for (const mf of mediaFiles) {
-        try {
-          const buffer = fs.readFileSync(mf.filePath);
-          const base64 = buffer.toString('base64');
-          const mimeType = mf.type || 'image/png';
-          processedMediaFiles.push({
-            ...mf,
-            dataUrl: `data:${mimeType};base64,${base64}`,
-          });
-        } catch (e) {
-          console.error('[CodeWebSocket] Failed to read media file:', mf.filePath, e);
-        }
-      }
+      processedMediaFiles = mediaFiles.map((mf: any) => ({
+        filePath: mf.filePath,
+        type: mf.type || 'image/png',
+      }));
     }
 
     try {

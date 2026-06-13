@@ -5,9 +5,11 @@ import {
   ChatResponse,
   ToolDefinition,
   BaseProvider,
+  MultimodalContent,
 } from '../../../entity/ai.entity.js';
 import { logger } from '../../../modules/logger/index.js';
 import { aiLogService } from '../../../services/ai/ai-log.service.js';
+import { resolveImageUrl } from '../../../utils/image_base64.js';
 
 export interface OpenAIConfig {
   apiKey: string;
@@ -62,7 +64,7 @@ export class OpenAIProvider implements BaseProvider {
 
     const requestBody: Record<string, any> = {
       model,
-      messages: messages.map(m => this.formatMessage(m)),
+      messages: await this.resolveMessages(messages),
       temperature,
       max_tokens: maxTokens,
     };
@@ -113,7 +115,7 @@ export class OpenAIProvider implements BaseProvider {
     const url = `${this.client.baseURL}/chat/completions`;
     const requestBody = {
       model,
-      messages: messages.map(m => this.formatMessage(m)),
+      messages: await this.resolveMessages(messages),
       temperature,
       max_tokens: maxTokens,
       stream: true,
@@ -155,9 +157,23 @@ export class OpenAIProvider implements BaseProvider {
   }
 
   private formatMessage(message: ChatMessage): Record<string, any> {
+    let content: any = message.content;
+
+    if (Array.isArray(content)) {
+      content = content.map(c => {
+        if (c.type === 'image_url' && c.image_url) {
+          return {
+            type: 'image_url',
+            image_url: { url: c.image_url.url },
+          };
+        }
+        return c;
+      });
+    }
+
     const formatted: Record<string, any> = {
       role: message.role,
-      content: message.content,
+      content,
     };
 
     if (message.name) formatted.name = message.name;
@@ -166,6 +182,34 @@ export class OpenAIProvider implements BaseProvider {
     if ((message as any).reasoning) formatted.reasoning_content = (message as any).reasoning;
 
     return formatted;
+  }
+
+  private async resolveContentImages(content: any): Promise<any> {
+    if (Array.isArray(content)) {
+      const resolved = [];
+      for (const c of content) {
+        if (c.type === 'image_url' && c.image_url) {
+          resolved.push({
+            type: 'image_url',
+            image_url: { url: await resolveImageUrl(c.image_url.url) },
+          });
+        } else {
+          resolved.push(c);
+        }
+      }
+      return resolved;
+    }
+    return content;
+  }
+
+  private async resolveMessages(messages: ChatMessage[]): Promise<Record<string, any>[]> {
+    const resolved: Record<string, any>[] = [];
+    for (const m of messages) {
+      const formatted = this.formatMessage(m);
+      formatted.content = await this.resolveContentImages(m.content);
+      resolved.push(formatted);
+    }
+    return resolved;
   }
 
   private parseResponse(response: OpenAI.Chat.Completions.ChatCompletion): ChatResponse {

@@ -31,6 +31,7 @@ import { initCustomActionTables } from './init_sql/custom_action.init.js';
 import { initWafGatewayTables } from './init_sql/waf_gateway.init.js';
 import { initSpecTables } from './init_sql/spec.init.js';
 import { initZihaoTables } from './init_sql/zihao.init.js';
+import { initMessageFileTables } from './init_sql/message_file.init.js';
 
 export class DbService {
   private db: SqlJsDatabase | null = null;
@@ -233,6 +234,7 @@ export class DbService {
       () => this.migration015ProviderAuth(),
       () => this.migration016ProviderAuth(),
       () => this.migration017ProxyConfig(),
+      () => this.migration018AddMessageFile(),
     ];
 
     for (let i = 0; i < migrations.length; i++) {
@@ -416,6 +418,11 @@ export class DbService {
   private migration017ProxyConfig(): void {
     if (!this.db) return
     initConfigTables(this.db)
+  }
+
+  private migration018AddMessageFile(): void {
+    if (!this.db) return
+    initMessageFileTables(this.db)
   }
 
   private getTableColumns(tableName: string): string[] {

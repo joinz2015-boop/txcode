@@ -36,7 +36,18 @@
                 </div>
               </div>
               <div v-else-if="item.type === 'chat'" class="flex justify-end">
-                <div  class="user-question">{{ item.content }}</div>
+                <div class="user-question">
+                  <div v-if="item.mediaFiles && item.mediaFiles.length > 0" class="chat-images">
+                    <img
+                      v-for="mf in item.mediaFiles"
+                      :key="mf.filePath"
+                      :src="mf.url || mf.dataUrl || mf.filePath"
+                      class="chat-image-thumb"
+                      @click.stop="openImagePreview(mf)"
+                    />
+                  </div>
+                  <div>{{ item.content }}</div>
+                </div>
               </div>
               <p v-else-if="item.type === 'think'"  v-html="item.renderedContent || renderMarkdown(item.content)"></p>
               <template v-else-if="item.type === 'step'">
@@ -160,6 +171,11 @@
       @close="commandDialogVisible = false"
     />
 
+    <div v-if="previewImage" class="image-lightbox" @click="closeImagePreview">
+      <span class="lightbox-close" @click="closeImagePreview">&times;</span>
+      <img :src="previewImage.url || previewImage.dataUrl || previewImage.filePath" class="lightbox-image" @click.stop />
+    </div>
+
   </div>
 </template>
 
@@ -209,7 +225,8 @@ export default {
       commandDialogVisible: false,
       scrollRafMap: new WeakMap(),
       logSeq: 0,
-      wsUnsubscribers: []
+      wsUnsubscribers: [],
+      previewImage: null,
     }
   },
 
@@ -235,6 +252,11 @@ export default {
 
   async mounted() {
     // 会话状态通过 WebSocket running_sessions 消息自动更新，无需额外请求
+    document.addEventListener('keydown', this.onKeydown)
+  },
+
+  beforeDestroy() {
+    document.removeEventListener('keydown', this.onKeydown)
   },
 
   activated() {
@@ -607,6 +629,9 @@ export default {
         panel.logItems = (res.data || []).map(item => {
           if (item.type === 'think') return this.withLogId(this.createThinkItem(item.content || ''))
           if (item.type === 'step') return this.withLogId(this.createStepItem(item))
+          if (item.type === 'chat' && item.mediaFiles) {
+            return this.withLogId({ type: 'chat', content: item.content, mediaFiles: item.mediaFiles })
+          }
           return this.withLogId(item)
         })
         const userItem = panel.logItems.find(item => item.type === 'chat' || item.type === 'think')
@@ -708,7 +733,7 @@ export default {
       panel.stopping = false
       panel.userQuestion = content
       const snap = this.snapPanelScroll(panel)
-      this.pushLogItem(panel, { type: 'chat', content: finalContent })
+      this.pushLogItem(panel, { type: 'chat', content: finalContent, mediaFiles: mediaFiles.map(f => ({ filePath: f.filePath, type: f.type, dataUrl: f.dataUrl })) })
       this.$nextTick(() => this.schedulePanelScroll(panel, snap))
 
       const mediaFiles = (panel.mediaFiles || []).filter(f => !f.uploading && f.filePath)
@@ -812,6 +837,20 @@ export default {
       const idx = panel.mediaFiles.findIndex(f => f.id === fileId)
       if (idx > -1) {
         panel.mediaFiles.splice(idx, 1)
+      }
+    },
+
+    openImagePreview(mf) {
+      this.previewImage = mf
+    },
+
+    closeImagePreview() {
+      this.previewImage = null
+    },
+
+    onKeydown(e) {
+      if (e.key === 'Escape' && this.previewImage) {
+        this.closeImagePreview()
       }
     },
 
@@ -1005,4 +1044,48 @@ export default {
 .model-selector:hover { color: #60a5fa; }
 .status-action { cursor: pointer; }
 .status-action:hover { color: #60a5fa; }
+
+.image-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(0, 0, 0, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: zoom-out;
+}
+.lightbox-close {
+  position: absolute;
+  top: 20px;
+  right: 30px;
+  color: #fff;
+  font-size: 40px;
+  cursor: pointer;
+  z-index: 1;
+}
+.lightbox-image {
+  max-width: 90vw;
+  max-height: 90vh;
+  object-fit: contain;
+  cursor: default;
+}
+.chat-images {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.chat-image-thumb {
+  width: 120px;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid #3f3f46;
+  cursor: zoom-in;
+  transition: border-color 0.2s;
+}
+.chat-image-thumb:hover {
+  border-color: #60a5fa;
+}
 </style>

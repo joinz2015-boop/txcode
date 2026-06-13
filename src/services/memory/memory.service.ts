@@ -1,5 +1,7 @@
 import { messageRepository, MessageRow } from '../../repository/message.repository.js';
+import { messageFileRepository } from '../../repository/message_file.repository.js';
 import type { Message } from '../../entity/message.entity.js';
+import type { MessageFile } from '../../entity/message_file.entity.js';
 
 export class MemoryService {
   addMessage(
@@ -7,9 +9,23 @@ export class MemoryService {
     role: 'user' | 'assistant' | 'system' | 'tool',
     content: string,
     keepContext: boolean = true,
-    isOriginal: boolean = false
+    isOriginal: boolean = false,
+    mediaFiles?: { filePath: string; type: string }[]
   ): number {
-    return messageRepository.insert({ sessionId, role, content, keepContext, isOriginal });
+    const messageId = messageRepository.insert({ sessionId, role, content, keepContext, isOriginal });
+
+    if (mediaFiles && mediaFiles.length > 0 && messageId > 0) {
+      for (const mf of mediaFiles) {
+        messageFileRepository.insert({
+          messageId,
+          sessionId,
+          filePath: mf.filePath,
+          fileType: mf.type || 'image/png',
+        });
+      }
+    }
+
+    return messageId;
   }
 
   getMessage(id: number): Message | undefined {
@@ -48,7 +64,20 @@ export class MemoryService {
     return messages;
   }
 
+  getMessageFiles(sessionId: string): MessageFile[] {
+    const rows = messageFileRepository.getBySessionId(sessionId);
+    return rows.map(r => ({
+      id: r.id,
+      messageId: r.message_id,
+      sessionId: r.session_id,
+      filePath: r.file_path,
+      fileType: r.file_type,
+      createdAt: r.created_at,
+    }));
+  }
+
   deleteMessage(id: number): void {
+    messageFileRepository.deleteByMessageId(id);
     messageRepository.deleteById(id);
   }
 

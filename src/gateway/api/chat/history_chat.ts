@@ -6,10 +6,28 @@ export async function GET(req: Request, res: Response) {
   if (!sessionId) return res.status(400).json({ success: false, error: 'sessionId 必填' });
   try {
     const messages = memoryService.getAllMessages(sessionId);
+    const messageFiles = memoryService.getMessageFiles(sessionId);
+    const filesByMsg: Map<number, { filePath: string; url: string; type: string }[]> = new Map();
+    for (const mf of messageFiles) {
+      if (!filesByMsg.has(mf.messageId)) {
+        filesByMsg.set(mf.messageId, []);
+      }
+      filesByMsg.get(mf.messageId)!.push({
+        filePath: mf.filePath,
+        url: `/api/chat/file_download?filePath=${encodeURIComponent(mf.filePath)}`,
+        type: mf.fileType,
+      });
+    }
     const result: any[] = [];
     for (const msg of messages) {
       if (msg.role === 'user' && (msg as any).isOriginal) {
-        result.push({ type: 'chat', role: 'user', content: msg.content });
+        const userFiles = filesByMsg.get(msg.id);
+        result.push({
+          type: 'chat',
+          role: 'user',
+          content: msg.content,
+          mediaFiles: userFiles || [],
+        });
       }
       if (msg.role === 'assistant') {
         let thought = '';
