@@ -18,7 +18,7 @@ copyDirFiles('src/core/tools/provider', 'dist/core/tools/provider', f => f.endsW
 copyFile('src/services/skill/skill.txt', 'dist/services/skill/skill.txt');
 copyFile('src/core/ai/agents/common/prompt/role.txt', 'dist/core/ai/agents/common/prompt/role.txt');
 
-const agents = ['code', 'chat', 'task', 'mem', 'skill', 'caller'];
+const agents = ['code', 'chat', 'task', 'mem', 'skill', 'caller', 'summarizer'];
 agents.forEach(agent => {
   copyFile(
     `src/core/ai/agents/${agent}/prompts/role.txt`,

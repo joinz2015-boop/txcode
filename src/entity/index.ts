@@ -15,3 +15,4 @@ export type { ProjectKnowledgeRow } from './memory.entity.js';
 export type { SkillRepoRow } from './skill.entity.js';
 export type { SpecRepoRow, SpecRepository, SpecRepositoryInput, Spec, SpecMetadata } from './spec.entity.js';
 export type { ContextConfig, TxConfig } from './tx-config.entity.js';
+export type { SummarizerResult, SummarizerOptions, CompactionCheckResult } from './summarizer.entity.js';

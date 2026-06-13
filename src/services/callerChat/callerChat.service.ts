@@ -17,7 +17,7 @@ import type { Session } from '../../entity/session.entity.js'
 import { ConfigService } from '../../services/config/config.service.js'
 import { createProvider } from '../../core/ai/provider/factory.js'
 import { CallerAgent } from '../../core/ai/agents/caller/caller.agent.js'
-import { SummarizerService } from '../../services/ai/summarizer/index.js'
+import { SummarizerAgent } from '../../core/ai/agents/summarizer/summarizer.agent.js'
 import { ChatMessage, BaseProvider } from '../../core/ai/ai.types.js'
 import { ExtendedToolDef } from '../../core/ai/agents/caller/types.js'
 
@@ -171,7 +171,7 @@ export class CallerChatService {
 
     const provider = agentSession.provider
 
-    const summarizer = new SummarizerService(
+    const summarizer = new SummarizerAgent(
       this.sessionService,
       memoryService,
       this.configService

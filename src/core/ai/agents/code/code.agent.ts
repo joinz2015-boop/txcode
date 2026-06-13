@@ -13,7 +13,7 @@ import {
 } from '../../provider/base.js';
 import type { MemoryService } from '../../../../services/memory/memory.service.js';
 import { buildAvailableSkillsPrompt } from '../../../../services/skill/skill.tool.js';
-import type { SummarizerService } from '../../../ai/summarizer/index.js';
+import type { SummarizerAgent } from '../summarizer/summarizer.agent.js';
 import type { SessionService } from '../../../../services/session/session.service.js';
 import { specInjector } from '../../../../modules/spec/index.js';
 import { hooks } from '../../../../modules/hooks/index.js';
@@ -40,11 +40,11 @@ async function buildCodePrompt(
   const platform = options?.platform || process.platform;
 
   const workdir = options?.workdir || process.cwd();
-  
+
   const platformName = platform === 'win32' ? 'Windows'
     : platform === 'darwin' ? 'macOS'
-    : platform === 'linux' ? 'Linux'
-    : platform;
+      : platform === 'linux' ? 'Linux'
+        : platform;
 
   const skillsPrompt = await buildAvailableSkillsPrompt();
   const roleTemplate = await loadRoleTemplate();
@@ -78,7 +78,7 @@ export interface CodeAgentConfig {
   projectPath?: string;
   sessionId?: string;
   memoryService?: MemoryService;
-  summarizer?: SummarizerService;
+  summarizer?: SummarizerAgent;
   sessionService?: SessionService;
 }
 
@@ -92,7 +92,7 @@ export class CodeAgent implements AIProvider {
   private projectPath?: string;
   private sessionId?: string;
   private memoryService?: MemoryService;
-  private summarizer?: SummarizerService;
+  private summarizer?: SummarizerAgent;
   private sessionService?: SessionService;
   private userMessage: string = '';
   private providerTools: any[] = [];
@@ -121,7 +121,7 @@ export class CodeAgent implements AIProvider {
     for (const t of this.providerTools) {
       this.providerToolsMap.set(t.function.name, t);
     }
-    
+
     const allTools = await getProviderTools();
     for (const t of allTools) {
       this.rawToolsMap.set(t.name, t);
@@ -133,7 +133,7 @@ export class CodeAgent implements AIProvider {
 
     const builtinTools = this.providerTools;
     const systemPrompt = await buildCodePrompt(this.maxIterations, {
-      workdir: this.projectPath ,
+      workdir: this.projectPath,
     });
 
     if (options?.historyMessages && options.historyMessages.length > 0) {
@@ -147,16 +147,16 @@ export class CodeAgent implements AIProvider {
     const messageCount = options?.historyMessages?.length || 0;
 
     if (specInjector.shouldInject(messageCount)) {
-      const injectedMessage = specInjector.injectIntoMessage(userMessage, this.projectPath );
+      const injectedMessage = specInjector.injectIntoMessage(userMessage, this.projectPath);
       this.pushUserMessage(baseMessages, injectedMessage, options?.mediaFiles);
     } else {
       const firstUserIndex = baseMessages.findIndex(m => m.role === 'user');
       if (firstUserIndex >= 0) {
         const originalFirstUser = baseMessages[firstUserIndex].content;
         const textContent = typeof originalFirstUser === 'string' ? originalFirstUser : (originalFirstUser.find(c => c.type === 'text') as any)?.text || '';
-        const reinjected = specInjector.injectIntoMessage(textContent, this.projectPath );
+        const reinjected = specInjector.injectIntoMessage(textContent, this.projectPath);
         baseMessages[firstUserIndex].content = reinjected;
-      } 
+      }
       this.pushUserMessage(baseMessages, userMessage, options?.mediaFiles);
     }
 
@@ -190,9 +190,9 @@ export class CodeAgent implements AIProvider {
       }
 
       if (response.usage) {
-        totalUsage.promptTokens = response.usage.promptTokens ;
-        totalUsage.completionTokens = response.usage.completionTokens ;
-        totalUsage.totalTokens = response.usage.totalTokens ;
+        totalUsage.promptTokens = response.usage.promptTokens;
+        totalUsage.completionTokens = response.usage.completionTokens;
+        totalUsage.totalTokens = response.usage.totalTokens;
       }
 
       if (response.finishReason === 'stop' && response.content) {
@@ -333,7 +333,7 @@ export class CodeAgent implements AIProvider {
         });
 
         const session = this.sessionService?.get(this.sessionId);
-        
+
         const summaryMessages = this.memoryService?.getMessagesForAI(
           this.sessionId,
           session?.summaryMessageId || null
@@ -346,7 +346,7 @@ export class CodeAgent implements AIProvider {
         }
         baseMessages.push(...currentToolResults);
       }
-} catch (error) {
+    } catch (error) {
       console.error('[AutoCompact] Error:', error);
     }
   }
@@ -362,24 +362,24 @@ export class CodeAgent implements AIProvider {
 
     if (type === 'compact') {
       this.roundCount = 0;
-      hooks.queue.emit('before_compact', { 
-        ...baseMessage, 
-        trigger: 'before_compact' 
+      hooks.queue.emit('before_compact', {
+        ...baseMessage,
+        trigger: 'before_compact'
       });
     } else if (type === 'round') {
       this.roundCount++;
       if (this.roundCount >= 10) {
-        hooks.queue.emit('round', { 
-          ...baseMessage, 
+        hooks.queue.emit('round', {
+          ...baseMessage,
           trigger: 'round',
           metadata: { ...baseMessage.metadata, roundCount: this.roundCount }
         });
         this.roundCount = 0;
       }
     } else if (type === 'end') {
-      hooks.queue.emit('chat_end', { 
-        ...baseMessage, 
-        trigger: 'chat_end' 
+      hooks.queue.emit('chat_end', {
+        ...baseMessage,
+        trigger: 'chat_end'
       });
     }
   }
@@ -416,7 +416,7 @@ export class CodeAgent implements AIProvider {
       for (const t of this.providerTools) {
         this.providerToolsMap.set(t.function.name, t);
       }
-      
+
       const allTools = await getProviderTools();
       for (const t of allTools) {
         this.rawToolsMap.set(t.name, t);

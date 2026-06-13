@@ -6,7 +6,7 @@ import { sessionService } from '../../services/session/index.js';
 import { configService } from '../../services/config/index.js';
 import { skillsManager } from '../../services/skill/index.js';
 import { memoryService } from '../../services/memory/index.js';
-import { SummarizerService } from '../../services/ai/summarizer/index.js';
+import { SummarizerAgent } from '../../core/ai/agents/summarizer/summarizer.agent.js';
 import { dreamService } from '../../services/dream/dream.service.js';
 import { CommandResult } from './cli.types.js';
 
@@ -14,7 +14,7 @@ export type CommandHandler = (args: string[]) => CommandResult | Promise<Command
 
 const commands: Map<string, CommandHandler> = new Map();
 
-const summarizerService = new SummarizerService(sessionService, memoryService, configService);
+const summarizerService = new SummarizerAgent(sessionService, memoryService, configService);
 
 /**
  * 注册命令

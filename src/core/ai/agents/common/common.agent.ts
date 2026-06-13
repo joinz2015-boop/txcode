@@ -12,7 +12,7 @@ import {
   ProviderTokenUsage,
 } from '../../provider/base.js';
 import type { MemoryService } from '../../../../services/memory/memory.service.js';
-import type { SummarizerService } from '../../summarizer/index.js';
+import type { SummarizerAgent } from '../summarizer/summarizer.agent.js';
 import type { SessionService } from '../../../../services/session/session.service.js';
 import { specInjector } from '../../../../modules/spec/index.js';
 
@@ -23,7 +23,7 @@ export interface CommonAgentConfig {
   projectPath?: string;
   sessionId?: string;
   memoryService?: MemoryService;
-  summarizer?: SummarizerService;
+  summarizer?: SummarizerAgent;
   sessionService?: SessionService;
 }
 
@@ -36,7 +36,7 @@ export class CommonAgent implements AIProvider {
   private projectPath?: string;
   private sessionId?: string;
   private memoryService?: MemoryService;
-  private summarizer?: SummarizerService;
+  private summarizer?: SummarizerAgent;
   private sessionService?: SessionService;
   private userMessage: string = '';
   private providerTools: any[] = [];

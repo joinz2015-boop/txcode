@@ -20,7 +20,7 @@ import {
 } from '../../provider/base.js'
 import { buildAvailableSkillsPrompt } from '../../../../services/skill/skill.tool.js'
 import type { MemoryService } from '../../../../services/memory/memory.service.js'
-import type { SummarizerService } from '../../../ai/summarizer/index.js'
+import type { SummarizerAgent } from '../summarizer/summarizer.agent.js'
 import type { SessionService } from '../../../../services/session/session.service.js'
 import { ExtendedToolDef } from './types.js'
 import { CALLER_DEFAULT_TOOLS } from './agent_tool.js'
@@ -76,7 +76,7 @@ export interface CallerAgentConfig {
   projectPath?: string
   sessionId?: string
   memoryService?: MemoryService
-  summarizer?: SummarizerService
+  summarizer?: SummarizerAgent
   sessionService?: SessionService
   callbackUrl: string
   extendedTools: ExtendedToolDef[]
@@ -102,7 +102,7 @@ export class CallerAgent implements AIProvider {
   private projectPath?: string
   private sessionId?: string
   private memoryService?: MemoryService
-  private summarizer?: SummarizerService
+  private summarizer?: SummarizerAgent
   private sessionService?: SessionService
   private userMessage: string = ''
   /** Function Calling 格式的工具定义（供 AI API 使用） */

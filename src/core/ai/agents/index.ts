@@ -6,6 +6,7 @@ export { SkillAgent } from './skill/skill.agent.js';
 export { CallerAgent } from './caller/caller.agent.js';
 export { DreamAgent } from './dream/dream.agent.js';
 export { CommonAgent } from './common/common.agent.js';
+export { SummarizerAgent } from './summarizer/summarizer.agent.js';
 
 export { CODE_TOOLS } from './code/agent_tool.js';
 export { CHAT_TOOLS } from './chat/agent_tool.js';
@@ -14,3 +15,4 @@ export { MEM_TOOLS } from './mem/agent_tool.js';
 export { SKILL_TOOLS } from './skill/agent_tool.js';
 export { CALLER_DEFAULT_TOOLS } from './caller/agent_tool.js';
 export { DREAM_TOOLS } from './dream/agent_tool.js';
+export { SUMMARIZER_TOOLS } from './summarizer/agent_tool.js';

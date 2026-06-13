@@ -1,25 +1,29 @@
-/**
- * Summarizer 服务
- * 
- * 职责：
- * - 检查是否需要压缩
- * - 执行上下文压缩
- * - 生成会话摘要
- */
+import { ConfigService, configService } from '../../../../services/config/config.service.js';
+import { createProvider } from '../../provider/factory.js';
+import { BaseProvider } from '../../ai.types.js';
+import { SummarizerResult, SummarizerOptions, CompactionCheckResult } from '../../../../entity/summarizer.entity.js';
+import { SessionService } from '../../../../services/session/session.service.js';
+import { MemoryService } from '../../../../services/memory/memory.service.js';
+import txConfig from '../../../../config/tx.config.js';
 
-import { ConfigService, configService } from '../../config/config.service.js';
-import { createProvider } from '../../../core/ai/provider/factory.js';
-import { BaseProvider } from '../../../core/ai/ai.types.js';
-import { buildSummarizerMessages } from './summarizer.prompts.js';
-import { SummarizerResult, SummarizerOptions, CompactionCheckResult } from './summarizer.types.js';
-import { SessionService } from '../../../services/session/session.service.js';
-import { MemoryService } from '../../memory/memory.service.js';
-import txConfig from '../../../config/tx.config.js';
+async function loadRoleTemplate(): Promise<string> {
+  try {
+    const fs = await import('fs/promises');
+    const path = await import('path');
+    const { fileURLToPath } = await import('url');
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = path.dirname(__filename);
+    return await fs.readFile(path.join(__dirname, 'prompts', 'role.txt'), 'utf-8');
+  } catch {
+    return '请对上面的对话内容进行详细但简洁的摘要。重点关注对继续对话有帮助的信息。';
+  }
+}
 
-export class SummarizerService {
+export class SummarizerAgent {
   private configService: ConfigService;
   private sessionService: SessionService;
   private memoryService: MemoryService;
+  private roleTemplate: string | null = null;
 
   constructor(
     sessionService: SessionService,
@@ -29,6 +33,13 @@ export class SummarizerService {
     this.sessionService = sessionService;
     this.memoryService = memoryService;
     this.configService = configSvc || configService;
+  }
+
+  private async getRoleTemplate(): Promise<string> {
+    if (!this.roleTemplate) {
+      this.roleTemplate = await loadRoleTemplate();
+    }
+    return this.roleTemplate;
   }
 
   private getProvider(): BaseProvider {
@@ -113,7 +124,17 @@ export class SummarizerService {
           return { role: m.role, content };
         });
 
-      const summarizerMessages = buildSummarizerMessages(chatMessages);
+      const roleTemplate = await this.getRoleTemplate();
+      const summarizerMessages = [
+        ...chatMessages.map(m => ({
+          role: m.role as 'user' | 'assistant' | 'system',
+          content: m.content,
+        })),
+        {
+          role: 'user' as const,
+          content: roleTemplate,
+        },
+      ];
 
       const provider = this.getProvider();
       const response = await provider.chat(summarizerMessages, {

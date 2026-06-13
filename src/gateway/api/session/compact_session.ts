@@ -2,9 +2,9 @@ import { Request, Response } from 'express';
 import { sessionService } from '../../../services/session/index.js';
 import { memoryService } from '../../../services/memory/index.js';
 import { configService } from '../../../services/config/index.js';
-import { SummarizerService } from '../../../services/ai/summarizer/index.js';
+import { SummarizerAgent } from '../../../core/ai/agents/summarizer/summarizer.agent.js';
 
-const summarizerService = new SummarizerService(sessionService, memoryService, configService);
+const summarizerService = new SummarizerAgent(sessionService, memoryService, configService);
 
 export async function POST(req: Request, res: Response) {
   const id = req.body.id as string;

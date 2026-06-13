@@ -24,7 +24,7 @@ import { ToolService, toolService as defaultToolService } from '../../core/tools
 import { MemoryService } from '../memory/memory.service.js';
 import { ContextService } from '../context/context.service.js';
 import { SessionService, sessionService as defaultSessionService } from '../session/session.service.js';
-import { SummarizerService } from './summarizer/index.js';
+import { SummarizerAgent } from '../../core/ai/agents/summarizer/summarizer.agent.js';
 import txConfig from '../../config/tx.config.js';
 
 /**
@@ -199,7 +199,7 @@ export class AIService {
     }
 
     const memoryService = options?.memoryService || new MemoryService();
-    const summarizer = new SummarizerService(
+    const summarizer = new SummarizerAgent(
       this.sessionService,
       memoryService,
       this.configService
