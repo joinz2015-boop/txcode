@@ -733,10 +733,10 @@ export default {
       panel.stopping = false
       panel.userQuestion = content
       const snap = this.snapPanelScroll(panel)
+      const mediaFiles = (panel.mediaFiles || []).filter(f => !f.uploading && f.filePath)
       this.pushLogItem(panel, { type: 'chat', content: finalContent, mediaFiles: mediaFiles.map(f => ({ filePath: f.filePath, type: f.type, dataUrl: f.dataUrl })) })
       this.$nextTick(() => this.schedulePanelScroll(panel, snap))
 
-      const mediaFiles = (panel.mediaFiles || []).filter(f => !f.uploading && f.filePath)
       ws.send('chat', {
         message: finalContent,
         sessionId: panel.session?.id,
