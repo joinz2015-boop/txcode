@@ -6,7 +6,7 @@
  * 支持：HTTP REST API、SSE 流式响应
  */
 
-import { wsManager } from './websocket/websocket_client.js';
+import { wsManager } from './websocket/websocket.js';
 
 const API_BASE = '/api';
 

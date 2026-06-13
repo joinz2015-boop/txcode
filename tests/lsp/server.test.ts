@@ -2,7 +2,7 @@
  * LSP 服务器定义测试
  */
 
-import { servers, getServer, getAllServers, getServersByExtension } from "../../src/lsp/server";
+import { servers, getServer, getAllServers, getServersByExtension } from "../../src/core/lsp/server";
 
 describe("LSP Servers", () => {
   test("servers - 应包含所有默认服务器", () => {

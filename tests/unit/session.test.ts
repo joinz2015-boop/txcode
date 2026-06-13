@@ -2,7 +2,7 @@
  * Session 模块测试
  */
 
-import { DbService } from '../../src/modules/db/db.service';
+import { DbService } from '../../src/core/db/db.service';
 import { SessionService } from '../../src/modules/session/session.service';
 
 describe('Session 模块', () => {

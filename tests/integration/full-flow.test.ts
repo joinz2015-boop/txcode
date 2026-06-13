@@ -6,11 +6,11 @@
 
 import * as path from 'path';
 import * as fs from 'fs';
-import { DbService } from '../../src/modules/db/db.service';
+import { DbService } from '../../src/core/db/db.service';
 import { SessionService } from '../../src/modules/session/session.service';
-import { MemoryService } from '../../src/modules/memory/memory.service';
-import { ConfigService } from '../../src/modules/config/config.service';
-import { ToolService } from '../../src/modules/tools/tool.service';
+import { MemoryService } from '../../src/core/memory/memory.service';
+import { ConfigService } from '../../src/core/config/config.service';
+import { ToolService } from '../../src/core/tools/tool.service';
 import { SkillsManager } from '../../src/modules/skill/skills.manager';
 
 describe('集成测试', () => {

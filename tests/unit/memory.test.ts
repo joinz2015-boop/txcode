@@ -2,9 +2,9 @@
  * Memory 模块测试
  */
 
-import { DbService } from '../../src/modules/db/db.service';
+import { DbService } from '../../src/core/db/db.service';
 import { SessionService } from '../../src/modules/session/session.service';
-import { MemoryService } from '../../src/modules/memory/memory.service';
+import { MemoryService } from '../../src/core/memory/memory.service';
 
 describe('Memory 模块', () => {
   let dbService: DbService;

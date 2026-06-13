@@ -3,8 +3,8 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 import { Tool, ToolContext, ToolResult } from '../tool.types.js'
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const glob_description = fs.readFileSync(path.join(__dirname, 'glob.txt'), 'utf-8')
+const currentDir = import.meta.dirname
+const glob_description = fs.readFileSync(path.join(currentDir, 'glob.txt'), 'utf-8')
 
 const IGNORE_DIRS = ['node_modules', '.git', 'dist', 'build', '.next', 'coverage', '.cache', '__pycache__']
 

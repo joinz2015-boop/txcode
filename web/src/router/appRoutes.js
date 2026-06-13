@@ -1,8 +1,8 @@
-import AppLayout from '../views/app/AppLayout.vue'
-import IndexViewApp from '../views/app/IndexViewApp.vue'
-import AppFilesView from '../views/app/FilesViewApp.vue'
-import ChatViewApp from '../views/app/ChatViewApp.vue'
-import Settings from '../views/pc/Settings.vue'
+import AppLayout from '../layouts/AppLayout.vue'
+import IndexViewApp from '../views/app/home/indexViewApp.vue'
+import AppFilesView from '../views/app/file/fileViewApp.vue'
+import ChatViewApp from '../views/app/chat/chatViewApp.vue'
+import Settings from '../views/pc/settings/settingsView.vue'
 
 export default {
   path: '/views/app',
@@ -35,13 +35,13 @@ export default {
     {
       path: 'GitChangesApp',
       name: 'app-GitChangesApp',
-      component: () => import('../views/app/GitChangesApp.vue'),
+      component: () => import('../views/app/git/gitChangesApp.vue'),
       meta: { title: 'Git 变更' },
     },
     {
       path: 'DevWorkflowViewApp',
       name: 'app-DevWorkflowViewApp',
-      component: () => import('../views/app/DevWorkflowViewApp.vue'),
+      component: () => import('../views/app/workflow/devWorkflowViewApp.vue'),
       meta: { title: '软件研发' },
     },
     {

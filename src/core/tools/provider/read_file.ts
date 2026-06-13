@@ -4,8 +4,8 @@ import { fileURLToPath } from 'url'
 import { Tool, ToolContext, ToolResult } from '../tool.types.js'
 import { readFile } from 'fs/promises'
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const read_file_description = fs.readFileSync(path.join(__dirname, 'read_file.txt'), 'utf-8')
+const currentDir = import.meta.dirname
+const read_file_description = fs.readFileSync(path.join(currentDir, 'read_file.txt'), 'utf-8')
 
 const DEFAULT_LIMIT = 2000
 const MAX_LINE_LENGTH = 2000

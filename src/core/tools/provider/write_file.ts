@@ -3,8 +3,8 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 import { Tool, ToolContext, ToolResult } from '../tool.types.js'
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const write_file_description = fs.readFileSync(path.join(__dirname, 'write_file.txt'), 'utf-8')
+const currentDir = import.meta.dirname
+const write_file_description = fs.readFileSync(path.join(currentDir, 'write_file.txt'), 'utf-8')
 
 export const writeFileTool: Tool = {
   name: 'write_file',

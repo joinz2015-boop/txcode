@@ -3,8 +3,8 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 import { Tool, ToolContext, ToolResult } from '../tool.types.js'
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const todo_read_description = fs.readFileSync(path.join(__dirname, 'todo_read.txt'), 'utf-8')
+const currentDir = import.meta.dirname
+const todo_read_description = fs.readFileSync(path.join(currentDir, 'todo_read.txt'), 'utf-8')
 
 const todoStore = new Map<string, { content: string; status: string; priority: string }[]>()
 

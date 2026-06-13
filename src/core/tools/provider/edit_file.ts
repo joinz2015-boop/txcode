@@ -4,8 +4,8 @@ import { fileURLToPath } from 'url'
 import { Tool, ToolContext, ToolResult } from '../tool.types.js'
 import { createTwoFilesPatch, diffLines } from 'diff'
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const edit_file_description = fs.readFileSync(path.join(__dirname, 'edit_file.txt'), 'utf-8')
+const currentDir = import.meta.dirname
+const edit_file_description = fs.readFileSync(path.join(currentDir, 'edit_file.txt'), 'utf-8')
 
 type Replacer = (content: string, find: string) => Generator<string, void, unknown>
 

@@ -10,7 +10,7 @@
 import Vue from 'vue';
 import ElementUI from 'element-ui';
 import 'element-ui/lib/theme-chalk/index.css';
-import './style.css';
+import './styles/global.css';
 import App from './App.vue';
 import router from './router/index.js';
 import { api } from './api/index.js';

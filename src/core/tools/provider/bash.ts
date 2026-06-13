@@ -5,8 +5,8 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 import which from 'which'
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const bash_description = fs.readFileSync(path.join(__dirname, 'bash.txt'), 'utf-8')
+const currentDir = import.meta.dirname
+const bash_description = fs.readFileSync(path.join(currentDir, 'bash.txt'), 'utf-8')
 
 const DEFAULT_TIMEOUT = 120000
 const MAX_BYTES = 50 * 1024

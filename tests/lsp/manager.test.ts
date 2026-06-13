@@ -4,9 +4,9 @@
 
 import * as fs from "fs";
 import * as path from "path";
-import { DbService } from "../../src/modules/db/db.service";
-import { LSPManager } from "../../src/lsp/manager";
-import { lspServerTable, defaultLSPServers, insertLSPServerSQL } from "../../src/lsp/sql";
+import { DbService } from "../../src/core/db/db.service";
+import { LSPManager } from "../../src/core/lsp/manager";
+import { lspServerTable, defaultLSPServers, insertLSPServerSQL } from "../../src/core/lsp/sql";
 
 describe("LSPManager", () => {
   let testDbPath: string;

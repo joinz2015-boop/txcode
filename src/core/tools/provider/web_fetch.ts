@@ -3,8 +3,8 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 import { Tool, ToolContext, ToolResult } from '../tool.types.js'
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const web_fetch_description = fs.readFileSync(path.join(__dirname, 'web_fetch.txt'), 'utf-8')
+const currentDir = import.meta.dirname
+const web_fetch_description = fs.readFileSync(path.join(currentDir, 'web_fetch.txt'), 'utf-8')
 
 export const webFetchTool: Tool = {
   name: 'web_fetch',

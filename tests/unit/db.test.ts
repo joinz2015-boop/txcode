@@ -10,7 +10,7 @@
 import type { Database } from 'sql.js';
 import * as fs from 'fs';
 import * as path from 'path';
-import { DbService } from '../../src/modules/db/db.service';
+import { DbService } from '../../src/core/db/db.service';
 
 describe('DB 模块', () => {
   let dbService: DbService;

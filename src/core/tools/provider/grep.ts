@@ -3,8 +3,8 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 import { Tool, ToolContext, ToolResult } from '../tool.types.js'
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const grep_description = fs.readFileSync(path.join(__dirname, 'grep.txt'), 'utf-8')
+const currentDir = import.meta.dirname
+const grep_description = fs.readFileSync(path.join(currentDir, 'grep.txt'), 'utf-8')
 
 const IGNORE_DIRS = ['node_modules', '.git', 'dist', 'build', '.next', 'coverage', '.cache']
 const MAX_RESULTS = 100

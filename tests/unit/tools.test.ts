@@ -4,7 +4,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { ToolService } from '../../src/modules/tools/tool.service';
+import { ToolService } from '../../src/core/tools/tool.service';
 
 describe('Tools Module', () => {
   let toolService: ToolService;
@@ -24,8 +24,8 @@ describe('Tools Module', () => {
   });
 
   describe('Built-in tools', () => {
-    test('should load 6 built-in tools', () => {
-      const tools = toolService.getAll();
+    test('should load 6 built-in tools', async () => {
+      const tools = await toolService.getAll();
       expect(tools.length).toBe(6);
     });
 
@@ -203,8 +203,8 @@ describe('Tools Module', () => {
       expect(toolService.has('temp_tool')).toBe(false);
     });
 
-    test('getToolDefinitions() should return tool definitions', () => {
-      const definitions = toolService.getToolDefinitions();
+    test('getToolDefinitions() should return tool definitions', async () => {
+      const definitions = await toolService.getToolDefinitions();
       expect(definitions.length).toBe(6);
       expect(definitions[0]).toHaveProperty('type', 'function');
       expect(definitions[0].function).toHaveProperty('name');

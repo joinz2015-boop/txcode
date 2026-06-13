@@ -64,7 +64,7 @@
 </template>
 
 <script>
-import { deployApi } from '../../../api/deploy/deployApi'
+import { deployApi } from '../../../api/deploy/deploy.js'
 
 export default {
   name: 'DeployImport',

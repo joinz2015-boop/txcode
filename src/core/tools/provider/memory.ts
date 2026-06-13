@@ -3,8 +3,8 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 import { Tool, ToolContext, ToolResult } from '../tool.types.js'
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const memory_description = fs.readFileSync(path.join(__dirname, 'memory.txt'), 'utf-8')
+const currentDir = import.meta.dirname
+const memory_description = fs.readFileSync(path.join(currentDir, 'memory.txt'), 'utf-8')
 
 const MEMORY_FILE = 'MEMORY.md'
 const MEMORY_LIMIT = 2200

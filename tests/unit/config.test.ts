@@ -2,8 +2,8 @@
  * Config 模块测试
  */
 
-import { DbService } from '../../src/modules/db/db.service';
-import { ConfigService } from '../../src/modules/config/config.service';
+import { DbService } from '../../src/core/db/db.service';
+import { ConfigService } from '../../src/core/config/config.service';
 
 describe('Config 模块', () => {
   let dbService: DbService;

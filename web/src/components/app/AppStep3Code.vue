@@ -170,8 +170,8 @@
 
 <script>
 import { marked } from 'marked'
-import { ws } from '../../api/websocket/websocket_client.js'
-import * as sessions from '../../api/sessions.js'
+import { ws } from '../../api/websocket/websocket.js'
+import * as sessions from '../../api/session/session.js'
 import { api } from '../../api'
 import FileSelectDrawer from './FileSelectDrawer.vue'
 

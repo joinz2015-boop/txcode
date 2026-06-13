@@ -8,8 +8,8 @@ import { fileURLToPath } from "url"
 import { Tool, ToolContext, ToolResult } from '../tool.types.js'
 import { LSPManager, LSPClient, getServersByExtension } from "../../lsp/index.js"
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const lsp_description = fs.readFileSync(path.join(__dirname, 'lsp.txt'), 'utf-8')
+const currentDir = import.meta.dirname
+const lsp_description = fs.readFileSync(path.join(currentDir, 'lsp.txt'), 'utf-8')
 
 export const lspTool: Tool = {
   name: "lsp",

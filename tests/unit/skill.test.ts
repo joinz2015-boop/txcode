@@ -187,7 +187,7 @@ Demo content.`
 
   describe('AI 集成', () => {
     test('buildAvailableSkillsPrompt 应该生成 XML 格式', async () => {
-      const prompt = buildAvailableSkillsPrompt();
+      const prompt = await buildAvailableSkillsPrompt();
 
       expect(prompt).toContain('<available_skills>');
       expect(prompt).toContain('</available_skills>');

@@ -2,7 +2,7 @@
  * LSP 下载管理器测试
  */
 
-import { LSPDownloader } from "../../src/lsp/downloader";
+import { LSPDownloader } from "../../src/core/lsp/downloader";
 
 describe("LSPDownloader", () => {
   test("getDownloadURL - Java 应返回正确的下载 URL", () => {

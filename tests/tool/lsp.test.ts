@@ -2,7 +2,13 @@
  * LspTool 测试
  */
 
-import { lspTool } from "../../src/tool/lsp";
+import { lspTool } from "../../src/core/tools/provider/lsp.js";
+import { ToolContext } from "../../src/core/tools/tool.types.js";
+
+const mockContext: ToolContext = {
+  sessionId: "test-session",
+  workDir: "/tmp/test",
+};
 
 describe("LspTool", () => {
   test("lspTool - 应有正确的名称", () => {
@@ -18,18 +24,18 @@ describe("LspTool", () => {
     expect(lspTool.parameters.properties).toHaveProperty("action");
   });
 
-  test("lspTool.execute - 缺少 action 应返回错误", async () => {
-    const result = await lspTool.execute({} as any);
-    const parsed = JSON.parse(result);
-    expect(parsed).toHaveProperty("error");
+  test("lspTool.execute - 缺少 filePath 应返回错误", async () => {
+    const result = await lspTool.execute({ action: "hover" } as any, mockContext);
+    expect(result.success).toBe(false);
+    expect(result.error).toBeTruthy();
   });
 
   test("lspTool.execute - workspaceSymbol 缺少 query 应返回错误", async () => {
     const result = await lspTool.execute({
       action: "workspaceSymbol"
-    } as any);
-    const parsed = JSON.parse(result);
-    expect(parsed).toHaveProperty("error");
+    } as any, mockContext);
+    expect(result.success).toBe(false);
+    expect(result.error).toBeTruthy();
   });
 
   test("lspTool.execute - 不存在的扩展名应返回错误", async () => {
@@ -38,8 +44,8 @@ describe("LspTool", () => {
       filePath: "/path/to/file.unknown",
       line: 1,
       character: 0
-    } as any);
-    const parsed = JSON.parse(result);
-    expect(parsed).toHaveProperty("error");
+    } as any, mockContext);
+    expect(result.success).toBe(false);
+    expect(result.error).toBeTruthy();
   });
 });

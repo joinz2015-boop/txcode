@@ -2,7 +2,7 @@
  * LSP 类型测试
  */
 
-import { LSPServerStatus, LSPServerInfo, LSPConfig } from "../../src/lsp/types";
+import { LSPServerStatus, LSPServerInfo, LSPConfig } from "../../src/core/lsp/types";
 
 describe("LSP Types", () => {
   test("LSPServerStatus 枚举值正确", () => {

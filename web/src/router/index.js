@@ -4,11 +4,11 @@
 
 import Vue from 'vue';
 import VueRouter from 'vue-router';
-import CodeView from '../views/pc/codeView.vue';
-import Settings from '../views/pc/Settings.vue';
-import Files from '../views/pc/Files.vue';
-import Skills from '../views/pc/Skills.vue';
-import DbView from '../views/pc/DbView.vue';
+import CodeView from '../views/pc/chat/codeView.vue';
+import Settings from '../views/pc/settings/settingsView.vue';
+import Files from '../views/pc/file/fileView.vue';
+import Skills from '../views/pc/skill/skillView.vue';
+import DbView from '../views/pc/db/dbView.vue';
 import appRoutes from './appRoutes.js';
 
 Vue.use(VueRouter);
@@ -21,7 +21,7 @@ const routes = [
   appRoutes,
   {
     path: '/views/pc',
-    component: () => import('../views/pc/Layout.vue'),
+    component: () => import('../layouts/PcLayout.vue'),
     children: [
       {
         path: '',
@@ -54,13 +54,13 @@ const routes = [
       {
         path: 'terminal',
         name: 'terminal',
-        component: () => import('../views/pc/TerminalView.vue'),
+        component: () => import('../views/pc/terminal/terminalView.vue'),
         meta: { title: '终端' },
       },
       {
         path: 'terminal/:id',
         name: 'terminal-session',
-        component: () => import('../views/pc/TerminalView.vue'),
+        component: () => import('../views/pc/terminal/terminalView.vue'),
         meta: { title: '终端' },
       },
       {
@@ -72,19 +72,19 @@ const routes = [
       {
         path: 'aiLogs',
         name: 'aiLogs',
-        component: () => import('../views/pc/AiLogsView.vue'),
+        component: () => import('../views/pc/aiLog/aiLogsView.vue'),
         meta: { title: 'AI 日志' },
       },
       {
         path: 'tasks',
         name: 'tasks',
-        component: () => import('../views/pc/TasksView.vue'),
+        component: () => import('../views/pc/task/taskView.vue'),
         meta: { title: '任务列表' },
       },
       {
         path: 'devWorkflow',
         name: 'devWorkflow',
-        component: () => import('../views/pc/DevWorkflowView.vue'),
+        component: () => import('../views/pc/workflow/devWorkflowView.vue'),
         meta: { title: '软件研发' },
       },
       {
@@ -96,31 +96,31 @@ const routes = [
       {
         path: 'git-changes',
         name: 'gitChanges',
-        component: () => import('../views/pc/GitChanges.vue'),
+        component: () => import('../views/pc/git/gitChanges.vue'),
         meta: { title: 'Git 变更' },
       },
       {
         path: 'custom-actions',
         name: 'customActions',
-        component: () => import('../views/pc/CustomActionsView.vue'),
+        component: () => import('../views/pc/customAction/customActionsView.vue'),
         meta: { title: '自定义操作' },
       },
       {
         path: 'wiki',
         name: 'wiki',
-        component: () => import('../views/pc/WikiView.vue'),
+        component: () => import('../views/pc/wiki/wikiView.vue'),
         meta: { title: '文档' },
       },
       {
         path: 'fileZihao',
         name: 'fileZihao',
-        component: () => import('../views/pc/fileZihao.vue'),
+        component: () => import('../views/pc/file/fileZihao.vue'),
         meta: { title: '文件梓豪' },
       },
       {
         path: 'deploy',
         name: 'deploy',
-        component: () => import('../views/pc/deployView.vue'),
+        component: () => import('../views/pc/deploy/deployView.vue'),
         meta: { title: '部署' },
       },
     ],

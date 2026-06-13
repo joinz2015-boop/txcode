@@ -3,8 +3,8 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 import { Tool, ToolContext, ToolResult } from '../tool.types.js'
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const code_search_description = fs.readFileSync(path.join(__dirname, 'code_search.txt'), 'utf-8')
+const currentDir = import.meta.dirname
+const code_search_description = fs.readFileSync(path.join(currentDir, 'code_search.txt'), 'utf-8')
 
 const API_CONFIG = {
   BASE_URL: 'https://mcp.exa.ai',
