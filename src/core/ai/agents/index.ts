@@ -5,6 +5,7 @@ export { MemAgent } from './mem/mem.agent.js';
 export { SkillAgent } from './skill/skill.agent.js';
 export { CallerAgent } from './caller/caller.agent.js';
 export { DreamAgent } from './dream/dream.agent.js';
+export { CommonAgent } from './common/common.agent.js';
 
 export { CODE_TOOLS } from './code/agent_tool.js';
 export { CHAT_TOOLS } from './chat/agent_tool.js';

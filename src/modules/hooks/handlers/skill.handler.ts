@@ -4,7 +4,7 @@ import { HookMessage, HookTrigger } from '../hook.types.js';
 import { HookHandler } from './hook.handler.js';
 import { SkillAgent } from '../../../core/ai/agents/skill/skill.agent.js';
 import { configService } from '../../../services/config/index.js';
-import { OpenAIProvider } from '../../../core/ai/openai.provider.js';
+import { OpenAIProvider } from '../../../core/ai/provider/openai.provider.js';
 import { skillsManager } from '../../../services/skill/skills.manager.js';
 
 export class SkillHandler extends HookHandler {

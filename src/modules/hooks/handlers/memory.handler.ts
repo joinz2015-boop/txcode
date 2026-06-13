@@ -4,7 +4,7 @@ import { HookMessage, HookTrigger } from '../hook.types.js';
 import { HookHandler } from './hook.handler.js';
 import { MemAgent } from '../../../core/ai/agents/mem/mem.agent.js';
 import { configService } from '../../../services/config/index.js';
-import { createProvider } from '../../../core/ai/provider.js';
+import { createProvider } from '../../../core/ai/provider/factory.js';
 
 export class MemoryHandler extends HookHandler {
   trigger: HookTrigger = 'round';

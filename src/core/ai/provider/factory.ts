@@ -1,8 +1,8 @@
 import { OpenAIProvider } from './openai.provider.js';
 import { DeepSeekProvider } from './deepseek.provider.js';
-import { BaseProvider } from './ai.types.js';
+import { BaseProvider } from '../ai.types.js';
 import { ProxyAgent } from 'undici';
-import { configService } from '../../services/config/config.service.js';
+import { configService } from '../../../services/config/config.service.js';
 
 export interface ProviderConfig {
   apiKey: string;

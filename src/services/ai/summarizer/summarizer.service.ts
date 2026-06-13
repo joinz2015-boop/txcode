@@ -8,7 +8,7 @@
  */
 
 import { ConfigService, configService } from '../../config/config.service.js';
-import { createProvider } from '../../../core/ai/provider.js';
+import { createProvider } from '../../../core/ai/provider/factory.js';
 import { BaseProvider } from '../../../core/ai/ai.types.js';
 import { buildSummarizerMessages } from './summarizer.prompts.js';
 import { SummarizerResult, SummarizerOptions, CompactionCheckResult } from './summarizer.types.js';

@@ -1,4 +1,3 @@
-import { OpenAIProvider } from '../../openai.provider.js';
 import { ChatMessage, BaseProvider, MultimodalContent } from '../../ai.types.js';
 import { CODE_TOOLS } from './agent_tool.js';
 import { getOpenAITools } from '../../../tools/provider/tools.js';

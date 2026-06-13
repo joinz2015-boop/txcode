@@ -2,7 +2,7 @@
 import { configService } from '../../services/config/index.js';
 import { sessionService } from '../../services/session/index.js';
 import { memoryService } from '../../services/memory/index.js';
-import { createProvider } from '../../core/ai/provider.js';
+import { createProvider } from '../../core/ai/provider/factory.js';
 import { ChatAgent } from '../../core/ai/agents/chat/chat.agent.js';
 import { toolService } from '../../core/tools/index.js';
 import { skillsManager } from '../../services/skill/index.js';

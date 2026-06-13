@@ -1,6 +1,4 @@
-﻿import { OpenAIProvider } from '../../openai.provider.js';
-import { BaseProvider, ChatMessage, MultimodalContent } from '../../ai.types.js';
-import { DeepSeekProvider } from '../../deepseek.provider.js';
+﻿import { BaseProvider, ChatMessage, MultimodalContent } from '../../ai.types.js';
 import { buildProviderPrompt } from './prompts.js';
 import { getOpenAITools, openaiTools } from '../../../tools/provider/tools.js';
 import { getProviderTools } from '../../../tools/provider/index.js';
@@ -12,13 +10,13 @@ import {
   ProviderToolCall,
   ProviderToolResult,
   ProviderTokenUsage,
-} from '../base.js';
+} from '../../provider/base.js';
 import type { MemoryService } from '../../../../services/memory/memory.service.js';
-import type { SummarizerService } from '../../../ai/summarizer/index.js';
+import type { SummarizerService } from '../../summarizer/index.js';
 import type { SessionService } from '../../../../services/session/session.service.js';
 import { specInjector } from '../../../../modules/spec/index.js';
 
-export interface OpenAIAgentConfig {
+export interface CommonAgentConfig {
   provider: BaseProvider;
   toolService: any;
   maxIterations?: number;
@@ -29,8 +27,8 @@ export interface OpenAIAgentConfig {
   sessionService?: SessionService;
 }
 
-export class OpenAIAgent implements AIProvider {
-  name = 'openai';
+export class CommonAgent implements AIProvider {
+  name = 'common';
 
   private provider: BaseProvider;
   private toolService: any;
@@ -44,7 +42,7 @@ export class OpenAIAgent implements AIProvider {
   private providerTools: any[] = [];
   private providerToolsMap: Map<string, any> = new Map();
 
-  constructor(config: OpenAIAgentConfig) {
+  constructor(config: CommonAgentConfig) {
     this.provider = config.provider;
     this.toolService = config.toolService;
     this.maxIterations = config.maxIterations || 50;
@@ -232,7 +230,7 @@ export class OpenAIAgent implements AIProvider {
   }
 
   getType(): string {
-    return 'openai';
+    return 'common';
   }
 
   private async executeTool(

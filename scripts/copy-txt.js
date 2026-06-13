@@ -16,7 +16,7 @@ function copyFile(srcPath, dstPath) {
 
 copyDirFiles('src/core/tools/provider', 'dist/core/tools/provider', f => f.endsWith('.txt'));
 copyFile('src/services/skill/skill.txt', 'dist/services/skill/skill.txt');
-copyFile('src/core/ai/provider/openai/prompt/role.txt', 'dist/core/ai/provider/openai/prompt/role.txt');
+copyFile('src/core/ai/agents/common/prompt/role.txt', 'dist/core/ai/agents/common/prompt/role.txt');
 
 const agents = ['code', 'chat', 'task', 'mem', 'skill', 'caller'];
 agents.forEach(agent => {

@@ -14,10 +14,10 @@
  */
 
 import { ConfigService, configService as defaultConfigService } from '../config/config.service.js';
-import { OpenAIProvider } from '../../core/ai/openai.provider.js';
-import { DeepSeekProvider } from '../../core/ai/deepseek.provider.js';
-import { createProvider } from '../../core/ai/provider.js';
-import { OpenAIAgent } from '../../core/ai/provider/openai/openai-agent.js';
+import { OpenAIProvider } from '../../core/ai/provider/openai.provider.js';
+import { DeepSeekProvider } from '../../core/ai/provider/deepseek.provider.js';
+import { createProvider } from '../../core/ai/provider/factory.js';
+import { CommonAgent } from '../../core/ai/agents/common/common.agent.js';
 import { BaseProvider, ChatMessage, ChatOptions, ChatResponse } from '../../core/ai/ai.types.js';
 import { ProviderRunResult } from '../../core/ai/provider/base.js';
 import { ToolService, toolService as defaultToolService } from '../../core/tools/tool.service.js';
@@ -205,7 +205,7 @@ export class AIService {
       this.configService
     );
 
-    const agent = new OpenAIAgent({
+    const agent = new CommonAgent({
       provider,
       toolService: this.toolService,
       maxIterations: this.maxToolIterations,

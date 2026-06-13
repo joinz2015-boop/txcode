@@ -1,7 +1,7 @@
 import { IDreamHandler, DreamTask } from '../dream.types.js'
 import { DreamAgent } from '../../../core/ai/agents/dream/dream.agent.js'
 import { configService } from '../../../services/config/config.service.js'
-import { createProvider } from '../../../core/ai/provider.js'
+import { createProvider } from '../../../core/ai/provider/factory.js'
 import { projectService } from '../../../services/project/project.service.js'
 import * as fs from 'fs'
 import * as path from 'path'

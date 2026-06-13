@@ -5,24 +5,29 @@ import {
   ChatResponse,
   ToolDefinition,
   BaseProvider,
-} from './ai.types.js';
-import { logger } from '../../modules/logger/index.js';
-import { aiLogService } from '../../services/ai/ai-log.service.js';
+} from '../ai.types.js';
+import { logger } from '../../../modules/logger/index.js';
+import { aiLogService } from '../../../services/ai/ai-log.service.js';
 
-export interface DeepSeekConfig {
+export interface OpenAIConfig {
   apiKey: string;
   baseUrl?: string;
   defaultModel?: string;
   fetchOptions?: Record<string, any>;
 }
 
-export class DeepSeekProvider implements BaseProvider {
+export class OpenAIProvider implements BaseProvider {
   private client: OpenAI;
 
-  constructor(config: DeepSeekConfig) {
+  constructor(config: OpenAIConfig) {
     const clientConfig: Record<string, any> = {
       apiKey: config.apiKey,
-      baseURL: config.baseUrl || 'https://api.deepseek.com/v1',
+      baseURL: config.baseUrl || 'https://api.openai.com/v1',
+      defaultHeaders: {
+        'HTTP-Referer': 'https://www.homecommunity.cn',
+        'X-Title': 'txcode',
+        'X-OpenRouter-Title': 'txcode',
+      },
     };
 
     if (config.fetchOptions && Object.keys(config.fetchOptions).length > 0) {
@@ -30,7 +35,7 @@ export class DeepSeekProvider implements BaseProvider {
     }
 
     this.client = new OpenAI(clientConfig);
-    this.defaultModel = config.defaultModel || 'deepseek-chat';
+    this.defaultModel = config.defaultModel || 'gpt-4';
   }
 
   private defaultModel: string;
@@ -48,6 +53,7 @@ export class DeepSeekProvider implements BaseProvider {
     options: ChatOptions = {}
   ): Promise<ChatResponse> {
     const {
+      temperature = 0.7,
       maxTokens = 8192,
       model = this.defaultModel,
       tools,
@@ -57,12 +63,8 @@ export class DeepSeekProvider implements BaseProvider {
     const requestBody: Record<string, any> = {
       model,
       messages: messages.map(m => this.formatMessage(m)),
+      temperature,
       max_tokens: maxTokens,
-      thinking: {
-        type: "enabled",
-      },
-      reasoning_effort: "max",
-
     };
 
     if (tools && tools.length > 0) {
@@ -103,6 +105,7 @@ export class DeepSeekProvider implements BaseProvider {
     options: ChatOptions = {}
   ): AsyncGenerator<string, void, unknown> {
     const {
+      temperature = 0.7,
       maxTokens = 2000,
       model = this.defaultModel,
     } = options;
@@ -111,13 +114,9 @@ export class DeepSeekProvider implements BaseProvider {
     const requestBody = {
       model,
       messages: messages.map(m => this.formatMessage(m)),
+      temperature,
       max_tokens: maxTokens,
       stream: true,
-      extra_body: {
-        thinking: {
-          type: "disabled",
-        },
-      },
     };
 
     logger.logRequest(url, requestBody);
@@ -158,17 +157,13 @@ export class DeepSeekProvider implements BaseProvider {
   private formatMessage(message: ChatMessage): Record<string, any> {
     const formatted: Record<string, any> = {
       role: message.role,
-      content: message.content || null,
+      content: message.content,
     };
 
     if (message.name) formatted.name = message.name;
     if (message.toolCallId) formatted.tool_call_id = message.toolCallId;
     if (message.toolCalls) formatted.tool_calls = message.toolCalls;
     if ((message as any).reasoning) formatted.reasoning_content = (message as any).reasoning;
-
-    if(message.role == 'assistant' &&!formatted.reasoning_content) {
-      formatted.reasoning_content = "null";
-    }
 
     return formatted;
   }
@@ -190,13 +185,12 @@ export class DeepSeekProvider implements BaseProvider {
       } : undefined,
     };
 
-    if ((message as any).reasoning_content) {
-      responseData.reasoning = (message as any).reasoning_content;
-    } else if ((message as any).reasoning) {
+    if ((message as any).reasoning) {
       responseData.reasoning = (message as any).reasoning;
     } else if ((response as any).reasoning) {
       responseData.reasoning = (response as any).reasoning;
     } else if (message.content) {
+      // 如果没有 reasoning 字段，将 content 作为 reasoning
       responseData.reasoning = message.content;
     }
 
