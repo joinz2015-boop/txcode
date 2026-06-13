@@ -68,49 +68,49 @@ export const api = {
   // ==================== 提供商管理 ====================
 
   getProviders() {
-    return request('GET', '/config/list_providers_config');
+    return request('GET', '/sys_config/list_providers_config');
   },
 
   getProvider(id) {
-    return request('GET', `/config/detail_provider_config?id=${id}`);
+    return request('GET', `/sys_config/detail_provider_config?id=${id}`);
   },
 
   addProvider(provider) {
-    return request('POST', '/config/create_provider_config', provider);
+    return request('POST', '/sys_config/create_provider_config', provider);
   },
 
   updateProvider(id, data) {
-    return request('POST', '/config/update_provider_config', { id, ...data });
+    return request('POST', '/sys_config/update_provider_config', { id, ...data });
   },
 
   deleteProvider(id) {
-    return request('POST', '/config/delete_provider_config', { id });
+    return request('POST', '/sys_config/delete_provider_config', { id });
   },
 
   setDefaultProvider(id) {
-    return request('POST', '/config/set_default_provider_config', { id });
+    return request('POST', '/sys_config/set_default_provider_config', { id });
   },
 
   // ==================== 模型管理 ====================
 
   getModels() {
-    return request('GET', '/config/list_models_config');
+    return request('GET', '/sys_config/list_models_config');
   },
 
   getModelsByProvider(providerId) {
-    return request('GET', `/config/list_models_config?providerId=${providerId}`);
+    return request('GET', `/sys_config/list_models_config?providerId=${providerId}`);
   },
 
   addModel(model) {
-    return request('POST', '/config/create_model_config', model);
+    return request('POST', '/sys_config/create_model_config', model);
   },
 
   updateModel(id, data) {
-    return request('POST', '/config/update_model_config', { id, ...data });
+    return request('POST', '/sys_config/update_model_config', { id, ...data });
   },
 
   deleteModel(id) {
-    return request('POST', '/config/delete_model_config', { id });
+    return request('POST', '/sys_config/delete_model_config', { id });
   },
 
   // ==================== AI 聊天 ====================
@@ -213,19 +213,19 @@ export const api = {
   // ==================== 配置管理 ====================
 
   getConfig(key) {
-    return request('GET', `/config/get_config?key=${encodeURIComponent(key)}`);
+    return request('GET', `/sys_config/get_config?key=${encodeURIComponent(key)}`);
   },
 
   setConfig(key, value) {
-    return request('POST', '/config/set_config', { key, value });
+    return request('POST', '/sys_config/set_config', { key, value });
   },
 
   getProxyConfig() {
-    return request('GET', '/config/proxy_config');
+    return request('GET', '/sys_config/proxy_config');
   },
 
   updateProxyConfig(data) {
-    return request('POST', '/config/proxy_config', data);
+    return request('POST', '/sys_config/proxy_config', data);
   },
 
   // ==================== 文件管理 ====================
@@ -495,23 +495,23 @@ export const api = {
   // ==================== 网关管理 ====================
 
   getDingtalkConfig() {
-    return request('GET', '/gateway/dingtalk_config_gateway');
+    return request('GET', '/dingtalk/config_dingtalk');
   },
 
   updateDingtalkConfig(config) {
-    return request('POST', '/gateway/dingtalk_update_gateway', config);
+    return request('POST', '/dingtalk/config_dingtalk', config);
   },
 
   startDingtalk() {
-    return request('POST', '/gateway/dingtalk_start_gateway');
+    return request('POST', '/dingtalk/start_dingtalk');
   },
 
   stopDingtalk() {
-    return request('POST', '/gateway/dingtalk_stop_gateway');
+    return request('POST', '/dingtalk/stop_dingtalk');
   },
 
   getGatewayStatus() {
-    return request('GET', '/gateway/dingtalk_status_gateway');
+    return request('GET', '/dingtalk/status_dingtalk');
   },
 
   getQueueStatus() {
@@ -781,7 +781,7 @@ export const api = {
   // ==================== 配置导出导入 ====================
 
   exportConfig() {
-    return fetch(`${API_BASE}/config/export_config`, {
+    return fetch(`${API_BASE}/sys_config/export_config`, {
       method: 'GET',
     }).then(res => {
       if (!res.ok) {
@@ -792,7 +792,7 @@ export const api = {
   },
 
   importConfig(content) {
-    return request('POST', '/config/import_config', { content });
+    return request('POST', '/sys_config/import_config', { content });
   },
 
   // ==================== 系统信息 ====================

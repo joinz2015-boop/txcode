@@ -23,9 +23,8 @@ import * as readline from 'readline';
 import * as http from 'http';
 import * as os from 'os';
 import { exec } from 'child_process';
-import { apiRouter } from '../api/index.js';
-import { registerRoutes } from '../register.js';
-import { webSocketService } from '../api/websocket/websocket.service.js';
+import { registerAllRoutes } from '../gateway/api_routes.js';
+import { webSocketService } from '../gateway/websocket/websocket.service.js';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -132,15 +131,10 @@ export class WebService {
 
     /**
      * API 路由注册
-     * 
-     * 使用 register.ts 自动扫描 api/ 目录注册路由（新方式）
-     * 旧 apiRouter 作为兼容回退
-     * 
-     * 注册顺序：
-     * 1. registerRoutes - 自动扫描 api/{module}/{action}_{module}.ts → /api/{module}/{action}_{module}
-     * 2. apiRouter（旧）- 逐步迁移完成后废弃
+     *
+     * 由 src/gateway/api_routes.ts 的 registerAllRoutes() 在 start() 中完成
+     * 此处不再提前挂载空 Router，避免路由顺序问题。
      */
-    this.app.use('/api', apiRouter);
 
     const uploadDir = path.join(os.homedir(), '.txcode', 'uploads');
     this.app.use('/uploads', express.static(uploadDir));
@@ -262,9 +256,8 @@ npm run dev
   async start(): Promise<void> {
     await dbService.init();
 
-    // 注册新的文件路由系统（自动扫描 api/ 目录）
-    const newRouter = await registerRoutes();
-    this.app.use('/api', newRouter);
+    // 注册新的显式路由系统（自动扫描 gateway/api/**/*_routes.ts）
+    await registerAllRoutes(this.app as any);
 
     const { schedulerService } = await import('../modules/scheduler/index.js');
     schedulerService.init();

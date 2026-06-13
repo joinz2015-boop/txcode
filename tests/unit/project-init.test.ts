@@ -7,7 +7,7 @@
  * 3. 基础模块是否可导入
  */
 
-import { parseArgs } from '../../src/cli/args';
+import { parseArgs } from '../../src/gateway/cli/args';
 
 describe('项目初始化', () => {
   describe('命令行参数解析', () => {

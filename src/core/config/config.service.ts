@@ -1,194 +1,106 @@
-/**
- * 配置服务
- * 
- * 职责：
- * - 提供配置的 CRUD 操作
- * - 管理 AI 服务商
- * - 管理模型
- */
-
-import { DbService, dbService as defaultDbService } from '../db/db.service.js';
+import { configRepository, ProviderRow, ModelRow, ProxyRow, DingTalkRow } from '../../repository/config.repository.js';
 import { Provider, Model, ProviderInput, ModelInput, ProxyConfig } from './config.types.js';
 import { v4 as uuidv4 } from 'uuid';
 
 export class ConfigService {
-  private db: DbService;
-
-  constructor(db?: DbService) {
-    this.db = db || defaultDbService;
-  }
+  private repo = configRepository;
 
   getProviders(): Provider[] {
-    const rows = this.db.all<any>('SELECT * FROM providers ORDER BY created_at');
-    return rows.map(this.rowToProvider);
+    return this.repo.listProviders().map(this.rowToProvider);
   }
 
   getProvider(id: string): Provider | undefined {
-    const row = this.db.get<any>('SELECT * FROM providers WHERE id = ?', [id]);
+    const row = this.repo.getProvider(id);
     return row ? this.rowToProvider(row) : undefined;
   }
 
   getDefaultProvider(): Provider | undefined {
-    const row = this.db.get<any>('SELECT * FROM providers WHERE is_default = 1 LIMIT 1');
+    const row = this.repo.getDefaultProvider();
     return row ? this.rowToProvider(row) : undefined;
   }
 
   addProvider(provider: ProviderInput): string {
-    const count = this.db.get<{count: number}>('SELECT COUNT(*) as count FROM providers');
-    const isFirst = (count?.count || 0) === 0;
-    const id = provider.id || uuidv4();
-
-    this.db.run(
-      `INSERT INTO providers (id, name, api_key, base_url, enabled, is_default)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [
-        id,
-        provider.name,
-        provider.apiKey,
-        provider.baseUrl || 'https://api.openai.com/v1',
-        provider.enabled ? 1 : 0,
-        (isFirst || provider.isDefault) ? 1 : 0,
-      ]
-    );
-    return id;
-  }
-
-  updateProvider(id: string, data: Partial<Provider>): void {
-    const updates: string[] = [];
-    const values: unknown[] = [];
-
-    if (data.name !== undefined) {
-      updates.push('name = ?');
-      values.push(data.name);
-    }
-    if (data.apiKey !== undefined) {
-      updates.push('api_key = ?');
-      values.push(data.apiKey);
-    }
-    if (data.baseUrl !== undefined) {
-      updates.push('base_url = ?');
-      values.push(data.baseUrl);
-    }
-    if (data.enabled !== undefined) {
-      updates.push('enabled = ?');
-      values.push(data.enabled ? 1 : 0);
-    }
-    if (data.isDefault !== undefined) {
-      updates.push('is_default = ?');
-      values.push(data.isDefault ? 1 : 0);
-    }
-
-    if (updates.length > 0) {
-      updates.push('updated_at = CURRENT_TIMESTAMP');
-      values.push(id);
-      this.db.run(`UPDATE providers SET ${updates.join(', ')} WHERE id = ?`, values);
-    }
-  }
-
-  deleteProvider(id: string): void {
-    this.db.run('DELETE FROM providers WHERE id = ?', [id]);
-  }
-
-  setDefaultProvider(id: string): void {
-    this.db.transaction(() => {
-      this.db.run('UPDATE providers SET is_default = 0');
-      this.db.run('UPDATE providers SET is_default = 1 WHERE id = ?', [id]);
+    return this.repo.insertProvider({
+      id: provider.id,
+      name: provider.name,
+      apiKey: provider.apiKey,
+      baseUrl: provider.baseUrl,
+      enabled: provider.enabled,
+      isDefault: provider.isDefault,
     });
   }
 
+  updateProvider(id: string, data: Partial<Provider>): void {
+    this.repo.updateProvider(id, {
+      name: data.name,
+      apiKey: data.apiKey,
+      baseUrl: data.baseUrl,
+      enabled: data.enabled,
+      isDefault: data.isDefault,
+    });
+  }
+
+  deleteProvider(id: string): void {
+    this.repo.deleteProvider(id);
+  }
+
+  setDefaultProvider(id: string): void {
+    this.repo.setDefaultProvider(id);
+  }
+
   getModels(providerId: string): Model[] {
-    const rows = this.db.all<any>('SELECT * FROM models WHERE provider_id = ?', [providerId]);
-    return rows.map(this.rowToModel);
+    return this.repo.listModels(providerId).map(this.rowToModel);
   }
 
   getAllModels(): Model[] {
-    const rows = this.db.all<any>('SELECT * FROM models');
-    return rows.map(this.rowToModel);
+    return this.repo.allModels().map(this.rowToModel);
   }
 
   addModel(model: ModelInput): string {
-    const id = model.id || uuidv4();
-    this.db.run(
-      `INSERT INTO models (id, provider_id, name, context_window, max_output_tokens, supports_vision, supports_tools, enabled)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        id,
-        model.providerId,
-        model.name,
-        model.contextWindow || 4096,
-        model.maxOutputTokens || 4096,
-        model.supportsVision ? 1 : 0,
-        model.supportsTools !== false ? 1 : 0,
-        model.enabled ? 1 : 0,
-      ]
-    );
-    return id;
+    return this.repo.insertModel({
+      id: model.id,
+      providerId: model.providerId,
+      name: model.name,
+      contextWindow: model.contextWindow,
+      maxOutputTokens: model.maxOutputTokens,
+      supportsVision: model.supportsVision,
+      supportsTools: model.supportsTools,
+      enabled: model.enabled,
+    });
   }
 
   updateModel(id: string, data: Partial<Model>): void {
-    const updates: string[] = [];
-    const values: unknown[] = [];
-
-    if (data.name !== undefined) {
-      updates.push('name = ?');
-      values.push(data.name);
-    }
-    if (data.enabled !== undefined) {
-      updates.push('enabled = ?');
-      values.push(data.enabled ? 1 : 0);
-    }
-
-    if (updates.length > 0) {
-      updates.push('updated_at = CURRENT_TIMESTAMP');
-      values.push(id);
-      this.db.run(`UPDATE models SET ${updates.join(', ')} WHERE id = ?`, values);
-    }
+    this.repo.updateModel(id, {
+      name: data.name,
+      enabled: data.enabled,
+    });
   }
 
   deleteModel(id: string): void {
-    this.db.run('DELETE FROM models WHERE id = ?', [id]);
+    this.repo.deleteModel(id);
   }
 
   get<T = string>(key: string): T | undefined {
-    const row = this.db.get<{value: string}>('SELECT value FROM config WHERE key = ?', [key]);
-    if (!row) return undefined;
-    try {
-      return JSON.parse(row.value) as T;
-    } catch {
-      return row.value as unknown as T;
-    }
+    const value = this.repo.getConfig(key);
+    if (!value) return undefined;
+    try { return JSON.parse(value) as T; } catch { return value as unknown as T; }
   }
 
   set(key: string, value: unknown): void {
     const strValue = typeof value === 'string' ? value : JSON.stringify(value);
-    this.db.run(
-      `INSERT INTO config (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)
-       ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP`,
-      [key, strValue]
-    );
+    this.repo.setConfig(key, strValue);
   }
 
   getModelProvider(modelName: string): Provider | undefined {
-    const row = this.db.get<any>(
-      `SELECT p.* FROM providers p 
-       INNER JOIN models m ON m.provider_id = p.id 
-       WHERE m.name = ? LIMIT 1`,
-      [modelName]
-    );
+    const row = this.repo.getModelProvider(modelName);
     return row ? this.rowToProvider(row) : undefined;
   }
 
   getDefaultModel(): string {
     const existing = this.get<string>('defaultModel');
-    if (existing) {
-      return existing;
-    }
-
+    if (existing) return existing;
     const models = this.getAllModels();
-    if (models.length === 0) {
-      throw new Error('无可用模型，请先配置模型');
-    }
-
+    if (models.length === 0) throw new Error('无可用模型，请先配置模型');
     const randomModel = models[Math.floor(Math.random() * models.length)];
     this.set('defaultModel', randomModel.name);
     return randomModel.name;
@@ -196,123 +108,57 @@ export class ConfigService {
 
   initDefaultModel(): void {
     const existing = this.get<string>('defaultModel');
-    if (existing) {
-      return;
-    }
-
+    if (existing) return;
     const models = this.getAllModels();
     if (models.length === 0) {
       console.warn('[ConfigService] No models available, skipping default model initialization');
       return;
     }
-
     const randomModel = models[Math.floor(Math.random() * models.length)];
     this.set('defaultModel', randomModel.name);
     console.log(`[ConfigService] Default model initialized: ${randomModel.name}`);
   }
 
-  private rowToProvider(row: any): Provider {
-    return {
-      id: row.id,
-      name: row.name,
-      apiKey: row.api_key,
-      baseUrl: row.base_url,
-      enabled: Boolean(row.enabled),
-      isDefault: Boolean(row.is_default),
-    };
-  }
-
-  private rowToModel(row: any): Model {
-    return {
-      id: row.id,
-      providerId: row.provider_id,
-      name: row.name,
-      contextWindow: row.context_window || 4096,
-      maxOutputTokens: row.max_output_tokens || 4096,
-      supportsVision: Boolean(row.supports_vision),
-      supportsTools: row.supports_tools !== 0,
-      enabled: Boolean(row.enabled),
-    };
-  }
-
   getDingdingConfig(): { enabled: boolean; clientId: string; clientSecret: string; botName: string } {
-    const row = this.db.get<any>('SELECT * FROM dingding_config WHERE id = 1');
-    if (!row) {
-      return { enabled: false, clientId: '', clientSecret: '', botName: '' };
-    }
-    return {
-      enabled: Boolean(row.enabled),
-      clientId: row.client_id || '',
-      clientSecret: row.client_secret || '',
-      botName: row.bot_name || '',
-    };
+    const row = this.repo.getDingTalkConfig();
+    if (!row) return { enabled: false, clientId: '', clientSecret: '', botName: '' };
+    return { enabled: Boolean(row.enabled), clientId: row.client_id || '', clientSecret: row.client_secret || '', botName: row.bot_name || '' };
   }
 
   getProxyConfig(): ProxyConfig | null {
-    const row = this.db.get<any>('SELECT * FROM proxy_config WHERE id = 1');
+    const row = this.repo.getProxyConfig();
     if (!row) return null;
-    return {
-      enabled: Boolean(row.enabled),
-      type: row.type as 'http' | 'socks5',
-      host: row.host || '',
-      port: row.port || 1080,
-    };
+    return { enabled: Boolean(row.enabled), type: row.type as 'http' | 'socks5', host: row.host || '', port: row.port || 1080 };
   }
 
   updateProxyConfig(data: Partial<ProxyConfig>): void {
-    const updates: string[] = [];
-    const values: unknown[] = [];
-
-    if (data.enabled !== undefined) {
-      updates.push('enabled = ?');
-      values.push(data.enabled ? 1 : 0);
-    }
-    if (data.type !== undefined) {
-      updates.push('type = ?');
-      values.push(data.type);
-    }
-    if (data.host !== undefined) {
-      updates.push('host = ?');
-      values.push(data.host);
-    }
-    if (data.port !== undefined) {
-      updates.push('port = ?');
-      values.push(data.port);
-    }
-
-    if (updates.length > 0) {
-      updates.push('updated_at = CURRENT_TIMESTAMP');
-      values.push(1);
-      this.db.run(`UPDATE proxy_config SET ${updates.join(', ')} WHERE id = ?`, values);
-    }
+    this.repo.updateProxyConfig({
+      enabled: data.enabled,
+      type: data.type,
+      host: data.host,
+      port: data.port,
+    });
   }
 
   updateDingdingConfig(data: { enabled?: boolean; clientId?: string; clientSecret?: string; botName?: string }): void {
-    const updates: string[] = [];
-    const values: unknown[] = [];
+    this.repo.updateDingTalkConfig({
+      enabled: data.enabled,
+      clientId: data.clientId,
+      clientSecret: data.clientSecret,
+      botName: data.botName,
+    });
+  }
 
-    if (data.enabled !== undefined) {
-      updates.push('enabled = ?');
-      values.push(data.enabled ? 1 : 0);
-    }
-    if (data.clientId !== undefined) {
-      updates.push('client_id = ?');
-      values.push(data.clientId);
-    }
-    if (data.clientSecret !== undefined) {
-      updates.push('client_secret = ?');
-      values.push(data.clientSecret);
-    }
-    if (data.botName !== undefined) {
-      updates.push('bot_name = ?');
-      values.push(data.botName);
-    }
+  private rowToProvider(row: ProviderRow): Provider {
+    return { id: row.id, name: row.name, apiKey: row.api_key, baseUrl: row.base_url, enabled: Boolean(row.enabled), isDefault: Boolean(row.is_default) };
+  }
 
-    if (updates.length > 0) {
-      updates.push('updated_at = CURRENT_TIMESTAMP');
-      values.push(1);
-      this.db.run(`UPDATE dingding_config SET ${updates.join(', ')} WHERE id = ?`, values);
-    }
+  private rowToModel(row: ModelRow): Model {
+    return {
+      id: row.id, providerId: row.provider_id, name: row.name,
+      contextWindow: row.context_window || 4096, maxOutputTokens: row.max_output_tokens || 4096,
+      supportsVision: Boolean(row.supports_vision), supportsTools: row.supports_tools !== 0, enabled: Boolean(row.enabled),
+    };
   }
 }
 

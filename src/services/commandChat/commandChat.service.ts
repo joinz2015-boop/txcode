@@ -1,4 +1,4 @@
-import { executeCommand } from '../../cli/commands.js';
+import { executeCommand } from '../../gateway/cli/commands.js';
 import { memoryService } from '../../core/memory/index.js';
 
 export interface CommandInput {

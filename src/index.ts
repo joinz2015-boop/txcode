@@ -12,7 +12,7 @@
  *   npm run dev web --port 40001 -> 指定端口启动 Web 服务
  */
 
-import { parseArgs } from './cli/args.js';
+import { parseArgs } from './gateway/cli/args.js';
 import { dbService } from './core/db/index.js';
 import { projectService } from './services/project/project.service.js';
 
@@ -78,7 +78,7 @@ async function main() {
      */
     const { render } = await import('ink');
     const React = await import('react');
-    const { App } = await import('./cli/ui/App.js');
+    const { App } = await import('./gateway/cli/ui/App.js');
 
     render(React.createElement(App));
   }

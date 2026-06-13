@@ -2,8 +2,8 @@ import { dbService } from '../core/db/db.service.js';
 
 export class BaseRepository {
 
-  protected execute(sql: string, params: unknown[] = []): void {
-    dbService.run(sql, params);
+  protected execute(sql: string, params: unknown[] = []): any {
+    return dbService.run(sql, params);
   }
 
   protected query<T>(sql: string, params: unknown[] = []): T[] {

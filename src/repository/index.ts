@@ -1,4 +1,12 @@
 export { BaseRepository } from './base.repository.js';
 export { MessageRepository, messageRepository } from './message.repository.js';
 export { SessionRepository, sessionRepository } from './session.repository.js';
-export { AiLogRepository, aiLogRepository } from './aiLog.repository.js';
+export { AiLogRepository, aiLogRepository } from './ai_log.repository.js';
+export { ConfigRepository, configRepository } from './config.repository.js';
+export { MemoryRepository, memoryRepository } from './memory.repository.js';
+export { SkillRepository, skillRepository } from './skill.repository.js';
+export { SpecRepository, specRepository } from './spec.repository.js';
+export { SchedulerRepository, schedulerRepository } from './scheduler.repository.js';
+export { EmailRepository, emailRepository } from './email.repository.js';
+export { GatewayRepository, gatewayRepository } from './gateway.repository.js';
+export { CustomActionRepository, customActionRepository } from './custom_action.repository.js';
