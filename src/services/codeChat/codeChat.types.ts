@@ -1,3 +1,9 @@
+export interface MediaFile {
+  filePath: string;
+  type: string;
+  dataUrl?: string;
+}
+
 export interface ChatInput {
   message: string;
   sessionId?: string;
@@ -5,6 +11,7 @@ export interface ChatInput {
   enableDevLog?: boolean;
   abortSignal?: AbortSignal;
   modelName?: string;
+  mediaFiles?: MediaFile[];
   onStep?: (step: Step, iteration: number, usage?: any) => void;
   onCompact?: (info: { beforeTokens: number; afterTokens: number; summary?: string }) => void;
 }
@@ -15,6 +22,7 @@ export interface ChatOptions {
   enableDevLog?: boolean;
   abortSignal?: AbortSignal;
   modelName?: string;
+  mediaFiles?: MediaFile[];
   onStep?: (step: Step, iteration: number, usage?: any) => void;
   onCompact?: (info: { beforeTokens: number; afterTokens: number; summary?: string }) => void;
 }

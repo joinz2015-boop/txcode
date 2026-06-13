@@ -165,7 +165,10 @@ export class MemAgent {
     const filtered = recentMessages.filter(m => m.role !== 'system');
 
     const conversation = filtered
-      .map(m => `${m.role === 'user' ? '用户' : '助手'}: ${m.content.substring(0, 500)}`)
+      .map(m => {
+        const contentStr = typeof m.content === 'string' ? m.content : (m.content.find(c => c.type === 'text') as any)?.text || '';
+        return `${m.role === 'user' ? '用户' : '助手'}: ${contentStr.substring(0, 500)}`;
+      })
       .join('\n\n');
 
     return `请分析以下对话历史，提取可能对后续任务有帮助的关键信息：

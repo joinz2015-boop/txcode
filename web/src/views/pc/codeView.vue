@@ -62,6 +62,12 @@
           </div>
         </div>
         <div class="input-block">
+          <ImagePreviewList
+            v-if="panel.mediaFiles && panel.mediaFiles.length > 0"
+            :files="panel.mediaFiles"
+            :disabled="panel.disabled"
+            @remove="(id) => removeMedia(panel, id)"
+          />
           <ResizableTextarea
             v-model="panel.input"
             :rows="5"
@@ -71,7 +77,19 @@
             @input="onInputChange($event, panel)"
             @keydown.enter.native="handleKeydown($event, panel)"
             @keydown.esc.native="cancelFileSelect"
+            @paste-image="handlePasteImages($event, panel)"
           />
+          <input
+            type="file"
+            accept="image/*"
+            multiple
+            :ref="'imgInput-' + index"
+            style="display:none"
+            @change="(e) => handleImageSelected(e, panel)"
+          />
+          <el-button @click="handleImageUpload(panel)" :disabled="panel.disabled || !panel.session?.id" class="upload-btn">
+            🖼
+          </el-button>
           <el-button v-if="panel.disabled && !panel.stopping" type="danger" @click.stop="stopPanel(panel)" class="stop-btn">
             ■ 停止
           </el-button>
@@ -153,14 +171,17 @@ import SkillSelectDialog from '../../components/pc/SkillSelectDialog.vue'
 import ModelSelectDialog from '../../components/pc/ModelSelectDialog.vue'
 import CommandDialog from '../../components/pc/CommandDialog.vue'
 import ResizableTextarea from '../../components/pc/ResizableTextarea.vue'
+import ImagePreviewList from '../../components/pc/ImagePreviewList.vue'
 import { ws } from '../../api/websocket/websocket_client.js'
 import * as sessions from '../../api/sessions.js'
 import * as config from '../../api/config.js'
+import { uploadChatImage } from '../../api/chat.js'
+import { compressImage } from '../../utils/imageCompress.js'
 import { scrollToBottom, snapshotScroll } from '../../utils/scroll'
 
 export default {
   name: 'CodeView',
-  components: { SessionsPanel, FileSelectDialog, SkillSelectDialog, ModelSelectDialog, CommandDialog, ResizableTextarea },
+  components: { SessionsPanel, FileSelectDialog, SkillSelectDialog, ModelSelectDialog, CommandDialog, ResizableTextarea, ImagePreviewList },
   MAX_LOG_ITEMS: 400,
 
   props: {
@@ -515,7 +536,8 @@ export default {
           session: null, logItems: [], userQuestion: '', modelName: '',
           input: '', disabled: false, stopping: false, wsConnected: false,
           promptTokens: 0, dotInterval: null, compactionRatio: 0,
-          sessionStatus: 'idle', enableDevLog: false, chatMode: 'code'
+          sessionStatus: 'idle', enableDevLog: false, chatMode: 'code',
+          mediaFiles: []
         })
       }
       this.activeSessions = newActive
@@ -553,6 +575,7 @@ export default {
       panel.stopping = false
       panel.promptTokens = 0
       panel.chatMode = 'code'
+      panel.mediaFiles = []
       panel.sessionStatus = this.draggedSession.status || 'idle'
       if (panel.sessionStatus === 'processing') {
         panel.disabled = true
@@ -570,7 +593,8 @@ export default {
         Object.assign(panel, {
           session, logItems: [], userQuestion: '', disabled: isProcessing,
           stopping: false, promptTokens: 0, compactionRatio: 0,
-          sessionStatus: session.status || 'idle', chatMode: 'code'
+          sessionStatus: session.status || 'idle', chatMode: 'code',
+          mediaFiles: []
         })
         this.loadMessagesForPanel(panel, session.id)
         this.subscribePanel(panel)
@@ -687,7 +711,108 @@ export default {
       this.pushLogItem(panel, { type: 'chat', content: finalContent })
       this.$nextTick(() => this.schedulePanelScroll(panel, snap))
 
-      ws.send('chat', { message: finalContent, sessionId: panel.session?.id, modelName: panel.modelName || undefined, enableDevLog: panel.enableDevLog })
+      const mediaFiles = (panel.mediaFiles || []).filter(f => !f.uploading && f.filePath)
+      ws.send('chat', {
+        message: finalContent,
+        sessionId: panel.session?.id,
+        modelName: panel.modelName || undefined,
+        enableDevLog: panel.enableDevLog,
+        mediaFiles: mediaFiles.map(f => ({ filePath: f.filePath, type: f.type }))
+      })
+      panel.mediaFiles = []
+    },
+
+    handleImageUpload(panel) {
+      if (!panel || panel.disabled) return
+      const idx = this.activeSessions.indexOf(panel)
+      const inputEl = this.$refs['imgInput-' + idx]
+      if (inputEl) {
+        if (Array.isArray(inputEl)) inputEl[0]?.click()
+        else inputEl.click()
+      }
+    },
+
+    async handleImageSelected(event, panel) {
+      const files = event.target.files
+      if (!files || files.length === 0) return
+      const currentCount = (panel.mediaFiles || []).length
+      const maxImages = 5
+      const remaining = maxImages - currentCount
+      if (remaining <= 0) {
+        this.$message.warning('最多上传5张图片')
+        event.target.value = ''
+        return
+      }
+      const toProcess = Math.min(files.length, remaining)
+      const newFiles = []
+      for (let i = 0; i < toProcess; i++) {
+        const file = files[i]
+        const id = Date.now() + '_' + i + '_' + Math.random().toString(36).slice(2)
+        newFiles.push({ id, name: file.name, dataUrl: '', filePath: '', type: file.type, uploading: true })
+      }
+      if (!panel.mediaFiles) panel.mediaFiles = []
+      panel.mediaFiles.push(...newFiles)
+      for (let i = 0; i < toProcess; i++) {
+        const file = files[i]
+        const idx = panel.mediaFiles.length - toProcess + i
+        try {
+          const compressed = await compressImage(file)
+          const uploadFile = new File([compressed.blob], file.name || 'image.png', { type: 'image/jpeg' })
+          const res = await uploadChatImage(uploadFile)
+          panel.mediaFiles[idx].dataUrl = compressed.dataUrl
+          panel.mediaFiles[idx].filePath = res.data.filePath
+          panel.mediaFiles[idx].type = res.data.filePath.endsWith('.png') ? 'image/png' : 'image/jpeg'
+          panel.mediaFiles[idx].uploading = false
+        } catch (e) {
+          this.$message.error('图片上传失败: ' + e.message)
+          panel.mediaFiles.splice(idx, 1)
+        }
+      }
+      event.target.value = ''
+    },
+
+    async handlePasteImages(imageFiles, panel) {
+      if (!panel || panel.disabled) return
+      const currentCount = (panel.mediaFiles || []).length
+      const maxImages = 5
+      const remaining = maxImages - currentCount
+      if (remaining <= 0) {
+        this.$message.warning('最多上传5张图片')
+        return
+      }
+      const toProcess = Math.min(imageFiles.length, remaining)
+      const newFiles = []
+      for (let i = 0; i < toProcess; i++) {
+        const file = imageFiles[i]
+        const id = Date.now() + '_' + i + '_' + Math.random().toString(36).slice(2)
+        newFiles.push({ id, name: file.name || 'paste.png', dataUrl: '', filePath: '', type: file.type || 'image/png', uploading: true })
+      }
+      if (!panel.mediaFiles) panel.mediaFiles = []
+      panel.mediaFiles.push(...newFiles)
+      for (let i = 0; i < toProcess; i++) {
+        const file = imageFiles[i]
+        const idx = panel.mediaFiles.length - toProcess + i
+        try {
+          const compressed = await compressImage(file)
+          const uploadFile = new File([compressed.blob], 'paste.png', { type: 'image/jpeg' })
+          const res = await uploadChatImage(uploadFile)
+          panel.mediaFiles[idx].dataUrl = compressed.dataUrl
+          panel.mediaFiles[idx].filePath = res.data.filePath
+          panel.mediaFiles[idx].type = 'image/jpeg'
+          panel.mediaFiles[idx].uploading = false
+        } catch (e) {
+          this.$message.error('图片上传失败: ' + e.message)
+          panel.mediaFiles.splice(idx, 1)
+        }
+      }
+    },
+
+    removeMedia(panel, fileId) {
+      if (!panel || !panel.mediaFiles) return
+      const idx = panel.mediaFiles.findIndex(f => f.id === fileId)
+      if (idx > -1) {
+        panel.mediaFiles.splice(idx, 1)
+      }
     },
 
     stopPanel(panel) {
@@ -841,7 +966,7 @@ export default {
 }
 
 .input-area { flex: 1; }
-.send-btn, .stop-btn { height: auto; }
+.send-btn, .stop-btn, .upload-btn { height: auto; }
 
 .status-bar {
   display: flex;

@@ -52,10 +52,20 @@ export default {
   mounted() {
     document.addEventListener('mousemove', this.handleMouseMove)
     document.addEventListener('mouseup', this.stopResize)
+    this.$nextTick(() => {
+      const textarea = this.$el?.querySelector('textarea')
+      if (textarea) {
+        textarea.addEventListener('paste', this.handlePaste)
+      }
+    })
   },
   beforeDestroy() {
     document.removeEventListener('mousemove', this.handleMouseMove)
     document.removeEventListener('mouseup', this.stopResize)
+    const textarea = this.$el?.querySelector('textarea')
+    if (textarea) {
+      textarea.removeEventListener('paste', this.handlePaste)
+    }
   },
   methods: {
     handleMouseEnter() {
@@ -87,6 +97,20 @@ export default {
         this.isResizing = false
         document.body.style.cursor = ''
         document.body.style.userSelect = ''
+      }
+    },
+    handlePaste(e) {
+      const items = e.clipboardData?.items
+      if (!items) return
+      const imageFiles = []
+      for (const item of items) {
+        if (item.type.startsWith('image/')) {
+          imageFiles.push(item.getAsFile())
+        }
+      }
+      if (imageFiles.length > 0) {
+        e.preventDefault()
+        this.$emit('paste-image', imageFiles)
       }
     }
   }

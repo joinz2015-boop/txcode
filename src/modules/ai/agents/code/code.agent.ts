@@ -1,5 +1,5 @@
 import { OpenAIProvider } from '../../openai.provider.js';
-import { ChatMessage, BaseProvider } from '../../ai.types.js';
+import { ChatMessage, BaseProvider, MultimodalContent } from '../../ai.types.js';
 import { CODE_TOOLS } from './agent_tool.js';
 import { getOpenAITools } from '../../../tools/provider/tools.js';
 import { getProviderTools } from '../../../tools/provider/index.js';
@@ -149,15 +149,16 @@ export class CodeAgent implements AIProvider {
 
     if (specInjector.shouldInject(messageCount)) {
       const injectedMessage = specInjector.injectIntoMessage(userMessage, this.projectPath );
-      baseMessages.push({ role: 'user', content: injectedMessage });
+      this.pushUserMessage(baseMessages, injectedMessage, options?.mediaFiles);
     } else {
       const firstUserIndex = baseMessages.findIndex(m => m.role === 'user');
       if (firstUserIndex >= 0) {
         const originalFirstUser = baseMessages[firstUserIndex].content;
-        const reinjected = specInjector.injectIntoMessage(originalFirstUser, this.projectPath );
+        const textContent = typeof originalFirstUser === 'string' ? originalFirstUser : (originalFirstUser.find(c => c.type === 'text') as any)?.text || '';
+        const reinjected = specInjector.injectIntoMessage(textContent, this.projectPath );
         baseMessages[firstUserIndex].content = reinjected;
       } 
-      baseMessages.push({ role: 'user', content: userMessage });
+      this.pushUserMessage(baseMessages, userMessage, options?.mediaFiles);
     }
 
     this.addMessage('user', userMessage, true, true, undefined, undefined, this.sessionId);
@@ -457,5 +458,28 @@ export class CodeAgent implements AIProvider {
     }
 
     this.memoryService.addMessage(sessionId, role, savedContent, keepContext, isOriginal);
+  }
+
+  private pushUserMessage(
+    baseMessages: ChatMessage[],
+    userMessage: string,
+    mediaFiles?: { filePath: string; type: string; dataUrl?: string }[]
+  ): void {
+    if (mediaFiles && mediaFiles.length > 0) {
+      const content: MultimodalContent[] = [
+        { type: 'text', text: userMessage },
+      ];
+      for (const mf of mediaFiles) {
+        if (mf.dataUrl) {
+          content.push({
+            type: 'image_url',
+            image_url: { url: mf.dataUrl },
+          });
+        }
+      }
+      baseMessages.push({ role: 'user', content });
+    } else {
+      baseMessages.push({ role: 'user', content: userMessage });
+    }
   }
 }

@@ -86,7 +86,7 @@ export class CodeWebSocketHandler {
   }
 
   private async handleChat(data: any): Promise<void> {
-    const { message, sessionId, projectPath, enableDevLog } = data;
+    const { message, sessionId, projectPath, enableDevLog, mediaFiles } = data;
 
     if (!sessionId) {
       this.broadcast({ type: 'error', error: 'sessionId is required' });
@@ -107,6 +107,26 @@ export class CodeWebSocketHandler {
 
     const abortController = new AbortController();
     this.abortControllers.set(sessionId, abortController);
+
+    let processedMediaFiles: any[] | undefined;
+    if (mediaFiles?.length > 0) {
+      const fs = await import('fs');
+      const path = await import('path');
+      processedMediaFiles = [];
+      for (const mf of mediaFiles) {
+        try {
+          const buffer = fs.readFileSync(mf.filePath);
+          const base64 = buffer.toString('base64');
+          const mimeType = mf.type || 'image/png';
+          processedMediaFiles.push({
+            ...mf,
+            dataUrl: `data:${mimeType};base64,${base64}`,
+          });
+        } catch (e) {
+          console.error('[CodeWebSocket] Failed to read media file:', mf.filePath, e);
+        }
+      }
+    }
 
     try {
       sessionService.switchTo(session.id);
@@ -142,6 +162,7 @@ export class CodeWebSocketHandler {
           projectPath: session.projectPath ?? projectService.getCurrentProjectPath(),
           enableDevLog,
           abortSignal: abortController.signal,
+          mediaFiles: processedMediaFiles,
           onStep: (step: any, iteration: number, usage?: any) => {
             this.broadcast({ type: 'step', data: { ...step, iteration, sessionId: currentSession.id, usage: usage ? {
               promptTokens: usage.promptTokens,

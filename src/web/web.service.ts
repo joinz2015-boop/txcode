@@ -21,6 +21,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import * as readline from 'readline';
 import * as http from 'http';
+import * as os from 'os';
 import { exec } from 'child_process';
 import { apiRouter } from '../api/index.js';
 import { webSocketService } from '../api/websocket/websocket.service.js';
@@ -139,6 +140,9 @@ export class WebService {
      * - /api/skills    -> 技能管理 API
      */
     this.app.use('/api', apiRouter);
+
+    const uploadDir = path.join(os.homedir(), '.txcode', 'uploads');
+    this.app.use('/uploads', express.static(uploadDir));
 
     /**
      * 静态文件服务与 SPA fallback

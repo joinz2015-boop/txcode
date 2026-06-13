@@ -28,6 +28,7 @@ export interface ProviderRunOptions {
   memoryService?: MemoryService;
   sessionId?: string;
   abortSignal?: AbortSignal;
+  mediaFiles?: { filePath: string; type: string; dataUrl?: string }[];
 }
 
 export interface ProviderStep {

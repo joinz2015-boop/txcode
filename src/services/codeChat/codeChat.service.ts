@@ -42,6 +42,7 @@ export class CodeChatService {
       enableDevLog: input.enableDevLog,
       abortSignal: input.abortSignal,
       modelName: input.modelName,
+      mediaFiles: input.mediaFiles,
       onStep: input.onStep,
       onCompact: input.onCompact,
     });
@@ -144,6 +145,7 @@ export class CodeChatService {
         onCompact: options.onCompact,
         historyMessages,
         sessionId,
+        mediaFiles: options.mediaFiles,
       });
 
       if (sessionId && result.usage) {

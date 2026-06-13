@@ -6,6 +6,7 @@
  * 路由列表：
  * - POST /api/chat         -> 发送聊天消息 (非流式)
  * - POST /api/chat/stream  -> 发送聊天消息 (流式响应)
+ * - POST /api/chat/upload-image -> 上传聊天图片
  * - GET  /api/chat/history/:sessionId -> 获取会话历史消息
  * 
  * 请求示例：
@@ -18,6 +19,11 @@
  */
 
 import { Router, Request, Response } from 'express';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+import os from 'os';
+import crypto from 'crypto';
 import { aiService } from '../modules/ai/index.js';
 import { sessionService } from '../modules/session/index.js';
 import { memoryService } from '../modules/memory/index.js';
@@ -41,6 +47,42 @@ function calculateCost(usage?: { promptTokens?: number; completionTokens?: numbe
  * 所有以 /chat 开头的请求都会路由到这里
  */
 export const chatRouter = Router();
+
+const uploadDir = path.join(os.homedir(), '.txcode', 'uploads');
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => {
+      const date = new Date().toISOString().slice(0, 10);
+      const dir = path.join(uploadDir, date);
+      fs.mkdirSync(dir, { recursive: true });
+      cb(null, dir);
+    },
+    filename: (_req, file, cb) => {
+      const ext = path.extname(file.originalname) || '.png';
+      const name = crypto.randomUUID();
+      cb(null, `${name}${ext}`);
+    },
+  }),
+  limits: { fileSize: 10 * 1024 * 1024 },
+});
+
+/**
+ * POST /api/chat/upload-image
+ * 
+ * 上传聊天图片接口
+ */
+chatRouter.post('/upload-image', upload.single('file'), async (req: Request, res: Response) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, error: '未上传文件' });
+    }
+    const filePath = req.file.path;
+    const url = `/uploads/${new Date().toISOString().slice(0, 10)}/${req.file.filename}`;
+    res.json({ success: true, data: { filePath, url } });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
+  }
+});
 
 /**
  * POST /api/chat
