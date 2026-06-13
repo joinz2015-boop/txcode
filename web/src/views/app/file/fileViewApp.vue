@@ -303,8 +303,8 @@ export default {
       let content = ''
       try {
         const res = await api.getFileContent(node.path)
-        this.isBinary = res.is_binary || false
-        content = res.content || ''
+        this.isBinary = res.data?.is_binary || false
+        content = res.data?.content || ''
       } catch (e) {
         console.error('Load file failed:', e)
         this.fileLoading = false
@@ -467,7 +467,7 @@ export default {
         } else if (type === 'rename') {
           const parentPath = target.path.substring(0, target.path.lastIndexOf(separator))
           const newPath = parentPath + separator + value.trim()
-          await api.renameFile(target.path, value.trim())
+          await api.renameFile(target.path, newPath)
         }
         this.browse(this.browseResult.current_path)
       } catch (e) {

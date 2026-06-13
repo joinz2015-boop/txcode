@@ -412,8 +412,8 @@ export default {
     async loadFileContent(path) {
       try {
         const res = await api.getFileContent(path)
-        this.fileContent = res
-        return res.content || ''
+        this.fileContent = res.data || { content: '加载失败', is_binary: false, size: 0 }
+        return res.data?.content || ''
       } catch (e) {
         console.error('Load file content failed:', e)
         this.fileContent = { content: '加载失败', is_binary: false, size: 0 }
@@ -514,7 +514,10 @@ export default {
           const newPath = target.path + '\\' + value.trim()
           await api.createDirectory(newPath)
         } else if (type === 'rename') {
-          await api.renameFile(target.path, value.trim())
+          const separator = target.path.includes('\\') ? '\\' : '/'
+          const parentPath = target.path.substring(0, target.path.lastIndexOf(separator))
+          const newPath = parentPath + separator + value.trim()
+          await api.renameFile(target.path, newPath)
         }
         this.refresh()
       } catch (e) {

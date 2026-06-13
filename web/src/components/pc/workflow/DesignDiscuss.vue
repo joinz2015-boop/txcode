@@ -233,8 +233,8 @@ export default {
       }
       try {
         const fileRes = await api.getFileContent(this.sessionFilePath)
-        if (fileRes && fileRes.content) {
-          const sessionData = JSON.parse(fileRes.content)
+        if (fileRes && fileRes.data?.content) {
+          const sessionData = JSON.parse(fileRes.data.content)
           this.discussions = sessionData.designDiscussions || []
         } else {
           this.discussions = []
@@ -253,8 +253,8 @@ export default {
       try {
         const fileRes = await api.getFileContent(this.sessionFilePath)
         let sessionData = {}
-        if (fileRes && fileRes.content) {
-          sessionData = JSON.parse(fileRes.content)
+        if (fileRes && fileRes.data?.content) {
+          sessionData = JSON.parse(fileRes.data.content)
         }
         sessionData.designDiscussions = this.discussions
         await api.writeFile(this.sessionFilePath, JSON.stringify(sessionData, null, 2))

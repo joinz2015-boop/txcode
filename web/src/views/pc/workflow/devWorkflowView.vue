@@ -266,7 +266,8 @@ export default {
     async loadCategories() {
       try {
         const cwdRes = await api.getCwd()
-        this.reqBasePath = cwdRes.data?.basePath || ''
+        const cwd = cwdRes.data?.current_path || ''
+        this.reqBasePath = cwd ? `${cwd}/.txcode/req` : ''
         
         const res = await api.browseFilesystem(this.reqBasePath)
         const items = res.data?.items || []
@@ -346,7 +347,8 @@ export default {
       }
       try {
         const oldPath = `${this.reqBasePath}/${oldName}`
-        await api.renameFile(oldPath, newName)
+        const newPath = `${this.reqBasePath}/${newName}`
+        await api.renameFile(oldPath, newPath)
         
         const index = this.categories.indexOf(oldName)
         if (index > -1) {
@@ -401,6 +403,8 @@ export default {
       const specContent = `# ${name}方案
 
 > 所属大类：${category}
+
+## 用户原始需求
 
 ## 业务目标
 
@@ -492,6 +496,8 @@ export default {
 
 > 所属大类：${category}
 > 父方案：[../${parentName}/${parentName}_方案.md](../${parentName}/${parentName}_方案.md)
+
+## 用户原始需求
 
 ## 业务目标
 

@@ -105,7 +105,7 @@ export default {
 
       try {
         const res = await api.getFileContent(filePath)
-        this.originalContent = res.content || ''
+        this.originalContent = res.data?.content || ''
         
         this.$nextTick(() => {
           this.initEditor(this.originalContent)

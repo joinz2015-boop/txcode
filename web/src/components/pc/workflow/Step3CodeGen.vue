@@ -230,8 +230,8 @@ data() {
       try {
         const sessionFilePath = `${this.reqBasePath}/${this.category}/${this.name}/session.json`
         const fileRes = await api.getFileContent(sessionFilePath)
-        if (fileRes && fileRes.content) {
-          const sessionData = JSON.parse(fileRes.content)
+        if (fileRes && fileRes.data?.content) {
+          const sessionData = JSON.parse(fileRes.data.content)
           this.sessionId = sessionData.codeSessionId || ''
         } else {
           this.sessionId = ''

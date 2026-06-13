@@ -37,6 +37,8 @@ export class CommonAgent implements AIProvider {
   private summarizer?: SummarizerAgent;
   private sessionService?: SessionService;
   private userMessage: string = '';
+  private injectedUserMessage: string = '';
+  private mediaFiles?: { filePath: string; type: string; dataUrl?: string }[];
   private toolRegistry: AgentToolRegistry;
 
   constructor(config: CommonAgentConfig) {
@@ -83,12 +85,27 @@ export class CommonAgent implements AIProvider {
       const firstUserIndex = baseMessages.findIndex(m => m.role === 'user');
       if (firstUserIndex >= 0) {
         const originalFirstUser = baseMessages[firstUserIndex].content;
-        const textContent = typeof originalFirstUser === 'string' ? originalFirstUser : (originalFirstUser.find((c: MultimodalContent) => c.type === 'text') as any)?.text || '';
-        const reinjected = specInjector.injectIntoMessage(textContent, process.cwd());
-        baseMessages[firstUserIndex].content = reinjected;
+        if (typeof originalFirstUser === 'string') {
+          const reinjected = specInjector.injectIntoMessage(originalFirstUser, process.cwd());
+          baseMessages[firstUserIndex].content = reinjected;
+        } else {
+          const textPart = originalFirstUser.find((c: MultimodalContent) => c.type === 'text');
+          if (textPart) {
+            const reinjected = specInjector.injectIntoMessage(
+              (textPart as MultimodalContent & { type: 'text' }).text,
+              process.cwd()
+            );
+            (textPart as MultimodalContent & { type: 'text' }).text = reinjected;
+          }
+        }
       } 
       this.pushUserMessage(baseMessages, userMessage, options?.mediaFiles);
     }
+
+    this.mediaFiles = options?.mediaFiles;
+    this.injectedUserMessage = specInjector.shouldInject(messageCount)
+      ? specInjector.injectIntoMessage(userMessage, process.cwd())
+      : userMessage;
 
     this.addMessage('user', userMessage, true, true, undefined, undefined, this.sessionId);
 
@@ -260,7 +277,7 @@ export class CommonAgent implements AIProvider {
         ) || [];
 
         baseMessages.length = 0;
-        baseMessages.push({ role: 'user', content: this.userMessage });
+        this.pushUserMessage(baseMessages, this.injectedUserMessage, this.mediaFiles);
         if (summaryMessages.length > 0) {
           baseMessages.push(...summaryMessages.filter(m => m.role !== 'system'));
         }

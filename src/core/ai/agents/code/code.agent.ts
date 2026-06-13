@@ -93,6 +93,8 @@ export class CodeAgent implements AIProvider {
   private summarizer?: SummarizerAgent;
   private sessionService?: SessionService;
   private userMessage: string = '';
+  private injectedUserMessage: string = '';
+  private mediaFiles?: { filePath: string; type: string; dataUrl?: string }[];
   private toolRegistry: AgentToolRegistry;
   private roundCount: number = 0;
 
@@ -139,12 +141,27 @@ export class CodeAgent implements AIProvider {
       const firstUserIndex = baseMessages.findIndex(m => m.role === 'user');
       if (firstUserIndex >= 0) {
         const originalFirstUser = baseMessages[firstUserIndex].content;
-        const textContent = typeof originalFirstUser === 'string' ? originalFirstUser : (originalFirstUser.find(c => c.type === 'text') as any)?.text || '';
-        const reinjected = specInjector.injectIntoMessage(textContent, this.projectPath);
-        baseMessages[firstUserIndex].content = reinjected;
+        if (typeof originalFirstUser === 'string') {
+          const reinjected = specInjector.injectIntoMessage(originalFirstUser, this.projectPath);
+          baseMessages[firstUserIndex].content = reinjected;
+        } else {
+          const textPart = originalFirstUser.find(c => c.type === 'text');
+          if (textPart) {
+            const reinjected = specInjector.injectIntoMessage(
+              (textPart as MultimodalContent & { type: 'text' }).text,
+              this.projectPath
+            );
+            (textPart as MultimodalContent & { type: 'text' }).text = reinjected;
+          }
+        }
       }
       this.pushUserMessage(baseMessages, userMessage, options?.mediaFiles);
     }
+
+    this.mediaFiles = options?.mediaFiles;
+    this.injectedUserMessage = specInjector.shouldInject(messageCount)
+      ? specInjector.injectIntoMessage(userMessage, this.projectPath)
+      : userMessage;
 
     this.addMessage('user', userMessage, true, true, undefined, undefined, this.sessionId);
 
@@ -321,7 +338,7 @@ export class CodeAgent implements AIProvider {
         ) || [];
 
         baseMessages.length = 0;
-        baseMessages.push({ role: 'user', content: this.userMessage });
+        this.pushUserMessage(baseMessages, this.injectedUserMessage, this.mediaFiles);
         if (summaryMessages.length > 0) {
           baseMessages.push(...summaryMessages.filter(m => m.role !== 'system'));
         }

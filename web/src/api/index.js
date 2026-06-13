@@ -222,15 +222,23 @@ export const api = {
   },
 
   deleteFile(path) {
-    return request('POST', '/file/delete_file', { path });
+    return request('POST', '/file/delete_file', { filePath: path });
+  },
+
+  writeFile(path, content) {
+    return request('POST', '/file/write_file', { filePath: path, content });
+  },
+
+  editFile(path, oldString, newString) {
+    return request('POST', '/file/edit_file', { filePath: path, oldString, newString });
   },
 
   createDirectory(path) {
-    return request('POST', '/file/mkdir_file', { path });
+    return request('POST', '/file/mkdir_file', { filePath: path });
   },
 
-  renameFile(path, newName) {
-    return request('POST', '/file/rename_file', { path, newName });
+  renameFile(oldPath, newPath) {
+    return request('POST', '/file/rename_file', { oldPath, newPath });
   },
 
   browseFilesystem(path = "") {
@@ -338,15 +346,15 @@ export const api = {
   },
 
   async saveFile(targetPath, content) {
-    return request('POST', '/file/write_file', { path: targetPath, content: Array.from(new Uint8Array(content)) });
+    return request('POST', '/file/write_file', { filePath: targetPath, content: Array.from(new Uint8Array(content)) });
   },
 
   removeFile(targetPath) {
-    return request('POST', '/file/delete_file', { path: targetPath });
+    return request('POST', '/file/delete_file', { filePath: targetPath });
   },
 
-  moveFile(oldPath, newName) {
-    return request('POST', '/file/rename_file', { path: oldPath, newName });
+  moveFile(oldPath, newPath) {
+    return request('POST', '/file/rename_file', { oldPath, newPath });
   },
 
   getDrives() {

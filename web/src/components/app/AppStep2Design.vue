@@ -292,7 +292,7 @@ export default {
       }
       try {
         const res = await api.getFileContent(this.specFilePath)
-        this.specContent = res.content || ''
+        this.specContent = res.data?.content || ''
       } catch (e) {
         this.specContent = ''
       }
@@ -306,8 +306,8 @@ export default {
       try {
         const sessionFilePath = `${this.reqBasePath}/${this.category}/${this.name}/session.json`
         const fileRes = await api.getFileContent(sessionFilePath)
-        if (fileRes && fileRes.content) {
-          const sessionData = JSON.parse(fileRes.content)
+        if (fileRes && fileRes.data?.content) {
+          const sessionData = JSON.parse(fileRes.data.content)
           this.sessionId = sessionData.designSessionId || ''
           this.parentInfo = sessionData.parent || null
         } else {

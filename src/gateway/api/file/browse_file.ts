@@ -6,6 +6,6 @@ export async function GET(req: Request, res: Response) {
   const dirPath = req.query.path as string || process.cwd();
   if (!fs.existsSync(dirPath)) return res.status(404).json({ success: false, error: "Path not found" });
   const entries = fs.readdirSync(dirPath, { withFileTypes: true });
-  const items = entries.map(e => ({ name: e.name, isDirectory: e.isDirectory(), path: path.join(dirPath, e.name) }));
-  res.json({ success: true, data: items });
+  const items = entries.map(e => ({ name: e.name, is_directory: e.isDirectory(), path: path.join(dirPath, e.name) }));
+  res.json({ success: true, data: { current_path: dirPath, parent_path: path.dirname(dirPath), items } });
 }

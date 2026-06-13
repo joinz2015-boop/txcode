@@ -126,13 +126,23 @@ export class AgentToolRegistry {
    */
   static parseToolCalls(rawToolCalls: any[]): ProviderToolCall[] {
     if (!rawToolCalls || rawToolCalls.length === 0) return [];
-    return rawToolCalls.map((tc: any) => ({
-      id: tc.id,
-      name: tc.function.name,
-      arguments: typeof tc.function.arguments === 'string'
-        ? JSON.parse(tc.function.arguments)
-        : tc.function.arguments,
-    }));
+    return rawToolCalls.map((tc: any) => {
+      let parsedArgs: Record<string, any>;
+      if (typeof tc.function.arguments === 'string') {
+        try {
+          parsedArgs = JSON.parse(tc.function.arguments);
+        } catch {
+          parsedArgs = {};
+        }
+      } else {
+        parsedArgs = tc.function.arguments || {};
+      }
+      return {
+        id: tc.id,
+        name: tc.function.name,
+        arguments: parsedArgs,
+      };
+    });
   }
 
   private toOpenAITool(tool: Tool): ToolDefinition {
