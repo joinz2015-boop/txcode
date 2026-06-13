@@ -1,7 +1,6 @@
 import { ChatMessage, BaseProvider } from '../../ai.types.js';
-import { getProviderTools } from '../../../tools/provider/index.js';
+import { AgentToolRegistry, buildToolContext } from '../agent.tool.js';
 import { MEM_TOOLS } from './agent_tool.js';
-import type { Tool, ToolContext } from '../../../tools/tool.types.js';
 
 export interface MemAgentConfig {
   provider: BaseProvider;
@@ -15,11 +14,12 @@ export class MemAgent {
 
   private provider: BaseProvider;
   private workDir?: string;
-  private rawToolsMap: Map<string, Tool> = new Map();
+  private toolRegistry: AgentToolRegistry;
 
   constructor(config: MemAgentConfig) {
     this.provider = config.provider;
     this.workDir = config.workDir;
+    this.toolRegistry = new AgentToolRegistry(MEM_TOOLS, { verboseError: true });
   }
 
   async run(messages: ChatMessage[]): Promise<void> {
@@ -31,18 +31,19 @@ export class MemAgent {
       { role: 'user', content: userPrompt },
     ];
 
-    await this.initTools();
     await this.runLoop(baseMessages);
   }
 
   private async runLoop(messages: ChatMessage[]): Promise<void> {
     const maxIterations = 50;
     let iteration = 0;
+    const toolDefs = await this.toolRegistry.getDefinitions();
+    const context = buildToolContext({ sessionId: 'mem-agent', projectPath: this.workDir });
 
     while (iteration < maxIterations) {
       iteration++;
       const response = await this.provider.chat(messages, {
-        tools: this.getToolDefs(),
+        tools: toolDefs,
         sessionId: 'mem-agent',
         modelName: this.provider.getModel(),
       });
@@ -51,16 +52,10 @@ export class MemAgent {
         break;
       }
 
-      const toolCalls = response.toolCalls.map((tc: any) => ({
-        id: tc.id,
-        name: tc.function.name,
-        arguments: typeof tc.function.arguments === 'string'
-          ? JSON.parse(tc.function.arguments)
-          : tc.function.arguments,
-      }));
+      const toolCalls = AgentToolRegistry.parseToolCalls(response.toolCalls);
 
       for (const toolCall of toolCalls) {
-        const result = await this.executeTool(toolCall.name, toolCall.arguments);
+        const result = await this.toolRegistry.execute(toolCall.name, toolCall.arguments, context);
 
         messages.push({
           role: 'assistant',
@@ -81,49 +76,6 @@ export class MemAgent {
           toolCallId: toolCall.id,
         });
       }
-    }
-  }
-
-  private async initTools(): Promise<void> {
-    const allTools = await getProviderTools();
-    for (const tool of allTools) {
-      if ((MEM_TOOLS as readonly string[]).includes(tool.name)) {
-        this.rawToolsMap.set(tool.name, tool);
-      }
-    }
-  }
-
-  private getToolDefs(): any[] {
-    return Array.from(this.rawToolsMap.values()).map(tool => ({
-      type: 'function' as const,
-      function: {
-        name: tool.name,
-        description: tool.description,
-        parameters: tool.parameters,
-      },
-    }));
-  }
-
-  private async executeTool(
-    name: string,
-    args: Record<string, any>
-  ): Promise<{ success: boolean; data?: any; error?: string }> {
-    const tool = this.rawToolsMap.get(name);
-    if (!tool) {
-      const available = Array.from(this.rawToolsMap.keys()).join(', ');
-      return { success: false, error: `Tool not found: ${name}. Available: ${available}` };
-    }
-
-    const context: ToolContext = {
-      sessionId: 'mem-agent',
-      workDir: this.workDir || process.cwd(),
-    };
-
-    try {
-      const result = await tool.execute(args, context);
-      return { success: result.success, data: result.output, error: result.error };
-    } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : String(error) };
     }
   }
 

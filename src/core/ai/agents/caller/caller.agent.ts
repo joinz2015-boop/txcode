@@ -8,13 +8,12 @@
  * - 扩展工具通过 HTTP POST 到 callbackUrl 执行，默认 30s 超时
  */
 import { BaseProvider, ChatMessage } from '../../ai.types.js'
-import { getProviderTools } from '../../../tools/provider/index.js'
+import { AgentToolRegistry, buildToolContext } from '../agent.tool.js'
 import {
   AIProvider,
   ProviderRunOptions,
   ProviderRunResult,
   ProviderStep,
-  ProviderToolCall,
   ProviderToolResult,
   ProviderTokenUsage,
 } from '../../provider/base.js'
@@ -108,8 +107,7 @@ export class CallerAgent implements AIProvider {
   /** Function Calling 格式的工具定义（供 AI API 使用） */
   private providerTools: any[] = []
   private providerToolsMap: Map<string, any> = new Map()
-  /** 原始 Tool 对象（含 execute 方法，供本地执行使用） */
-  private rawToolsMap: Map<string, any> = new Map()
+  private toolRegistry: AgentToolRegistry
   private extendedToolsSet: Set<string> = new Set()
 
   constructor(config: CallerAgentConfig) {
@@ -124,6 +122,7 @@ export class CallerAgent implements AIProvider {
     this.extendedTools = config.extendedTools || []
     this.systemPrompt = config.systemPrompt || ''
     this.toolTimeout = config.toolTimeout || 30000
+    this.toolRegistry = new AgentToolRegistry(CALLER_DEFAULT_TOOLS)
     this.extendedToolsSet = new Set(this.extendedTools.map(t => t.name))
   }
 
@@ -154,15 +153,8 @@ export class CallerAgent implements AIProvider {
     // 准备 Function Calling 格式的工具定义
     this.providerTools = await this.getFilteredTools()
     this.providerToolsMap.clear()
-    this.rawToolsMap.clear()
     for (const t of this.providerTools) {
       this.providerToolsMap.set(t.function.name, t)
-    }
-
-    // 加载所有原始 Tool 对象（含 execute 方法）
-    const allTools = await getProviderTools()
-    for (const t of allTools) {
-      this.rawToolsMap.set(t.name, t)
     }
 
     const steps: ProviderStep[] = []
@@ -232,16 +224,11 @@ export class CallerAgent implements AIProvider {
 
       // AI 请求调用工具
       if (response.finishReason === 'tool_calls' && response.toolCalls && response.toolCalls.length > 0) {
-        const toolCalls: ProviderToolCall[] = response.toolCalls.map((tc: any) => ({
-          id: tc.id,
-          name: tc.function.name,
-          arguments: typeof tc.function.arguments === 'string'
-            ? JSON.parse(tc.function.arguments)
-            : tc.function.arguments,
-        }))
+        const toolCalls = AgentToolRegistry.parseToolCalls(response.toolCalls)
 
         // 依次执行每个工具调用
         const results: ProviderToolResult[] = []
+        const toolContext = buildToolContext({ sessionId: this.sessionId || '', projectPath: this.projectPath })
         for (const toolCall of toolCalls) {
           const result = await this.executeTool(toolCall.name, toolCall.arguments, abortSignal)
           results.push({
@@ -337,28 +324,12 @@ export class CallerAgent implements AIProvider {
     args: Record<string, any>,
     abortSignal?: AbortSignal
   ): Promise<{ success: boolean; data?: any; error?: string }> {
-    try {
-      if (this.extendedToolsSet.has(name)) {
-        return await this.executeExtendedTool(name, args, abortSignal)
-      }
-
-      const tool = this.rawToolsMap.get(name)
-      if (!tool) {
-        const available = Array.from(this.rawToolsMap.keys()).join(', ')
-        throw new Error(`Tool not found: ${name}. Available tools: ${available}`)
-      }
-      const context = {
-        sessionId: this.sessionId || '',
-        workDir: this.projectPath || process.cwd(),
-      }
-      const result = await tool.execute(args, context)
-      return { success: result.success, data: result.output, error: result.error }
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : String(error),
-      }
+    if (this.extendedToolsSet.has(name)) {
+      return await this.executeExtendedTool(name, args, abortSignal)
     }
+
+    const toolContext = buildToolContext({ sessionId: this.sessionId || '', projectPath: this.projectPath })
+    return await this.toolRegistry.execute(name, args, toolContext)
   }
 
   /**
@@ -420,18 +391,7 @@ export class CallerAgent implements AIProvider {
    * 内置工具从 getProviderTools 过滤，扩展工具直接使用外部传入的定义
    */
   private async getFilteredTools(): Promise<any[]> {
-    const allTools = await getProviderTools()
-    const toolNames = this.tools
-    const filtered = allTools.filter((tool: any) => toolNames.includes(tool.name))
-
-    const builtinDefs = filtered.map(tool => ({
-      type: 'function' as const,
-      function: {
-        name: tool.name,
-        description: tool.description,
-        parameters: tool.parameters,
-      },
-    }))
+    const builtinDefs = await this.toolRegistry.getDefinitions()
 
     const extendedDefs = this.extendedTools.map(tool => ({
       type: 'function' as const,

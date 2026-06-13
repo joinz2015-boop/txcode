@@ -1,13 +1,11 @@
 import { ChatMessage, BaseProvider, MultimodalContent } from '../../ai.types.js';
 import { CODE_TOOLS } from './agent_tool.js';
-import { getOpenAITools } from '../../../tools/provider/tools.js';
-import { getProviderTools } from '../../../tools/provider/index.js';
+import { AgentToolRegistry, buildToolContext } from '../agent.tool.js';
 import {
   AIProvider,
   ProviderRunOptions,
   ProviderRunResult,
   ProviderStep,
-  ProviderToolCall,
   ProviderToolResult,
   ProviderTokenUsage,
 } from '../../provider/base.js';
@@ -95,9 +93,7 @@ export class CodeAgent implements AIProvider {
   private summarizer?: SummarizerAgent;
   private sessionService?: SessionService;
   private userMessage: string = '';
-  private providerTools: any[] = [];
-  private providerToolsMap: Map<string, any> = new Map();
-  private rawToolsMap: Map<string, any> = new Map();
+  private toolRegistry: AgentToolRegistry;
   private roundCount: number = 0;
 
   constructor(config: CodeAgentConfig) {
@@ -108,6 +104,7 @@ export class CodeAgent implements AIProvider {
     this.memoryService = config.memoryService;
     this.summarizer = config.summarizer;
     this.sessionService = config.sessionService;
+    this.toolRegistry = new AgentToolRegistry(CODE_TOOLS, { verboseError: true });
   }
 
   async run(
@@ -115,23 +112,12 @@ export class CodeAgent implements AIProvider {
     options?: ProviderRunOptions
   ): Promise<ProviderRunResult> {
     this.userMessage = userMessage;
-    this.providerTools = await this.getFilteredTools();
-    this.providerToolsMap.clear();
-    this.rawToolsMap.clear();
-    for (const t of this.providerTools) {
-      this.providerToolsMap.set(t.function.name, t);
-    }
-
-    const allTools = await getProviderTools();
-    for (const t of allTools) {
-      this.rawToolsMap.set(t.name, t);
-    }
+    const builtinTools = await this.toolRegistry.getDefinitions();
 
     const steps: ProviderStep[] = [];
     const baseMessages: ChatMessage[] = [];
     const abortSignal = options?.abortSignal;
 
-    const builtinTools = this.providerTools;
     const systemPrompt = await buildCodePrompt(this.maxIterations, {
       workdir: this.projectPath,
     });
@@ -202,18 +188,13 @@ export class CodeAgent implements AIProvider {
       }
 
       if (response.finishReason === 'tool_calls' && response.toolCalls && response.toolCalls.length > 0) {
-        const toolCalls: ProviderToolCall[] = response.toolCalls.map((tc: any) => ({
-          id: tc.id,
-          name: tc.function.name,
-          arguments: typeof tc.function.arguments === 'string'
-            ? JSON.parse(tc.function.arguments)
-            : tc.function.arguments,
-        }));
+        const toolCalls = AgentToolRegistry.parseToolCalls(response.toolCalls);
 
         const results: ProviderToolResult[] = [];
+        const toolContext = buildToolContext({ sessionId: this.sessionId || '', projectPath: this.projectPath });
 
         for (const toolCall of toolCalls) {
-          const result = await this.executeTool(toolCall.name, toolCall.arguments);
+          const result = await this.toolRegistry.execute(toolCall.name, toolCall.arguments, toolContext);
           results.push({
             name: toolCall.name,
             success: result.success,
@@ -382,60 +363,6 @@ export class CodeAgent implements AIProvider {
         trigger: 'chat_end'
       });
     }
-  }
-
-  private async executeTool(
-    name: string,
-    args: Record<string, any>
-  ): Promise<{ success: boolean; data?: any; error?: string }> {
-    try {
-      const tool = this.rawToolsMap.get(name);
-      if (!tool) {
-        const available = Array.from(this.rawToolsMap.keys()).join(', ');
-        throw new Error(`Tool not found: ${name}. Available tools: ${available}`);
-      }
-      const context = {
-        sessionId: this.sessionId || '',
-        workDir: this.projectPath || process.cwd(),
-      };
-      const result = await tool.execute(args, context);
-      return { success: result.success, data: result.output, error: result.error };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : String(error),
-      };
-    }
-  }
-
-  private async getBuiltinTools(): Promise<any[]> {
-    if (this.providerTools.length === 0) {
-      this.providerTools = await this.getFilteredTools();
-      this.providerToolsMap.clear();
-      this.rawToolsMap.clear();
-      for (const t of this.providerTools) {
-        this.providerToolsMap.set(t.function.name, t);
-      }
-
-      const allTools = await getProviderTools();
-      for (const t of allTools) {
-        this.rawToolsMap.set(t.name, t);
-      }
-    }
-    return await getOpenAITools();
-  }
-
-  private async getFilteredTools(): Promise<any[]> {
-    const allTools = await getProviderTools();
-    const filtered = allTools.filter((tool: any) => this.tools.includes(tool.name));
-    return filtered.map(tool => ({
-      type: 'function' as const,
-      function: {
-        name: tool.name,
-        description: tool.description,
-        parameters: tool.parameters,
-      },
-    }));
   }
 
   private addMessage(

@@ -1,13 +1,12 @@
 import { ChatMessage, BaseProvider } from '../../ai.types.js';
 import { CHAT_TOOLS } from './agent_tool.js';
+import { AgentToolRegistry, buildToolContext } from '../agent.tool.js';
 import { getOpenAITools } from '../../../tools/provider/tools.js';
-import { getProviderTools } from '../../../tools/provider/index.js';
 import {
   AIProvider,
   ProviderRunOptions,
   ProviderRunResult,
   ProviderStep,
-  ProviderToolCall,
   ProviderToolResult,
   ProviderTokenUsage,
 } from '../../provider/base.js';
@@ -34,8 +33,7 @@ export class ChatAgent implements AIProvider {
   private projectPath?: string;
   private sessionId?: string;
   private memoryService?: MemoryService;
-  private providerTools: any[] = [];
-  private providerToolsMap: Map<string, any> = new Map();
+  private toolRegistry: AgentToolRegistry;
 
   constructor(config: ChatAgentConfig) {
     this.provider = config.provider;
@@ -43,24 +41,18 @@ export class ChatAgent implements AIProvider {
     this.projectPath = config.projectPath;
     this.sessionId = config.sessionId;
     this.memoryService = config.memoryService;
+    this.toolRegistry = new AgentToolRegistry(CHAT_TOOLS);
   }
 
   async run(
     userMessage: string,
     options?: ProviderRunOptions
   ): Promise<ProviderRunResult> {
-    this.providerTools = await this.getFilteredTools();
-    this.providerToolsMap.clear();
-    for (const t of this.providerTools) {
-      this.providerToolsMap.set(t.name, t);
-    }
-
+    const builtinTools = await this.toolRegistry.getDefinitions();
     const steps: ProviderStep[] = [];
     const baseMessages: ChatMessage[] = [];
     const abortSignal = options?.abortSignal;
-
-    const builtinTools = await this.getBuiltinTools();
-    const systemPrompt = await this.buildPrompt(await this.getBuiltinTools());
+    const systemPrompt = await this.buildPrompt(builtinTools);
 
     if (options?.historyMessages && options.historyMessages.length > 0) {
       for (const msg of options.historyMessages) {
@@ -113,18 +105,13 @@ export class ChatAgent implements AIProvider {
       }
 
       if (response.finishReason === 'tool_calls' && response.toolCalls && response.toolCalls.length > 0) {
-        const toolCalls: ProviderToolCall[] = response.toolCalls.map((tc: any) => ({
-          id: tc.id,
-          name: tc.function.name,
-          arguments: typeof tc.function.arguments === 'string'
-            ? JSON.parse(tc.function.arguments)
-            : tc.function.arguments,
-        }));
+        const toolCalls = AgentToolRegistry.parseToolCalls(response.toolCalls);
 
         const results: ProviderToolResult[] = [];
+        const toolContext = buildToolContext({ sessionId: this.sessionId || options?.sessionId || '', projectPath: this.projectPath });
 
         for (const toolCall of toolCalls) {
-          const result = await this.executeTool(toolCall.name, toolCall.arguments);
+          const result = await this.toolRegistry.execute(toolCall.name, toolCall.arguments, toolContext);
           results.push({
             name: toolCall.name,
             success: result.success,
@@ -201,53 +188,6 @@ export class ChatAgent implements AIProvider {
 
   getType(): string {
     return 'chat';
-  }
-
-  private async executeTool(
-    name: string,
-    args: Record<string, any>
-  ): Promise<{ success: boolean; data?: any; error?: string }> {
-    try {
-      const tool = this.providerToolsMap.get(name);
-      if (!tool) {
-        throw new Error(`Tool not found: ${name}`);
-      }
-      const context = {
-        sessionId: this.sessionId || '',
-        workDir: this.projectPath || process.cwd(),
-      };
-      const result = await tool.execute(args, context);
-      return { success: result.success, data: result.output, error: result.error };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : String(error),
-      };
-    }
-  }
-
-  private async getBuiltinTools(): Promise<any[]> {
-    if (this.providerTools.length === 0) {
-      this.providerTools = await this.getFilteredTools();
-      this.providerToolsMap.clear();
-      for (const t of this.providerTools) {
-        this.providerToolsMap.set(t.name, t);
-      }
-    }
-    return await getOpenAITools();
-  }
-
-  private async getFilteredTools(): Promise<any[]> {
-    const allTools = await getProviderTools();
-    const filtered = allTools.filter((tool: any) => this.tools.includes(tool.name));
-    return filtered.map(tool => ({
-      type: 'function' as const,
-      function: {
-        name: tool.name,
-        description: tool.description,
-        parameters: tool.parameters,
-      },
-    }));
   }
 
   private async buildPrompt(_builtinTools: any[] = []): Promise<string> {

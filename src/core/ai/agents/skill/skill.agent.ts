@@ -1,5 +1,5 @@
 import { ChatMessage, BaseProvider } from '../../ai.types.js';
-import { getOpenAITools } from '../../../tools/provider/tools.js';
+import { AgentToolRegistry } from '../agent.tool.js';
 
 export interface SkillAgentConfig {
   provider: BaseProvider;
@@ -15,23 +15,18 @@ export class SkillAgent {
 
   private provider: BaseProvider;
   private maxIterations: number;
-  private providerTools: any[] = [];
-  private providerToolsMap: Map<string, any> = new Map();
+  private toolRegistry: AgentToolRegistry;
 
   constructor(config: SkillAgentConfig) {
     this.provider = config.provider;
     this.maxIterations = config.maxIterations || 3;
+    this.toolRegistry = new AgentToolRegistry(SKILL_TOOLS);
   }
 
   async run(messages: ChatMessage[]): Promise<{ name: string; content: string } | null> {
-    this.providerTools = await this.getFilteredTools();
-    this.providerToolsMap.clear();
-    for (const t of this.providerTools) {
-      this.providerToolsMap.set(t.function.name, t);
-    }
-
     const systemPrompt = await this.buildPrompt();
     const userPrompt = this.buildUserPrompt(messages);
+    const tools = await this.toolRegistry.getDefinitions();
 
     const conversation: ChatMessage[] = [
       { role: 'system', content: systemPrompt },
@@ -39,6 +34,7 @@ export class SkillAgent {
     ];
 
     const response = await this.provider.chat(conversation, {
+      tools,
       sessionId: 'skill-agent',
       modelName: this.provider.getModel(),
     });
@@ -57,19 +53,6 @@ export class SkillAgent {
     }
 
     return null;
-  }
-
-  private async getFilteredTools(): Promise<any[]> {
-    const allTools = await getOpenAITools();
-    const filtered = allTools.filter((tool: any) => this.tools.includes(tool.function.name));
-    return filtered.map(tool => ({
-      type: 'function' as const,
-      function: {
-        name: tool.function.name,
-        description: tool.function.description,
-        parameters: tool.function.parameters,
-      },
-    }));
   }
 
   private async buildPrompt(): Promise<string> {
