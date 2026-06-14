@@ -12,6 +12,7 @@ export interface ChatInput {
   abortSignal?: AbortSignal;
   modelName?: string;
   mediaFiles?: MediaFile[];
+  agentName?: string;
   onStep?: (step: Step, iteration: number, usage?: any) => void;
   onCompact?: (info: { beforeTokens: number; afterTokens: number; summary?: string }) => void;
 }
@@ -23,6 +24,7 @@ export interface ChatOptions {
   abortSignal?: AbortSignal;
   modelName?: string;
   mediaFiles?: MediaFile[];
+  agentName?: string;
   onStep?: (step: Step, iteration: number, usage?: any) => void;
   onCompact?: (info: { beforeTokens: number; afterTokens: number; summary?: string }) => void;
 }

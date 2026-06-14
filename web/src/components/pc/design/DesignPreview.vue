@@ -14,7 +14,7 @@
       </button>
     </div>
     <div class="flex-1 flex items-center justify-center overflow-auto bg-[#f5f5f5] p-4">
-      <div v-if="!fileContent" class="text-textMuted text-center mt-20">
+      <div v-if="!relativePath" class="text-textMuted text-center mt-20">
         <i class="fa-solid fa-eye text-6xl mb-4 opacity-20 block"></i>
         <p>双击左侧 HTML 文件预览</p>
       </div>
@@ -34,12 +34,13 @@
           </button>
         </div>
         <iframe
-          :key="refreshKey"
+          v-if="renderIframe"
           :src="previewSrc"
           sandbox="allow-scripts allow-same-origin"
           class="w-full border-0"
           :style="iframeStyle"
           ref="previewFrame"
+          @load="onIframeLoad"
         ></iframe>
       </div>
     </div>
@@ -58,6 +59,8 @@ export default {
     return {
       activeDevice: 'web',
       refreshKey: 0,
+      renderIframe: false,
+      _relativePathVersion: 0,
       deviceSizes: [
         { value: 'app', label: 'App', icon: 'fa-solid fa-mobile-screen', width: 375 },
         { value: 'web', label: 'Web', icon: 'fa-solid fa-desktop', width: 0 },
@@ -68,7 +71,9 @@ export default {
   computed: {
     previewSrc() {
       if (!this.relativePath) return ''
-      return `/api/design/html?path=${encodeURIComponent(this.relativePath)}`
+      const src = `/api/design/html?path=${encodeURIComponent(this.relativePath)}&_=${this._relativePathVersion}`
+      console.log('[DesignPreview] previewSrc computed:', src)
+      return src
     },
     iframeStyle() {
       return { width: '100%', height: '100%' }
@@ -90,12 +95,47 @@ export default {
         else if (val.includes('_web.html')) this.activeDevice = 'web'
         else if (val.includes('_pad.html')) this.activeDevice = 'pad'
         else this.activeDevice = 'web'
+        console.log('[DesignPreview] fileName changed:', val, '→ activeDevice:', this.activeDevice)
+      }
+    },
+    relativePath(val, oldVal) {
+      console.log('[DesignPreview] relativePath changed:', oldVal, '→', val)
+      if (val) {
+        this._relativePathVersion++
+        console.log('[DesignPreview] _relativePathVersion:', this._relativePathVersion)
+        this.renderIframe = false
+        console.log('[DesignPreview] renderIframe set to false, scheduling recreate')
+        this.$nextTick(() => {
+          this.renderIframe = true
+          console.log('[DesignPreview] renderIframe set to true, iframe should be created with src:', this.previewSrc)
+        })
+      } else {
+        this.renderIframe = false
+        console.log('[DesignPreview] renderIframe set to false (no file)')
       }
     }
+  },
+  mounted() {
+    console.log('[DesignPreview] mounted, relativePath:', this.relativePath)
+  },
+  updated() {
+    console.log('[DesignPreview] updated, relativePath:', this.relativePath, 'previewSrc:', this.previewSrc)
+  },
+  beforeDestroy() {
+    console.log('[DesignPreview] beforeDestroy')
   },
   methods: {
     refreshPreview() {
       this.refreshKey++
+      this._relativePathVersion++
+      this.renderIframe = false
+      this.$nextTick(() => {
+        this.renderIframe = true
+        console.log('[DesignPreview] refreshPreview, iframe recreated')
+      })
+    },
+    onIframeLoad() {
+      console.log('[DesignPreview] iframe onload, src:', this.previewSrc)
     }
   }
 }

@@ -26,7 +26,7 @@
     />
 
     <DesignAiChat
-      v-show="activeTab === 'ai'"
+      v-if="activeTab === 'ai'"
       :base-path="basePath"
       :current-page="currentPage"
       @design-updated="$emit('file-changed')"

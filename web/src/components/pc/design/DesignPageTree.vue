@@ -129,16 +129,18 @@ export default {
   },
   computed: {
     fileTreeData() {
-      const items = this.browseResult.items.map(item => ({
-        name: item.name,
-        path: item.path,
-        is_directory: item.is_directory,
-        is_drive: item.is_drive || false,
-        size: item.size,
-        has_children: item.is_directory,
-        expanded: false,
-        children: []
-      }))
+      const items = this.browseResult.items
+        .filter(item => item.name !== 'session.json')
+        .map(item => ({
+          name: item.name,
+          path: item.path,
+          is_directory: item.is_directory,
+          is_drive: item.is_drive || false,
+          size: item.size,
+          has_children: item.is_directory,
+          expanded: false,
+          children: []
+        }))
       return items.sort((a, b) => {
         if (a.is_directory === b.is_directory) return a.name.localeCompare(b.name)
         return a.is_directory ? -1 : 1
@@ -204,7 +206,12 @@ export default {
       } else if (relPath === this.basePath) {
         relPath = ''
       }
-      this.$emit('current-page', relPath)
+      if (!node.is_directory && relPath.endsWith('.html')) {
+        console.log('[DesignPageTree] handleSelect emitting current-page:', relPath)
+        this.$emit('current-page', relPath)
+      } else {
+        console.log('[DesignPageTree] handleSelect skipping (dir or non-html):', node.name, 'isDir:', node.is_directory)
+      }
     },
     handleOpenFile(node) {
       this.$emit('open-file', node)
@@ -212,16 +219,18 @@ export default {
     async handleLoadChildren({ path, callback }) {
       try {
         const res = await api.browseFilesystem(path)
-        const children = (res.data.items || []).map(item => ({
-          name: item.name,
-          path: item.path,
-          is_directory: item.is_directory,
-          is_drive: false,
-          size: item.size,
-          has_children: item.is_directory,
-          expanded: false,
-          children: []
-        }))
+        const children = (res.data.items || [])
+          .filter(item => item.name !== 'session.json')
+          .map(item => ({
+            name: item.name,
+            path: item.path,
+            is_directory: item.is_directory,
+            is_drive: false,
+            size: item.size,
+            has_children: item.is_directory,
+            expanded: false,
+            children: []
+          }))
         callback(children.sort((a, b) => {
           if (a.is_directory === b.is_directory) return a.name.localeCompare(b.name)
           return a.is_directory ? -1 : 1

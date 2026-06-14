@@ -163,7 +163,8 @@ export default {
       skillSelectVisible: false,
       sessionId: '',
       sessionStatus: 'idle',
-      wsUnsubscribe: null
+      wsUnsubscribe: null,
+      requestSeq: 0
     }
   },
   watch: {
@@ -192,7 +193,20 @@ export default {
       try {
         const res = await api.getFileContent(this.getSessionJsonPath())
         if (res && res.data?.content) {
-          return JSON.parse(res.data.content)
+          const data = JSON.parse(res.data.content)
+          if (data.pageSessions) {
+            const cleaned = {}
+            for (const [key, val] of Object.entries(data.pageSessions)) {
+              if (key.endsWith('.html') && key !== 'session.json') {
+                cleaned[key] = val
+              }
+            }
+            if (Object.keys(cleaned).length !== Object.keys(data.pageSessions).length) {
+              data.pageSessions = cleaned
+              this.writeSessionJson(data).catch(() => {})
+            }
+          }
+          return data
         }
       } catch (e) {
       }
@@ -202,39 +216,59 @@ export default {
       await api.writeFile(this.getSessionJsonPath(), JSON.stringify(data, null, 2))
     },
     async loadSessionForPage(pagePath) {
-      if (!pagePath) {
+      const seq = ++this.requestSeq
+      console.log('[DesignAiChat] loadSessionForPage called:', pagePath, 'seq:', seq)
+      const t0 = performance.now()
+      if (!pagePath || !pagePath.endsWith('.html')) {
         if (this.wsUnsubscribe) { this.wsUnsubscribe(); this.wsUnsubscribe = null }
         this.sessionId = ''
         this.logItems = []
         this.promptTokens = 0
         this.sessionStatus = 'idle'
+        console.log('[DesignAiChat] loadSessionForPage skipped (not html):', pagePath)
         return
       }
 
       const sessionData = await this.readSessionJson()
+      if (this.requestSeq !== seq) return
+      console.log('[DesignAiChat] sessionData loaded:', Object.keys(sessionData.pageSessions || {}))
       const pageSession = sessionData.pageSessions?.[pagePath]
+      console.log('[DesignAiChat] pageSession for', pagePath, ':', !!pageSession)
 
       if (pageSession?.sessionId) {
         try {
+          console.log('[DesignAiChat] loading existing session:', pageSession.sessionId)
+          const t1 = performance.now()
           const sessionRes = await api.getSession(pageSession.sessionId)
+          if (this.requestSeq !== seq) return
+          console.log('[DesignAiChat] getSession took:', (performance.now() - t1).toFixed(1), 'ms')
           if (sessionRes && sessionRes.data) {
             this.sessionId = pageSession.sessionId
             this.subscribeSession()
+            const t2 = performance.now()
             await this.loadMessages()
+            if (this.requestSeq !== seq) return
+            console.log('[DesignAiChat] loadMessages took:', (performance.now() - t2).toFixed(1), 'ms')
+            console.log('[DesignAiChat] loadSessionForPage done (existing), total:', (performance.now() - t0).toFixed(1), 'ms')
             return
           }
         } catch (e) {
+          console.error('[DesignAiChat] getSession failed:', e)
         }
       }
 
       try {
+        console.log('[DesignAiChat] creating new session for:', pagePath)
         const res = await api.createSession(`设计页面: ${pagePath}`)
+        if (this.requestSeq !== seq) return
         this.sessionId = res.data.id
         sessionData.pageSessions[pagePath] = { sessionId: this.sessionId }
         await this.writeSessionJson(sessionData)
+        if (this.requestSeq !== seq) return
         this.logItems = []
         this.promptTokens = 0
         this.subscribeSession()
+        console.log('[DesignAiChat] loadSessionForPage done (new), total:', (performance.now() - t0).toFixed(1), 'ms')
       } catch (e) {
         console.error('Create session failed:', e)
       }
@@ -300,6 +334,7 @@ export default {
         message: contextMsg,
         sessionId: this.sessionId,
         modelName: this.modelName || undefined,
+        agent: 'design',
         mediaFiles: sentMediaFiles.map(f => ({ filePath: f.filePath, type: f.type }))
       })
       this.mediaFiles = []

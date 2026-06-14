@@ -57,13 +57,16 @@ export default {
     fileContent: {
       immediate: true,
       handler(val) {
-        if (this.editor && this.fileName) {
-          const newVal = val || ''
-          if (this.editor.getValue() === newVal) return
-          this.originalContent = newVal
-          this.editor.setValue(newVal)
-          this.contentChanged = false
+        if (!this.fileName) return
+        if (!this.editor) {
+          this.initEditor()
+          if (!this.editor) return
         }
+        const newVal = val || ''
+        if (this.editor.getValue() === newVal) return
+        this.originalContent = newVal
+        this.editor.setValue(newVal)
+        this.contentChanged = false
       }
     }
   },
@@ -77,6 +80,7 @@ export default {
     initEditor() {
       if (this.editor) return
       if (!this.$refs.editorContainer) return
+      if (!this.fileName) return
 
       this.editor = monaco.editor.create(this.$refs.editorContainer, {
         value: this.fileContent || '',
@@ -111,6 +115,9 @@ export default {
       this.contentChanged = false
     },
     layout() {
+      if (!this.editor && this.fileName) {
+        this.initEditor()
+      }
       if (this.editor) {
         this.$nextTick(() => this.editor.layout())
       }

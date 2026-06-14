@@ -91,6 +91,11 @@ export default {
   },
   watch: {
     rightTab(val) {
+      console.log('[DesignView] rightTab changed:', val)
+      if (val === 'editor' && this.activeFilePath && !this.fileContent) {
+        console.log('[DesignView] switching to editor, loading file content for:', this.activeFilePath)
+        this.loadFileContent()
+      }
       if (val === 'editor') {
         this.$nextTick(() => {
           if (this.$refs.editor) this.$refs.editor.layout()
@@ -104,17 +109,28 @@ export default {
   },
   methods: {
     async openFile(node) {
+      console.log('[DesignView] openFile called, node:', node.name, 'path:', node.path, 'is_dir:', node.is_directory)
       if (node.is_directory) return
       this.activeFileName = node.name
       this.activeFilePath = node.path
-      this.relativePath = this.extractRelativePath(node.path)
+      const extracted = this.extractRelativePath(node.path)
+      console.log('[DesignView] extractRelativePath result:', extracted)
+      this.relativePath = extracted
+      this.fileContent = ''
+      this.hasChanges = false
+      this.rightTab = 'preview'
+      console.log('[DesignView] openFile done, relativePath:', this.relativePath, 'fileContent deferred to editor tab')
+    },
+    async loadFileContent() {
+      if (!this.activeFilePath) return
+      console.log('[DesignView] loadFileContent:', this.activeFilePath)
       try {
-        const res = await api.getFileContent(node.path)
+        const t0 = performance.now()
+        const res = await api.getFileContent(this.activeFilePath)
+        console.log('[DesignView] getFileContent took:', (performance.now() - t0).toFixed(1), 'ms')
         this.fileContent = res.data?.content || ''
-        this.hasChanges = false
-        this.rightTab = 'preview'
       } catch (e) {
-        console.error('Open file failed:', e)
+        console.error('[DesignView] loadFileContent failed:', e)
         this.fileContent = ''
       }
     },
@@ -127,14 +143,10 @@ export default {
     },
     async refreshCurrentFile() {
       if (!this.activeFilePath) return
-      try {
-        const res = await api.getFileContent(this.activeFilePath)
-        this.fileContent = res.data?.content || ''
-        if (this.$refs.editor) {
-          this.$refs.editor.updateContent(this.fileContent)
-        }
-      } catch (e) {
-        console.error('Refresh file failed:', e)
+      console.log('[DesignView] refreshCurrentFile:', this.activeFilePath)
+      await this.loadFileContent()
+      if (this.$refs.editor) {
+        this.$refs.editor.updateContent(this.fileContent)
       }
     },
     extractRelativePath(fullPath) {
