@@ -46,6 +46,12 @@ const routes = [
         meta: { title: '文件管理' },
       },
       {
+        path: 'fileZihao',
+        name: 'fileZihao',
+        component: () => import('../views/pc/file/fileZihao.vue'),
+        meta: { title: '文件互联' },
+      },
+      {
         path: 'skills',
         name: 'skills',
         component: Skills,

@@ -20,7 +20,7 @@
       </div>
       <div
         v-else
-        class="device-frame flex flex-col"
+        class="device-frame flex flex-col self-stretch"
         :class="`device-frame-${activeDevice}`"
       >
         <div class="flex justify-end mb-2 shrink-0">
@@ -35,7 +35,7 @@
         <iframe
           :key="refreshKey"
           :src="previewSrc"
-          sandbox="allow-scripts allow-same-origin"
+          sandbox="allow-scripts"
           class="w-full border-0"
           :style="iframeStyle"
           ref="previewFrame"
@@ -58,9 +58,9 @@ export default {
       activeDevice: 'web',
       refreshKey: 0,
       deviceSizes: [
-        { value: 'app', label: 'App', icon: 'fa-solid fa-mobile-screen', width: 375, height: 812 },
-        { value: 'web', label: 'Web', icon: 'fa-solid fa-desktop', width: 0, height: 0 },
-        { value: 'pad', label: 'Pad', icon: 'fa-solid fa-tablet-screen-button', width: 768, height: 1024 }
+        { value: 'app', label: 'App', icon: 'fa-solid fa-mobile-screen', width: 375 },
+        { value: 'web', label: 'Web', icon: 'fa-solid fa-desktop', width: 0 },
+        { value: 'pad', label: 'Pad', icon: 'fa-solid fa-tablet-screen-button', width: 768 }
       ]
     }
   },
@@ -72,9 +72,9 @@ export default {
     iframeStyle() {
       const ds = this.deviceSizes.find(d => d.value === this.activeDevice)
       if (!ds || ds.width === 0) {
-        return { width: '100%', height: '100%', minHeight: '500px' }
+        return { width: '100%' }
       }
-      return { width: ds.width + 'px', height: ds.height + 'px' }
+      return { maxWidth: ds.width + 'px', width: '100%' }
     }
   },
   watch: {
@@ -99,9 +99,12 @@ export default {
 
 <style scoped>
 .device-frame {
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
+  height: 100%;
+  max-width: 100%;
+}
+.device-frame > iframe {
+  flex: 1;
+  min-height: 0;
 }
 
 .device-frame-app {
@@ -137,6 +140,7 @@ export default {
 }
 
 .device-frame-web {
+  width: 100%;
   background: #2d2d2d;
   border-radius: 12px;
   padding: 12px;

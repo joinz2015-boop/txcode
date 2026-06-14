@@ -58,8 +58,10 @@ export default {
       immediate: true,
       handler(val) {
         if (this.editor && this.fileName) {
-          this.originalContent = val || ''
-          this.editor.setValue(this.originalContent)
+          const newVal = val || ''
+          if (this.editor.getValue() === newVal) return
+          this.originalContent = newVal
+          this.editor.setValue(newVal)
           this.contentChanged = false
         }
       }

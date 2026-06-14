@@ -57,7 +57,7 @@ export default {
     async loadDevLog() {
       if (!this.sessionId) return
       try {
-        const res = await fetch(`/api/devlog?sessionId=${this.sessionId}`)
+        const res = await fetch(`/api/devlog/list_devlog?sessionId=${this.sessionId}`)
         const data = await res.json()
         if (data.success) {
           this.content = data.data?.content || ''

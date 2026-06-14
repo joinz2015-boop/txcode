@@ -513,7 +513,7 @@ data() {
       if (!this.sessionId) return
       this.devLogLoading = true
       try {
-        const res = await fetch(`/api/devlog?sessionId=${this.sessionId}`)
+        const res = await fetch(`/api/devlog/list_devlog?sessionId=${this.sessionId}`)
         const data = await res.json()
         if (data.success) {
           this.devLogContent = data.data?.content || ''
