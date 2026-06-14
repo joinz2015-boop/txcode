@@ -100,16 +100,16 @@
               @change="(e) => handleImageSelected(e, panel)"
             />
             <div class="input-actions">
-              <el-button @click="handleImageUpload(index)" :disabled="panel.disabled || !panel.session?.id" class="upload-btn">
+              <el-button @click="handleImageUpload(index)" :disabled="panel.disabled || !panel.session?.id" class="upload-btn" size="small">
                 图片
               </el-button>
-              <el-button v-if="panel.disabled && !panel.stopping" type="danger" @click.stop="stopPanel(panel)" class="stop-btn">
+              <el-button v-if="panel.disabled && !panel.stopping" type="danger" @click.stop="stopPanel(panel)" class="stop-btn" size="small">
                 ■ 停止
               </el-button>
-              <el-button v-else-if="panel.stopping" type="info" disabled class="stop-btn">
+              <el-button v-else-if="panel.stopping" type="info" disabled class="stop-btn" size="small">
                 停止中...
               </el-button>
-              <el-button v-else type="primary" :disabled="!panel.session?.id" @click.stop="sendToPanel(panel)" class="send-btn">
+              <el-button v-else type="primary" :disabled="!panel.session?.id" @click.stop="sendToPanel(panel)" class="send-btn" size="small">
                 发送
               </el-button>
             </div>
@@ -944,7 +944,7 @@ export default {
 .send-btn, .stop-btn, .upload-btn { height: auto; }
 
 .input-wrapper ::v-deep .el-textarea__inner {
-  padding-right: 120px;
+  padding-bottom: 50px;
 }
 
 .status-bar {
