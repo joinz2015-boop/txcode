@@ -24,7 +24,14 @@
         :class="`device-frame-${activeDevice}`"
         :style="frameStyle"
       >
-        <div class="flex justify-end mb-2 shrink-0">
+        <div class="flex justify-end mb-2 shrink-0 gap-1">
+          <button
+            @click="openInNewTab"
+            class="p-1 text-textMuted hover:text-white text-xs rounded hover:bg-white/10 transition-colors"
+            title="新窗口打开"
+          >
+            <i class="fa-solid fa-up-right-from-square"></i>
+          </button>
           <button
             @click="refreshPreview"
             class="p-1 text-textMuted hover:text-white text-xs rounded hover:bg-white/10 transition-colors"
@@ -36,7 +43,7 @@
         <iframe
           v-if="renderIframe"
           :src="previewSrc"
-          sandbox="allow-scripts allow-same-origin"
+          sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-popups"
           class="w-full border-0"
           :style="iframeStyle"
           ref="previewFrame"
@@ -71,7 +78,7 @@ export default {
   computed: {
     previewSrc() {
       if (!this.relativePath) return ''
-      const src = `/api/design/html?path=${encodeURIComponent(this.relativePath)}&_=${this._relativePathVersion}`
+      const src = `/design_html/${encodeURI(this.relativePath)}?_=${this._relativePathVersion}`
       console.log('[DesignPreview] previewSrc computed:', src)
       return src
     },
@@ -133,6 +140,10 @@ export default {
         this.renderIframe = true
         console.log('[DesignPreview] refreshPreview, iframe recreated')
       })
+    },
+    openInNewTab() {
+      if (!this.previewSrc) return
+      window.open(this.previewSrc, '_blank')
     },
     onIframeLoad() {
       console.log('[DesignPreview] iframe onload, src:', this.previewSrc)

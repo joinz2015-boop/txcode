@@ -33,6 +33,7 @@ const packageRoot = path.resolve(__dirname, '..', '..', '..');
 import { dbService } from '../../core/db/db.service.js';
 import { configService } from '../../services/config/config.service.js';
 import { logger } from '../../modules/logger/logger.js';
+import { projectService } from '../../services/project/project.service.js';
 
 /**
  * WebService 类
@@ -137,6 +138,37 @@ export class WebService {
 
     const uploadDir = path.join(os.homedir(), '.txcode', 'uploads');
     this.app.use('/uploads', express.static(uploadDir));
+
+    this.app.use('/design_html', (req: Request, res: Response) => {
+      let decodedPath = req.path;
+      try {
+        decodedPath = decodeURIComponent(req.path);
+      } catch {
+        return res.status(400).send('Bad Request');
+      }
+      if (!decodedPath.endsWith('.html')) {
+        return res.status(404).send('Not Found');
+      }
+      if (decodedPath.includes('..') || decodedPath.includes('~')) {
+        return res.status(400).send('Bad Request');
+      }
+      const projectPath = projectService.getCurrentProjectPath();
+      if (!projectPath) {
+        return res.status(404).send('Not Found');
+      }
+      const relativePath = decodedPath.replace(/^\//, '');
+      const fullPath = path.join(projectPath, '.txcode', 'design', relativePath);
+      const designRoot = path.resolve(path.join(projectPath, '.txcode', 'design'));
+      if (!path.resolve(fullPath).startsWith(designRoot)) {
+        return res.status(400).send('Bad Request');
+      }
+      if (!fs.existsSync(fullPath)) {
+        return res.status(404).send('Not Found');
+      }
+      const content = fs.readFileSync(fullPath, 'utf-8');
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.send(content);
+    });
 
     /**
      * 静态文件服务与 SPA fallback
