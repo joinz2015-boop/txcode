@@ -1,5 +1,5 @@
 <template>
-  <aside class="bg-[#121212] border border-[#1e1e1e] rounded-lg flex flex-col shrink-0 overflow-hidden" style="width: 480px;">
+  <aside class="bg-[#121212] border border-[#1e1e1e] flex flex-col shrink-0 overflow-hidden" style="width: 480px;">
     <div class="flex border-b border-[#1e1e1e] bg-[#121212]">
       <div
         class="flex-1 text-center px-3 py-2.5 cursor-pointer text-sm border-b-2 transition-colors"
@@ -29,6 +29,7 @@
       v-show="activeTab === 'ai'"
       :base-path="basePath"
       :current-page="currentPage"
+      @design-updated="$emit('file-changed')"
     />
   </aside>
 </template>

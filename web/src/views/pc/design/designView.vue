@@ -52,6 +52,11 @@
           <span v-else class="text-textMuted">双击左侧文件打开</span>
           <span v-if="hasChanges" class="text-yellow-500">已修改</span>
         </div>
+        <div class="flex items-center gap-2">
+          <button @click="refreshCurrentFile" class="p-1 text-textMuted hover:text-white text-xs" title="刷新">
+            <i class="fa-solid fa-refresh"></i>
+          </button>
+        </div>
       </div>
     </main>
   </div>

@@ -29,7 +29,7 @@
               {{ item.success !== false ? '✓' : '✗' }}
             </span>
             {{ tc.function.name }}
-            <span v-if="tc.function.arguments" class="tool-input text-[11px]">{{ formatInput(tc.function.name, tc.function.arguments) }}</span>
+            <span v-if="tc.function.arguments" class="tool-input">{{ formatInput(tc.function.name, tc.function.arguments) }}</span>
           </div>
         </template>
         <div v-else-if="item.type === 'think'" :key="idx" class="ai-thought mb-2" v-html="renderMarkdown(item.content)"></div>
@@ -83,9 +83,19 @@
           {{ sessionStatus === 'processing' ? '思考中' : '✓ 就绪' }}
         </span>
         <span class="separator">|</span>
-        <span>模型：{{ modelName || '-' }}</span>
+        <span class="model-selector" @click="openModelSelector" @mousedown.prevent>
+          模型：{{ modelName || '-' }} ▾
+        </span>
         <span class="separator">|</span>
         <span>会话：{{ sessionId ? sessionId.slice(0, 8) : '--------' }}</span>
+        <span class="separator">|</span>
+        <span>token：{{ promptTokens || 0 }}</span>
+        <span class="separator">|</span>
+        <span class="status-action" @click="openCommandDialog" @mousedown.prevent>命令</span>
+        <span class="separator">|</span>
+        <span class="status-action" @click="openFileSelect" @mousedown.prevent>选择文件</span>
+        <span class="separator">|</span>
+        <span class="status-action" @click="openSkillSelect" @mousedown.prevent>选择Skill</span>
       </div>
     </div>
 
@@ -93,12 +103,39 @@
       <span class="absolute top-4 right-4 text-white text-2xl cursor-pointer">&times;</span>
       <img :src="previewImage.url || previewImage.dataUrl || previewImage.filePath" class="max-w-[90vw] max-h-[90vh]" @click.stop />
     </div>
+
+    <ModelSelectDialog
+      :visible.sync="modelSelectVisible"
+      :current-model="modelName"
+      @select="onModelSelected"
+    />
+
+    <CommandDialog
+      :visible.sync="commandDialogVisible"
+      @execute="handleExecuteCommand"
+    />
+
+    <FileSelectDialog
+      :visible.sync="fileSelectVisible"
+      @select="onFileSelected"
+      @close="cancelFileSelect"
+    />
+
+    <SkillSelectDialog
+      :visible.sync="skillSelectVisible"
+      @select="onSkillSelected"
+      @close="cancelSkillSelect"
+    />
   </div>
 </template>
 
 <script>
 import { api } from '../../../api/index.js'
 import { marked } from 'marked'
+import ModelSelectDialog from '../model/ModelSelectDialog.vue'
+import CommandDialog from '../common/CommandDialog.vue'
+import FileSelectDialog from '../file/FileSelectDialog.vue'
+import SkillSelectDialog from '../skill/SkillSelectDialog.vue'
 import ResizableTextarea from '../chat/ResizableTextarea.vue'
 import ImagePreviewList from '../chat/ImagePreviewList.vue'
 import { scrollToBottom, snapshotScroll } from '../../../utils/scroll'
@@ -106,10 +143,11 @@ import { mediaChatMixin } from '../../../lib/mediaChat.js'
 
 export default {
   name: 'DesignAiChat',
-  components: { ImagePreviewList, ResizableTextarea },
+  components: { ModelSelectDialog, CommandDialog, FileSelectDialog, SkillSelectDialog, ImagePreviewList, ResizableTextarea },
   mixins: [mediaChatMixin()],
   props: {
-    basePath: { type: String, default: '.txcode/design' }
+    basePath: { type: String, default: '.txcode/design' },
+    currentPage: { type: String, default: '' }
   },
   data() {
     return {
@@ -119,39 +157,83 @@ export default {
       promptTokens: 0,
       logItems: [],
       modelName: '',
+      modelSelectVisible: false,
+      commandDialogVisible: false,
+      fileSelectVisible: false,
+      skillSelectVisible: false,
       sessionId: '',
       sessionStatus: 'idle',
       wsUnsubscribe: null
     }
   },
+  watch: {
+    currentPage: {
+      immediate: false,
+      handler(newVal) {
+        this.loadSessionForPage(newVal)
+      }
+    }
+  },
   async mounted() {
-    await this.initSession()
     await this.loadDefaultModel()
     api.ws.init()
+    if (this.currentPage) {
+      await this.loadSessionForPage(this.currentPage)
+    }
   },
   beforeDestroy() {
     if (this.wsUnsubscribe) this.wsUnsubscribe()
   },
   methods: {
-    async initSession() {
-      const stored = localStorage.getItem('design_ai_session_id')
-      if (stored) {
-        this.sessionId = stored
+    getSessionJsonPath() {
+      return this.basePath + '/session.json'
+    },
+    async readSessionJson() {
+      try {
+        const res = await api.getFileContent(this.getSessionJsonPath())
+        if (res && res.data?.content) {
+          return JSON.parse(res.data.content)
+        }
+      } catch (e) {
+      }
+      return { pageSessions: {} }
+    },
+    async writeSessionJson(data) {
+      await api.writeFile(this.getSessionJsonPath(), JSON.stringify(data, null, 2))
+    },
+    async loadSessionForPage(pagePath) {
+      if (!pagePath) {
+        if (this.wsUnsubscribe) { this.wsUnsubscribe(); this.wsUnsubscribe = null }
+        this.sessionId = ''
+        this.logItems = []
+        this.promptTokens = 0
+        this.sessionStatus = 'idle'
+        return
+      }
+
+      const sessionData = await this.readSessionJson()
+      const pageSession = sessionData.pageSessions?.[pagePath]
+
+      if (pageSession?.sessionId) {
         try {
-          const res = await api.getSession(this.sessionId)
-          if (res && res.data) {
+          const sessionRes = await api.getSession(pageSession.sessionId)
+          if (sessionRes && sessionRes.data) {
+            this.sessionId = pageSession.sessionId
             this.subscribeSession()
             await this.loadMessages()
             return
           }
         } catch (e) {
-          console.log('Stored session not found, creating new one')
         }
       }
+
       try {
-        const res = await api.createSession('AI设计助手会话')
+        const res = await api.createSession(`设计页面: ${pagePath}`)
         this.sessionId = res.data.id
-        localStorage.setItem('design_ai_session_id', this.sessionId)
+        sessionData.pageSessions[pagePath] = { sessionId: this.sessionId }
+        await this.writeSessionJson(sessionData)
+        this.logItems = []
+        this.promptTokens = 0
         this.subscribeSession()
       } catch (e) {
         console.error('Create session failed:', e)
@@ -159,7 +241,7 @@ export default {
     },
     async loadDefaultModel() {
       try {
-        const res = await api.getConfig('model')
+        const res = await api.getConfig('defaultModel')
         this.modelName = res.data?.value || ''
       } catch (e) { console.error('Load model failed:', e) }
     },
@@ -194,13 +276,16 @@ export default {
       if ((!content && !hasMedia) || this.disabled) return
 
       if (!this.sessionId) {
-        await this.initSession()
-        if (!this.sessionId) { this.$message.error('无法创建会话'); return }
+        this.$message.error('请在左侧选择设计页面')
+        return
       }
 
       if (!this.wsUnsubscribe) this.subscribeSession()
 
-      const contextMsg = `${content}`
+      let contextMsg = content
+      if (this.currentPage) {
+        contextMsg = `当前设计页面：${this.currentPage}\n用户需求：${content}\n请基于以上设计页面路径，对该页面进行设计或修改。`
+      }
 
       this.inputMessage = ''
       this.disabled = true
@@ -252,6 +337,7 @@ export default {
           if (data?.usage?.promptTokens) this.promptTokens = data.usage.promptTokens
           if (data?.response) this.logItems.push({ type: 'think', content: data.response })
           this.scrollChatToBottom()
+          this.$emit('design-updated')
         },
         stopped: () => {
           this.disabled = false
@@ -279,13 +365,72 @@ export default {
     formatInput(name, args) {
       try {
         const parsed = typeof args === 'string' ? JSON.parse(args) : args
-        const display = {}
-        for (const [k, v] of Object.entries(parsed)) {
-          if (k === 'content') { display[k] = '(内容过长，已省略)'; continue }
-          display[k] = typeof v === 'string' && v.length > 80 ? v.slice(0, 80) + '...' : v
+        if (name === 'bash' || name === 'execute_bash') {
+          return parsed.command + (parsed.workdir ? ` (${parsed.workdir})` : '')
         }
-        return JSON.stringify(display)
+        if (name === 'read_file') {
+          return parsed.file_path + (parsed.offset ? `:${parsed.offset}` : '')
+        }
+        if (name === 'edit_file' || name === 'write_file') {
+          return parsed.file_path
+        }
+        if (name === 'glob' || name === 'find_files') {
+          return parsed.pattern + (parsed.directory ? ` (${parsed.directory})` : '')
+        }
+        if (name === 'grep' || name === 'search_content') {
+          return `"${parsed.pattern}" (${parsed.directory || ''})`
+        }
+        return JSON.stringify(parsed)
       } catch { return args }
+    },
+    openModelSelector() {
+      this.modelSelectVisible = true
+    },
+    onModelSelected(model) {
+      const parts = model.name.split('/')
+      this.modelName = parts.length > 2 ? parts.slice(1).join('/') : model.name
+      api.setConfig('defaultModel', this.modelName)
+    },
+    openCommandDialog() {
+      this.commandDialogVisible = true
+    },
+    handleExecuteCommand(cmd) {
+      this.inputMessage = cmd + ' '
+      this.$nextTick(() => {
+        const textarea = this.$el.querySelector('.input-area textarea')
+        if (textarea) textarea.focus()
+      })
+    },
+    openFileSelect() {
+      this.fileSelectVisible = true
+    },
+    onFileSelected(filePath) {
+      const atIndex = this.inputMessage.lastIndexOf('@')
+      if (atIndex !== -1) {
+        this.inputMessage = this.inputMessage.slice(0, atIndex) + filePath + ' '
+      } else {
+        this.inputMessage += filePath + ' '
+      }
+      this.cancelFileSelect()
+    },
+    cancelFileSelect() {
+      this.fileSelectVisible = false
+    },
+    openSkillSelect() {
+      this.skillSelectVisible = true
+    },
+    onSkillSelected(skillName) {
+      const tag = `[${skillName}] `
+      const existingIdx = this.inputMessage.lastIndexOf('[')
+      if (existingIdx !== -1 && this.inputMessage.slice(existingIdx).match(/^\[[\w-]+\] /)) {
+        this.inputMessage = this.inputMessage.slice(0, existingIdx) + tag
+      } else {
+        this.inputMessage = tag + this.inputMessage
+      }
+      this.cancelSkillSelect()
+    },
+    cancelSkillSelect() {
+      this.skillSelectVisible = false
     }
   }
 }
@@ -304,34 +449,39 @@ export default {
 }
 
 .user-question {
-  background: rgba(59, 130, 246, 0.15);
-  border: 1px solid rgba(59, 130, 246, 0.3);
-  border-radius: 8px;
-  padding: 8px 12px;
-  max-width: 85%;
-  color: #e0e0e0;
+  color: #60a5fa;
+  font-weight: bold;
+  border: 1px solid #60a5fa;
+  padding: 15px;
+  margin: 15px;
+  border-radius: 10px;
+  display: inline-block;
+  max-width: 80%;
+  text-align: left;
 }
 
 .ai-thought {
-  color: #a0a0a0;
-  font-size: 13px;
-  line-height: 1.6;
-  padding: 8px 0;
-  border-left: 2px solid #333;
-  padding-left: 12px;
+  color: #d4d4d8;
+  margin-bottom: 16px;
 }
 
-.system-message {
-  color: #888;
-  font-size: 12px;
-  padding: 4px 0;
+.log-mute {
+  color: #84848a;
+  margin-bottom: 16px;
+  white-space: pre;
+}
+
+.tool-input {
+  color: #60a5fa;
+  margin-left: 8px;
 }
 
 .build-info {
-  color: #555;
-  font-size: 11px;
-  padding: 8px 0;
-  text-align: center;
+  color: #84848a;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
 }
 
 .chat-images {
@@ -399,6 +549,12 @@ export default {
 .status-ready { color: #22c55e; }
 
 .status-thinking { color: #60a5fa; }
+
+.model-selector { cursor: pointer; }
+.model-selector:hover { color: #60a5fa; }
+
+.status-action { cursor: pointer; }
+.status-action:hover { color: #60a5fa; }
 
 .thinking-spinner {
   display: inline-block;
