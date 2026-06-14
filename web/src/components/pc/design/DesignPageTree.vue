@@ -25,10 +25,13 @@
         :node="node"
         :level="0"
         :selected-path="selectedPath"
+        :expanded-paths="expandedPaths"
         @select="handleSelect"
         @open-file="handleOpenFile"
         @load-children="handleLoadChildren"
         @contextmenu="showContextMenu"
+        @expand-path="onExpandPath"
+        @collapse-path="onCollapsePath"
       />
     </div>
 
@@ -117,6 +120,7 @@ export default {
       browseResult: { current_path: '', parent_path: null, items: [] },
       selectedPath: '',
       loading: false,
+      expandedPaths: new Set(),
       contextMenu: { visible: false, x: 0, y: 0, target: null },
       renameDialog: { visible: false, title: '', value: '', placeholder: '', target: null, action: 'rename' },
       createPageDialogVisible: false,
@@ -324,6 +328,17 @@ export default {
       this.createPageDialogVisible = false
       this.refresh()
       this.$emit('file-changed')
+    },
+
+    onExpandPath(path) {
+      const newSet = new Set(this.expandedPaths)
+      newSet.add(path)
+      this.expandedPaths = newSet
+    },
+    onCollapsePath(path) {
+      const newSet = new Set(this.expandedPaths)
+      newSet.delete(path)
+      this.expandedPaths = newSet
     }
   }
 }

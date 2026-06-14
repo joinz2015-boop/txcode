@@ -138,15 +138,12 @@ export default {
       }
     },
     extractRelativePath(fullPath) {
-      const marker = '/.txcode/design/'
-      const idx = fullPath.indexOf(marker)
-      if (idx !== -1) {
-        return fullPath.slice(idx + marker.length)
-      }
-      const markerWin = '\\.txcode\\design\\'
-      const idxWin = fullPath.indexOf(markerWin)
-      if (idxWin !== -1) {
-        return fullPath.slice(idxWin + markerWin.length).replace(/\\/g, '/')
+      const markers = ['/.txcode/design/', '.txcode/design/', '\\.txcode\\design\\', '.txcode\\design\\']
+      for (const marker of markers) {
+        const idx = fullPath.indexOf(marker)
+        if (idx !== -1) {
+          return fullPath.slice(idx + marker.length).replace(/\\/g, '/')
+        }
       }
       return ''
     },

@@ -22,6 +22,7 @@
         v-else
         class="device-frame flex flex-col self-stretch"
         :class="`device-frame-${activeDevice}`"
+        :style="frameStyle"
       >
         <div class="flex justify-end mb-2 shrink-0">
           <button
@@ -35,7 +36,7 @@
         <iframe
           :key="refreshKey"
           :src="previewSrc"
-          sandbox="allow-scripts"
+          sandbox="allow-scripts allow-same-origin"
           class="w-full border-0"
           :style="iframeStyle"
           ref="previewFrame"
@@ -70,11 +71,14 @@ export default {
       return `/api/design/html?path=${encodeURIComponent(this.relativePath)}`
     },
     iframeStyle() {
-      const ds = this.deviceSizes.find(d => d.value === this.activeDevice)
-      if (!ds || ds.width === 0) {
-        return { width: '100%' }
+      return { width: '100%', height: '100%' }
+    },
+    frameStyle() {
+      switch (this.activeDevice) {
+        case 'app': return { width: '390px' }
+        case 'pad': return { width: '800px' }
+        default: return {}
       }
-      return { maxWidth: ds.width + 'px', width: '100%' }
     }
   },
   watch: {
@@ -110,14 +114,14 @@ export default {
 .device-frame-app {
   position: relative;
   background: #1a1a1a;
-  border-radius: 40px;
-  padding: 16px;
-  box-shadow: 0 0 0 3px #333, 0 0 0 6px #1a1a1a, 0 0 0 8px #444, 0 20px 40px rgba(0,0,0,0.5);
+  border-radius: 36px;
+  padding: 8px;
+  box-shadow: 0 0 0 2px #333, 0 0 0 4px #1a1a1a, 0 0 0 6px #444, 0 20px 40px rgba(0,0,0,0.5);
 }
 .device-frame-app::before {
   content: '';
   position: absolute;
-  top: 8px;
+  top: 4px;
   left: 50%;
   transform: translateX(-50%);
   width: 120px;
@@ -129,7 +133,7 @@ export default {
 .device-frame-app::after {
   content: '';
   position: absolute;
-  bottom: 8px;
+  bottom: 4px;
   left: 50%;
   transform: translateX(-50%);
   width: 100px;
@@ -149,8 +153,8 @@ export default {
 
 .device-frame-pad {
   background: #1a1a1a;
-  border-radius: 24px;
-  padding: 14px;
-  box-shadow: 0 0 0 3px #333, 0 0 0 5px #1a1a1a, 0 20px 40px rgba(0,0,0,0.5);
+  border-radius: 16px;
+  padding: 10px;
+  box-shadow: 0 0 0 2px #444, 0 0 0 4px #2a2a2a, 0 0 0 6px #555, 0 20px 40px rgba(0,0,0,0.5);
 }
 </style>

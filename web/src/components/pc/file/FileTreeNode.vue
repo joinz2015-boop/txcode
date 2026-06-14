@@ -30,10 +30,13 @@
         :node="child"
         :level="level + 1"
         :selected-path="selectedPath"
+        :expanded-paths="expandedPaths"
         @select="$emit('select', $event)"
         @open-file="$emit('open-file', $event)"
         @load-children="$emit('load-children', $event)"
         @contextmenu="(e, n) => $emit('contextmenu', e, n)"
+        @expand-path="$emit('expand-path', $event)"
+        @collapse-path="$emit('collapse-path', $event)"
       />
     </div>
   </div>
@@ -54,6 +57,10 @@ export default {
     selectedPath: {
       type: String,
       default: ''
+    },
+    expandedPaths: {
+      type: Set,
+      default: () => new Set()
     }
   },
   data() {
@@ -76,6 +83,17 @@ export default {
           this.loadedChildren = newNode.children
         }
       }
+    },
+    expandedPaths: {
+      immediate: true,
+      handler(paths) {
+        if (!this.node.is_directory) return
+        if (paths.has(this.node.path) && !this.expanded) {
+          this.ensureExpanded()
+        } else if (!paths.has(this.node.path) && this.expanded) {
+          this.expanded = false
+        }
+      }
     }
   },
   methods: {
@@ -91,6 +109,7 @@ export default {
               this.loadedChildren = children
               this.expanded = true
               this.loading = false
+              this.$emit('expand-path', this.node.path)
             }
           })
         } catch (e) {
@@ -99,6 +118,28 @@ export default {
         }
       } else {
         this.expanded = !this.expanded
+        if (this.expanded) {
+          this.$emit('expand-path', this.node.path)
+        } else {
+          this.$emit('collapse-path', this.node.path)
+        }
+      }
+    },
+
+    ensureExpanded() {
+      if (this.expanded) return
+      if (this.loadedChildren.length === 0 && this.node.has_children) {
+        this.loading = true
+        this.$emit('load-children', {
+          path: this.node.path,
+          callback: (children) => {
+            this.loadedChildren = children
+            this.expanded = true
+            this.loading = false
+          }
+        })
+      } else {
+        this.expanded = true
       }
     },
     
