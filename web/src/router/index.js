@@ -117,6 +117,12 @@ const routes = [
         component: () => import('../views/pc/deploy/deployView.vue'),
         meta: { title: '部署' },
       },
+      {
+        path: 'designView',
+        name: 'designView',
+        component: () => import('../views/pc/design/designView.vue'),
+        meta: { title: '软件设计' },
+      },
     ],
   },
 ];

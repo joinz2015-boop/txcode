@@ -12,6 +12,11 @@
           </a>
         </div>
         <div class="relative">
+          <a href="/#/views/pc/designView" target="_blank" class="hover:text-white px-3 py-1 rounded border border-transparent hover:border-accent transition-colors cursor-pointer" :class="$route.name === 'designView' ? 'text-accent border-accent' : 'text-gray-400'">
+            <i class="fa-solid fa-pen-ruler mr-1"></i> 软件设计
+          </a>
+        </div>
+        <div class="relative">
           <router-link to="/views/pc/deploy" class="hover:text-white px-3 py-1 rounded border border-transparent hover:border-accent transition-colors cursor-pointer" :class="$route.name === 'deploy' ? 'text-accent border-accent' : 'text-gray-400'">
             <i class="fa-solid fa-rocket mr-1"></i> 部署
           </router-link>
