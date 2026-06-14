@@ -14,6 +14,13 @@
       </div>
       <div class="flex items-center gap-2">
         <button
+          @click="$emit('refresh')"
+          class="p-1 text-textMuted hover:text-white text-xs rounded hover:bg-white/10 transition-colors"
+          title="刷新内容"
+        >
+          <i class="fa-solid fa-refresh"></i>
+        </button>
+        <button
           @click="saveFile"
           :disabled="!contentChanged || saving"
           class="px-3 py-1 text-xs bg-accent text-white rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"

@@ -34,6 +34,7 @@
           v-show="rightTab === 'preview'"
           :file-content="fileContent"
           :file-name="activeFileName"
+          :relative-path="relativePath"
         />
         <DesignEditor
           v-show="rightTab === 'editor'"
@@ -42,6 +43,7 @@
           :file-path="activeFilePath"
           @content-changed="onContentChanged"
           @content-saved="onContentSaved"
+          @refresh="refreshCurrentFile"
           ref="editor"
         />
       </div>
@@ -78,6 +80,8 @@ export default {
       fileContent: '',
       activeFileName: '',
       activeFilePath: '',
+      relativePath: '',
+      projectPath: '',
       hasChanges: false,
       isResizing: false,
     }
@@ -105,8 +109,12 @@ export default {
       this.activeFileName = node.name
       this.activeFilePath = node.path
       try {
-        const res = await api.getFileContent(node.path)
-        this.fileContent = res.data?.content || ''
+        const [fileRes, projRes] = await Promise.all([
+          api.getFileContent(node.path),
+          this.getProjectPath()
+        ])
+        this.fileContent = fileRes.data?.content || ''
+        this.computeRelativePath(node.path)
         this.hasChanges = false
         this.rightTab = 'preview'
       } catch (e) {
@@ -131,6 +139,26 @@ export default {
         }
       } catch (e) {
         console.error('Refresh file failed:', e)
+      }
+    },
+    async getProjectPath() {
+      if (this.projectPath) return this.projectPath
+      try {
+        const res = await api.getProjectPath()
+        this.projectPath = res.data?.path || ''
+        return this.projectPath
+      } catch (e) {
+        console.error('Get project path failed:', e)
+        return ''
+      }
+    },
+    computeRelativePath(fullPath) {
+      if (!this.projectPath) return
+      const prefix = this.projectPath + '/.txcode/design/'
+      if (fullPath.startsWith(prefix)) {
+        this.relativePath = fullPath.slice(prefix.length)
+      } else {
+        this.relativePath = ''
       }
     },
     startResize(e) {
