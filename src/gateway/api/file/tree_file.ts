@@ -3,6 +3,12 @@ import * as fs from "fs";
 import * as path from "path";
 import { projectService } from "../../../services/project/project.service.js";
 
+function resolvePath(input: string): string {
+  if (!input) return projectService.getCurrentProjectPath();
+  if (path.isAbsolute(input)) return input;
+  return path.resolve(projectService.getCurrentProjectPath(), input);
+}
+
 function buildTree(dir: string, depth: number = 3): any[] {
   if (depth <= 0) return [];
   if (!fs.existsSync(dir)) return [];
@@ -15,7 +21,7 @@ function buildTree(dir: string, depth: number = 3): any[] {
 }
 
 export async function GET(req: Request, res: Response) {
-  const dirPath = req.query.path as string || projectService.getCurrentProjectPath();
+  const dirPath = resolvePath(req.query.path as string);
   const tree = buildTree(dirPath);
   res.json({ success: true, data: tree });
 }
