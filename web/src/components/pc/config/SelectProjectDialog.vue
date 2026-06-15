@@ -41,18 +41,10 @@
             :key="item.path"
             class="file-item"
             :class="{ selected: selectedPath === item.path }"
-            @click="selectFolder(item)"
+            @click="selectItem(item)"
+            @dblclick="enterFolder(item)"
           >
             <i class="fa-solid fa-folder"></i>
-            <span class="file-name">{{ item.name }}</span>
-          </div>
-
-          <div
-            v-for="item in items.filter(i => !i.is_directory)"
-            :key="item.path"
-            class="file-item file-only"
-          >
-            <i class="fa-solid fa-file"></i>
             <span class="file-name">{{ item.name }}</span>
           </div>
         </div>
@@ -157,12 +149,15 @@ export default {
     async selectDrive(path) {
       await this.browse(path)
     },
-    async selectFolder(item) {
+    selectItem(item) {
       if (item.is_directory) {
         this.selectedPath = item.path
-        // 自动从路径最后一层获取项目名称
         const pathParts = item.path.replace(/\\/g, '/').split('/')
         this.projectName = pathParts.filter(p => p).pop() || ''
+      }
+    },
+    async enterFolder(item) {
+      if (item.is_directory) {
         await this.browse(item.path)
       }
     },
@@ -278,11 +273,6 @@ export default {
 
 .file-item.parent {
   color: #666;
-}
-
-.file-item.file-only {
-  cursor: default;
-  opacity: 0.6;
 }
 
 .file-name {

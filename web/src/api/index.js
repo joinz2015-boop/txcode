@@ -358,7 +358,7 @@ export const api = {
   },
 
   getDrives() {
-    return request('GET', '/file/browse_file?path=/');
+    return request('GET', '/file/drives_file');
   },
 
   getCwd() {
@@ -756,7 +756,7 @@ export const api = {
   },
 
   setCurrentProject(projectId) {
-    return request('POST', '/project/set_current_project', { projectId });
+    return request('POST', '/project/set_current_project', { id: projectId });
   },
 
   createProject(name, path, description = '') {
