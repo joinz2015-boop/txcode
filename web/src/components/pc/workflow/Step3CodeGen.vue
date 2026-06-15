@@ -204,6 +204,7 @@ data() {
       commandDialogVisible: false,
       fileSelectVisible: false,
       skillSelectVisible: false,
+      skillCursorPos: -1,
       sessionId: '',
       sessionStatus: 'idle',
       customActions: [],
@@ -442,16 +443,14 @@ data() {
       this.fileSelectVisible = false
     },
     openSkillSelect() {
+      const textarea = this.$el.querySelector('.input-area textarea')
+      this.skillCursorPos = textarea ? textarea.selectionStart : -1
       this.skillSelectVisible = true
     },
     onSkillSelected(skillName) {
       const tag = `[${skillName}] `
-      const existingIdx = this.inputMessage.lastIndexOf('[')
-      if (existingIdx !== -1 && this.inputMessage.slice(existingIdx).match(/^\[[\w-]+\] /)) {
-        this.inputMessage = this.inputMessage.slice(0, existingIdx) + tag
-      } else {
-        this.inputMessage = tag + this.inputMessage
-      }
+      const pos = this.skillCursorPos >= 0 ? this.skillCursorPos : 0
+      this.inputMessage = this.inputMessage.slice(0, pos) + tag + this.inputMessage.slice(pos)
       this.cancelSkillSelect()
     },
     cancelSkillSelect() {

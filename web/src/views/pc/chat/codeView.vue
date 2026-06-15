@@ -223,6 +223,7 @@ export default {
       draggedSession: null,
       fileSelectVisible: false,
       skillSelectVisible: false,
+      skillCursorPos: -1,
       currentPanel: null,
       modelSelectVisible: false,
       selectedPanel: null,
@@ -331,6 +332,9 @@ export default {
 
     openSkillSelectFromStatus() {
       this.currentPanel = this.activeSessions[this.focusedPanelIndex]
+      const textareas = this.$el.querySelectorAll('.input-area textarea')
+      const textarea = textareas[this.focusedPanelIndex]
+      this.skillCursorPos = textarea ? textarea.selectionStart : -1
       this.skillSelectVisible = true
     },
 
@@ -338,12 +342,8 @@ export default {
       const panel = this.currentPanel
       if (!panel) return
       const tag = `[${skillName}] `
-      const existingIdx = panel.input.lastIndexOf('[')
-      if (existingIdx !== -1 && panel.input.slice(existingIdx).match(/^\[[\w-]+\] /)) {
-        panel.input = panel.input.slice(0, existingIdx) + tag
-      } else {
-        panel.input = tag + panel.input
-      }
+      const pos = this.skillCursorPos >= 0 ? this.skillCursorPos : 0
+      panel.input = panel.input.slice(0, pos) + tag + panel.input.slice(pos)
       this.cancelSkillSelect()
     },
 
