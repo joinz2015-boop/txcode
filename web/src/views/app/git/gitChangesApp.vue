@@ -253,7 +253,7 @@ export default {
       this.diffLoading = true
       this.diffLines = []
       try {
-        const res = await api.gitDiff(change.path)
+        const res = await api.gitDiff(change.path, change.isNew)
         this.diffLines = this.parseDiff(res.data?.diff || '')
       } catch (e) {
         console.error('Failed to get diff:', e)

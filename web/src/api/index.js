@@ -620,8 +620,10 @@ export const api = {
     return request('GET', '/git/status_git');
   },
 
-  gitDiff(filePath) {
-    return request('GET', `/git/diff_git?file=${encodeURIComponent(filePath)}`);
+  gitDiff(filePath, isNew) {
+    let url = `/git/diff_git?file=${encodeURIComponent(filePath)}`;
+    if (isNew) url += '&isNew=true';
+    return request('GET', url);
   },
 
   gitRevert(filePath) {
