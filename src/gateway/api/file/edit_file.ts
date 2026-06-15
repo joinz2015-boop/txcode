@@ -1,13 +1,21 @@
 import { Request, Response } from "express";
 import * as fs from "fs";
+import * as path from "path";
+import { projectService } from "../../../services/project/project.service.js";
+
+function resolvePath(input: string): string {
+  if (path.isAbsolute(input)) return input;
+  return path.resolve(projectService.getCurrentProjectPath(), input);
+}
 
 export async function POST(req: Request, res: Response) {
   const { filePath, oldString, newString } = req.body;
   if (!filePath || oldString === undefined || newString === undefined) return res.status(400).json({ success: false, error: "filePath, oldString, newString are required" });
-  if (!fs.existsSync(filePath)) return res.status(404).json({ success: false, error: "File not found" });
-  let content = fs.readFileSync(filePath, "utf-8");
+  const resolved = resolvePath(filePath);
+  if (!fs.existsSync(resolved)) return res.status(404).json({ success: false, error: "File not found" });
+  let content = fs.readFileSync(resolved, "utf-8");
   if (!content.includes(oldString)) return res.status(400).json({ success: false, error: "oldString not found" });
   content = content.replace(oldString, newString);
-  fs.writeFileSync(filePath, content, "utf-8");
+  fs.writeFileSync(resolved, content, "utf-8");
   res.json({ success: true });
 }
