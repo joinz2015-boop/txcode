@@ -2,12 +2,13 @@ import { Request, Response } from "express";
 import { execSync } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
+import { projectService } from "../../../services/project/project.service.js";
 
 export async function POST(req: Request, res: Response) {
-  const { file, path: projectPath } = req.body;
+  const { file, path: _path } = req.body;
   if (!file) return res.status(400).json({ success: false, error: "file 必填" });
   try {
-    const cwd = projectPath || process.cwd();
+    const cwd = _path || projectService.getCurrentProjectPath();
     const fullPath = path.join(cwd, file);
     let tracked = true;
     try {

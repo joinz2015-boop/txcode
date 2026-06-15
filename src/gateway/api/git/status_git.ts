@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { execSync } from "child_process";
+import { projectService } from "../../../services/project/project.service.js";
 
 interface GitChange {
   path: string;
@@ -38,7 +39,7 @@ function parsePorcelain(output: string): GitChange[] {
 }
 
 export async function GET(req: Request, res: Response) {
-  const projectPath = req.query.path as string || process.cwd();
+  const projectPath = req.query.path as string || projectService.getCurrentProjectPath();
   try {
     const raw = execSync("git status --porcelain", { cwd: projectPath, encoding: "utf-8" });
     const changes = parsePorcelain(raw);

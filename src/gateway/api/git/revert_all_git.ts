@@ -1,10 +1,11 @@
 import { Request, Response } from "express";
 import { execSync } from "child_process";
+import { projectService } from "../../../services/project/project.service.js";
 
 export async function POST(req: Request, res: Response) {
-  const { path: projectPath } = req.body;
+  const { path: _path } = req.body;
   try {
-    execSync("git checkout -- .", { cwd: projectPath || process.cwd() });
+    execSync("git checkout -- .", { cwd: _path || projectService.getCurrentProjectPath() });
     res.json({ success: true });
   } catch (error) { res.status(500).json({ success: false, error: String(error) }); }
 }

@@ -2,11 +2,12 @@ import { Request, Response } from "express";
 import { execSync } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
+import { projectService } from "../../../services/project/project.service.js";
 
 export async function GET(req: Request, res: Response) {
   const file = req.query.file as string;
   const isNew = req.query.isNew === "true";
-  const projectPath = req.query.path as string || process.cwd();
+  const projectPath = req.query.path as string || projectService.getCurrentProjectPath();
   try {
     if (isNew && file) {
       const fullPath = path.join(projectPath, file);
