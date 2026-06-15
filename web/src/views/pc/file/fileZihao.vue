@@ -456,7 +456,8 @@ export default {
       if (!targetDir) { this.$message.warning('请先进入一个本地文件夹'); return }
       this.uploadProgress = { visible: true, percent: 0, filename: item.name, isDownload: true }
       try {
-        const sep = targetDir.endsWith('\\') || targetDir.endsWith('/') ? '' : '\\'
+        const systemSep = targetDir.includes('\\') ? '\\' : '/'
+        const sep = targetDir.endsWith('/') || targetDir.endsWith('\\') ? '' : systemSep
         const targetPath = targetDir + sep + item.name
         await zihaoApi.download(item.path, targetPath, (p) => { this.uploadProgress.percent = p })
         this.$message.success('已下载到本地: ' + targetPath)

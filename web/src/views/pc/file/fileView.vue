@@ -507,14 +507,14 @@ export default {
       }
       
       try {
+        const separator = target.path.includes('\\') ? '\\' : '/'
         if (type === 'file') {
-          const newPath = target.path + '\\' + value.trim()
+          const newPath = target.path + separator + value.trim()
           await api.writeFile(newPath, '')
         } else if (type === 'folder') {
-          const newPath = target.path + '\\' + value.trim()
+          const newPath = target.path + separator + value.trim()
           await api.createDirectory(newPath)
         } else if (type === 'rename') {
-          const separator = target.path.includes('\\') ? '\\' : '/'
           const parentPath = target.path.substring(0, target.path.lastIndexOf(separator))
           const newPath = parentPath + separator + value.trim()
           await api.renameFile(target.path, newPath)
