@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import * as fs from "fs";
 import * as path from "path";
+import { projectService } from "../../../services/project/project.service.js";
 
 function buildTree(dir: string, depth: number = 3): any[] {
   if (depth <= 0) return [];
@@ -14,7 +15,7 @@ function buildTree(dir: string, depth: number = 3): any[] {
 }
 
 export async function GET(req: Request, res: Response) {
-  const dirPath = req.query.path as string || process.cwd();
+  const dirPath = req.query.path as string || projectService.getCurrentProjectPath();
   const tree = buildTree(dirPath);
   res.json({ success: true, data: tree });
 }
