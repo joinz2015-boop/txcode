@@ -56,7 +56,7 @@ export class OpenAIProvider implements BaseProvider {
   ): Promise<ChatResponse> {
     const {
       temperature = 0.7,
-      maxTokens = 8192,
+      maxTokens = 65536,
       model = this.defaultModel,
       tools,
       abortSignal,

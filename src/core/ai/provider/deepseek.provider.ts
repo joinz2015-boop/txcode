@@ -50,7 +50,7 @@ export class DeepSeekProvider implements BaseProvider {
     options: ChatOptions = {}
   ): Promise<ChatResponse> {
     const {
-      maxTokens = 8192,
+      maxTokens = 65536,
       model = this.defaultModel,
       tools,
       abortSignal,

@@ -316,7 +316,7 @@ export class DbService {
     this.db.run(`INSERT OR IGNORE INTO config (key, value) VALUES ('ai.context.autoCompact', 'true')`);
 
     const modelContextWindows: Record<string, number> = {
-      'gpt-4': 8192,
+      'gpt-4': 64000,
       'gpt-4-turbo': 128000,
       'gpt-4o': 128000,
       'gpt-4o-mini': 128000,
