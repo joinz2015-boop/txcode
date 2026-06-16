@@ -10,6 +10,21 @@ import * as fs from 'fs';
 import * as path from 'path';
 import config from '../../config/tx.config.js';
 
+function stripTools(obj: any): any {
+  if (Array.isArray(obj)) {
+    return obj.map(stripTools);
+  }
+  if (obj !== null && typeof obj === 'object') {
+    const cleaned: Record<string, any> = {};
+    for (const [key, value] of Object.entries(obj)) {
+      if (key === 'tools') continue;
+      cleaned[key] = stripTools(value);
+    }
+    return cleaned;
+  }
+  return obj;
+}
+
 export interface AccessLogEntry {
   timestamp: string;
   type: 'request' | 'response';
@@ -67,8 +82,12 @@ class Logger {
   private appendLog(entry: AccessLogEntry): void {
     const logPath = this.getLogPath();
     const separator = '\n' + '='.repeat(80) + '\n';
-    const logLine = separator + JSON.stringify(entry, null, 2) + '\n';
-    
+    const cleanEntry = {
+      ...entry,
+      data: stripTools(entry.data),
+    };
+    const logLine = separator + JSON.stringify(cleanEntry, null, 2) + '\n';
+
     fs.appendFileSync(logPath, logLine, 'utf-8');
   }
 }

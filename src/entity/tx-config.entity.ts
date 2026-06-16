@@ -17,7 +17,6 @@ export interface TxConfig {
   maxToolIterations: number;
   
   ai: {
-    maxContextTokens: number;
     context: ContextConfig;
   };
 
