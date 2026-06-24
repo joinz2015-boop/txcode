@@ -656,7 +656,7 @@ export default {
 .editor-header { background: #121212; border-bottom: 1px solid #1e1e1e; padding: 12px 16px; font-size: 13px; color: #84848a; display: flex; align-items: center; justify-content: space-between; }
 .editor-title { display: flex; align-items: center; gap: 8px; }
 .editor-actions { display: flex; gap: 4px; align-items: center; }
-.editor-actions .el-button--text { color: #84848a; padding: 2px 4px; }
+.editor-actions .el-button--text { color: #84848a; padding: 2px 6px; font-size: 16px; }
 .editor-actions .el-button--text:hover { color: #60a5fa; }
 .editor-container { flex: 1; min-height: 0; }
 .chat-panel { background: #121212; border: 1px solid #1e1e1e; border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; flex-shrink: 0; }
@@ -697,7 +697,7 @@ export default {
 .input-panel { background: #ffffff; border-radius: 6px; border: 1px solid #e0e0e0; overflow: hidden; }
 .input-wrapper { position: relative; }
 .input-area { flex: 1; }
-.input-area ::v-deep .el-textarea__inner { border: none; border-radius: 0; background: #ffffff; color: #1f2937; resize: none; }
+.input-area ::v-deep .el-textarea__inner { border: none; border-radius: 0; background: #ffffff; color: #4b5563; resize: none; }
 .input-area ::v-deep .el-textarea__inner:focus { box-shadow: none; }
 .input-panel .input-actions {
   display: flex;

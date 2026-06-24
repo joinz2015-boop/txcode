@@ -127,7 +127,9 @@
         </div>
       </div>
 
-      <div class="devlog-panel">
+      <div class="resize-handle" @mousedown="startResize"></div>
+
+      <div class="devlog-panel" ref="devlogPanel" :style="{ width: devlogPanelWidth + 'px' }">
         <div class="panel-header">
           <span><i class="el-icon-document"></i> 开发记录</span>
           <el-button size="small" @click="refreshDevLog">
@@ -209,7 +211,13 @@ data() {
       sessionStatus: 'idle',
       customActions: [],
       devLogContent: '',
-      devLogLoading: false
+      devLogLoading: false,
+      devlogPanelWidth: 400,
+      isResizing: false,
+      startX: 0,
+      startWidth: 0,
+      minDevlogWidth: 250,
+      maxDevlogWidthRatio: 0.6
     }
   },
   computed: {
@@ -226,12 +234,16 @@ data() {
     name: { handler() { this.loadSession() } }
   },
   async mounted() {
+    document.addEventListener('mousemove', this.handleResize)
+    document.addEventListener('mouseup', this.stopResize)
     await this.loadSession()
     await this.loadDefaultModel()
     await this.loadCustomActions()
     api.ws.init()
   },
   beforeDestroy() {
+    document.removeEventListener('mousemove', this.handleResize)
+    document.removeEventListener('mouseup', this.stopResize)
     if (this.dotInterval) {
       clearInterval(this.dotInterval)
     }
@@ -525,6 +537,28 @@ data() {
     },
     async refreshDevLog() {
       await this.loadDevLog()
+    },
+    startResize(e) {
+      this.isResizing = true
+      this.startX = e.clientX
+      this.startWidth = this.devlogPanelWidth
+      document.body.style.cursor = 'col-resize'
+      document.body.style.userSelect = 'none'
+    },
+    handleResize(e) {
+      if (!this.isResizing) return
+      const delta = this.startX - e.clientX
+      let newWidth = this.startWidth + delta
+      const container = this.$el.querySelector('.step3-main')
+      const maxWidth = container ? container.clientWidth * this.maxDevlogWidthRatio : 800
+      if (newWidth < this.minDevlogWidth) newWidth = this.minDevlogWidth
+      if (newWidth > maxWidth) newWidth = maxWidth
+      this.devlogPanelWidth = newWidth
+    },
+    stopResize() {
+      this.isResizing = false
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
     }
   }
 }
@@ -532,12 +566,16 @@ data() {
 
 <style scoped>
 .step3-container { height: 100%; display: flex; flex-direction: column; }
-.step3-main { display: flex; flex: 1; overflow: hidden; padding: 16px; }
+.step3-main { display: flex; flex: 1; gap: 5px; overflow: hidden; padding: 16px; }
 .code-chat-panel { flex: 1; background: #121212; border: 1px solid #1e1e1e; border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; }
 .panel-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: #121212; border-bottom: 1px solid #1e1e1e; flex-shrink: 0; }
 .panel-header span { font-size: 14px; font-weight: 500; color: #f4f4f5; }
 .header-actions { display: flex; gap: 8px; }
 .chat-messages { flex: 1; overflow-y: auto; padding: 16px; font-size: 14px; line-height: 1.6; }
+.chat-messages::-webkit-scrollbar { width: 4px; }
+.chat-messages::-webkit-scrollbar-track { background: transparent; }
+.chat-messages::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 2px; }
+.chat-messages::-webkit-scrollbar-thumb:hover { background: #52525b; }
 .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #84848a; }
 .empty-state i { font-size: 48px; margin-bottom: 16px; opacity: 0.5; }
 .todos-list { margin-bottom: 16px; color: #d4d4d8; }
@@ -591,10 +629,16 @@ data() {
 }
 .model-selector { cursor: pointer; }
 .model-selector:hover { color: #60a5fa; }
-.devlog-panel { width: 400px; background: #121212; border: 1px solid #1e1e1e; border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; margin-left: 16px; }
+.devlog-panel { background: #121212; border: 1px solid #1e1e1e; border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; flex-shrink: 0; }
+.resize-handle { width: 4px; cursor: col-resize; background: transparent; flex-shrink: 0; transition: background 0.15s; }
+.resize-handle:hover { background: #60a5fa; }
 .devlog-panel .panel-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: #121212; border-bottom: 1px solid #1e1e1e; }
 .devlog-panel .panel-header span { font-size: 14px; font-weight: 500; color: #f4f4f5; }
 .devlog-content { flex: 1; overflow-y: auto; padding: 16px; font-size: 14px; line-height: 1.6; color: #d4d4d8; }
+.devlog-content::-webkit-scrollbar { width: 4px; }
+.devlog-content::-webkit-scrollbar-track { background: transparent; }
+.devlog-content::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 2px; }
+.devlog-content::-webkit-scrollbar-thumb:hover { background: #52525b; }
 .chat-images { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
 .chat-image-thumb {
   width: 120px;

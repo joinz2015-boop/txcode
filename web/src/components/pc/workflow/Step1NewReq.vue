@@ -199,7 +199,7 @@ export default {
 <style scoped>
 .step1-container {
   height: 100%;
-  padding: 24px;
+  padding: 80px 24px 24px;
   overflow: hidden;
 }
 

@@ -46,35 +46,46 @@
         :disabled="disabled"
         @remove="removeMedia"
       />
-      <div class="input-wrapper">
-        <ResizableTextarea
-          v-model="inputMessage"
-          :rows="5"
-          placeholder="输入消息... (Enter 发送, Ctrl+Enter 换行)"
-          :disabled="disabled && !stopping"
-          class="input-area"
-          @keydown.enter.native="handleKeydown"
-          @paste-image="handlePasteImages"
-        />
-        <input
-          type="file"
-          accept="image/*"
-          multiple
-          ref="mediaInput"
-          style="display:none"
-          @change="handleImageSelected"
-        />
+      <div class="input-panel">
+        <div class="input-wrapper">
+          <ResizableTextarea
+            v-model="inputMessage"
+            :rows="5"
+            placeholder="输入消息... (Enter 发送, Ctrl+Enter 换行, @ 选择文件)"
+            :disabled="disabled && !stopping"
+            class="input-area"
+            @keydown.enter.native="handleKeydown"
+            @paste-image="handlePasteImages"
+          />
+          <input
+            type="file"
+            accept="image/*"
+            multiple
+            ref="mediaInput"
+            style="display:none"
+            @change="handleImageSelected"
+          />
+        </div>
         <div class="input-actions">
-          <el-button @click="handleImageUpload" :disabled="disabled" class="upload-btn" size="small">图片</el-button>
-          <el-button v-if="disabled && !stopping" type="danger" @click="stopChat" class="stop-btn" size="small">
-            ■ 停止
-          </el-button>
-          <el-button v-else-if="stopping" type="info" disabled class="stop-btn" size="small">
-            停止中...
-          </el-button>
-          <el-button v-else type="primary" :disabled="!inputMessage.trim() && (!mediaFiles || mediaFiles.length === 0)" @click="sendMessage" class="send-btn" size="small">
-            发送
-          </el-button>
+          <div class="input-actions-left">
+            <span class="status-action" @click="openFileSelect" @mousedown.prevent>选择文件</span>
+            <span class="separator">|</span>
+            <span class="status-action" @click="openSkillSelect" @mousedown.prevent>选择Skill</span>
+            <span class="separator">|</span>
+            <span class="status-action" @click="openCommandDialog" @mousedown.prevent>命令</span>
+          </div>
+          <div class="input-actions-right">
+            <el-button @click="handleImageUpload" :disabled="disabled" class="upload-btn" size="small">图片</el-button>
+            <el-button v-if="disabled && !stopping" type="danger" @click="stopChat" class="stop-btn" size="small">
+              ■ 停止
+            </el-button>
+            <el-button v-else-if="stopping" type="info" disabled class="stop-btn" size="small">
+              停止中...
+            </el-button>
+            <el-button v-else type="primary" :disabled="!inputMessage.trim() && (!mediaFiles || mediaFiles.length === 0)" @click="sendMessage" class="send-btn" size="small">
+              发送
+            </el-button>
+          </div>
         </div>
       </div>
       <div class="status-bar">
@@ -90,12 +101,6 @@
         <span>会话：{{ sessionId ? sessionId.slice(0, 8) : '--------' }}</span>
         <span class="separator">|</span>
         <span>token：{{ promptTokens || 0 }}</span>
-        <span class="separator">|</span>
-        <span class="status-action" @click="openCommandDialog" @mousedown.prevent>命令</span>
-        <span class="separator">|</span>
-        <span class="status-action" @click="openFileSelect" @mousedown.prevent>选择文件</span>
-        <span class="separator">|</span>
-        <span class="status-action" @click="openSkillSelect" @mousedown.prevent>选择Skill</span>
       </div>
     </div>
 
@@ -543,26 +548,67 @@ export default {
   border-top: 1px solid #1e1e1e;
 }
 
+.input-panel {
+  background: #ffffff;
+  border-radius: 6px;
+  border: 1px solid #e0e0e0;
+  overflow: hidden;
+}
+
 .input-wrapper {
   position: relative;
-  flex: 1;
 }
 
 .input-area {
   flex: 1;
 }
 
-.input-wrapper .input-actions {
-  position: absolute;
-  right: 8px;
-  bottom: 8px;
-  display: flex;
-  gap: 6px;
-  z-index: 5;
+.input-area ::v-deep .el-textarea__inner {
+  border: none;
+  border-radius: 0;
+  background: #ffffff;
+  color: #4b5563;
+  resize: none;
 }
 
-.input-wrapper ::v-deep .el-textarea__inner {
-  padding-bottom: 50px;
+.input-area ::v-deep .el-textarea__inner:focus {
+  box-shadow: none;
+}
+
+.input-panel .input-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 12px;
+  gap: 6px;
+  background: #ffffff;
+}
+
+.input-actions-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.input-actions-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.input-panel .status-action {
+  cursor: pointer;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.input-panel .status-action:hover {
+  color: #60a5fa;
+}
+
+.input-panel .separator {
+  color: #d1d5db;
+  font-size: 12px;
 }
 
 .status-bar {
@@ -586,9 +632,6 @@ export default {
 
 .model-selector { cursor: pointer; }
 .model-selector:hover { color: #60a5fa; }
-
-.status-action { cursor: pointer; }
-.status-action:hover { color: #60a5fa; }
 
 .thinking-spinner {
   display: inline-block;

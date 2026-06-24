@@ -9,7 +9,7 @@
       </button>
     </div>
 
-    <div class="flex-1 overflow-y-auto py-1 sidebar-scroll">
+    <div class="flex-1 overflow-y-auto py-1 pb-8 sidebar-scroll">
       <div v-if="loading" class="flex items-center justify-center py-8 text-textMuted">
         <i class="fa-solid fa-spinner fa-spin mr-2"></i> 加载中...
       </div>
