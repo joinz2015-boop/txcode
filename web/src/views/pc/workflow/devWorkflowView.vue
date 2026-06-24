@@ -16,23 +16,6 @@
     />
 
     <div class="main-content">
-      <div class="panel-header">
-        <span class="panel-title">{{ stepTitle }}</span>
-        <div class="panel-actions">
-          <template v-if="currentStep === 2">
-            <el-button type="primary" plain @click="saveSpec">
-              <i class="el-icon-save"></i> 保存方案
-            </el-button>
-            <el-button type="info" plain @click="refreshSpec">
-              <i class="el-icon-refresh"></i> 刷新方案
-            </el-button>
-            <el-button type="success" plain @click="createSubScheme" :disabled="!currentProject">
-              <i class="el-icon-plus"></i> 新建子方案
-            </el-button>
-          </template>
-        </div>
-      </div>
-
       <div class="step-content">
         <Step1NewReq
           v-show="currentStep === 1"
@@ -55,6 +38,7 @@
           @update:sessionId="updateDesignSessionId"
           @save-spec="onSaveSpec"
           @spec-updated="refreshSpec"
+          @create-sub-scheme="createSubScheme"
           ref="step2Ref"
         />
 
@@ -551,16 +535,10 @@ export default {
         this.$message.error('保存方案失败')
       }
     },
-    saveSpec() {
-      if (this.$refs.step2Ref) {
-        this.$refs.step2Ref.saveSpec()
-      }
-    },
     async refreshSpec() {
       if (this.$refs.step2Ref?.loadSpec) {
         await this.$refs.step2Ref.loadSpec()
       }
-      this.$message.success('方案已刷新')
     }
   }
 }
@@ -579,27 +557,6 @@ export default {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-}
-
-.panel-header {
-  background: #121212;
-  border-bottom: 1px solid #1e1e1e;
-  padding: 12px 24px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-shrink: 0;
-}
-
-.panel-title {
-  font-size: 16px;
-  font-weight: 500;
-  color: #f4f4f5;
-}
-
-.panel-actions {
-  display: flex;
-  gap: 12px;
 }
 
 .step-content {

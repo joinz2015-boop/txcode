@@ -89,6 +89,11 @@ export async function buildAvailableSkillsPrompt(): Promise<string> {
 }
 
 export async function skillHandler(args: { name: string }): Promise<{ success: boolean; data?: { name: string; description: string; content: string }; error?: string }> {
+  await skillsManager.loadAll()
+  const skill = skillsManager.getSkill(args.name)
+  if (!skill) {
+    return { success: false, error: `Skill "${args.name}" not found` }
+  }
   const result = await skillTool.execute(args, {} as ToolContext)
   if (!result.success) {
     return { success: false, error: result.error }
@@ -97,7 +102,7 @@ export async function skillHandler(args: { name: string }): Promise<{ success: b
     success: true,
     data: {
       name: args.name,
-      description: '',
+      description: skill.description || '',
       content: result.output
     }
   }

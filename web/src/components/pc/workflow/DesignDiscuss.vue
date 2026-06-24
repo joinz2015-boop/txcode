@@ -87,25 +87,29 @@
           :disabled="disabled"
           @remove="removeMedia"
         />
-        <div class="input-wrapper">
-          <ResizableTextarea
-            v-model="inputMessage"
-            :rows="5"
-            placeholder="输入探讨内容... (Enter 发送, Ctrl+Enter 换行)"
-            :disabled="disabled && !stopping"
-            class="input-area"
-            @keydown.enter.native="handleKeydown"
-            @paste-image="handlePasteImages"
-          />
-          <input
-            type="file"
-            accept="image/*"
-            multiple
-            ref="mediaInput"
-            style="display:none"
-            @change="handleImageSelected"
-          />
+        <div class="input-panel">
+          <div class="input-wrapper">
+            <ResizableTextarea
+              v-model="inputMessage"
+              :rows="5"
+              placeholder="输入探讨内容... (Enter 发送, Ctrl+Enter 换行)"
+              :disabled="disabled && !stopping"
+              class="input-area"
+              @keydown.enter.native="handleKeydown"
+              @paste-image="handlePasteImages"
+            />
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              ref="mediaInput"
+              style="display:none"
+              @change="handleImageSelected"
+            />
+          </div>
           <div class="input-actions">
+            <span class="status-action" @click="openSkillSelect" @mousedown.prevent>选择Skill</span>
+            <span class="separator">|</span>
             <el-button @click="handleImageUpload" :disabled="disabled" class="upload-btn" size="small">图片</el-button>
             <el-button v-if="disabled && !stopping" type="danger" @click="stopChat" class="stop-btn" size="small">
               ■ 停止
@@ -133,8 +137,6 @@
         <span>会话：{{ currentDiscussion.sessionId ? currentDiscussion.sessionId.slice(0, 8) : '--------' }}</span>
         <span class="separator">|</span>
         <span>token：{{ promptTokens || 0 }}</span>
-        <span class="separator">|</span>
-        <span class="status-action" @click="openSkillSelect" @mousedown.prevent>选择Skill</span>
       </div>
     </template>
 
@@ -721,6 +723,10 @@ export default {
   font-size: 14px;
   line-height: 1.6;
 }
+.chat-messages::-webkit-scrollbar { width: 4px; }
+.chat-messages::-webkit-scrollbar-track { background: transparent; }
+.chat-messages::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 2px; }
+.chat-messages::-webkit-scrollbar-thumb:hover { background: #52525b; }
 .empty-state {
   display: flex;
   flex-direction: column;
@@ -754,19 +760,22 @@ export default {
 .tool-input { color: #60a5fa; margin-left: 8px; }
 .build-info { color: #84848a; display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
 .chat-input-area { padding: 12px 16px; background: #121212; border-top: 1px solid #1e1e1e; flex-shrink: 0; }
-.input-wrapper { position: relative; flex: 1; }
+.input-panel { background: #ffffff; border-radius: 6px; border: 1px solid #e0e0e0; overflow: hidden; }
+.input-wrapper { position: relative; }
 .input-area { flex: 1; }
-.input-wrapper .input-actions {
-  position: absolute;
-  right: 8px;
-  bottom: 8px;
+.input-area ::v-deep .el-textarea__inner { border: none; border-radius: 0; background: #ffffff; color: #1f2937; resize: none; }
+.input-area ::v-deep .el-textarea__inner:focus { box-shadow: none; }
+.input-panel .input-actions {
   display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 6px 12px;
   gap: 6px;
-  z-index: 5;
+  background: #ffffff;
 }
-.input-wrapper ::v-deep .el-textarea__inner {
-  padding-bottom: 50px;
-}
+.input-panel .status-action { cursor: pointer; font-size: 12px; color: #6b7280; }
+.input-panel .status-action:hover { color: #60a5fa; }
+.input-panel .separator { color: #d1d5db; font-size: 12px; }
 .status-bar {
   display: flex;
   gap: 8px;

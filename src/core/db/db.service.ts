@@ -51,6 +51,7 @@ export class DbService {
 
   async init(): Promise<void> {
     if (this.db) {
+      this.save();
       this.db.close();
     }
 
@@ -70,6 +71,7 @@ export class DbService {
 
   reset(): void {
     if (this.db) {
+      this.save();
       this.db.close();
       this.db = null;
     }

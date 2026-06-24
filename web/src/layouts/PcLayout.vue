@@ -23,7 +23,7 @@
         </div>
       </div>
       <div class="flex items-center gap-3">
-        <el-dropdown @command="handleProjectChange" trigger="click" v-if="projects.length > 0">
+        <el-dropdown @command="handleProjectChange" trigger="click">
           <span class="text-white text-sm cursor-pointer hover:text-accent">
             <i class="fa-solid fa-folder mr-1"></i>
             {{ currentProject?.name || '选择项目' }}

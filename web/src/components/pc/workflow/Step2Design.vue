@@ -3,12 +3,20 @@
     <div class="step2-main">
       <div class="editor-panel">
         <div class="editor-header">
-          <i class="el-icon-document"></i>
-          <span>{{ specFilePath }}</span>
+          <span class="editor-title">
+            <i class="el-icon-document"></i>
+            <span>{{ specFilePath }}</span>
+          </span>
+          <div class="editor-actions">
+            <el-button size="small" type="text" @click="saveSpec" title="保存方案"><i class="el-icon-check"></i></el-button>
+            <el-button size="small" type="text" @click="refreshSpec" title="刷新方案"><i class="el-icon-refresh"></i></el-button>
+            <el-button size="small" type="text" @click="$emit('create-sub-scheme')" title="新建子方案"><i class="el-icon-plus"></i></el-button>
+          </div>
         </div>
         <div class="editor-container" ref="editorContainer"></div>
       </div>
-      <div class="chat-panel">
+      <div class="resize-handle" @mousedown="startResize"></div>
+      <div class="chat-panel" ref="chatPanel" :style="{ width: chatPanelWidth + 'px' }">
         <div class="panel-header panel-tabs">
           <div
             class="panel-tab"
@@ -76,26 +84,36 @@
               :disabled="disabled"
               @remove="removeMedia"
             />
-            <div class="input-wrapper">
-              <ResizableTextarea
-                v-model="inputMessage"
-                :rows="5"
-                placeholder="输入消息... (Enter 发送, Ctrl+Enter 换行, @ 选择文件)"
-                :disabled="disabled && !stopping"
-                class="input-area"
-                @keydown.enter.native="handleKeydown"
-                @paste-image="handlePasteImages"
-              />
-              <input
-                type="file"
-                accept="image/*"
-                multiple
-                ref="mediaInput"
-                style="display:none"
-                @change="handleImageSelected"
-              />
+            <div class="input-panel">
+              <div class="input-wrapper">
+                <ResizableTextarea
+                  v-model="inputMessage"
+                  :rows="5"
+                  placeholder="输入消息... (Enter 发送, Ctrl+Enter 换行, @ 选择文件)"
+                  :disabled="disabled && !stopping"
+                  class="input-area"
+                  @keydown.enter.native="handleKeydown"
+                  @paste-image="handlePasteImages"
+                />
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  ref="mediaInput"
+                  style="display:none"
+                  @change="handleImageSelected"
+                />
+              </div>
               <div class="input-actions">
-                <el-button @click="handleImageUpload" :disabled="disabled" class="upload-btn" size="small">图片</el-button>
+                <div class="input-actions-left">
+                  <span class="status-action" @click="openFileSelect" @mousedown.prevent>选择文件</span>
+                  <span class="separator">|</span>
+                  <span class="status-action" @click="openSkillSelect" @mousedown.prevent>选择Skill</span>
+                  <span class="separator">|</span>
+                  <span class="status-action" @click="openCommandDialog" @mousedown.prevent>命令</span>
+                </div>
+                <div class="input-actions-right">
+                  <el-button @click="handleImageUpload" :disabled="disabled" class="upload-btn" size="small">图片</el-button>
                 <el-button
                   v-for="action in customActions"
                   :key="action.id"
@@ -131,12 +149,6 @@
             <span>会话：{{ sessionId ? sessionId.slice(0, 8) : '--------' }}</span>
             <span class="separator">|</span>
             <span>token：{{ promptTokens || 0 }}</span>
-            <span class="separator">|</span>
-            <span class="status-action" @click="openCommandDialog" @mousedown.prevent>命令</span>
-            <span class="separator">|</span>
-            <span class="status-action" @click="openFileSelect" @mousedown.prevent>选择文件</span>
-            <span class="separator">|</span>
-            <span class="status-action" @click="openSkillSelect" @mousedown.prevent>选择Skill</span>
           </div>
         </template>
         <DesignDiscuss
@@ -220,7 +232,13 @@ export default {
       sessionStatus: 'idle',
       customActions: [],
       chatTab: 'assistant',
-      parentInfo: null
+      parentInfo: null,
+      chatPanelWidth: 480,
+      isResizing: false,
+      startX: 0,
+      startWidth: 0,
+      minChatWidth: 320,
+      maxChatWidthRatio: 0.6
     }
   },
   computed: {
@@ -241,6 +259,8 @@ export default {
     }
   },
   async mounted() {
+    document.addEventListener('mousemove', this.handleResize)
+    document.addEventListener('mouseup', this.stopResize)
     this.initMonacoEditor()
     await this.loadData()
     await this.loadDefaultModel()
@@ -248,6 +268,8 @@ export default {
     api.ws.init()
   },
   beforeDestroy() {
+    document.removeEventListener('mousemove', this.handleResize)
+    document.removeEventListener('mouseup', this.stopResize)
     if (this.editor) {
       this.editor.dispose()
       this.editor = null
@@ -354,7 +376,12 @@ export default {
         wordWrap: 'on',
         scrollBeyondLastLine: false,
         automaticLayout: true,
-        padding: { top: 16 }
+        padding: { top: 16 },
+        scrollbar: {
+          verticalScrollbarSize: 6,
+          horizontalScrollbarSize: 6,
+          useShadows: false
+        }
       })
       this.editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
         this.saveSpec()
@@ -365,6 +392,10 @@ export default {
       if (!this.editor) return
       const content = this.editor.getValue()
       this.$emit('save-spec', content)
+    },
+    async refreshSpec() {
+      await this.loadSpec()
+      this.$message.success('方案已刷新')
     },
     async sendMessage() {
       const content = this.inputMessage.trim()
@@ -591,6 +622,28 @@ export default {
           this.sendMessage()
         }
       })
+    },
+    startResize(e) {
+      this.isResizing = true
+      this.startX = e.clientX
+      this.startWidth = this.chatPanelWidth
+      document.body.style.cursor = 'col-resize'
+      document.body.style.userSelect = 'none'
+    },
+    handleResize(e) {
+      if (!this.isResizing) return
+      const delta = this.startX - e.clientX
+      let newWidth = this.startWidth + delta
+      const container = this.$el.querySelector('.step2-main')
+      const maxWidth = container ? container.clientWidth * this.maxChatWidthRatio : 800
+      if (newWidth < this.minChatWidth) newWidth = this.minChatWidth
+      if (newWidth > maxWidth) newWidth = maxWidth
+      this.chatPanelWidth = newWidth
+    },
+    stopResize() {
+      this.isResizing = false
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
     }
   }
 }
@@ -598,17 +651,27 @@ export default {
 
 <style scoped>
 .step2-container { height: 100%; display: flex; flex-direction: column; }
-.step2-main { display: flex; flex: 1; gap: 16px; overflow: hidden; padding: 16px; }
+.step2-main { display: flex; flex: 1; gap: 5px; overflow: hidden; padding: 16px; }
 .editor-panel { flex: 1; min-width: 300px; background: #121212; border: 1px solid #1e1e1e; border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; }
-.editor-header { background: #121212; border-bottom: 1px solid #1e1e1e; padding: 12px 16px; font-size: 13px; color: #84848a; display: flex; align-items: center; gap: 8px; }
+.editor-header { background: #121212; border-bottom: 1px solid #1e1e1e; padding: 12px 16px; font-size: 13px; color: #84848a; display: flex; align-items: center; justify-content: space-between; }
+.editor-title { display: flex; align-items: center; gap: 8px; }
+.editor-actions { display: flex; gap: 4px; align-items: center; }
+.editor-actions .el-button--text { color: #84848a; padding: 2px 4px; }
+.editor-actions .el-button--text:hover { color: #60a5fa; }
 .editor-container { flex: 1; min-height: 0; }
-.chat-panel { width: 480px; background: #121212; border: 1px solid #1e1e1e; border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; flex-shrink: 0; }
+.chat-panel { background: #121212; border: 1px solid #1e1e1e; border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; flex-shrink: 0; }
+.resize-handle { width: 4px; cursor: col-resize; background: transparent; flex-shrink: 0; transition: background 0.15s; }
+.resize-handle:hover { background: #60a5fa; }
 .panel-header { background: #121212; border-bottom: 1px solid #1e1e1e; padding: 12px 16px; font-size: 14px; font-weight: 500; color: #f4f4f5; flex-shrink: 0; }
 .panel-tabs { display: flex; gap: 0; padding: 0; }
 .panel-tab { flex: 1; text-align: center; padding: 10px 16px; cursor: pointer; color: #84848a; font-size: 13px; border-bottom: 2px solid transparent; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px; }
 .panel-tab:hover { color: #d4d4d8; }
 .panel-tab.active { color: #60a5fa; border-bottom-color: #60a5fa; }
 .chat-messages { flex: 1; overflow-y: auto; padding: 0 16px 16px; font-size: 14px; line-height: 1.6; }
+.chat-messages::-webkit-scrollbar { width: 4px; }
+.chat-messages::-webkit-scrollbar-track { background: transparent; }
+.chat-messages::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 2px; }
+.chat-messages::-webkit-scrollbar-thumb:hover { background: #52525b; }
 .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #84848a; }
 .empty-state i { font-size: 48px; margin-bottom: 16px; opacity: 0.5; }
 .todos-list { margin-bottom: 16px; color: #d4d4d8; }
@@ -631,19 +694,24 @@ export default {
 .tool-input { color: #60a5fa; margin-left: 8px; }
 .build-info { color: #84848a; display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
 .chat-input-area { padding: 12px 16px; background: #121212; border-top: 1px solid #1e1e1e; }
-.input-wrapper { position: relative; flex: 1; }
+.input-panel { background: #ffffff; border-radius: 6px; border: 1px solid #e0e0e0; overflow: hidden; }
+.input-wrapper { position: relative; }
 .input-area { flex: 1; }
-.input-wrapper .input-actions {
-  position: absolute;
-  right: 8px;
-  bottom: 8px;
+.input-area ::v-deep .el-textarea__inner { border: none; border-radius: 0; background: #ffffff; color: #1f2937; resize: none; }
+.input-area ::v-deep .el-textarea__inner:focus { box-shadow: none; }
+.input-panel .input-actions {
   display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 12px;
   gap: 6px;
-  z-index: 5;
+  background: #ffffff;
 }
-.input-wrapper ::v-deep .el-textarea__inner {
-  padding-bottom: 50px;
-}
+.input-actions-left { display: flex; align-items: center; gap: 6px; }
+.input-actions-right { display: flex; align-items: center; gap: 6px; }
+.input-panel .status-action { cursor: pointer; font-size: 12px; color: #6b7280; }
+.input-panel .status-action:hover { color: #60a5fa; }
+.input-panel .separator { color: #d1d5db; font-size: 12px; }
 .status-bar { display: flex; gap: 8px; align-items: center; padding: 6px 16px; font-size: 12px; color: #84848a; border-top: 1px solid #1e1e1e; flex-shrink: 0; flex-wrap: wrap; background: #0a0a09; }
 .status-bar .separator { color: #3f3f46; }
 .status-ready { color: #22c55e; }
