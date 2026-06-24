@@ -1,5 +1,5 @@
 <template>
-  <div class="flex flex-col h-full">
+    <div class="flex flex-col flex-1 min-h-0">
     <div class="flex items-center gap-1 px-2 py-2 border-b border-border">
       <button @click="refresh" class="p-1 text-textMuted hover:text-white" title="刷新">
         <i class="fa-solid fa-refresh"></i>
@@ -9,7 +9,7 @@
       </button>
     </div>
 
-    <div class="flex-1 overflow-y-auto py-1 pb-8 sidebar-scroll">
+    <div class="flex-1 overflow-y-auto py-1 pb-8 sidebar-scroll" style="padding-bottom: 60px;">
       <div v-if="loading" class="flex items-center justify-center py-8 text-textMuted">
         <i class="fa-solid fa-spinner fa-spin mr-2"></i> 加载中...
       </div>

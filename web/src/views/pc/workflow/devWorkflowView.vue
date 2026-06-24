@@ -290,6 +290,7 @@ export default {
       this.currentCategory = cat
       this.currentProject = ''
       this.currentStep = 1
+      this.updateUrlQuery()
       if (cat) {
         await this.loadProjectsForCategory(cat)
       } else {
@@ -301,12 +302,21 @@ export default {
       if (!this.currentProject && this.currentStep > 1) {
         this.currentStep = 1
       }
+      this.updateUrlQuery()
     },
     onStepChange(step) {
       if (!this.currentProject && step > 1) {
         return
       }
       this.currentStep = step
+      this.updateUrlQuery()
+    },
+    updateUrlQuery() {
+      const query = {}
+      if (this.currentCategory) query.category = this.currentCategory
+      if (this.currentProject) query.project = this.currentProject
+      if (this.currentStep > 1) query.step = String(this.currentStep)
+      this.$router.replace({ query }).catch(() => {})
     },
     async createCategory(name) {
       if (this.categories.includes(name)) {

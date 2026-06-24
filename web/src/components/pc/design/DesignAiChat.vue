@@ -1,6 +1,6 @@
 <template>
-  <div class="flex flex-col h-full">
-    <div class="chat-messages flex-1 overflow-y-auto px-3 py-2" ref="messagesContainer">
+    <div class="flex flex-col flex-1 min-h-0">
+    <div class="chat-messages flex-1 overflow-y-auto px-3 py-2 min-h-0" ref="messagesContainer">
       <div v-if="!logItems.length" class="empty-state">
         <i class="fa-solid fa-robot text-4xl mb-3 opacity-20 block text-center"></i>
         <p class="text-sm text-textMuted text-center">AI设计助手可协助您分析和优化设计</p>
@@ -39,7 +39,7 @@
       </div>
     </div>
 
-    <div class="chat-input-area">
+    <div class="chat-input-area flex-shrink-0">
       <ImagePreviewList
         v-if="mediaFiles && mediaFiles.length > 0"
         :files="mediaFiles"
@@ -231,6 +231,7 @@ export default {
         this.logItems = []
         this.promptTokens = 0
         this.sessionStatus = 'idle'
+        this.$emit('status-change', 'idle')
         console.log('[DesignAiChat] loadSessionForPage skipped (not html):', pagePath)
         return
       }
@@ -360,6 +361,7 @@ export default {
           const isRunning = runningIds.includes(this.sessionId)
           this.sessionStatus = isRunning ? 'processing' : 'idle'
           this.disabled = isRunning
+          this.$emit('status-change', this.sessionStatus)
         },
         step: (data) => {
           this.logItems.push({ type: 'step', thought: data.thought, toolCalls: data.toolCalls, success: data.success })
@@ -374,6 +376,7 @@ export default {
           this.disabled = false
           this.stopping = false
           this.sessionStatus = 'completed'
+          this.$emit('status-change', 'completed')
           if (data?.modelName) this.modelName = data.modelName
           if (data?.usage?.promptTokens) this.promptTokens = data.usage.promptTokens
           if (data?.response) this.logItems.push({ type: 'think', content: data.response })
@@ -384,6 +387,7 @@ export default {
           this.disabled = false
           this.stopping = false
           this.sessionStatus = 'idle'
+          this.$emit('status-change', 'idle')
           this.logItems.push({ type: 'think', content: '【已停止】' })
           this.scrollChatToBottom()
         },
@@ -392,6 +396,7 @@ export default {
           this.disabled = false
           this.stopping = false
           this.sessionStatus = 'idle'
+          this.$emit('status-change', 'idle')
         }
       })
     },

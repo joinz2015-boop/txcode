@@ -4,6 +4,7 @@
       :base-path="designBasePath"
       @open-file="openFile"
       @file-changed="refreshCurrentFile"
+      @ai-status-change="onAiStatusChange"
       ref="sidebar"
     />
 
@@ -83,11 +84,13 @@ export default {
       relativePath: '',
       hasChanges: false,
       isResizing: false,
+      aiStatus: 'idle',
     }
   },
   mounted() {
     document.addEventListener('mousemove', this.handleResize)
     document.addEventListener('mouseup', this.stopResize)
+    this.updateTitle()
   },
   watch: {
     rightTab(val) {
@@ -101,13 +104,27 @@ export default {
           if (this.$refs.editor) this.$refs.editor.layout()
         })
       }
-    }
+    },
+    aiStatus() {
+      this.updateTitle()
+    },
   },
   beforeDestroy() {
     document.removeEventListener('mousemove', this.handleResize)
     document.removeEventListener('mouseup', this.stopResize)
   },
   methods: {
+    updateTitle() {
+      const baseTitle = this.$route.meta?.title || 'AI设计'
+      let prefix = ''
+      if (this.aiStatus === 'processing') prefix = '⏳ '
+      else if (this.aiStatus === 'completed') prefix = '✅ '
+      document.title = `${prefix}${baseTitle} - TXCode`
+    },
+    onAiStatusChange(status) {
+      this.aiStatus = status
+      this.updateTitle()
+    },
     async openFile(node) {
       console.log('[DesignView] openFile called, node:', node.name, 'path:', node.path, 'is_dir:', node.is_directory)
       if (node.is_directory) return
@@ -169,7 +186,7 @@ export default {
       const sidebar = this.$refs.sidebar
       if (!sidebar) return
       const newWidth = e.clientX
-      if (newWidth >= 150 && newWidth <= 500) {
+      if (newWidth >= 150 && newWidth <= 800) {
         sidebar.$el.style.width = newWidth + 'px'
       }
     },

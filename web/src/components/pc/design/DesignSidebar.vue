@@ -30,6 +30,7 @@
       :base-path="basePath"
       :current-page="currentPage"
       @design-updated="$emit('file-changed')"
+      @status-change="$emit('ai-status-change', $event)"
     />
   </aside>
 </template>
