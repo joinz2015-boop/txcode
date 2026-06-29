@@ -43,6 +43,9 @@
           @success="handleProjectDialogSuccess"
         />
         <span class="text-xs text-textMuted" v-if="systemVersion">v{{ systemVersion }}</span>
+        <span v-if="hasNewVersion" @click="showUpgradeDialog = true" class="text-xs text-accent cursor-pointer ml-1 hover:underline">
+          <i class="fa-solid fa-circle-up"></i> 有新版本
+        </span>
         <span class="text-xs text-textMuted mr-2"><i class="fa-solid fa-circle text-green-500 text-[8px]"></i> Server Connected</span>
         <button v-show="$route.name === 'chat'" @click="toggleSidebar" class="hover:text-white" :title="sidebarVisible ? '关闭侧栏' : '显示侧栏'"><i class="fa-solid fa-columns"></i></button>
         <!-- <router-link to="/settings" class="hover:text-white" title="设置"><i class="fa-solid fa-gear"></i></router-link> -->
@@ -104,17 +107,26 @@
         <span>UTF-8</span>
       </div>
     </footer>
+
+    <VersionUpgradeDialog
+      :visible="showUpgradeDialog"
+      :localVersion="systemVersion"
+      :latestInfo="latestVersionInfo"
+      @close="showUpgradeDialog = false"
+    />
   </div>
 </template>
 
 <script>
 import { api } from '../api/index.js'
 import SelectProjectDialog from '../components/pc/config/SelectProjectDialog.vue'
+import VersionUpgradeDialog from '../components/pc/common/VersionUpgradeDialog.vue'
 
 export default {
   name: 'Layout',
   components: {
-    SelectProjectDialog
+    SelectProjectDialog,
+    VersionUpgradeDialog
   },
   data() {
     return {
@@ -126,7 +138,10 @@ export default {
       projects: [],
       currentProject: null,
       selectProjectDialogVisible: false,
-      systemVersion: ''
+      systemVersion: '',
+      hasNewVersion: false,
+      latestVersionInfo: null,
+      showUpgradeDialog: false
     }
   },
   methods: {
@@ -209,12 +224,25 @@ export default {
       } catch (e) {
         console.error('获取版本号失败:', e)
       }
+    },
+    async checkVersion() {
+      try {
+        const res = await api.checkVersion()
+        const data = res.data || {}
+        if (data.hasUpdate) {
+          this.hasNewVersion = true
+          this.latestVersionInfo = data.latestInfo
+        }
+      } catch (e) {
+        console.error('版本检查失败:', e)
+      }
     }
   },
   async created() {
     await this.loadProjects()
     await this.loadSessions()
     this.loadSystemVersion()
+    this.checkVersion()
     document.addEventListener('click', (e) => {
       if (!this.$el.contains(e.target)) {
         this.showSessionDropdown = false

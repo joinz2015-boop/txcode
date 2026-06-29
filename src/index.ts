@@ -32,6 +32,9 @@ async function main() {
   await dbService.init();
   projectService.createOrGetProject();
 
+  const { syncOnStartup } = await import('./services/system/device-sync.service.js');
+  syncOnStartup();
+
   if (args.command === 'web') {
     const net = await import('net');
 

@@ -32,6 +32,7 @@ import { initWafGatewayTables } from './init_sql/waf_gateway.init.js';
 import { initSpecTables } from './init_sql/spec.init.js';
 import { initZihaoTables } from './init_sql/zihao.init.js';
 import { initMessageFileTables } from './init_sql/message_file.init.js';
+import { initSystemTables } from './init_sql/system.init.js';
 
 export class DbService {
   private db: SqlJsDatabase | null = null;
@@ -237,6 +238,7 @@ export class DbService {
       () => this.migration016ProviderAuth(),
       () => this.migration017ProxyConfig(),
       () => this.migration018AddMessageFile(),
+      () => this.migration019AddSystem(),
     ];
 
     for (let i = 0; i < migrations.length; i++) {
@@ -425,6 +427,11 @@ export class DbService {
   private migration018AddMessageFile(): void {
     if (!this.db) return
     initMessageFileTables(this.db)
+  }
+
+  private migration019AddSystem(): void {
+    if (!this.db) return
+    initSystemTables(this.db)
   }
 
   private getTableColumns(tableName: string): string[] {

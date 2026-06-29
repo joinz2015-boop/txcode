@@ -811,4 +811,10 @@ export const api = {
   getSystemInfo() {
     return request('GET', '/system/info_system');
   },
+
+  // ==================== 版本检查 ====================
+
+  checkVersion() {
+    return request('GET', '/system/version_check');
+  },
 };

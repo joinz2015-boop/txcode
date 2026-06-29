@@ -23,4 +23,6 @@ export interface TxConfig {
   songbing: {
     platformUrl: string;
   };
+
+  txcodeHub: string;
 }

@@ -29,3 +29,5 @@ export { CustomActionRepository, customActionRepository } from './custom_action.
 export type { CustomActionRow } from '../entity/custom-action.entity.js';
 export { ProjectRepository, projectRepository } from './project.repository.js';
 export type { ProjectRow } from '../entity/project.entity.js';
+export { SystemRepository, systemRepository } from './system.repository.js';
+export type { SystemRow } from './system.repository.js';

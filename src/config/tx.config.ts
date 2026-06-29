@@ -39,7 +39,7 @@ const defaults: TxConfig = {
     accessLog: 'access.log',
   },
 
-  maxToolIterations: 50,
+  maxToolIterations: 100,
 
   ai: {
     context: {
@@ -53,6 +53,8 @@ const defaults: TxConfig = {
   songbing: {
     platformUrl: 'https://ai.songbingcloud.com',
   },
+
+  txcodeHub: 'https://txcode.homecommunity.cn',
 };
 
 const userConfig = loadUserConfig();
@@ -74,6 +76,7 @@ const config: TxConfig = {
     },
   },
   songbing: defaults.songbing,
+  txcodeHub: userConfig?.txcodeHub ?? defaults.txcodeHub,
 };
 
 export default config;
