@@ -780,6 +780,32 @@ export const api = {
     return request('POST', '/sys_config/import_config', { content });
   },
 
+  // ==================== 自建AI平台（松饼AI） ====================
+
+  getSongbingConfig() {
+    return request('GET', '/songbing/config_songbing');
+  },
+
+  saveSongbingConfig(data) {
+    return request('POST', '/songbing/config_songbing', data);
+  },
+
+  startSongbingAuth(platformUrl) {
+    return request('POST', '/songbing/auth_start_songbing', { platformUrl });
+  },
+
+  verifySongbingAuth(key) {
+    return request('POST', '/songbing/auth_verify_songbing', { key });
+  },
+
+  cancelSongbingAuth() {
+    return request('POST', '/songbing/auth_cancel_songbing');
+  },
+
+  syncSongbingModels() {
+    return request('POST', '/songbing/sync_models_songbing');
+  },
+
   // ==================== 系统信息 ====================
 
   getSystemInfo() {
