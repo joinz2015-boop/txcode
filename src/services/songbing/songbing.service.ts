@@ -143,13 +143,19 @@ export class SongbingService {
       active: true,
     });
 
-    const provider = configRepository.listProviders().find(p => p.name === PROVIDER_NAME);
-    const providerId = provider?.id || configRepository.insertProvider({
-      name: PROVIDER_NAME,
-      apiKey: key,
-      baseUrl: platformUrl + '/api/v1',
-      enabled: true,
-    });
+    const existingProvider = configRepository.listProviders().find(p => p.name === PROVIDER_NAME);
+    let providerId: string;
+    if (existingProvider) {
+      configRepository.updateProvider(existingProvider.id, { apiKey: key });
+      providerId = existingProvider.id;
+    } else {
+      providerId = configRepository.insertProvider({
+        name: PROVIDER_NAME,
+        apiKey: key,
+        baseUrl: platformUrl + '/api/v1',
+        enabled: true,
+      });
+    }
 
     let syncedModels = 0;
     try {
