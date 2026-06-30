@@ -32,6 +32,50 @@ interface PublishedSkillListData {
   list: PublishedSkillItem[];
 }
 
+interface SpecCategory {
+  id: number;
+  name: string;
+  color: string;
+  description: string | null;
+  sort_order: number;
+  status: number;
+  is_system: number;
+  created_at: string;
+  updated_at: string;
+}
+
+interface PublishedSpecItem {
+  id: number;
+  name: string;
+  description: string;
+  platform_category: string | null;
+  category_id: number;
+  author_id: number;
+  download_count: number;
+  latest_version: string;
+  status: string;
+  color: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface PublishedSpecListData {
+  total: number;
+  page: number;
+  page_size: number;
+  list: PublishedSpecItem[];
+}
+
+interface SpecDetail {
+  id: number;
+  name: string;
+  description: string;
+  platform_category: string | null;
+  content_md: string;
+  latest_version: string;
+  download_count: number;
+}
+
 interface HubResponse<T> {
   code: number;
   message: string;
@@ -176,6 +220,52 @@ class TxcodeHubService {
     return httpDownload(`/api/skill/download_skill?id=${skillId}`);
   }
 
+  async fetchSpecCategories(): Promise<SpecCategory[]> {
+    const res = await httpRequest<HubResponse<SpecCategory[]>>('GET', '/api/spec_category/list_spec_category');
+    if (res.code !== 200) {
+      throw new Error(res.message || 'Failed to fetch spec categories');
+    }
+    return res.data || [];
+  }
+
+  async fetchPublishedSpecs(params: {
+    page?: number;
+    page_size?: number;
+    keyword?: string;
+    category_id?: number;
+    platform_category?: string;
+  }): Promise<PublishedSpecListData> {
+    const queryParts: string[] = [];
+    if (params.page) queryParts.push(`page=${params.page}`);
+    if (params.page_size) queryParts.push(`page_size=${params.page_size}`);
+    if (params.keyword) queryParts.push(`keyword=${encodeURIComponent(params.keyword)}`);
+    if (params.category_id) queryParts.push(`category_id=${params.category_id}`);
+    if (params.platform_category) queryParts.push(`platform_category=${encodeURIComponent(params.platform_category)}`);
+
+    const query = queryParts.length > 0 ? '?' + queryParts.join('&') : '';
+    const res = await httpRequest<HubResponse<PublishedSpecListData>>('GET', '/api/spec/list_published_spec' + query);
+    if (res.code !== 200) {
+      throw new Error(res.message || 'Failed to fetch published specs');
+    }
+    return res.data || { total: 0, page: 1, page_size: 20, list: [] };
+  }
+
+  async fetchSpecDetail(specId: number): Promise<SpecDetail | null> {
+    try {
+      const res = await httpRequest<HubResponse<SpecDetail>>('GET', `/api/spec/public_spec_detail?id=${specId}`);
+      if (res.code !== 200) {
+        return null;
+      }
+      return res.data || null;
+    } catch {
+      return null;
+    }
+  }
+
+  async downloadSpecZip(specId: number): Promise<Buffer> {
+    return httpDownload(`/api/spec/download_spec?id=${specId}`);
+  }
+
   async reportUsage(deviceId: string, deviceType: string): Promise<void> {
     try {
       await httpRequest('POST', '/api/usage/report_usage', { device_id: deviceId, device_type: deviceType });
@@ -198,4 +288,4 @@ class TxcodeHubService {
 }
 
 export const txcodeHubService = new TxcodeHubService();
-export type { Category, PublishedSkillItem, PublishedSkillListData, LatestVersionInfo };
+export type { Category, PublishedSkillItem, PublishedSkillListData, LatestVersionInfo, SpecCategory, PublishedSpecItem, PublishedSpecListData, SpecDetail };

@@ -651,6 +651,27 @@ export const api = {
 
   // ==================== 规范管理 ====================
 
+  getSpecCategories() {
+    return request('GET', '/spec/categories');
+  },
+
+  getPublishedSpecs(params = {}) {
+    const { page = 1, pageSize = 20, keyword, categoryId, platformCategory } = params;
+    let query = `page=${page}&page_size=${pageSize}`;
+    if (keyword) query += `&keyword=${encodeURIComponent(keyword)}`;
+    if (categoryId) query += `&category_id=${categoryId}`;
+    if (platformCategory) query += `&platform_category=${encodeURIComponent(platformCategory)}`;
+    return request('GET', `/spec/published?${query}`);
+  },
+
+  installSpec(specId, specName) {
+    return request('POST', '/spec/install', { specId, specName });
+  },
+
+  uninstallSpec(specName) {
+    return request('POST', '/spec/uninstall', { specName });
+  },
+
   getLocalSpecs(projectPath) {
     const query = projectPath ? `?projectPath=${encodeURIComponent(projectPath)}` : '';
     return request('GET', `/spec/local_spec${query}`);
@@ -662,46 +683,6 @@ export const api = {
 
   deleteLocalSpec(name) {
     return request('POST', '/spec/delete_spec', { name });
-  },
-
-  uploadSpec(name, content) {
-    return request('POST', '/spec/upload_spec', { name, content });
-  },
-
-  getSpecRepositories() {
-    return request('GET', '/spec/repositories_spec');
-  },
-
-  createSpecRepository(data) {
-    return request('POST', '/spec/create_repo_spec', data);
-  },
-
-  updateSpecRepository(id, data) {
-    return request('POST', '/spec/update_repo_spec', { id, ...data });
-  },
-
-  deleteSpecRepository(id) {
-    return request('POST', '/spec/delete_repo_spec', { id });
-  },
-
-  getRepoSpecs(repoId) {
-    return request('GET', `/spec/repositories_spec?repoId=${repoId}`);
-  },
-
-  syncSpecRepository(repoId) {
-    return request('POST', '/spec/sync_repo_spec', { repoId });
-  },
-
-  downloadSpec(repoId, specName, projectPath) {
-    return request('POST', '/spec/download_repo_spec', { repoId, specName, projectPath });
-  },
-
-  downloadAll(repoId, projectPath) {
-    return request('POST', '/spec/download_repo_spec', { repoId, all: true, projectPath });
-  },
-
-  downloadAllSpecs(repoId, projectPath) {
-    return request('POST', '/spec/download_repo_spec', { repoId, all: true, projectPath });
   },
 
   getProjectPath() {
