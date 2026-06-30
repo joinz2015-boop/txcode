@@ -72,6 +72,8 @@
             <span class="separator">|</span>
             <span class="status-action" @click="openSkillSelect" @mousedown.prevent>选择Skill</span>
             <span class="separator">|</span>
+            <span class="status-action" @click="openTemplateSelect" @mousedown.prevent>选择模版</span>
+            <span class="separator">|</span>
             <span class="status-action" @click="openCommandDialog" @mousedown.prevent>命令</span>
           </div>
           <div class="input-actions-right">
@@ -131,6 +133,12 @@
       @select="onSkillSelected"
       @close="cancelSkillSelect"
     />
+
+    <TemplateSelectDialog
+      :visible.sync="templateSelectVisible"
+      base-path=".txcode/design"
+      @select="onTemplateSelected"
+    />
   </div>
 </template>
 
@@ -141,6 +149,7 @@ import ModelSelectDialog from '../model/ModelSelectDialog.vue'
 import CommandDialog from '../common/CommandDialog.vue'
 import FileSelectDialog from '../file/FileSelectDialog.vue'
 import SkillSelectDialog from '../skill/SkillSelectDialog.vue'
+import TemplateSelectDialog from './TemplateSelectDialog.vue'
 import ResizableTextarea from '../chat/ResizableTextarea.vue'
 import ImagePreviewList from '../chat/ImagePreviewList.vue'
 import { scrollToBottom, snapshotScroll } from '../../../utils/scroll'
@@ -148,7 +157,7 @@ import { mediaChatMixin } from '../../../lib/mediaChat.js'
 
 export default {
   name: 'DesignAiChat',
-  components: { ModelSelectDialog, CommandDialog, FileSelectDialog, SkillSelectDialog, ImagePreviewList, ResizableTextarea },
+  components: { ModelSelectDialog, CommandDialog, FileSelectDialog, SkillSelectDialog, TemplateSelectDialog, ImagePreviewList, ResizableTextarea },
   mixins: [mediaChatMixin()],
   props: {
     basePath: { type: String, default: '.txcode/design' },
@@ -166,6 +175,7 @@ export default {
       commandDialogVisible: false,
       fileSelectVisible: false,
       skillSelectVisible: false,
+      templateSelectVisible: false,
       skillCursorPos: -1,
       sessionId: '',
       sessionStatus: 'idle',
@@ -475,7 +485,17 @@ export default {
     },
     cancelSkillSelect() {
       this.skillSelectVisible = false
-    }
+    },
+    openTemplateSelect() {
+      const textarea = this.$el.querySelector('.input-area textarea')
+      this.skillCursorPos = textarea ? textarea.selectionStart : -1
+      this.templateSelectVisible = true
+    },
+    onTemplateSelected(templatePath) {
+      const tag = `【设计基础模版】${templatePath} `
+      const pos = this.skillCursorPos >= 0 ? this.skillCursorPos : 0
+      this.inputMessage = this.inputMessage.slice(0, pos) + tag + this.inputMessage.slice(pos)
+    },
   }
 }
 </script>

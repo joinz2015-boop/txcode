@@ -37,6 +37,7 @@
           :file-name="activeFileName"
           :relative-path="relativePath"
           @navigate="onPreviewNavigate"
+          @save-template="saveAsTemplate"
         />
         <DesignEditor
           v-show="rightTab === 'editor'"
@@ -50,19 +51,21 @@
         />
       </div>
 
-      <div class="h-8 bg-sidebar border-t border-border flex items-center justify-between px-3">
+      <div class="h-8 bg-sidebar border-t border-border flex items-center px-3">
         <div class="flex items-center gap-4 text-xs text-textMuted">
           <span v-if="activeFilePath">{{ activeFilePath }}</span>
           <span v-else class="text-textMuted">双击左侧文件打开</span>
           <span v-if="hasChanges" class="text-yellow-500">已修改</span>
         </div>
-        <div class="flex items-center gap-2">
-          <button @click="refreshCurrentFile" class="p-1 text-textMuted hover:text-white text-xs" title="刷新">
-            <i class="fa-solid fa-refresh"></i>
-          </button>
-        </div>
       </div>
     </main>
+
+    <SaveTemplateDialog
+      :visible.sync="templateDialogVisible"
+      :current-file-path="activeFilePath"
+      :current-file-name="activeFileName"
+      @success="onTemplateSaved"
+    />
   </div>
 </template>
 
@@ -70,11 +73,12 @@
 import DesignSidebar from '../../../components/pc/design/DesignSidebar.vue'
 import DesignPreview from '../../../components/pc/design/DesignPreview.vue'
 import DesignEditor from '../../../components/pc/design/DesignEditor.vue'
+import SaveTemplateDialog from '../../../components/pc/design/SaveTemplateDialog.vue'
 import { api } from '../../../api/index.js'
 
 export default {
   name: 'DesignView',
-  components: { DesignSidebar, DesignPreview, DesignEditor },
+  components: { DesignSidebar, DesignPreview, DesignEditor, SaveTemplateDialog },
   data() {
     return {
       rightTab: 'preview',
@@ -84,6 +88,7 @@ export default {
       activeFilePath: '',
       relativePath: '',
       hasChanges: false,
+      templateDialogVisible: false,
       isResizing: false,
       aiStatus: 'idle',
     }
@@ -197,6 +202,16 @@ export default {
       if (this.$refs.editor) {
         this.$refs.editor.updateContent(this.fileContent)
       }
+    },
+    saveAsTemplate() {
+      if (!this.activeFilePath) {
+        this.$message.warning('请先打开一个设计页面')
+        return
+      }
+      this.templateDialogVisible = true
+    },
+    onTemplateSaved() {
+      // 模版保存成功的回调
     },
     extractRelativePath(fullPath) {
       const markers = ['/.txcode/design/', '.txcode/design/', '\\.txcode\\design\\', '.txcode\\design\\']

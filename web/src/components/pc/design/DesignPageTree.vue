@@ -130,7 +130,7 @@ export default {
   computed: {
     fileTreeData() {
       const items = this.browseResult.items
-        .filter(item => item.name !== 'session.json')
+        .filter(item => item.name !== 'session.json' && item.name !== '.template')
         .map(item => ({
           name: item.name,
           path: item.path,
@@ -228,7 +228,7 @@ export default {
       try {
         const res = await api.browseFilesystem(path)
         const children = (res.data.items || [])
-          .filter(item => item.name !== 'session.json')
+          .filter(item => item.name !== 'session.json' && item.name !== '.template')
           .map(item => ({
             name: item.name,
             path: item.path,

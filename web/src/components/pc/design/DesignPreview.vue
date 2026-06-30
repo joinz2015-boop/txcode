@@ -26,6 +26,11 @@
       >
         <div class="flex justify-end mb-2 shrink-0 gap-1">
           <button
+            @click="$emit('save-template')"
+            class="px-2 py-0.5 text-textMuted hover:text-white text-xs rounded hover:bg-white/10 transition-colors"
+            title="保存为模版"
+          >保存模版</button>
+          <button
             @click="openInNewTab"
             class="p-1 text-textMuted hover:text-white text-xs rounded hover:bg-white/10 transition-colors"
             title="新窗口打开"
