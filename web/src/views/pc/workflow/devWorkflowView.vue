@@ -559,7 +559,7 @@ export default {
   display: flex;
   height: 100%;
   overflow: hidden;
-  background: #0a0a09;
+  background: var(--color-panel);
 }
 
 .main-content {
@@ -575,11 +575,11 @@ export default {
 }
 
 .status-bar {
-  background: #121212;
-  border-top: 1px solid #1e1e1e;
+  background: var(--color-panelHeader);
+  border-top: 1px solid var(--color-contentBg);
   padding: 8px 24px;
   font-size: 12px;
-  color: #84848a;
+  color: var(--color-textMuted);
   display: flex;
   align-items: center;
   justify-content: space-between;

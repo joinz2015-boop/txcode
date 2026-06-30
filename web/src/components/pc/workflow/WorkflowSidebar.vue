@@ -121,8 +121,8 @@ export default {
 <style scoped>
 .workflow-sidebar {
   width: 280px;
-  background: #2d2d2d;
-  border-right: 1px solid #1e1e1e;
+  background: var(--color-sidebar);
+  border-right: 1px solid var(--color-contentBg);
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
@@ -130,12 +130,12 @@ export default {
 
 .sidebar-header {
   padding: 16px;
-  border-bottom: 1px solid #1e1e1e;
+  border-bottom: 1px solid var(--color-contentBg);
 }
 
 .sidebar-header h3 {
   font-size: 14px;
-  color: #84848a;
+  color: var(--color-textMuted);
   margin-bottom: 12px;
 }
 
@@ -151,17 +151,17 @@ export default {
   margin-bottom: 8px;
   padding: 8px 10px;
   background: rgba(255, 255, 255, 0.04);
-  border: 1px solid #3f3f46;
+  border: 1px solid var(--color-border);
   border-radius: 6px;
 }
 
 .project-display-row .label {
-  color: #84848a;
+  color: var(--color-textMuted);
   font-size: 12px;
 }
 
 .project-display-row .value {
-  color: #d4d4d8;
+  color: var(--color-textMain);
   font-size: 12px;
   max-width: 180px;
   overflow: hidden;
@@ -193,7 +193,7 @@ export default {
 
 .step-item.active {
   background: rgba(64, 158, 255, 0.15);
-  border-color: #409EFF;
+  border-color: var(--color-accent);
 }
 
 .step-item.completed .step-icon {
@@ -201,7 +201,7 @@ export default {
 }
 
 .step-item.active .step-icon {
-  background: #409EFF;
+  background: var(--color-accent);
 }
 
 .step-icon {
@@ -229,7 +229,7 @@ export default {
 
 .step-desc {
   font-size: 12px;
-  color: #84848a;
+  color: var(--color-textMuted);
 }
 
 .step-status {

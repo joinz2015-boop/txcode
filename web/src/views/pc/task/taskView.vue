@@ -1,5 +1,5 @@
 <template>
-  <div class="flex-1 flex flex-col overflow-hidden bg-[#1e1e1e]">
+  <div class="flex-1 flex flex-col overflow-hidden bg-contentBg">
     <div class="px-4 py-3 border-b border-border bg-sidebar shrink-0">
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-2">

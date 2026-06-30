@@ -120,7 +120,7 @@ export default {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: #0a0a09;
+  background: var(--color-panel);
 }
 
 .prefix-hint {
@@ -129,7 +129,7 @@ export default {
   border-radius: 6px;
   padding: 8px 12px;
   font-size: 12px;
-  color: #409EFF;
+  color: var(--color-accent);
   margin: 12px 16px 0;
 }
 
@@ -152,7 +152,7 @@ export default {
   align-items: center;
   justify-content: center;
   height: 100%;
-  color: #84848a;
+  color: var(--color-textMuted);
 }
 
 .empty-state i {
@@ -172,7 +172,7 @@ export default {
 .chat-message.user .chat-bubble {
   background: rgba(96, 165, 250, 0.15);
   border: 1px solid rgba(96, 165, 250, 0.3);
-  color: #60a5fa;
+  color: var(--color-accent);
   font-weight: bold;
   margin-left: 48px;
   padding: 12px 16px;
@@ -180,9 +180,9 @@ export default {
 }
 
 .chat-message.ai .chat-bubble {
-  background: #18191b;
-  border: 1px solid #1e1e1e;
-  color: #d4d4d8;
+  background: var(--color-inputBg);
+  border: 1px solid var(--color-contentBg);
+  color: var(--color-textMain);
   margin-right: 48px;
   padding: 12px 16px;
   border-radius: 12px;
@@ -192,7 +192,7 @@ export default {
 
 .chat-meta {
   font-size: 11px;
-  color: #84848a;
+  color: var(--color-textMuted);
   margin-top: 4px;
   padding: 0 4px;
 }
@@ -202,9 +202,9 @@ export default {
 }
 
 .chat-input-area {
-  border-top: 1px solid #1e1e1e;
+  border-top: 1px solid var(--color-contentBg);
   padding: 12px 16px;
-  background: #121212;
+  background: var(--color-panelHeader);
   display: flex;
   gap: 12px;
   align-items: flex-end;

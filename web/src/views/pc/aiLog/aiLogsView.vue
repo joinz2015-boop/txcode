@@ -22,7 +22,7 @@
       </div>
     </aside>
 
-    <main class="flex-1 flex flex-col min-w-0 bg-[#1e1e1e]">
+    <main class="flex-1 flex flex-col min-w-0 bg-contentBg">
       <div class="px-4 py-3 border-b border-border bg-sidebar">
         <div class="flex items-center gap-4 mb-3">
           <div class="flex items-center gap-2">

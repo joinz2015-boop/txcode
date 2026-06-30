@@ -34,7 +34,7 @@
       </div>
     </aside>
 
-    <main class="flex-1 flex flex-col bg-[#1e1e1e] min-w-0">
+    <main class="flex-1 flex flex-col bg-contentBg min-w-0">
       <div v-show="subTab === 'market'" class="flex-1 p-6 overflow-hidden flex flex-col">
         <SkillMarket
           ref="skillMarket"

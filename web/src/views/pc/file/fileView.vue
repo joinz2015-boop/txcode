@@ -95,7 +95,7 @@
             v-model="inputDialog.value"
             @keyup.enter="confirmInput"
             @keyup.escape="cancelInput"
-            class="w-full px-3 py-2 bg-[#1e1e1e] border border-border rounded text-white text-sm focus:outline-none focus:border-accent"
+            class="w-full px-3 py-2 bg-contentBg border border-border rounded text-white text-sm focus:outline-none focus:border-accent"
             :placeholder="inputDialog.placeholder"
           />
           <div class="flex justify-end gap-2 mt-4">
@@ -110,7 +110,7 @@
       <div v-if="uploadProgress.visible" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
         <div class="bg-sidebar border border-border rounded p-4 w-80">
           <p class="text-white text-sm mb-3">正在上传 {{ uploadProgress.filename }}</p>
-          <div class="w-full bg-[#1e1e1e] rounded-full h-2">
+          <div class="w-full bg-contentBg rounded-full h-2">
             <div class="bg-accent h-2 rounded-full transition-all" :style="{ width: uploadProgress.percent + '%' }"></div>
           </div>
           <p class="text-textMuted text-xs mt-2 text-center">{{ uploadProgress.percent }}%</p>
@@ -121,7 +121,7 @@
       <div v-if="downloadProgress.visible" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
         <div class="bg-sidebar border border-border rounded p-4 w-80">
           <p class="text-white text-sm mb-3">正在下载 {{ downloadProgress.filename }}</p>
-          <div class="w-full bg-[#1e1e1e] rounded-full h-2">
+          <div class="w-full bg-contentBg rounded-full h-2">
             <div class="bg-accent h-2 rounded-full transition-all" :style="{ width: downloadProgress.percent + '%' }"></div>
           </div>
           <p class="text-textMuted text-xs mt-2 text-center">{{ downloadProgress.percent }}%</p>
@@ -132,14 +132,14 @@
 
     <div class="w-1 bg-border hover:bg-accent cursor-col-resize transition-colors" @mousedown="startResize"></div>
 
-    <main class="flex-1 flex flex-col min-w-0 bg-[#1e1e1e]">
+    <main class="flex-1 flex flex-col min-w-0 bg-contentBg">
       <div class="flex border-b border-border bg-sidebar overflow-x-auto">
         <div
           v-for="file in openFiles"
           :key="file.path"
           @click="activeFile = file"
           class="flex items-center gap-2 px-3 py-2 cursor-pointer border-r border-border"
-          :class="activeFile?.path === file.path ? 'bg-[#1e1e1e] text-white border-t-2 border-t-accent' : 'text-textMuted hover:bg-[#2a2a2a]'"
+          :class="activeFile?.path === file.path ? 'bg-contentBg text-white border-t-2 border-t-accent' : 'text-textMuted hover:bg-hoverBg'"
         >
           <i :class="getFileIcon(file.name)" class="text-xs"></i>
           <span class="text-xs">{{ file.name }}</span>
@@ -690,7 +690,7 @@ export default {
 }
 
 .sidebar-scroll::-webkit-scrollbar-thumb {
-  background: #404040;
+  background: var(--color-border);
   border-radius: 4px;
 }
 

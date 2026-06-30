@@ -77,8 +77,8 @@ export default {
 <style scoped>
 .wiki-sidebar {
   width: 260px;
-  background: #fff;
-  border-right: 1px solid #e0e0e0;
+  background: var(--color-panelHeader);
+  border-right: 1px solid var(--color-border);
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -88,7 +88,7 @@ export default {
   padding: 16px;
   font-weight: 600;
   font-size: 14px;
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: 1px solid var(--color-border);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -105,8 +105,8 @@ export default {
 }
 
 .wiki-tree :deep(.el-tree-node.is-current > .el-tree-node__content) {
-  background-color: #e6f7ff;
-  color: #1890ff;
+  background-color: var(--color-active);
+  color: var(--color-accent);
 }
 
 .tree-node {
@@ -119,6 +119,6 @@ export default {
 .tree-node i {
   width: 16px;
   text-align: center;
-  color: #666;
+  color: var(--color-textMuted);
 }
 </style>

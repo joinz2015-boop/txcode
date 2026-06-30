@@ -15,6 +15,11 @@ export default {
         textMain: '#cccccc',
         textMuted: '#858585',
         primary: '#409EFF',
+        panel: '#0a0a09',
+        panelHeader: '#121212',
+        inputBg: '#18191b',
+        contentBg: '#1e1e1e',
+        hoverBg: '#2a2a2a',
       }
     },
   },

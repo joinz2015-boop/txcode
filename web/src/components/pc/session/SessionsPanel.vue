@@ -63,8 +63,8 @@ export default {
 <style scoped>
 .sidebar {
   width: 260px;
-  background-color: #0a0a09;
-  border-right: 1px solid #27272a;
+  background-color: var(--color-panel);
+  border-right: 1px solid var(--color-border);
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
@@ -72,13 +72,13 @@ export default {
 
 .sidebar-header {
   padding: 12px 16px;
-  border-bottom: 1px solid #27272a;
+  border-bottom: 1px solid var(--color-border);
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
-.sidebar-title { font-size: 12px; color: #84848a; font-weight: bold; }
+.sidebar-title { font-size: 12px; color: var(--color-textMuted); font-weight: bold; }
 .new-btn { font-size: 12px; padding: 4px 8px; }
 .sidebar-content { flex: 1; overflow-y: auto; }
 
@@ -89,20 +89,20 @@ export default {
   flex-direction: column;
   gap: 4px;
   font-size: 13px;
-  color: #84848a;
+  color: var(--color-textMuted);
   transition: all 0.2s;
   border-left: 2px solid transparent;
   position: relative;
 }
 
-.session-item:hover { background-color: #18191b; color: #d4d4d8; }
+.session-item:hover { background-color: var(--color-inputBg); color: var(--color-textMain); }
 .session-item:hover .session-actions { opacity: 1; }
-.session-item.active { background-color: #18191b; border-left-color: #3b82f6; color: #f4f4f5; }
-.session-item.active .session-time { color: #60a5fa; }
+.session-item.active { background-color: var(--color-inputBg); border-left-color: var(--color-accent); color: #f4f4f5; }
+.session-item.active .session-time { color: var(--color-accent); }
 
 .session-row { display: flex; flex-direction: column; gap: 2px; }
 .session-title { order: 1; }
-.session-time { order: 2; font-size: 11px; color: #545459; }
+.session-time { order: 2; font-size: 11px; color: var(--color-textMuted); }
 
 .session-actions {
   order: 3;
@@ -119,11 +119,11 @@ export default {
   padding: 2px 6px;
   border-radius: 4px;
   font-size: 14px;
-  color: #84848a;
+  color: var(--color-textMuted);
 }
 
-.action-btn:hover { background-color: #3f3f46; color: #d4d4d8; }
+.action-btn:hover { background-color: var(--color-border); color: var(--color-textMain); }
 
 .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.load-more { padding: 12px; text-align: center; border-top: 1px solid #27272a; }
+.load-more { padding: 12px; text-align: center; border-top: 1px solid var(--color-border); }
 </style>

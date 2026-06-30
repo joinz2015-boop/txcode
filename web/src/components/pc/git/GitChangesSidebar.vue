@@ -34,8 +34,8 @@
           v-for="change in changes"
           :key="change.path"
           @click="$emit('select', change)"
-          class="px-3 py-2 cursor-pointer border-b border-border/50 hover:bg-[#2a2a2a] transition-colors"
-          :class="selectedPath === change.path ? 'bg-[#2a2a2a] border-l-2 border-l-accent' : ''"
+          class="px-3 py-2 cursor-pointer border-b border-border/50 hover:bg-hoverBg transition-colors"
+          :class="selectedPath === change.path ? 'bg-hoverBg border-l-2 border-l-accent' : ''"
         >
           <div class="flex items-center gap-2">
             <span
@@ -45,18 +45,18 @@
               {{ change.statusCode }}
             </span>
             <div class="flex-1 min-w-0">
-              <div class="text-sm text-gray-200 truncate" :title="change.path">
+              <div class="text-sm text-textMain truncate" :title="change.path">
                 {{ getFileName(change.path) }}
               </div>
-              <div class="text-xs text-gray-500 truncate" :title="change.path">
+              <div class="text-xs text-textMuted truncate" :title="change.path">
                 {{ getDirPath(change.path) }}
               </div>
             </div>
             <div class="flex items-center gap-1 shrink-0" @click.stop>
-              <button @click="$emit('open-file', change)" class="p-1 text-gray-500 hover:text-blue-400 transition-colors" title="打开">
+              <button @click="$emit('open-file', change)" class="p-1 text-textMuted hover:text-blue-400 transition-colors" title="打开">
                 <i class="fa-solid fa-external-link-alt text-xs"></i>
               </button>
-              <button @click="$emit('revert', change)" class="p-1 text-gray-500 hover:text-yellow-400 transition-colors" title="撤销">
+              <button @click="$emit('revert', change)" class="p-1 text-textMuted hover:text-yellow-400 transition-colors" title="撤销">
                 <i class="fa-solid fa-undo text-xs"></i>
               </button>
             </div>
@@ -129,7 +129,7 @@ export default {
 }
 
 .sidebar-scroll::-webkit-scrollbar-thumb {
-  background: #404040;
+  background: var(--color-border);
   border-radius: 4px;
 }
 

@@ -34,10 +34,10 @@
 
       <div v-else-if="diffContent" class="flex-1 flex overflow-hidden">
         <div class="flex-1 flex flex-col overflow-hidden border-r border-border">
-          <div class="px-4 py-2 bg-[#3c3c3c] border-b border-border text-xs text-gray-300 font-bold">
+          <div class="px-4 py-2 bg-border border-b border-border text-xs text-textMain font-bold">
             旧版本 (Original)
           </div>
-          <div class="flex-1 overflow-auto bg-[#2d2d2d]">
+          <div class="flex-1 overflow-auto bg-sidebar">
             <div
               v-for="(line, idx) in oldLines"
               :key="'old-' + idx"
@@ -50,10 +50,10 @@
           </div>
         </div>
         <div class="flex-1 flex flex-col overflow-hidden">
-          <div class="px-4 py-2 bg-[#3c3c3c] border-b border-border text-xs text-gray-300 font-bold">
+          <div class="px-4 py-2 bg-border border-b border-border text-xs text-textMain font-bold">
             新版本 (Modified)
           </div>
-          <div class="flex-1 overflow-auto bg-[#2d2d2d]">
+          <div class="flex-1 overflow-auto bg-sidebar">
             <div
               v-for="(line, idx) in newLines"
               :key="'new-' + idx"
@@ -126,7 +126,7 @@ export default {
     },
     getLineClass(line) {
       if (line.type === 'header') {
-        return 'bg-[#1a1a1a] text-blue-400'
+        return 'bg-inputBg text-blue-400'
       }
       if (line.removed) {
         return 'bg-red-900/50 text-red-300'
@@ -135,9 +135,9 @@ export default {
         return 'bg-green-900/50 text-green-300'
       }
       if (line.empty) {
-        return 'bg-[#252525]'
+        return 'bg-hoverBg'
       }
-      return 'text-gray-200'
+      return 'text-textMain'
     },
     parseDiff(diff) {
       this.oldLines = []

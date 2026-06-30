@@ -858,7 +858,7 @@ export default {
   display: flex;
   height: 100%;
   overflow: hidden;
-  background: #0a0a09;
+  background: var(--color-panel);
   font-family: ui-monospace, SFMono-Regular, "JetBrains Mono", "Fira Code", Menlo, Monaco, Consolas, monospace;
 }
 
@@ -877,23 +877,23 @@ export default {
 .session-panel {
   display: flex;
   flex-direction: column;
-  background-color: #0a0a09;
-  border: 1px solid #1e1e1e;
+  background-color: var(--color-panel);
+  border: 1px solid var(--color-contentBg);
   overflow: hidden;
   min-height: 0;
   cursor: pointer;
   transition: border-color 0.2s;
 }
 
-.session-panel:hover { border-color: #3b82f6; }
-.session-panel.panel-active { border-color: #3b82f6; box-shadow: 0 0 0 1px #3b82f6; }
+.session-panel:hover { border-color: var(--color-accent); }
+.session-panel.panel-active { border-color: var(--color-accent); box-shadow: 0 0 0 1px var(--color-accent); }
 
 .panel-header {
   display: flex;
   justify-content: space-between;
-  background-color: #121212;
+  background-color: var(--color-panelHeader);
   padding: 12px 16px;
-  border-bottom: 1px solid #27272a;
+  border-bottom: 1px solid var(--color-border);
   font-weight: bold;
   flex-shrink: 0;
 }
@@ -908,40 +908,40 @@ export default {
   line-height: 1.6;
 }
 
-.log-area p { margin: 0 0 16px 0; color: #d4d4d8; }
+.log-area p { margin: 0 0 16px 0; color: var(--color-textMain); }
 .user-question {
-  color: #60a5fa;
+  color: var(--color-accent);
   font-weight: bold;
-  border: 1px solid #60a5fa;
+  border: 1px solid var(--color-accent);
   padding: 15px;
   margin:15px;
   border-radius: 10px;
   display: inline-block;
   max-width: 60%;
 }
-.todos-list { margin-bottom: 16px; color: #d4d4d8; }
+.todos-list { margin-bottom: 16px; color: var(--color-textMain); }
 .todo-item { display: flex; align-items: center; gap: 8px; padding: 2px 0; }
 .todo-status, .todo-name { font-size: 14px; }
-.log-mute { color: #84848a; margin-bottom: 16px; white-space: pre; }
+.log-mute { color: var(--color-textMuted); margin-bottom: 16px; white-space: pre; }
 .tool-success { color: #22c55e; }
 .tool-fail { color: #ef4444; }
-.tool-input { color: #60a5fa; margin-left: 8px; }
+.tool-input { color: var(--color-accent); margin-left: 8px; }
 
-.build-info { color: #84848a; display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
-.build-info .icon { color: #60a5fa; font-size: 12px; }
+.build-info { color: var(--color-textMuted); display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
+.build-info .icon { color: var(--color-accent); font-size: 12px; }
 
 .empty-state {
   display: flex;
   align-items: center;
   justify-content: center;
   height: 100%;
-  color: #84848a;
+  color: var(--color-textMuted);
 }
 
 .input-block {
-  background-color: #18191b;
+  background-color: var(--color-inputBg);
   padding: 12px 16px;
-  border-top: 1px solid #27272a;
+  border-top: 1px solid var(--color-border);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -978,21 +978,21 @@ export default {
   align-items: center;
   padding: 6px 16px;
   font-size: 12px;
-  color: #84848a;
-  border-top: 1px solid #27272a;
+  color: var(--color-textMuted);
+  border-top: 1px solid var(--color-border);
   flex-shrink: 0;
   flex-wrap: wrap;
 }
 
 .status-bar .separator { color: #3f3f46; }
 .status-ready { color: #22c55e; }
-.status-thinking { color: #60a5fa; }
+.status-thinking { color: var(--color-accent); }
 .token-warning { color: #ef4444; }
 .thinking-spinner {
   width: 10px;
   height: 10px;
   border: 2px solid #3f3f46;
-  border-top-color: #60a5fa;
+  border-top-color: var(--color-accent);
   border-radius: 50%;
   display: inline-block;
   vertical-align: -1px;
@@ -1006,9 +1006,9 @@ export default {
 
 .layout-switcher { position: fixed; right: 20px; bottom: 20px; z-index: 100; }
 .model-selector { cursor: pointer; }
-.model-selector:hover { color: #60a5fa; }
+.model-selector:hover { color: var(--color-accent); }
 .status-action { cursor: pointer; }
-.status-action:hover { color: #60a5fa; }
+.status-action:hover { color: var(--color-accent); }
 
 .image-lightbox {
   position: fixed;
@@ -1051,6 +1051,6 @@ export default {
   transition: border-color 0.2s;
 }
 .chat-image-thumb:hover {
-  border-color: #60a5fa;
+  border-color: var(--color-accent);
 }
 </style>

@@ -83,7 +83,7 @@
           v-model="renameDialog.value"
           @keyup.enter="confirmRename"
           @keyup.escape="cancelRename"
-          class="w-full px-3 py-2 bg-[#1e1e1e] border border-border rounded text-white text-sm focus:outline-none focus:border-accent"
+          class="w-full px-3 py-2 bg-contentBg border border-border rounded text-white text-sm focus:outline-none focus:border-accent"
           :placeholder="renameDialog.placeholder"
         />
         <div class="flex justify-end gap-2 mt-4">
@@ -379,6 +379,6 @@ export default {
 <style scoped>
 .sidebar-scroll::-webkit-scrollbar { width: 8px; }
 .sidebar-scroll::-webkit-scrollbar-track { background: transparent; }
-.sidebar-scroll::-webkit-scrollbar-thumb { background: #404040; border-radius: 4px; }
+.sidebar-scroll::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 4px; }
 .sidebar-scroll::-webkit-scrollbar-thumb:hover { background: #505050; }
 </style>

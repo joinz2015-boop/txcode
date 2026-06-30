@@ -209,15 +209,15 @@ export default {
 }
 
 .panel-section {
-  background: #121212;
-  border: 1px solid #1e1e1e;
+  background: var(--color-panelHeader);
+  border: 1px solid var(--color-contentBg);
   border-radius: 8px;
   overflow: hidden;
 }
 
   .panel-section-header {
-    background: #121212;
-    border-bottom: 1px solid #1e1e1e;
+    background: var(--color-panelHeader);
+    border-bottom: 1px solid var(--color-contentBg);
     padding: 12px 16px;
     font-size: 14px;
     font-weight: 500;
@@ -238,16 +238,16 @@ export default {
 
 .form-hint {
   font-size: 12px;
-  color: #84848a;
+  color: var(--color-textMuted);
   margin-top: 8px;
 }
 
 .form-hint code {
-  background: #18191b;
+  background: var(--color-inputBg);
   padding: 2px 6px;
   border-radius: 4px;
   font-family: ui-monospace, monospace;
-  color: #409EFF;
+  color: var(--color-accent);
 }
 
 .flex {

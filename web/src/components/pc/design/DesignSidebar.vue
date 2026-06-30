@@ -1,16 +1,16 @@
 <template>
-  <aside class="bg-[#121212] border border-[#1e1e1e] flex flex-col shrink-0 overflow-hidden" style="width: 480px;">
-    <div class="flex border-b border-[#1e1e1e] bg-[#121212]">
+  <aside class="bg-panelHeader border border-contentBg flex flex-col shrink-0 overflow-hidden" style="width: 480px;">
+    <div class="flex border-b border-contentBg bg-panelHeader">
       <div
         class="flex-1 text-center px-3 py-2.5 cursor-pointer text-sm border-b-2 transition-colors"
-        :class="activeTab === 'pages' ? 'border-[#60a5fa] text-[#f4f4f5]' : 'border-transparent text-[#84848a] hover:text-[#f4f4f5]'"
+        :class="activeTab === 'pages' ? 'border-accent text-white' : 'border-transparent text-textMuted hover:text-white'"
         @click="activeTab = 'pages'"
       >
         <i class="fa-solid fa-file-code mr-1"></i> 设计页面
       </div>
       <div
         class="flex-1 text-center px-3 py-2.5 cursor-pointer text-sm border-b-2 transition-colors"
-        :class="activeTab === 'ai' ? 'border-[#60a5fa] text-[#f4f4f5]' : 'border-transparent text-[#84848a] hover:text-[#f4f4f5]'"
+        :class="activeTab === 'ai' ? 'border-accent text-white' : 'border-transparent text-textMuted hover:text-white'"
         @click="activeTab = 'ai'"
       >
         <i class="fa-solid fa-robot mr-1"></i> AI设计助手

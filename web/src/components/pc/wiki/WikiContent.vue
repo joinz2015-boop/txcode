@@ -119,7 +119,7 @@ export default {
   flex: 1;
   padding: 24px 32px;
   overflow-y: auto;
-  background: #fff;
+  background: var(--color-panelHeader);
 }
 
 .loading,
@@ -129,7 +129,7 @@ export default {
   justify-content: center;
   gap: 8px;
   height: 200px;
-  color: #666;
+  color: var(--color-textMuted);
 }
 
 .error {
@@ -146,7 +146,7 @@ export default {
   font-weight: 600;
   margin-bottom: 0.5em;
   padding-bottom: 0.3em;
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .markdown-body :deep(h2) {
@@ -155,7 +155,7 @@ export default {
   margin-top: 1.5em;
   margin-bottom: 0.5em;
   padding-bottom: 0.3em;
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .markdown-body :deep(h3) {
@@ -171,7 +171,7 @@ export default {
 }
 
 .markdown-body :deep(a) {
-  color: #1890ff;
+  color: var(--color-accent);
   text-decoration: none;
 }
 
@@ -181,14 +181,14 @@ export default {
 
 .markdown-body :deep(code) {
   padding: 0.2em 0.4em;
-  background: #f5f5f5;
+  background: var(--color-inputBg);
   border-radius: 3px;
   font-size: 85%;
   font-family: 'SF Mono', Consolas, monospace;
 }
 
 .markdown-body :deep(pre) {
-  background: #f6f8fa;
+  background: var(--color-inputBg);
   padding: 16px;
   border-radius: 6px;
   overflow-x: auto;
@@ -219,20 +219,20 @@ export default {
 
 .markdown-body :deep(th),
 .markdown-body :deep(td) {
-  border: 1px solid #d0d7de;
+  border: 1px solid var(--color-border);
   padding: 8px 12px;
 }
 
 .markdown-body :deep(th) {
-  background: #f6f8fa;
+  background: var(--color-inputBg);
   font-weight: 600;
 }
 
 .markdown-body :deep(blockquote) {
   margin: 1em 0;
   padding: 0 1em;
-  border-left: 4px solid #d0d7de;
-  color: #666;
+  border-left: 4px solid var(--color-border);
+  color: var(--color-textMuted);
 }
 
 .markdown-body :deep(img) {

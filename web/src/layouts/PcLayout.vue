@@ -46,7 +46,7 @@
         <span v-if="hasNewVersion" @click="showUpgradeDialog = true" class="text-xs text-accent cursor-pointer ml-1 hover:underline">
           <i class="fa-solid fa-circle-up"></i> 有新版本
         </span>
-        <span class="text-xs text-textMuted mr-2"><i class="fa-solid fa-circle text-green-500 text-[8px]"></i> Server Connected</span>
+        <ThemeSelector />
         <button v-show="$route.name === 'chat'" @click="toggleSidebar" class="hover:text-white" :title="sidebarVisible ? '关闭侧栏' : '显示侧栏'"><i class="fa-solid fa-columns"></i></button>
         <!-- <router-link to="/settings" class="hover:text-white" title="设置"><i class="fa-solid fa-gear"></i></router-link> -->
       </div>
@@ -121,12 +121,14 @@
 import { api } from '../api/index.js'
 import SelectProjectDialog from '../components/pc/config/SelectProjectDialog.vue'
 import VersionUpgradeDialog from '../components/pc/common/VersionUpgradeDialog.vue'
+import ThemeSelector from '../components/pc/layout/ThemeSelector.vue'
 
 export default {
   name: 'Layout',
   components: {
     SelectProjectDialog,
-    VersionUpgradeDialog
+    VersionUpgradeDialog,
+    ThemeSelector
   },
   data() {
     return {

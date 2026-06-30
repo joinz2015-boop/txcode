@@ -52,7 +52,7 @@ export default {
   align-items: center;
   justify-content: space-between;
   padding: 12px 15px;
-  border: 1px solid #e4e7ed;
+  border: 1px solid var(--color-border);
   border-radius: 4px;
   margin-bottom: 10px;
 }
@@ -63,14 +63,14 @@ export default {
 }
 
 .skill-desc {
-  color: #909399;
+  color: var(--color-textMuted);
   font-size: 12px;
   margin-top: 2px;
 }
 
 .empty {
   text-align: center;
-  color: #909399;
+  color: var(--color-textMuted);
   padding: 40px;
 }
 </style>

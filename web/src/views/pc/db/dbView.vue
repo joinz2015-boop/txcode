@@ -38,7 +38,7 @@
     
     </aside>
 
-    <main class="flex-1 flex flex-col min-w-0 bg-[#1e1e1e]">
+    <main class="flex-1 flex flex-col min-w-0 bg-contentBg">
       <div v-if="!selectedTable" class="flex-1 flex items-center justify-center text-textMuted">
         <div class="text-center">
           <i class="fa-solid fa-database text-6xl mb-4 opacity-20"></i>

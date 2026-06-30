@@ -281,7 +281,7 @@ export default {
   width: 16px;
   text-align: center;
   font-size: 10px;
-  color: #858585;
+  color: var(--color-textMuted);
   flex-shrink: 0;
   
   &.placeholder,
@@ -306,7 +306,7 @@ export default {
 }
 
 .node-name {
-  color: #cccccc;
+  color: var(--color-textMain);
   font-size: 13px;
   white-space: nowrap;
   overflow: hidden;

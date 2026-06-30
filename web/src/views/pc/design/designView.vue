@@ -10,19 +10,19 @@
 
     <div class="w-1 bg-border hover:bg-accent cursor-col-resize transition-colors" @mousedown="startResize"></div>
 
-    <main class="flex-1 flex flex-col min-w-0 bg-[#1e1e1e]">
+    <main class="flex-1 flex flex-col min-w-0 bg-contentBg">
       <div class="flex border-b border-border bg-sidebar">
         <div class="flex items-center">
           <div
             class="px-4 py-2 cursor-pointer border-r border-border text-sm"
-            :class="rightTab === 'preview' ? 'bg-[#1e1e1e] text-white border-t-2 border-t-accent' : 'text-textMuted hover:bg-[#2a2a2a]'"
+            :class="rightTab === 'preview' ? 'bg-contentBg text-white border-t-2 border-t-accent' : 'text-textMuted hover:bg-hoverBg'"
             @click="rightTab = 'preview'"
           >
             <i class="fa-solid fa-eye mr-1"></i> 预览
           </div>
           <div
             class="px-4 py-2 cursor-pointer border-r border-border text-sm"
-            :class="rightTab === 'editor' ? 'bg-[#1e1e1e] text-white border-t-2 border-t-accent' : 'text-textMuted hover:bg-[#2a2a2a]'"
+            :class="rightTab === 'editor' ? 'bg-contentBg text-white border-t-2 border-t-accent' : 'text-textMuted hover:bg-hoverBg'"
             @click="rightTab = 'editor'"
           >
             <i class="fa-solid fa-code mr-1"></i> 编辑

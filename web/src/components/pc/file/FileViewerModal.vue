@@ -16,15 +16,15 @@
           </span>
           <span class="text-white text-sm">{{ filePath }}</span>
         </div>
-        <button @click="close" class="text-gray-400 hover:text-white">
+        <button @click="close" class="text-textMuted hover:text-white">
           <i class="fa-solid fa-times text-lg"></i>
         </button>
       </div>
-      <div class="flex-1 overflow-hidden bg-[#1e1e1e]">
+      <div class="flex-1 overflow-hidden bg-contentBg">
         <div  ref="editorContainer" class="w-full h-full"></div>
       </div>
       <div class="h-8 bg-sidebar border-t border-border flex items-center justify-between px-3">
-        <div class="flex items-center gap-4 text-xs text-gray-400">
+        <div class="flex items-center gap-4 text-xs text-textMuted">
           <span>{{ fullPath }}</span>
           <span v-if="hasChanges" class="text-yellow-500">已修改</span>
         </div>

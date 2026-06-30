@@ -9,6 +9,11 @@
   --color-textMain: #cccccc;
   --color-textMuted: #858585;
   --color-primary: #409EFF;
+  --color-panel: #0a0a09;
+  --color-panelHeader: #121212;
+  --color-inputBg: #18191b;
+  --color-contentBg: #1e1e1e;
+  --color-hoverBg: #2a2a2a;
 }
 
 html, body {
@@ -42,4 +47,9 @@ html, body {
 
 ::-webkit-scrollbar-corner {
   background: transparent;
+}
+
+/* 主题切换过渡动画 */
+.transition-theme, .transition-theme * {
+  transition: background-color 0.35s ease, border-color 0.35s ease, color 0.25s ease, box-shadow 0.35s ease !important;
 }
