@@ -6,29 +6,28 @@
         placeholder="搜索 Skill..."
         size="small"
         class="w-[200px]"
+        style="width:250px"
         clearable
         @keyup.enter="onSearch"
       >
-        <template #prefix>
-          <i class="fa-solid fa-search text-textMuted"></i>
-        </template>
+       
       </el-input>
       <el-button size="small" type="primary" @click="onSearch">查询</el-button>
       <button
         @click="selectFilter('all')"
-        class="px-3 py-1 rounded text-xs border transition-colors"
+        class="px-3 py-1 rounded text-sm border transition-colors"
         :class="filterMode === 'all' ? 'bg-accent text-white border-accent' : 'bg-sidebar text-textMuted border-border hover:text-white hover:border-accent'"
       >全部</button>
       <button
         @click="selectFilter('installed')"
-        class="px-3 py-1 rounded text-xs border transition-colors"
+        class="px-3 py-1 rounded text-sm border transition-colors"
         :class="filterMode === 'installed' ? 'bg-accent text-white border-accent' : 'bg-sidebar text-textMuted border-border hover:text-white hover:border-accent'"
       >已安装</button>
       <button
         v-for="cat in categories"
         :key="cat.id"
         @click="selectCategory(cat.id)"
-        class="px-3 py-1 rounded text-xs border transition-colors"
+        class="px-3 py-1 rounded text-sm border transition-colors"
         :class="selectedCategoryId === cat.id ? 'bg-accent text-white border-accent' : 'bg-sidebar text-textMuted border-border hover:text-white hover:border-accent'"
       >{{ cat.name }}</button>
     </div>
@@ -157,6 +156,7 @@ export default {
     selectFilter(mode) {
       this.filterMode = mode
       this.currentPage = 1
+      this.selectedCategoryId = ''
       if (mode === 'installed') {
         this.loadLocalInstalledSkills()
       } else {
@@ -166,7 +166,7 @@ export default {
     selectCategory(categoryId) {
       this.selectedCategoryId = categoryId
       this.currentPage = 1
-      this.filterMode = 'all'
+      this.filterMode = ''
       this.loadSkills()
     },
     onSearch() {
