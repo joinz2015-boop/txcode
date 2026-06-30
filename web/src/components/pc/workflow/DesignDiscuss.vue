@@ -162,6 +162,12 @@
       @close="skillSelectVisible = false"
     />
 
+    <DesignSelectDialog
+      :visible.sync="designSelectVisible"
+      @select="onDesignSelected"
+      @close="designSelectVisible = false"
+    />
+
     <div v-if="previewImage" class="image-lightbox" @click="closeImagePreview">
       <span class="lightbox-close" @click="closeImagePreview">&times;</span>
       <img :src="previewImage.url || previewImage.dataUrl || previewImage.filePath" class="lightbox-image" @click.stop />
@@ -174,6 +180,7 @@ import { api } from '../../../api/index.js'
 import { marked } from 'marked'
 import ModelSelectDialog from '../model/ModelSelectDialog.vue'
 import SkillSelectDialog from '../skill/SkillSelectDialog.vue'
+import DesignSelectDialog from '../design/DesignSelectDialog.vue'
 import ResizableTextarea from '../chat/ResizableTextarea.vue'
 import ImagePreviewList from '../chat/ImagePreviewList.vue'
 import { scrollToBottom, snapshotScroll } from '../../../utils/scroll'
@@ -181,7 +188,7 @@ import { mediaChatMixin } from '../../../lib/mediaChat.js'
 
 export default {
   name: 'DesignDiscuss',
-  components: { ModelSelectDialog, SkillSelectDialog, ResizableTextarea, ImagePreviewList },
+  components: { ModelSelectDialog, SkillSelectDialog, DesignSelectDialog, ResizableTextarea, ImagePreviewList },
   mixins: [mediaChatMixin()],
   props: {
     category: { type: String, default: '' },
@@ -206,6 +213,7 @@ export default {
       modelName: '',
       modelSelectVisible: false,
       skillSelectVisible: false,
+      designSelectVisible: false,
       skillCursorPos: -1,
       sessionStatus: 'idle',
       wsUnsubscribe: null
@@ -530,6 +538,14 @@ export default {
       const pos = this.skillCursorPos >= 0 ? this.skillCursorPos : 0
       this.inputMessage = this.inputMessage.slice(0, pos) + tag + this.inputMessage.slice(pos)
       this.skillSelectVisible = false
+    },
+    openDesignSelect() {
+      this.designSelectVisible = true
+    },
+    onDesignSelected(design) {
+      const tag = `[设计:${design.name}](${design.path}) `
+      this.inputMessage += tag
+      this.designSelectVisible = false
     },
     getTodoStatusIcon(status) {
       const icons = { completed: '✅', in_progress: '🔄', pending: '⬜', cancelled: '❌' }
