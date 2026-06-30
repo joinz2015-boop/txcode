@@ -1,5 +1,10 @@
 import { Router } from 'express';
 
+import * as categories_skill from './categories_skill.js';
+import * as published_skill from './published_skill.js';
+import * as install_skill from './install_skill.js';
+import * as uninstall_skill from './uninstall_skill.js';
+
 import * as create_repo_skill from './create_repo_skill.js';
 import * as delete_repo_skill from './delete_repo_skill.js';
 import * as detail_skill from './detail_skill.js';
@@ -13,6 +18,11 @@ import * as sync_repo_skill from './sync_repo_skill.js';
 import * as update_repo_skill from './update_repo_skill.js';
 
 export function registerRoutes(router: Router) {
+  router.get('/skill/categories', categories_skill.GET);
+  router.get('/skill/published', published_skill.GET);
+  router.post('/skill/install', install_skill.POST);
+  router.post('/skill/uninstall', uninstall_skill.POST);
+
   router.post('/skill/create_repo_skill', create_repo_skill.POST);
   router.post('/skill/delete_repo_skill', delete_repo_skill.POST);
   router.get('/skill/detail_skill', detail_skill.GET);

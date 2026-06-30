@@ -185,6 +185,26 @@ export const api = {
     return request('POST', '/skill/load_skill', { name, action: 'delete' });
   },
 
+  getSkillCategories() {
+    return request('GET', '/skill/categories');
+  },
+
+  getPublishedSkills(params = {}) {
+    const { page = 1, pageSize = 20, keyword, categoryId } = params;
+    let query = `page=${page}&page_size=${pageSize}`;
+    if (keyword) query += `&keyword=${encodeURIComponent(keyword)}`;
+    if (categoryId) query += `&category_id=${categoryId}`;
+    return request('GET', `/skill/published?${query}`);
+  },
+
+  installSkill(skillId, skillName) {
+    return request('POST', '/skill/install', { skillId, skillName });
+  },
+
+  uninstallSkill(skillName) {
+    return request('POST', '/skill/uninstall', { skillName });
+  },
+
   // ==================== 配置管理 ====================
 
   getConfig(key) {

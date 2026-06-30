@@ -1,8 +1,6 @@
 import { Request, Response } from 'express';
-import * as https from 'node:https';
-import * as http from 'node:http';
 import { getVersion } from '../../../utils/version.js';
-import config from '../../../config/tx.config.js';
+import { txcodeHubService } from '../../../services/hub/txcode_hub.service.js';
 
 interface LatestVersionInfo {
   version: string;
@@ -34,57 +32,15 @@ function compareSemver(v1: string, v2: string): number {
   return 0;
 }
 
-function fetchLatestVersion(hubUrl: string): Promise<LatestVersionInfo | null> {
-  return new Promise((resolve) => {
-    const urlStr = `${hubUrl}/api/version/list_published_version?page=1&page_size=1`;
-    const parsedUrl = new URL(urlStr);
-    const isHttps = parsedUrl.protocol === 'https:';
-    const requestModule = isHttps ? https : http;
-
-    const req = requestModule.request(
-      {
-        hostname: parsedUrl.hostname,
-        port: parsedUrl.port || (isHttps ? 443 : 80),
-        path: parsedUrl.pathname + parsedUrl.search,
-        method: 'GET',
-        rejectUnauthorized: false,
-        timeout: 5000,
-      },
-      (res) => {
-        let body = '';
-        res.on('data', (chunk: Buffer) => { body += chunk.toString(); });
-        res.on('end', () => {
-          try {
-            const json = JSON.parse(body);
-            const list = json?.data?.list || [];
-            if (list.length > 0) {
-              resolve(list[0] as LatestVersionInfo);
-            } else {
-              resolve(null);
-            }
-          } catch {
-            resolve(null);
-          }
-        });
-      }
-    );
-
-    req.on('error', () => resolve(null));
-    req.on('timeout', () => { req.destroy(); resolve(null); });
-    req.end();
-  });
-}
-
 export async function GET(_req: Request, res: Response) {
   const localVersion = getVersion();
-  const hubUrl = config.txcodeHub;
 
   let latestVersion = localVersion;
   let hasUpdate = false;
   let latestInfo: LatestVersionInfo | null = null;
 
   try {
-    const info = await fetchLatestVersion(hubUrl);
+    const info = await txcodeHubService.fetchLatestVersion();
     if (info) {
       latestVersion = stripV(info.version);
       latestInfo = info;

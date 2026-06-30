@@ -31,6 +31,7 @@
     "@lydell/node-pty": "^1.0.0",
     "@types/diff": "^7.0.2",
     "@types/nodemailer": "^7.0.11",
+    "adm-zip": "^0.5.18",
     "cors": "^2.8.6",
     "diff": "^7.0.0",
     "dingtalk-stream-sdk-nodejs": "^2.0.4",

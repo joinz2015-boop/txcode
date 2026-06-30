@@ -8,11 +8,11 @@
       <div class="flex-1 overflow-y-auto">
         <div class="px-4 py-1 text-xs font-bold text-textMuted uppercase mt-2">Skills</div>
         <button
-          @click="subTab = 'remoteSkills'"
+          @click="subTab = 'market'"
           class="w-full text-left px-4 py-2 flex items-center gap-2"
-          :class="subTab === 'remoteSkills' ? 'bg-active text-white border-l-2 border-accent' : 'text-textMuted hover:text-white hover:bg-white/5 border-l-2 border-transparent'"
+          :class="subTab === 'market' ? 'bg-active text-white border-l-2 border-accent' : 'text-textMuted hover:text-white hover:bg-white/5 border-l-2 border-transparent'"
         >
-          <i class="fa-solid fa-server w-4 text-center"></i> Remote Skills
+          <i class="fa-solid fa-store w-4 text-center"></i> Skill Market
         </button>
         <button
           @click="subTab = 'localSkills'"
@@ -50,19 +50,11 @@
     </aside>
 
     <main class="flex-1 flex flex-col bg-[#1e1e1e] min-w-0">
-      <div v-show="subTab === 'remoteSkills'" class="flex-1 p-6 overflow-y-auto">
-        <RemoteSkills
-          :repositories="skillRepositories"
-          :repo-skills="repoSkills"
-          :loading-skills="loadingSkills"
-          :downloading-all="downloadingAll"
-          @add="showAddSkillDialog = true"
-          @edit="handleEditSkillRepo"
-          @delete="handleDeleteSkillRepo"
-          @sync="handleSyncSkillRepo"
-          @load-skills="loadRepoSKills"
-          @download-skill="handleDownloadSkill"
-          @download-all="handleDownloadAllSkills"
+      <div v-show="subTab === 'market'" class="flex-1 p-6 overflow-hidden flex flex-col">
+        <SkillMarket
+          ref="skillMarket"
+          :local-skills="localSkills"
+          @refresh-local="loadLocalSkills"
         />
       </div>
 
@@ -118,13 +110,6 @@
       @close="editingRepo = null"
     />
 
-    <SkillRepositoryDialog
-      :visible.sync="showAddSkillDialog"
-      :repository="editingSkillRepo"
-      @submit="handleSubmitSkillRepo"
-      @close="editingSkillRepo = null"
-    />
-
     <SpecViewer
       :visible.sync="showSpecViewer"
       :spec="currentSpec"
@@ -147,9 +132,8 @@
 
 <script>
 import { api } from '../../../api'
-import RemoteSkills from '../../../components/pc/skill/RemoteSkills.vue'
+import SkillMarket from '../../../components/pc/skill/SkillMarket.vue'
 import LocalSkillsList from '../../../components/pc/skill/LocalSkillsList.vue'
-import SkillRepositoryDialog from '../../../components/pc/skill/SkillRepositoryDialog.vue'
 import SkillViewer from '../../../components/pc/skill/SkillViewer.vue'
 import RemoteSpecs from '../../../components/pc/spec/RemoteSpecs.vue'
 import LocalSpecsList from '../../../components/pc/spec/LocalSpecsList.vue'
@@ -161,9 +145,8 @@ import MemoryEditDialog from '../../../components/pc/memory/MemoryEditDialog.vue
 export default {
   name: 'Skills',
   components: {
-    RemoteSkills,
+    SkillMarket,
     LocalSkillsList,
-    SkillRepositoryDialog,
     SkillViewer,
     RemoteSpecs,
     LocalSpecsList,
@@ -174,12 +157,8 @@ export default {
   },
   data() {
     return {
-      subTab: 'remoteSkills',
+      subTab: 'market',
       filterText: '',
-      skillRepositories: [],
-      repoSkills: {},
-      loadingSkills: {},
-      downloadingAll: {},
       localSkills: [],
       repositories: [],
       repoSpecs: {},
@@ -188,8 +167,6 @@ export default {
       localSpecs: [],
       showAddDialog: false,
       editingRepo: null,
-      showAddSkillDialog: false,
-      editingSkillRepo: null,
       showSpecViewer: false,
       currentSpec: null,
       currentSpecContent: '',
@@ -202,16 +179,6 @@ export default {
       showMemoryEdit: false
     }
   },
-  computed: {
-    filteredSkills() {
-      if (!this.filterText) return this.localSkills
-      const lower = this.filterText.toLowerCase()
-      return this.localSkills.filter(s =>
-        s.name.toLowerCase().includes(lower) ||
-        s.description?.toLowerCase().includes(lower)
-      )
-    }
-  },
   watch: {
     subTab(val) {
       if (val === 'memory' && this.projectPath) {
@@ -221,7 +188,6 @@ export default {
   },
   async created() {
     await this.loadProjectPath()
-    await this.loadSkillRepositories()
     await this.loadLocalSkills()
     await this.loadRepositories()
     await this.loadLocalSpecs()
@@ -240,28 +206,6 @@ export default {
         console.error('Failed to load project path:', e)
       }
     },
-    // ==================== Skills - Remote ====================
-    async loadSkillRepositories() {
-      try {
-        const res = await api.getSkillRepositories()
-        this.skillRepositories = res.data || []
-      } catch (e) {
-        console.error('Failed to load skill repositories:', e)
-        this.skillRepositories = []
-      }
-    },
-    async loadRepoSKills(repoId) {
-      this.$set(this.loadingSkills, repoId, true)
-      try {
-        const res = await api.getRemoteSkills(repoId)
-        this.$set(this.repoSkills, repoId, res.data || [])
-      } catch (e) {
-        console.error('Failed to load repo skills:', e)
-        this.$set(this.repoSkills, repoId, [])
-      } finally {
-        this.$set(this.loadingSkills, repoId, false)
-      }
-    },
     async loadLocalSkills() {
       try {
         const res = await api.getLocalSkills(this.projectPath)
@@ -269,78 +213,6 @@ export default {
       } catch (e) {
         console.error('Failed to load local skills:', e)
         this.localSkills = []
-      }
-    },
-    handleEditSkillRepo(repo) {
-      this.editingSkillRepo = repo
-      this.showAddSkillDialog = true
-    },
-    async handleSubmitSkillRepo(data) {
-      try {
-        if (data.id) {
-          await api.updateSkillRepository(data.id, data)
-        } else {
-          await api.createSkillRepository(data)
-        }
-        await this.loadSkillRepositories()
-        this.editingSkillRepo = null
-      } catch (e) {
-        console.error('Failed to submit skill repository:', e)
-        this.$message.error('Failed to submit repository')
-      }
-    },
-    async handleDeleteSkillRepo(id) {
-      try {
-        await this.$confirm('Are you sure you want to delete this repository?', 'Confirm', {
-          type: 'warning'
-        })
-        await api.deleteSkillRepository(id)
-        await this.loadSkillRepositories()
-        this.$message.success('Repository deleted')
-      } catch (e) {
-        if (e !== 'cancel') {
-          console.error('Failed to delete repository:', e)
-        }
-      }
-    },
-    async handleSyncSkillRepo(repo) {
-      try {
-        const loading = this.$message.loading?.('Syncing repository...') || (() => {});
-        const result = await api.syncSkillRepository(repo.id)
-        loading()
-        if (result.success) {
-          this.$message.success(result.message || 'Sync completed')
-          await this.loadSkillRepositories()
-          await this.loadRepoSKills(repo.id)
-        } else {
-          this.$message.error(result.message || 'Sync failed')
-        }
-      } catch (e) {
-        console.error('Failed to sync repository:', e)
-        this.$message.error('Sync failed')
-      }
-    },
-    async handleDownloadSkill(repoId, skillName) {
-      try {
-        const res = await api.downloadSkill(repoId, skillName, this.projectPath)
-        this.$message.success(`Downloaded ${skillName} to ${res.data?.projectPath || this.projectPath}`)
-        await this.loadLocalSkills()
-      } catch (e) {
-        console.error('Failed to download skill:', e)
-        this.$message.error('Download failed: ' + (e.message || 'Unknown error'))
-      }
-    },
-    async handleDownloadAllSkills(repoId) {
-      try {
-        this.$set(this.downloadingAll, repoId, true);
-        const res = await api.downloadAllSkills(repoId, this.projectPath);
-        this.$message.success(`Downloaded ${res.data?.downloaded?.length || 0} skills to ${res.data?.projectPath || this.projectPath}`);
-        await this.loadLocalSkills();
-      } catch (e) {
-        console.error('Failed to download all skills:', e);
-        this.$message.error('Download failed: ' + (e.message || 'Unknown error'));
-      } finally {
-        this.$set(this.downloadingAll, repoId, false);
       }
     },
     async handleViewSkill(skill) {
