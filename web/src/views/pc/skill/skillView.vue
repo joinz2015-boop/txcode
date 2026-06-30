@@ -12,16 +12,8 @@
           class="w-full text-left px-4 py-2 flex items-center gap-2"
           :class="subTab === 'market' ? 'bg-active text-white border-l-2 border-accent' : 'text-textMuted hover:text-white hover:bg-white/5 border-l-2 border-transparent'"
         >
-          <i class="fa-solid fa-store w-4 text-center"></i> Skill Market
+          <i class="fa-solid fa-store w-4 text-center"></i> skill 市场
         </button>
-        <button
-          @click="subTab = 'localSkills'"
-          class="w-full text-left px-4 py-2 flex items-center gap-2"
-          :class="subTab === 'localSkills' ? 'bg-active text-white border-l-2 border-accent' : 'text-textMuted hover:text-white hover:bg-white/5 border-l-2 border-transparent'"
-        >
-          <i class="fa-solid fa-folder w-4 text-center"></i> Local Skills
-        </button>
-
         <div class="px-4 py-1 text-xs font-bold text-textMuted uppercase mt-4">Specs</div>
         <button
           @click="subTab = 'remote'"
@@ -54,15 +46,9 @@
         <SkillMarket
           ref="skillMarket"
           :local-skills="localSkills"
+          :project-path="projectPath"
           @refresh-local="loadLocalSkills"
-        />
-      </div>
-
-      <div v-show="subTab === 'localSkills'" class="flex-1 p-6 overflow-y-auto">
-        <LocalSkillsList
-          :skills="localSkills"
           @view="handleViewSkill"
-          @delete="handleDeleteLocalSkill"
         />
       </div>
 
@@ -133,7 +119,6 @@
 <script>
 import { api } from '../../../api'
 import SkillMarket from '../../../components/pc/skill/SkillMarket.vue'
-import LocalSkillsList from '../../../components/pc/skill/LocalSkillsList.vue'
 import SkillViewer from '../../../components/pc/skill/SkillViewer.vue'
 import RemoteSpecs from '../../../components/pc/spec/RemoteSpecs.vue'
 import LocalSpecsList from '../../../components/pc/spec/LocalSpecsList.vue'
@@ -146,7 +131,6 @@ export default {
   name: 'Skills',
   components: {
     SkillMarket,
-    LocalSkillsList,
     SkillViewer,
     RemoteSpecs,
     LocalSpecsList,
@@ -224,20 +208,6 @@ export default {
       } catch (e) {
         console.error('Failed to load skill content:', e)
         this.$message.error('Failed to load skill content')
-      }
-    },
-    async handleDeleteLocalSkill(name) {
-      try {
-        await this.$confirm(`Are you sure you want to delete "${name}"?`, 'Confirm', {
-          type: 'warning'
-        })
-        await api.deleteLocalSkill(name)
-        await this.loadLocalSkills()
-        this.$message.success('Skill deleted')
-      } catch (e) {
-        if (e !== 'cancel') {
-          console.error('Failed to delete skill:', e)
-        }
       }
     },
     // ==================== Specs (unchanged) ====================

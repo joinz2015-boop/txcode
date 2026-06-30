@@ -140,38 +140,6 @@ export const api = {
     return request('GET', '/skill/list_skill');
   },
 
-  getSkillRepositories() {
-    return request('GET', '/skill/repositories_skill');
-  },
-
-  createSkillRepository(data) {
-    return request('POST', '/skill/create_repo_skill', data);
-  },
-
-  updateSkillRepository(id, data) {
-    return request('POST', '/skill/update_repo_skill', { id, ...data });
-  },
-
-  deleteSkillRepository(id) {
-    return request('POST', '/skill/delete_repo_skill', { id });
-  },
-
-  syncSkillRepository(id) {
-    return request('POST', `/skill/sync_repo_skill`, { id });
-  },
-
-  getRemoteSkills(repoId) {
-    return request('GET', `/skill/repositories_skill?repoId=${repoId}`);
-  },
-
-  downloadSkill(repoId, skillName, projectPath) {
-    return request('POST', `/skill/download_repo_skill`, { repoId, skillName, projectPath });
-  },
-
-  downloadAllSkills(repoId, projectPath) {
-    return request('POST', `/skill/download_repo_skill`, { repoId, all: true, projectPath });
-  },
-
   getLocalSkills(projectPath) {
     const query = projectPath ? `?projectPath=${encodeURIComponent(projectPath)}` : '';
     return request('GET', `/skill/local_skill${query}`);

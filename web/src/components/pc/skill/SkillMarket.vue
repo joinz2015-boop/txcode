@@ -1,42 +1,43 @@
 <template>
   <div class="skill-market flex flex-col h-full">
-    <div class="flex items-center justify-between mb-4">
-      <div class="flex items-center gap-2 flex-wrap">
-        <button
-          v-for="cat in categories"
-          :key="cat.id"
-          @click="selectCategory(cat.id)"
-          class="px-3 py-1 rounded text-xs border transition-colors"
-          :class="selectedCategoryId === cat.id ? 'bg-accent text-white border-accent' : 'bg-sidebar text-textMuted border-border hover:text-white hover:border-accent'"
-        >{{ cat.name }}</button>
-        <button
-          @click="selectCategory(null)"
-          class="px-3 py-1 rounded text-xs border transition-colors"
-          :class="selectedCategoryId === null ? 'bg-accent text-white border-accent' : 'bg-sidebar text-textMuted border-border hover:text-white hover:border-accent'"
-        >全部</button>
-      </div>
-
-      <div class="flex items-center gap-2">
-        <el-input
-          v-model="keyword"
-          placeholder="搜索 Skill..."
-          size="small"
-          class="w-[200px]"
-          clearable
-          @input="onSearchInput"
-        >
-          <template #prefix>
-            <i class="fa-solid fa-search text-textMuted"></i>
-          </template>
-        </el-input>
-      </div>
+    <div class="flex items-center gap-2 mb-4 flex-wrap">
+      <el-input
+        v-model="keyword"
+        placeholder="搜索 Skill..."
+        size="small"
+        class="w-[200px]"
+        clearable
+        @keyup.enter="onSearch"
+      >
+        <template #prefix>
+          <i class="fa-solid fa-search text-textMuted"></i>
+        </template>
+      </el-input>
+      <el-button size="small" type="primary" @click="onSearch">查询</el-button>
+      <button
+        @click="selectFilter('all')"
+        class="px-3 py-1 rounded text-xs border transition-colors"
+        :class="filterMode === 'all' ? 'bg-accent text-white border-accent' : 'bg-sidebar text-textMuted border-border hover:text-white hover:border-accent'"
+      >全部</button>
+      <button
+        @click="selectFilter('installed')"
+        class="px-3 py-1 rounded text-xs border transition-colors"
+        :class="filterMode === 'installed' ? 'bg-accent text-white border-accent' : 'bg-sidebar text-textMuted border-border hover:text-white hover:border-accent'"
+      >已安装</button>
+      <button
+        v-for="cat in categories"
+        :key="cat.id"
+        @click="selectCategory(cat.id)"
+        class="px-3 py-1 rounded text-xs border transition-colors"
+        :class="selectedCategoryId === cat.id ? 'bg-accent text-white border-accent' : 'bg-sidebar text-textMuted border-border hover:text-white hover:border-accent'"
+      >{{ cat.name }}</button>
     </div>
 
     <div v-if="loading" class="flex-1 flex items-center justify-center">
       <i class="fa-solid fa-spinner fa-spin text-2xl text-textMuted"></i>
     </div>
 
-    <div v-else-if="skills.length === 0" class="flex-1 flex flex-col items-center justify-center text-textMuted">
+    <div v-else-if="displaySkills.length === 0" class="flex-1 flex flex-col items-center justify-center text-textMuted">
       <i class="fa-solid fa-shapes text-4xl mb-4 opacity-30"></i>
       <p>暂无 Skill</p>
     </div>
@@ -45,18 +46,19 @@
       <div class="flex-1 overflow-y-auto">
         <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           <SkillCard
-            v-for="skill in skills"
-            :key="skill.id"
+            v-for="skill in displaySkills"
+            :key="skill.id || skill.name"
             :skill="skill"
-            :installed="isInstalled(skill.name)"
+            :installed="filterMode === 'installed' ? true : isInstalled(skill.name)"
             :installing="installingIds[skill.id]"
             @install="handleInstall"
             @uninstall="handleUninstall"
+            @view="handleView"
           />
         </div>
       </div>
 
-      <div class="flex items-center justify-center pt-4 mt-auto" v-if="total > pageSize">
+      <div class="flex items-center justify-center pt-4 mt-auto" v-if="filterMode === 'all' && total > pageSize">
         <el-pagination
           background
           small
@@ -82,6 +84,10 @@ export default {
     localSkills: {
       type: Array,
       default: () => []
+    },
+    projectPath: {
+      type: String,
+      default: ''
     }
   },
   data() {
@@ -89,13 +95,19 @@ export default {
       categories: [],
       selectedCategoryId: null,
       keyword: '',
+      filterMode: 'all',
       skills: [],
+      localInstalledSkills: [],
       total: 0,
       currentPage: 1,
       pageSize: 20,
       loading: false,
-      installingIds: {},
-      searchTimer: null
+      installingIds: {}
+    }
+  },
+  computed: {
+    displaySkills() {
+      return this.filterMode === 'installed' ? this.localInstalledSkills : this.skills
     }
   },
   created() {
@@ -130,17 +142,36 @@ export default {
         this.loading = false
       }
     },
+    async loadLocalInstalledSkills() {
+      this.loading = true
+      try {
+        const res = await api.getLocalSkills(this.projectPath)
+        this.localInstalledSkills = res.data || []
+      } catch (e) {
+        console.error('Failed to load local installed skills:', e)
+        this.localInstalledSkills = []
+      } finally {
+        this.loading = false
+      }
+    },
+    selectFilter(mode) {
+      this.filterMode = mode
+      this.currentPage = 1
+      if (mode === 'installed') {
+        this.loadLocalInstalledSkills()
+      } else {
+        this.loadSkills()
+      }
+    },
     selectCategory(categoryId) {
       this.selectedCategoryId = categoryId
       this.currentPage = 1
+      this.filterMode = 'all'
       this.loadSkills()
     },
-    onSearchInput() {
-      if (this.searchTimer) clearTimeout(this.searchTimer)
-      this.searchTimer = setTimeout(() => {
-        this.currentPage = 1
-        this.loadSkills()
-      }, 300)
+    onSearch() {
+      this.currentPage = 1
+      this.loadSkills()
     },
     handlePageChange(page) {
       this.currentPage = page
@@ -150,6 +181,11 @@ export default {
       return this.localSkills.some(s => s.name === name)
     },
     async handleInstall(skill) {
+      try {
+        await this.$confirm(`确定要安装 "${skill.name}" 吗？`, '确认', { type: 'info' })
+      } catch (e) {
+        return
+      }
       this.$set(this.installingIds, skill.id, true)
       try {
         await api.installSkill(skill.id, skill.name)
@@ -167,11 +203,17 @@ export default {
         await api.uninstallSkill(skill.name)
         this.$message.success(`卸载成功: ${skill.name}`)
         this.$emit('refresh-local')
+        if (this.filterMode === 'installed') {
+          this.loadLocalInstalledSkills()
+        }
       } catch (e) {
         if (e !== 'cancel') {
           this.$message.error('卸载失败: ' + (e.message || 'Unknown error'))
         }
       }
+    },
+    handleView(skill) {
+      this.$emit('view', skill)
     }
   }
 }

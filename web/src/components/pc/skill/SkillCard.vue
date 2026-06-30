@@ -34,6 +34,12 @@
       <div>
         <el-button
           v-if="installed"
+          type="text"
+          size="mini"
+          @click="$emit('view', skill)"
+        >查看</el-button>
+        <el-button
+          v-if="installed"
           type="danger"
           size="mini"
           plain
