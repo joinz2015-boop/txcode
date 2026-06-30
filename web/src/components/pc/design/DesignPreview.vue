@@ -147,6 +147,29 @@ export default {
     },
     onIframeLoad() {
       console.log('[DesignPreview] iframe onload, src:', this.previewSrc)
+      try {
+        const iframe = this.$refs.previewFrame
+        if (!iframe) return
+        let iframePath = null
+        try {
+          iframePath = iframe.contentWindow?.location?.pathname
+        } catch (e) {
+          return
+        }
+        if (iframePath && iframePath !== '/') {
+          const match = iframePath.match(/\/design_html\/(.+)$/)
+          if (match) {
+            const navPath = decodeURIComponent(match[1])
+            if (navPath.endsWith('.html') && !navPath.includes('..') && !navPath.includes('~')) {
+              if (navPath !== this.relativePath) {
+                this.$emit('navigate', navPath)
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('[DesignPreview] onIframeLoad error:', e)
+      }
     }
   }
 }

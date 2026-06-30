@@ -18,6 +18,7 @@
     </div>
 
     <DesignPageTree
+      ref="pageTree"
       v-show="activeTab === 'pages'"
       :base-path="basePath"
       @open-file="$emit('open-file', $event)"
@@ -25,13 +26,15 @@
       @file-changed="$emit('file-changed')"
     />
 
-    <DesignAiChat
-      v-if="activeTab === 'ai'"
-      :base-path="basePath"
-      :current-page="currentPage"
-      @design-updated="$emit('file-changed')"
-      @status-change="$emit('ai-status-change', $event)"
-    />
+    <keep-alive>
+      <DesignAiChat
+        v-if="activeTab === 'ai'"
+        :base-path="basePath"
+        :current-page="currentPage"
+        @design-updated="$emit('file-changed')"
+        @status-change="$emit('ai-status-change', $event)"
+      />
+    </keep-alive>
   </aside>
 </template>
 
@@ -49,6 +52,14 @@ export default {
     return {
       activeTab: 'pages',
       currentPage: ''
+    }
+  },
+  methods: {
+    setCurrentPage(path) {
+      this.currentPage = path
+      if (this.$refs.pageTree) {
+        this.$refs.pageTree.selectByPath(path)
+      }
     }
   }
 }

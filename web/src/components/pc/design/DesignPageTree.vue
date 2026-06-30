@@ -209,12 +209,20 @@ export default {
       if (!node.is_directory && relPath.endsWith('.html')) {
         console.log('[DesignPageTree] handleSelect emitting current-page:', relPath)
         this.$emit('current-page', relPath)
+        this.$emit('open-file', node)
       } else {
         console.log('[DesignPageTree] handleSelect skipping (dir or non-html):', node.name, 'isDir:', node.is_directory)
       }
     },
     handleOpenFile(node) {
       this.$emit('open-file', node)
+      if (!node.is_directory && node.name.endsWith('.html')) {
+        let relPath = node.path
+        if (relPath.startsWith(this.basePath + '/')) {
+          relPath = relPath.slice(this.basePath.length + 1)
+        }
+        this.$emit('current-page', relPath)
+      }
     },
     async handleLoadChildren({ path, callback }) {
       try {
@@ -348,6 +356,21 @@ export default {
       const newSet = new Set(this.expandedPaths)
       newSet.delete(path)
       this.expandedPaths = newSet
+    },
+
+    selectByPath(relativePath) {
+      if (!relativePath) return
+      const normalizedRelative = relativePath.replace(/\\/g, '/')
+      const parts = normalizedRelative.split('/')
+      let parentPath = this.basePath
+      const newExpanded = new Set(this.expandedPaths)
+      for (let i = 0; i < parts.length - 1; i++) {
+        parentPath = parentPath + '/' + parts[i]
+        newExpanded.add(parentPath)
+      }
+      this.expandedPaths = newExpanded
+      const fullPath = this.basePath + '/' + normalizedRelative
+      this.selectedPath = fullPath
     }
   }
 }

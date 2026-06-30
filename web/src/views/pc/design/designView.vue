@@ -36,6 +36,7 @@
           :file-content="fileContent"
           :file-name="activeFileName"
           :relative-path="relativePath"
+          @navigate="onPreviewNavigate"
         />
         <DesignEditor
           v-show="rightTab === 'editor'"
@@ -91,6 +92,7 @@ export default {
     document.addEventListener('mousemove', this.handleResize)
     document.addEventListener('mouseup', this.stopResize)
     this.updateTitle()
+    this.initFromRoute()
   },
   watch: {
     rightTab(val) {
@@ -108,6 +110,13 @@ export default {
     aiStatus() {
       this.updateTitle()
     },
+    '$route.query.page': {
+      handler(newVal) {
+        if (newVal && newVal.endsWith('.html') && newVal !== this.relativePath) {
+          this.openDesignPage(newVal)
+        }
+      }
+    },
   },
   beforeDestroy() {
     document.removeEventListener('mousemove', this.handleResize)
@@ -121,22 +130,45 @@ export default {
       else if (this.aiStatus === 'completed') prefix = '✅ '
       document.title = `${prefix}${baseTitle} - TXCode`
     },
+    initFromRoute() {
+      const pageParam = this.$route.query.page
+      if (pageParam && pageParam.endsWith('.html')) {
+        this.$nextTick(() => {
+          this.openDesignPage(pageParam)
+        })
+      }
+    },
+    onPreviewNavigate(relativePath) {
+      this.openDesignPage(relativePath)
+    },
     onAiStatusChange(status) {
       this.aiStatus = status
       this.updateTitle()
     },
-    async openFile(node) {
-      console.log('[DesignView] openFile called, node:', node.name, 'path:', node.path, 'is_dir:', node.is_directory)
-      if (node.is_directory) return
-      this.activeFileName = node.name
-      this.activeFilePath = node.path
-      const extracted = this.extractRelativePath(node.path)
-      console.log('[DesignView] extractRelativePath result:', extracted)
-      this.relativePath = extracted
+    openDesignPage(relativePath) {
+      if (!relativePath || !relativePath.endsWith('.html')) return
+      console.log('[DesignView] openDesignPage:', relativePath)
+      this.relativePath = relativePath
+      this.activeFileName = relativePath.split('/').pop()
+      this.activeFilePath = this.designBasePath + '/' + relativePath
       this.fileContent = ''
       this.hasChanges = false
       this.rightTab = 'preview'
-      console.log('[DesignView] openFile done, relativePath:', this.relativePath, 'fileContent deferred to editor tab')
+      if (this.$refs.sidebar) {
+        this.$refs.sidebar.setCurrentPage(relativePath)
+      }
+      if (this.$route.query.page !== relativePath) {
+        this.$router.replace({ query: { page: relativePath } }).catch(() => {})
+      }
+    },
+    async openFile(node) {
+      console.log('[DesignView] openFile called, node:', node.name, 'path:', node.path, 'is_dir:', node.is_directory)
+      if (node.is_directory) return
+      this.activeFilePath = node.path
+      const extracted = this.extractRelativePath(node.path)
+      console.log('[DesignView] extractRelativePath result:', extracted)
+      this.openDesignPage(extracted)
+      console.log('[DesignView] openFile done, relativePath:', this.relativePath)
     },
     async loadFileContent() {
       if (!this.activeFilePath) return
