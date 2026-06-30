@@ -110,6 +110,8 @@
           <div class="input-actions">
             <span class="status-action" @click="openSkillSelect" @mousedown.prevent>选择Skill</span>
             <span class="separator">|</span>
+            <span class="status-action" @click="openDesignSelect" @mousedown.prevent>选择设计</span>
+            <span class="separator">|</span>
             <el-button @click="handleImageUpload" :disabled="disabled" class="upload-btn" size="small">图片</el-button>
             <el-button v-if="disabled && !stopping" type="danger" @click="stopChat" class="stop-btn" size="small">
               ■ 停止

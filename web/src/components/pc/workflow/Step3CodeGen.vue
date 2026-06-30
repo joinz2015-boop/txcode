@@ -124,6 +124,8 @@
 <span class="status-action" @click="openFileSelect" @mousedown.prevent>选择文件</span>
           <span class="separator">|</span>
           <span class="status-action" @click="openSkillSelect" @mousedown.prevent>选择Skill</span>
+          <span class="separator">|</span>
+          <span class="status-action" @click="openDesignSelect" @mousedown.prevent>选择设计</span>
         </div>
       </div>
 
@@ -163,6 +165,12 @@
       @close="cancelSkillSelect"
     />
 
+    <DesignSelectDialog
+      :visible.sync="designSelectVisible"
+      @select="onDesignSelected"
+      @close="designSelectVisible = false"
+    />
+
     <div v-if="previewImage" class="image-lightbox" @click="closeImagePreview">
       <span class="lightbox-close" @click="closeImagePreview">&times;</span>
       <img :src="previewImage.url || previewImage.dataUrl || previewImage.filePath" class="lightbox-image" @click.stop />
@@ -177,6 +185,7 @@ import ModelSelectDialog from '../model/ModelSelectDialog.vue'
 import CommandDialog from '../common/CommandDialog.vue'
 import FileSelectDialog from '../file/FileSelectDialog.vue'
 import SkillSelectDialog from '../skill/SkillSelectDialog.vue'
+import DesignSelectDialog from '../design/DesignSelectDialog.vue'
 import ResizableTextarea from '../chat/ResizableTextarea.vue'
 import ImagePreviewList from '../chat/ImagePreviewList.vue'
 import { scrollToBottom, snapshotScroll } from '../../../utils/scroll'
@@ -184,7 +193,7 @@ import { mediaChatMixin } from '../../../lib/mediaChat.js'
 
 export default {
   name: 'Step3CodeGen',
-  components: { ModelSelectDialog, CommandDialog, FileSelectDialog, SkillSelectDialog, ResizableTextarea, ImagePreviewList },
+  components: { ModelSelectDialog, CommandDialog, FileSelectDialog, SkillSelectDialog, DesignSelectDialog, ResizableTextarea, ImagePreviewList },
   mixins: [mediaChatMixin()],
   props: {
     category: { type: String, default: '' },
@@ -206,6 +215,7 @@ data() {
       commandDialogVisible: false,
       fileSelectVisible: false,
       skillSelectVisible: false,
+      designSelectVisible: false,
       skillCursorPos: -1,
       sessionId: '',
       sessionStatus: 'idle',
@@ -467,6 +477,14 @@ data() {
     },
     cancelSkillSelect() {
       this.skillSelectVisible = false
+    },
+    openDesignSelect() {
+      this.designSelectVisible = true
+    },
+    onDesignSelected(design) {
+      const tag = `[设计:${design.name}](${design.path}) `
+      this.inputMessage += tag
+      this.designSelectVisible = false
     },
     getTodoStatusIcon(status) {
       const icons = { completed: '✅', in_progress: '🔄', pending: '⬜', cancelled: '❌' }
