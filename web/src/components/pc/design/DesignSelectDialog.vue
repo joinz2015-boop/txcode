@@ -106,7 +106,8 @@ export default {
       expandedPaths: new Set(),
       currentDevice: 'web',
       previewSrc: '',
-      designBasePath: '.txcode/design'
+      designBasePath: '.txcode/design',
+      nodeMap: {}
     }
   },
   computed: {
@@ -143,6 +144,7 @@ export default {
         this.selectedRelativePath = ''
         this.previewSrc = ''
         this.expandedPaths = new Set()
+        this.nodeMap = {}
         this.currentDevice = 'web'
       }
     }
@@ -153,6 +155,13 @@ export default {
       try {
         const res = await api.browseFilesystem(this.designBasePath)
         this.browseResult = res.data
+        this.nodeMap = {}
+        for (const item of res.data.items) {
+          if (item.name === 'session.json') continue
+          if (item.is_directory || item.name.endsWith('.html')) {
+            this.nodeMap[this.toRelativeDesignPath(item.path.replace(/\\/g, '/'))] = item
+          }
+        }
       } catch (e) {
         console.error('Browse design dir failed:', e)
         this.browseResult = { current_path: this.designBasePath, parent_path: '', items: [] }
@@ -191,16 +200,20 @@ export default {
             if (item.is_directory) return true
             return item.name.endsWith('.html')
           })
-          .map(item => ({
-            name: item.name,
-            path: item.path,
-            is_directory: item.is_directory,
-            is_drive: false,
-            size: item.size,
-            has_children: item.is_directory,
-            expanded: false,
-            children: []
-          }))
+          .map(item => {
+            const normalized = item.path.replace(/\\/g, '/')
+            this.nodeMap[this.toRelativeDesignPath(normalized)] = item
+            return {
+              name: item.name,
+              path: item.path,
+              is_directory: item.is_directory,
+              is_drive: false,
+              size: item.size,
+              has_children: item.is_directory,
+              expanded: false,
+              children: []
+            }
+          })
         callback(children.sort((a, b) => {
           if (a.is_directory === b.is_directory) return a.name.localeCompare(b.name)
           return a.is_directory ? -1 : 1
@@ -244,19 +257,31 @@ export default {
           pathname.replace(/^\/design_html/, '')
         )
         console.log('[DesignSelect] onIframeNav filePath:', filePath)
-        const found = this.findNodeByPath(this.fileTreeData, filePath)
-        console.log('[DesignSelect] onIframeNav found:', found?.path || 'NOT FOUND')
-        if (!found) return
-        if (this.selectedPath === found.path) {
+        const filePathRel = this.toRelativeDesignPath(filePath.replace(/\\/g, '/'))
+        console.log('[DesignSelect] onIframeNav filePathRel:', filePathRel)
+        console.log('[DesignSelect] nodeMap keys:', Object.keys(this.nodeMap))
+        const item = this.nodeMap[filePathRel]
+        console.log('[DesignSelect] onIframeNav item:', item)
+        if (!item) return
+        if (this.selectedPath === item.path) {
           console.log('[DesignSelect] onIframeNav: already selected, skip')
           return
         }
-        console.log('[DesignSelect] onIframeNav: selecting', found.path)
-        this.handleSelect(found)
+        console.log('[DesignSelect] onIframeNav: selecting', item.path)
+        this.handleSelectFileItem(item)
         this.expandAncestors(filePath)
       } catch (e) {
         console.log('[DesignSelect] onIframeNav error:', e)
       }
+    },
+
+    handleSelectFileItem(item) {
+      if (item.is_directory) return
+      this.selectedPath = item.path
+      this.selectedPagePath = item.path
+      this.selectedPageName = item.name.replace('.html', '')
+      this.selectedRelativePath = this.getRelativePath(item.path)
+      this.loadPreview(item.path)
     },
 
     findNodeByPath(nodes, targetPath) {
