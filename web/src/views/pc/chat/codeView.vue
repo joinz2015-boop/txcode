@@ -135,6 +135,8 @@
           <span class="separator">|</span>
           <span class="status-action" @click.stop="openSkillSelectFromStatus">选择Skill</span>
           <span class="separator">|</span>
+          <span class="status-action" @click.stop="openDesignSelectFromStatus">选择设计</span>
+          <span class="separator">|</span>
           <span class="status-action" @click.stop="toggleChatMode(panel)">
             模式：{{ panel.chatMode === 'plan' ? '计划' : '编码' }} ▾
           </span>
@@ -162,6 +164,12 @@
       @close="cancelSkillSelect"
     />
 
+    <DesignSelectDialog
+      :visible.sync="designSelectVisible"
+      @select="onDesignSelected"
+      @close="designSelectVisible = false"
+    />
+
     <ModelSelectDialog
       :visible.sync="modelSelectVisible"
       :current-model="selectedPanel?.modelName"
@@ -187,6 +195,7 @@
 import SessionsPanel from '../../../components/pc/session/SessionsPanel.vue'
 import FileSelectDialog from '../../../components/pc/file/FileSelectDialog.vue'
 import SkillSelectDialog from '../../../components/pc/skill/SkillSelectDialog.vue'
+import DesignSelectDialog from '../../../components/pc/design/DesignSelectDialog.vue'
 import ModelSelectDialog from '../../../components/pc/model/ModelSelectDialog.vue'
 import CommandDialog from '../../../components/pc/common/CommandDialog.vue'
 import ResizableTextarea from '../../../components/pc/chat/ResizableTextarea.vue'
@@ -201,7 +210,7 @@ import { scrollToBottom, snapshotScroll } from '../../../utils/scroll'
 
 export default {
   name: 'CodeView',
-  components: { SessionsPanel, FileSelectDialog, SkillSelectDialog, ModelSelectDialog, CommandDialog, ResizableTextarea, ImagePreviewList },
+  components: { SessionsPanel, FileSelectDialog, SkillSelectDialog, DesignSelectDialog, ModelSelectDialog, CommandDialog, ResizableTextarea, ImagePreviewList },
   MAX_LOG_ITEMS: 400,
 
   props: {
@@ -224,6 +233,7 @@ export default {
       fileSelectVisible: false,
       skillSelectVisible: false,
       skillCursorPos: -1,
+      designSelectVisible: false,
       currentPanel: null,
       modelSelectVisible: false,
       selectedPanel: null,
@@ -350,6 +360,19 @@ export default {
     cancelSkillSelect() {
       this.skillSelectVisible = false
       this.currentPanel = null
+    },
+
+    openDesignSelectFromStatus() {
+      this.currentPanel = this.activeSessions[this.focusedPanelIndex]
+      this.designSelectVisible = true
+    },
+
+    onDesignSelected(design) {
+      const panel = this.currentPanel
+      if (!panel) return
+      const tag = `[设计:${design.name}](${design.path}) `
+      panel.input = panel.input + tag
+      this.designSelectVisible = false
     },
 
     toggleChatMode(panel) {
@@ -945,6 +968,8 @@ export default {
 
 .input-wrapper ::v-deep .el-textarea__inner {
   padding-bottom: 50px;
+  overflow-wrap: break-word;
+  word-break: break-all;
 }
 
 .status-bar {
