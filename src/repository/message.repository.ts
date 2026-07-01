@@ -83,6 +83,18 @@ export class MessageRepository extends BaseRepository {
   deleteBySession(sessionId: string): void {
     this.execute('DELETE FROM messages WHERE session_id = ?', [sessionId]);
   }
+
+  countAll(): number {
+    const row = this.queryOne<{ count: number }>('SELECT COUNT(*) as count FROM messages');
+    return row?.count || 0;
+  }
+
+  getOldestSessionId(): string | null {
+    const row = this.queryOne<{ session_id: string }>(
+      'SELECT session_id, MIN(created_at) as min_created FROM messages GROUP BY session_id ORDER BY min_created ASC LIMIT 1'
+    );
+    return row?.session_id || null;
+  }
 }
 
 export const messageRepository = new MessageRepository();

@@ -9,6 +9,8 @@ export class InitHandler implements IDreamHandler {
   dreamType = 'init'
 
   async handle(task: DreamTask): Promise<void> {
+    console.log('[Dream:init] 开始执行 init 任务, taskId:', task.id)
+
     const workDir = projectService.getCurrentProjectPath()
     const projectDir = path.join(workDir, '.txcode', 'project')
     const projectMdPath = path.join(projectDir, 'PROJECT.md')
@@ -23,7 +25,7 @@ export class InitHandler implements IDreamHandler {
           const lastGen = new Date(meta.lastGenerated).getTime()
           const hoursAgo = (Date.now() - lastGen) / (1000 * 60 * 60)
           if (hoursAgo < 24) {
-            //console.log('[Dream:init] PROJECT.md 距上次生成不足24小时，跳过')
+            console.log('[Dream:init] PROJECT.md 距上次生成不足24小时，跳过')
             return
           }
         } catch {
@@ -31,7 +33,7 @@ export class InitHandler implements IDreamHandler {
         }
       }
 
-      //console.log('[Dream:init] PROJECT.md 已超过24小时，触发审查重生成')
+      console.log('[Dream:init] PROJECT.md 已超过24小时，触发审查重生成')
       await this.runAgent(workDir, '这是之前生成的 PROJECT.md 文件已经超过24小时了，你来检查下是否准确如果不准确重新生成')
       return
     }
@@ -41,6 +43,7 @@ export class InitHandler implements IDreamHandler {
   }
 
   private async runAgent(workDir: string, userMessage: string): Promise<void> {
+    console.log('[Dream:init] runAgent 开始, workDir:', workDir, 'message:', userMessage)
     try {
       const provider = getProvider()
 

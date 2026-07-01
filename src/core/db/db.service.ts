@@ -180,6 +180,11 @@ export class DbService {
     }
   }
 
+  vacuum(): void {
+    this.getDb().run('VACUUM');
+    this.save();
+  }
+
   close(): void {
     if (this.saveTimer) {
       clearTimeout(this.saveTimer);
