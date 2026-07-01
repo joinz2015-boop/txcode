@@ -89,6 +89,7 @@ import Step3CodeGen from '../../../components/pc/workflow/Step3CodeGen.vue'
 import Step4Test from '../../../components/pc/workflow/Step4Test.vue'
 import SubSchemeDialog from '../../../components/pc/workflow/SubSchemeDialog.vue'
 import { api } from '../../../api'
+import { eventBus } from '../../../utils/eventBus.js'
 
 export default {
   name: 'DevWorkflowView',
@@ -118,7 +119,8 @@ export default {
       taskStatus: 'idle',
       unsubRunning: null,
       subSchemeDialogVisible: false,
-      subSchemeDefaultName: ''
+      subSchemeDefaultName: '',
+      unsubFileChanged: null
     }
   },
   computed: {
@@ -169,11 +171,19 @@ export default {
       console.log('[DevWorkflow][ws] running_sessions event:', runningIds)
       this.updateTaskStatus(runningIds)
     })
+    this.unsubFileChanged = eventBus.on('file:changed', (data) => {
+      this.onFileChanged(data)
+    })
+    console.log('[DevWorkflow][mounted] subscribed to file:changed')
   },
   beforeDestroy() {
     if (this.unsubRunning) {
       this.unsubRunning()
       this.unsubRunning = null
+    }
+    if (this.unsubFileChanged) {
+      this.unsubFileChanged()
+      this.unsubFileChanged = null
     }
   },
   watch: {
@@ -548,6 +558,30 @@ export default {
     async refreshSpec() {
       if (this.$refs.step2Ref?.loadSpec) {
         await this.$refs.step2Ref.loadSpec()
+      }
+    },
+    onFileChanged(data) {
+      console.log('[DevWorkflow] file:changed received', data)
+      if (!this.projectKey || !data.filePath) {
+        console.log('[DevWorkflow] file:changed skipped (no projectKey or filePath)')
+        return
+      }
+      const specPath = `${this.reqBasePath}/${this.currentCategory}/${this.currentProject}/${this.currentProject}_方案.md`
+      const isRelated = data.filePath.indexOf(this.reqBasePath || '.txcode/req') !== -1
+        || data.filePath === specPath
+      if (!isRelated) {
+        console.log('[DevWorkflow] file:changed skipped (not related to current project)')
+        return
+      }
+      console.log('[DevWorkflow] file:changed triggering refresh, step:', this.currentStep)
+
+      if (this.currentStep === 2) {
+        console.log('[DevWorkflow] file:changed → refreshSpec()')
+        this.refreshSpec()
+      }
+      if (this.currentStep === 3 && this.$refs.step3Ref?.refreshDevLog) {
+        console.log('[DevWorkflow] file:changed → refreshDevLog()')
+        this.$refs.step3Ref.refreshDevLog()
       }
     }
   }

@@ -75,6 +75,7 @@ import DesignPreview from '../../../components/pc/design/DesignPreview.vue'
 import DesignEditor from '../../../components/pc/design/DesignEditor.vue'
 import SaveTemplateDialog from '../../../components/pc/design/SaveTemplateDialog.vue'
 import { api } from '../../../api/index.js'
+import { eventBus } from '../../../utils/eventBus.js'
 
 export default {
   name: 'DesignView',
@@ -91,6 +92,7 @@ export default {
       templateDialogVisible: false,
       isResizing: false,
       aiStatus: 'idle',
+      unsubFileChanged: null
     }
   },
   mounted() {
@@ -98,6 +100,10 @@ export default {
     document.addEventListener('mouseup', this.stopResize)
     this.updateTitle()
     this.initFromRoute()
+    this.unsubFileChanged = eventBus.on('file:changed', (data) => {
+      this.onFileChanged(data)
+    })
+    console.log('[DesignView][mounted] subscribed to file:changed')
   },
   watch: {
     rightTab(val) {
@@ -126,6 +132,10 @@ export default {
   beforeDestroy() {
     document.removeEventListener('mousemove', this.handleResize)
     document.removeEventListener('mouseup', this.stopResize)
+    if (this.unsubFileChanged) {
+      this.unsubFileChanged()
+      this.unsubFileChanged = null
+    }
   },
   methods: {
     updateTitle() {
@@ -202,6 +212,19 @@ export default {
       if (this.$refs.editor) {
         this.$refs.editor.updateContent(this.fileContent)
       }
+    },
+    onFileChanged(data) {
+      console.log('[DesignView] file:changed received', data)
+      if (!data.filePath || !this.activeFilePath) {
+        console.log('[DesignView] file:changed skipped (no filePath or activeFilePath)')
+        return
+      }
+      if (data.filePath.indexOf(this.designBasePath) === -1 && this.activeFilePath.indexOf(data.filePath) === -1) {
+        console.log('[DesignView] file:changed skipped (not in designBasePath)')
+        return
+      }
+      console.log('[DesignView] file:changed → refreshCurrentFile()')
+      this.refreshCurrentFile()
     },
     saveAsTemplate() {
       if (!this.activeFilePath) {
