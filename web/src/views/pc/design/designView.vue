@@ -33,6 +33,7 @@
       <div class="flex-1 overflow-hidden">
         <DesignPreview
           v-show="rightTab === 'preview'"
+          ref="preview"
           :file-content="fileContent"
           :file-name="activeFileName"
           :relative-path="relativePath"
@@ -209,7 +210,7 @@ export default {
       if (!this.activeFilePath) return
       console.log('[DesignView] refreshCurrentFile:', this.activeFilePath)
       await this.loadFileContent()
-      if (this.$refs.editor) {
+      if (this.$refs.editor && this.rightTab === 'editor') {
         this.$refs.editor.updateContent(this.fileContent)
       }
     },
@@ -227,7 +228,10 @@ export default {
         return
       }
       console.log('[DesignView] file:changed → refreshCurrentFile()')
-      this.refreshCurrentFile()
+      //this.refreshCurrentFile()
+      if (this.$refs.preview) {
+        this.$refs.preview.refreshPreview()
+      }
     },
     saveAsTemplate() {
       if (!this.activeFilePath) {
