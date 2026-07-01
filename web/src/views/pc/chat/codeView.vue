@@ -207,6 +207,7 @@ import { buildChatPayload } from '../../../api/chat/chat.js'
 import { uploadSingleMedia } from '../../../api/chat/media.js'
 import { getTodoStatusIcon, getTitleText, formatInput, getToolCallName, getToolCallArguments, renderMarkdown, createThinkItem, createStepItem, withLogId as withLogIdImpl } from '../../../lib/render.js'
 import { scrollToBottom, snapshotScroll } from '../../../utils/scroll'
+import { savePos, recoverPos, clearPos } from '../../../utils/scrollPosCache'
 
 export default {
   name: 'CodeView',
@@ -278,7 +279,10 @@ export default {
     this.activeSessions.forEach(panel => {
       if (panel.session?.id) {
         this.subscribePanel(panel)
-        this.schedulePanelScroll(panel)
+        this.$nextTick(() => {
+          const logArea = this.getLogAreaEl(panel)
+          if (logArea) recoverPos(panel.session.id, logArea)
+        })
       }
     })
   },
@@ -449,6 +453,13 @@ export default {
       return null
     },
 
+    getLogAreaEl(panel) {
+      const panelIdx = this.activeSessions.indexOf(panel)
+      if (panelIdx === -1) return null
+      return this.$el?.querySelectorAll('.session-panel')?.[panelIdx]
+        ?.querySelector('.log-area') || null
+    },
+
     initGlobalWs() {
       ws.init()
     },
@@ -520,6 +531,12 @@ export default {
     },
 
     updateActiveSessions() {
+      for (const panel of this.activeSessions) {
+        if (panel.session?.id) {
+          const logArea = this.getLogAreaEl(panel)
+          if (logArea) savePos(panel.session.id, logArea)
+        }
+      }
       const count = this.layoutMode
       const newActive = []
       for (let i = 0; i < count; i++) {
@@ -532,6 +549,14 @@ export default {
         })
       }
       this.activeSessions = newActive
+      this.$nextTick(() => {
+        for (const panel of this.activeSessions) {
+          if (panel.session?.id) {
+            const logArea = this.getLogAreaEl(panel)
+            if (logArea) recoverPos(panel.session.id, logArea)
+          }
+        }
+      })
     },
 
     updateSessionStatusesFromRunning(runningSessionIds) {
@@ -559,6 +584,10 @@ export default {
     onDropPanel(event, index) {
       if (!this.draggedSession) return
       const panel = this.activeSessions[index]
+      const logArea = this.getLogAreaEl(panel)
+      if (panel.session?.id && logArea) {
+        savePos(panel.session.id, logArea)
+      }
       panel.session = this.draggedSession
       panel.logItems = []
       panel.userQuestion = ''
@@ -580,6 +609,10 @@ export default {
       const idx = panelIndex !== null ? panelIndex : this.focusedPanelIndex
       if (idx >= 0 && idx < this.activeSessions.length) {
         const panel = this.activeSessions[idx]
+        const logArea = this.getLogAreaEl(panel)
+        if (panel.session?.id && logArea) {
+          savePos(panel.session.id, logArea)
+        }
         const isProcessing = session.status === 'processing'
         Object.assign(panel, {
           session, logItems: [], userQuestion: '', disabled: isProcessing,
@@ -609,6 +642,10 @@ export default {
         if (session) {
           panel.sessionStatus = session.status || 'idle'
         }
+        this.$nextTick(() => {
+          const logArea = this.getLogAreaEl(panel)
+          if (logArea) recoverPos(sessionId, logArea)
+        })
       } catch (e) {
         panel.logItems = []
       }
@@ -667,6 +704,14 @@ export default {
     },
 
     selectSession(session) {
+      const currentPanel = this.activeSessions[this.focusedPanelIndex]
+      if (currentPanel?.session?.id === session.id) {
+        this.$nextTick(() => {
+          const logArea = this.getLogAreaEl(currentPanel)
+          if (logArea) recoverPos(session.id, logArea)
+        })
+        return
+      }
       this.currentSession = session
       if (this.$route.params.id !== session.id) {
         this.$router.push({ name: 'codeView-session', params: { id: session.id } }).catch(() => {})
@@ -830,6 +875,7 @@ export default {
         }).then(async () => {
           try {
             await sessions.deleteSession(session.id)
+            clearPos(session.id)
             const idx = this.sessions.findIndex(s => s.id === session.id)
             if (idx > -1) this.sessions.splice(idx, 1)
             const displayIdx = this.displayedSessions.findIndex(s => s.id === session.id)
