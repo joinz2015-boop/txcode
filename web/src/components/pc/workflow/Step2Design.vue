@@ -10,6 +10,7 @@
           <div class="editor-actions">
             <el-button size="small" type="text" @click="saveSpec" title="保存方案"><i class="el-icon-check"></i></el-button>
             <el-button size="small" type="text" @click="refreshSpec" title="刷新方案"><i class="el-icon-refresh"></i></el-button>
+            <el-button size="small" type="text" @click="exportScheme" title="导出方案"><i class="el-icon-download"></i></el-button>
             <el-button size="small" type="text" @click="$emit('create-sub-scheme')" title="新建子方案"><i class="el-icon-plus"></i></el-button>
           </div>
         </div>
@@ -406,6 +407,14 @@ export default {
     async refreshSpec() {
       await this.loadSpec()
       this.$message.success('方案已刷新')
+    },
+    exportScheme() {
+      if (!this.category || !this.name) {
+        this.$message.warning('请先选择方案')
+        return
+      }
+      const fileName = `${this.name}_方案.md`
+      api.downloadFilesystemWithProgress(this.specFilePath, fileName)
     },
     async sendMessage() {
       const content = this.inputMessage.trim()
