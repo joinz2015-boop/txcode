@@ -219,7 +219,10 @@ export default {
         console.log('[DesignView] file:changed skipped (no filePath or activeFilePath)')
         return
       }
-      if (data.filePath.indexOf(this.designBasePath) === -1 && this.activeFilePath.indexOf(data.filePath) === -1) {
+      const normalizedFilePath = data.filePath.replace(/\\/g, '/')
+      const normalizedActive = this.activeFilePath.replace(/\\/g, '/')
+      const normalizedBase = (this.designBasePath || '.txcode/design').replace(/\\/g, '/')
+      if (normalizedFilePath.indexOf(normalizedBase) === -1 && normalizedActive.indexOf(normalizedFilePath) === -1) {
         console.log('[DesignView] file:changed skipped (not in designBasePath)')
         return
       }

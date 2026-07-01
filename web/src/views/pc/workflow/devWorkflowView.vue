@@ -566,9 +566,11 @@ export default {
         console.log('[DevWorkflow] file:changed skipped (no projectKey or filePath)')
         return
       }
-      const specPath = `${this.reqBasePath}/${this.currentCategory}/${this.currentProject}/${this.currentProject}_方案.md`
-      const isRelated = data.filePath.indexOf(this.reqBasePath || '.txcode/req') !== -1
-        || data.filePath === specPath
+      const specPath = `${this.reqBasePath}/${this.currentCategory}/${this.currentProject}/${this.currentProject}_方案.md`.replace(/\\/g, '/')
+      const normalizedBase = (this.reqBasePath || '.txcode/req').replace(/\\/g, '/')
+      const normalizedFilePath = data.filePath.replace(/\\/g, '/')
+      const isRelated = normalizedFilePath.indexOf(normalizedBase) !== -1
+        || normalizedFilePath === specPath
       if (!isRelated) {
         console.log('[DevWorkflow] file:changed skipped (not related to current project)')
         return
