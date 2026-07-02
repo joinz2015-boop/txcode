@@ -59,49 +59,36 @@
             </div>
           </div>
 
-          <div class="chat-input-area">
+          <div class="input-block">
             <ImagePreviewList
               v-if="codePanel.mediaFiles && codePanel.mediaFiles.length"
               :files="codePanel.mediaFiles"
               :disabled="codePanel.disabled"
               @remove="(id) => removeMedia(codePanel, id)"
             />
-            <div class="input-panel">
-              <div class="input-wrapper">
-                <ResizableTextarea
-                  v-model="codePanel.input"
-                  :rows="4"
-                  placeholder="输入消息... (Enter 发送, Ctrl+Enter 换行)"
-                  :disabled="codePanel.disabled"
-                  class="code-input-area"
-                  @keydown.enter.native="handleCodeKeydown"
-                  @paste-image="(files) => handleCodePasteImages(files)"
-                />
-                <input type="file" accept="image/*" multiple ref="codeImgInput" style="display:none" @change="handleCodeImageSelected" />
-              </div>
+            <div class="input-wrapper">
+              <ResizableTextarea
+                v-model="codePanel.input"
+                :rows="5"
+                placeholder="输入消息... (Enter 发送, Ctrl+Enter 换行, @ 选择文件)"
+                :disabled="codePanel.disabled"
+                class="code-input-area"
+                @keydown.enter.native="handleCodeKeydown"
+                @paste-image="(files) => handleCodePasteImages(files)"
+              />
+              <input type="file" accept="image/*" multiple ref="codeImgInput" style="display:none" @change="handleCodeImageSelected" />
               <div class="input-actions">
-                <div class="input-actions-left">
-                  <span class="status-action" @click="fileSelectVisible = true" @mousedown.prevent>选择文件</span>
-                  <span class="separator">|</span>
-                  <span class="status-action" @click="skillSelectVisible = true" @mousedown.prevent>选择Skill</span>
-                  <span class="separator">|</span>
-                  <span class="status-action" @click="designSelectVisible = true" @mousedown.prevent>选择设计</span>
-                  <span class="separator">|</span>
-                  <span class="status-action" @click="commandDialogVisible = true" @mousedown.prevent>命令</span>
-                </div>
-                <div class="input-actions-right">
-                  <button class="action-btn btn-upload" @click="handleCodeImageUpload" :disabled="codePanel.disabled">图片</button>
-                  <button
-                    v-for="action in customActions"
-                    :key="action.id"
-                    class="action-btn btn-custom"
-                    @click="executeCustomAction(action)"
-                    :disabled="codePanel.disabled"
-                  >{{ action.name }}</button>
-                  <button v-if="codePanel.disabled && !codePanel.stopping" class="action-btn btn-stop" @click="stopCodePanel">■ 停止</button>
-                  <button v-else-if="codePanel.stopping" class="action-btn btn-stop" disabled>停止中...</button>
-                  <button v-else class="action-btn btn-send" :disabled="!codePanel.input.trim() && (!codePanel.mediaFiles || !codePanel.mediaFiles.length)" @click="sendToCodePanel">发送</button>
-                </div>
+                <button
+                  v-for="action in customActions"
+                  :key="action.id"
+                  class="action-btn btn-custom"
+                  @click="executeCustomAction(action)"
+                  :disabled="codePanel.disabled"
+                >{{ action.name }}</button>
+                <button class="action-btn btn-upload" @click="handleCodeImageUpload" :disabled="codePanel.disabled">图片</button>
+                <button v-if="codePanel.disabled && !codePanel.stopping" class="action-btn btn-stop" @click="stopCodePanel">■ 停止</button>
+                <button v-else-if="codePanel.stopping" class="action-btn btn-stop" disabled>停止中...</button>
+                <button v-else class="action-btn btn-send" :disabled="!codePanel.input.trim() && (!codePanel.mediaFiles || !codePanel.mediaFiles.length)" @click="sendToCodePanel">发送</button>
               </div>
             </div>
           </div>
@@ -117,6 +104,14 @@
             <span>会话: {{ codePanel.sessionId ? codePanel.sessionId.slice(0, 8) : '未创建' }}</span>
             <span class="sep">|</span>
             <span>token: {{ codePanel.promptTokens || 0 }}</span>
+            <span class="sep">|</span>
+            <span class="status-action" @click="commandDialogVisible = true" @mousedown.prevent>命令</span>
+            <span class="sep">|</span>
+            <span class="status-action" @click="fileSelectVisible = true" @mousedown.prevent>选择文件</span>
+            <span class="sep">|</span>
+            <span class="status-action" @click="skillSelectVisible = true" @mousedown.prevent>选择Skill</span>
+            <span class="sep">|</span>
+            <span class="status-action" @click="designSelectVisible = true" @mousedown.prevent>选择设计</span>
           </div>
         </div>
 
@@ -398,7 +393,8 @@ export default {
     },
 
     async sendToCodePanel() {
-      const p = this.codePanel; const c = p.input.trim(); if (!c || p.disabled) return
+      const p = this.codePanel; const c = p.input.trim(); const hasMedia = (p.mediaFiles || []).filter(f => !f.uploading).length > 0
+      if ((!c && !hasMedia) || p.disabled) return
       try { await this.ensureSession('codePanel'); this.subscribePanel(p, 'code') } catch { return }
       const payload = buildChatPayload({ input: c, session: { id: p.sessionId }, chatMode: 'code', enableDevLog: false, modelName: p.modelName, mediaFiles: (p.mediaFiles || []).filter(f => !f.uploading && f.filePath) })
       p.input = ''; p.disabled = true; p.stopping = false
@@ -604,16 +600,6 @@ export default {
 
 <style scoped>
 .app-container {
-  --color-panel: var(--color-bg-primary, #1a1a2e);
-  --color-panelHeader: var(--color-bg-secondary, #16162a);
-  --color-border: var(--color-border, #2d2d44);
-  --color-contentBg: var(--color-bg-secondary, #252540);
-  --color-textMain: var(--color-text-primary, #e4e4e7);
-  --color-textMuted: var(--color-text-muted, #71717a);
-  --color-accent: var(--color-accent, #6366f1);
-  --color-inputBg: var(--color-bg-secondary, #1e1e30);
-  --color-success: var(--color-success, #22c55e);
-  --color-danger: #ef4444;
   display: flex;
   height: 100%;
   background: var(--color-panel);
@@ -648,15 +634,15 @@ export default {
 .float-dev-btn:hover { background: #818cf8; box-shadow: 0 4px 14px rgba(99,102,241,0.45); }
 .float-dev-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-.chat-messages { flex: 1; overflow-y: auto; padding: 16px 40px 24px; font-size: 14px; line-height: 1.6; background: var(--color-panel); }
+.chat-messages { flex: 1; overflow-y: auto; padding: 16px 40px 24px; font-size: 14px; line-height: 1.6; }
 .chat-empty { display: flex; align-items: center; justify-content: center; height: 100%; color: var(--color-textMuted); flex-direction: column; gap: 12px; }
 .chat-empty-icon { font-size: 48px; opacity: 0.3; }
 
 .user-question { color: var(--color-accent); font-weight: 600; border: 1px solid var(--color-accent); padding: 12px 16px; margin: 12px 0 12px auto; border-radius: 10px; display: inline-block; max-width: 70%; word-break: break-word; }
 .ai-thought { color: var(--color-textMain); margin-bottom: 16px; line-height: 1.6; }
 .log-mute { color: var(--color-textMuted); margin-bottom: 12px; font-size: 13px; }
-.tool-success { color: var(--color-success); }
-.tool-fail { color: var(--color-danger); }
+.tool-success { color: var(--color-success, #22c55e); }
+.tool-fail { color: var(--color-danger, #ef4444); }
 .tool-input { color: var(--color-accent); margin-left: 6px; }
 .build-info { color: var(--color-textMuted); display: flex; align-items: center; gap: 8px; margin-top: 16px; font-size: 13px; }
 .build-info .icon { color: var(--color-accent); font-size: 11px; }
@@ -664,14 +650,33 @@ export default {
 .todo-item { display: flex; align-items: center; gap: 8px; padding: 2px 0; font-size: 13px; }
 .system-msg { color: var(--color-textMuted); margin-bottom: 12px; font-size: 13px; font-style: italic; }
 
-.chat-input-area { background: var(--color-inputBg); padding: 12px 16px; border-top: 1px solid var(--color-border); flex-shrink: 0; }
-.input-panel { background: var(--color-panel); border-radius: 8px; border: 1px solid var(--color-border); overflow: hidden; }
-.input-panel:focus-within { border-color: var(--color-accent); }
-.input-wrapper { position: relative; }
-.input-actions { display: flex; justify-content: space-between; align-items: center; padding: 6px 12px; gap: 6px; background: var(--color-panel); flex-wrap: wrap; }
-.input-actions-left { display: flex; align-items: center; gap: 6px; }
-.input-actions-right { display: flex; align-items: center; gap: 6px; }
-.separator { color: var(--color-border); font-size: 12px; }
+.input-block {
+  background-color: var(--color-inputBg);
+  padding: 12px 16px;
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.input-wrapper { position: relative; flex: 1; }
+
+.code-input-area { flex: 1; }
+
+.input-actions {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  display: flex;
+  gap: 6px;
+  z-index: 5;
+}
+
+.input-wrapper ::v-deep .el-textarea__inner {
+  padding-bottom: 50px;
+}
+
 .action-btn { font-size: 12px; padding: 5px 12px; border-radius: 5px; border: none; cursor: pointer; font-family: inherit; transition: all 0.15s; }
 .btn-upload { background: transparent; border: 1px solid var(--color-border); color: var(--color-textMuted); }
 .btn-upload:hover { border-color: var(--color-accent); color: var(--color-accent); }

@@ -121,8 +121,8 @@ export default {
 .session-sidebar {
   width: 260px;
   min-width: 260px;
-  background: var(--color-panel, #1a1a2e);
-  border-right: 1px solid var(--color-border, #2d2d44);
+  background: var(--color-panel);
+  border-right: 1px solid var(--color-border);
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
@@ -130,14 +130,14 @@ export default {
 
 .sidebar-header {
   padding: 14px 16px;
-  border-bottom: 1px solid var(--color-border, #2d2d44);
+  border-bottom: 1px solid var(--color-border);
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 .sidebar-title {
   font-size: 12px;
-  color: var(--color-text-muted, #71717a);
+  color: var(--color-textMuted);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -145,7 +145,7 @@ export default {
 .sidebar-new-btn {
   font-size: 12px;
   padding: 5px 12px;
-  background: var(--color-accent, #6366f1);
+  background: var(--color-accent);
   color: #fff;
   border: none;
   border-radius: 6px;
@@ -163,7 +163,7 @@ export default {
   align-items: center;
   gap: 12px;
   padding: 32px 16px;
-  color: var(--color-text-muted, #71717a);
+  color: var(--color-textMuted);
   font-size: 13px;
 }
 
@@ -171,7 +171,7 @@ export default {
   padding: 10px 16px;
   cursor: pointer;
   font-size: 13px;
-  color: var(--color-text-muted, #71717a);
+  color: var(--color-textMuted);
   border-left: 2px solid transparent;
   transition: all 0.15s;
   position: relative;
@@ -179,16 +179,16 @@ export default {
   flex-direction: column;
   gap: 3px;
 }
-.session-item:hover { background: var(--color-bg-secondary, #1e1e30); color: var(--color-text-primary, #e4e4e7); }
+.session-item:hover { background: var(--color-hoverBg, #1e1e30); color: var(--color-textMain); }
 .session-item.active {
-  background: var(--color-bg-secondary, #1e1e30);
-  border-left-color: var(--color-accent, #6366f1);
-  color: #f4f4f5;
+  background: var(--color-hoverBg, #1e1e30);
+  border-left-color: var(--color-accent);
+  color: var(--color-textMain);
 }
-.session-item.active .session-time { color: var(--color-accent, #6366f1); }
+.session-item.active .session-time { color: var(--color-accent); }
 
 .session-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.session-time { font-size: 11px; color: var(--color-text-muted, #71717a); }
+.session-time { font-size: 11px; color: var(--color-textMuted); }
 
 .session-menu {
   position: absolute;
@@ -197,21 +197,21 @@ export default {
   transform: translateY(-50%);
   cursor: pointer;
   font-size: 14px;
-  color: var(--color-text-muted, #71717a);
+  color: var(--color-textMuted);
   opacity: 0;
   padding: 2px 6px;
   border-radius: 4px;
   transition: all 0.15s;
 }
 .session-item:hover .session-menu { opacity: 1; }
-.session-menu:hover { background: var(--color-border, #2d2d44); color: var(--color-text-primary, #e4e4e7); }
+.session-menu:hover { background: var(--color-border); color: var(--color-textMain); }
 
 .sidebar-menu-popup {
   position: fixed;
   z-index: 200;
   min-width: 100px;
-  background: var(--color-bg-secondary, #16162a);
-  border: 1px solid var(--color-border, #2d2d44);
+  background: var(--color-panelHeader);
+  border: 1px solid var(--color-border);
   border-radius: 6px;
   box-shadow: 0 4px 12px rgba(0,0,0,0.4);
   padding: 4px;
@@ -221,8 +221,8 @@ export default {
   font-size: 12px;
   cursor: pointer;
   border-radius: 4px;
-  color: var(--color-text-primary, #e4e4e7);
+  color: var(--color-textMain);
 }
 .sidebar-menu-popup .menu-item:hover { background: rgba(255,255,255,0.06); }
-.sidebar-menu-popup .menu-item.danger { color: #ef4444; }
+.sidebar-menu-popup .menu-item.danger { color: var(--color-danger, #ef4444); }
 </style>

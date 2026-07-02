@@ -80,8 +80,8 @@ export default {
   flex: 1;
   display: none;
   flex-direction: column;
-  background: var(--color-bg-secondary, #16162a);
-  border: 1px solid var(--color-bg-secondary, #252540);
+  background: var(--color-panelHeader);
+  border: 1px solid var(--color-contentBg);
   border-radius: 8px;
   min-width: 0;
   overflow: hidden;
@@ -93,29 +93,29 @@ export default {
   justify-content: space-between;
   align-items: center;
   padding: 10px 16px;
-  border-bottom: 1px solid var(--color-bg-secondary, #252540);
+  border-bottom: 1px solid var(--color-contentBg);
   font-size: 13px;
-  color: var(--color-text-muted, #71717a);
+  color: var(--color-textMuted);
   flex-shrink: 0;
 }
 .editor-title { display: flex; align-items: center; gap: 8px; overflow: hidden; flex: 1; margin-right: 12px; }
-.file-icon { color: var(--color-text-muted, #71717a); font-size: 14px; }
-.file-path { color: var(--color-text-muted, #71717a); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.file-icon { color: var(--color-textMuted); font-size: 14px; }
+.file-path { color: var(--color-textMuted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .editor-actions { display: flex; gap: 2px; align-items: center; flex-shrink: 0; }
 .editor-actions button {
-  background: transparent; border: none; color: var(--color-text-muted, #71717a);
+  background: transparent; border: none; color: var(--color-textMuted);
   cursor: pointer; padding: 4px 8px; font-size: 15px; border-radius: 4px;
   font-family: inherit; transition: all 0.15s;
 }
-.editor-actions button:hover { color: var(--color-accent, #6366f1); }
+.editor-actions button:hover { color: var(--color-accent); }
 
 .editor-container { flex: 1; min-height: 0; background: #0d0d1a; overflow: hidden; }
 
 .status-bar {
   display: flex; gap: 8px; align-items: center;
   padding: 6px 16px; font-size: 12px;
-  color: var(--color-text-muted, #71717a);
-  border-top: 1px solid var(--color-border, #2d2d44);
+  color: var(--color-textMuted);
+  border-top: 1px solid var(--color-border);
   flex-shrink: 0;
 }
 .sep { color: var(--color-border); }
