@@ -24,6 +24,7 @@
           :plan-file-path="planFilePath"
           :custom-actions="customActions"
           :status-actions="statusActions"
+          :hide-status-bar="true"
           placeholder="输入消息... (Enter 发送, Ctrl+Enter 换行, @ 选择文件)"
           @send="sendToCodePanel"
           @stop="stopCodePanel"
@@ -34,6 +35,8 @@
           @status-action="handleStatusAction"
           @fill-dev-plan="fillDevPlan"
           @preview-image="openImagePreview"
+          @open-model="openModelSelector('code')"
+          @open-test="testDialogVisible = true"
         />
 
         <!-- ===== 方案模式：编辑器 + 助手 ===== -->
@@ -114,6 +117,14 @@
       <span class="lightbox-close" @click="closeImagePreview">&times;</span>
       <img :src="previewImage.url || previewImage.dataUrl || previewImage.filePath" class="lightbox-image" @click.stop />
     </div>
+
+    <PlanCodeTest
+      :visible.sync="testDialogVisible"
+      :plan-file-path="planFilePath"
+      :folder-name="planFolderName"
+      :model-name="codePanel.modelName"
+      @test-session-created="onTestSessionCreated"
+    />
   </div>
 </template>
 
@@ -127,6 +138,7 @@ import SkillSelectDialog from '../../../components/pc/skill/SkillSelectDialog.vu
 import DesignSelectDialog from '../../../components/pc/design/DesignSelectDialog.vue'
 import CommandDialog from '../../../components/pc/common/CommandDialog.vue'
 import CreateSubPlanDialog from '../../../components/pc/plan-code/CreateSubPlanDialog.vue'
+import PlanCodeTest from '../../../components/pc/plan-code/planCodeTest.vue'
 import ChatPanel from '../../../components/pc/chat/ChatPanel.vue'
 import { ws } from '../../../api/websocket/websocket.js'
 import { uploadSingleMedia } from '../../../api/chat/media.js'
@@ -142,7 +154,7 @@ import * as sessionsApi from '../../../api/session/session.js'
 
 export default {
   name: 'PlanAndCodeView',
-  components: { PlanSessionSidebar, PlanEditor, PlanAssistant, ModelSelectDialog, FileSelectDialog, SkillSelectDialog, DesignSelectDialog, CommandDialog, CreateSubPlanDialog, ChatPanel },
+  components: { PlanSessionSidebar, PlanEditor, PlanAssistant, ModelSelectDialog, FileSelectDialog, SkillSelectDialog, DesignSelectDialog, CommandDialog, CreateSubPlanDialog, PlanCodeTest, ChatPanel },
   MAX_LOG_ITEMS: 400,
 
   data() {
@@ -178,6 +190,8 @@ export default {
       resizeWidth: 420,
       logSeq: 0,
       unsubFileChanged: null,
+      testDialogVisible: false,
+      testSessionId: '',
     }
   },
 
@@ -528,6 +542,13 @@ export default {
       const url = `/api/file/download_file?path=${encodeURIComponent(this.planFilePath)}`
       const a = document.createElement('a'); a.href = url; a.download = fileName
       document.body.appendChild(a); a.click(); document.body.removeChild(a)
+    },
+
+    onTestSessionCreated(sessionId) {
+      this.testSessionId = sessionId
+      const meta = { ...this.currentPlanSession.meta, testSessionId: sessionId }
+      planCodeApi.saveMeta(this.planFolderName, meta)
+      this.currentPlanSession.meta = meta
     },
 
     // ====== Resize ======

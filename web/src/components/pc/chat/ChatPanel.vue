@@ -16,6 +16,8 @@
       :placeholder="placeholder"
       :custom-actions="customActions"
       :plan-file-path="planFilePath"
+      :status-actions="statusActions"
+      :session-id="panel.sessionId"
       @send="$emit('send')"
       @stop="$emit('stop')"
       @paste-image="$emit('paste-image', $event)"
@@ -23,9 +25,13 @@
       @remove-media="$emit('remove-media', $event)"
       @action="$emit('custom-action', $event)"
       @fill-dev-plan="$emit('fill-dev-plan')"
+      @open-model="$emit('open-model')"
+      @status-action="$emit('status-action', $event)"
+      @open-test="$emit('open-test')"
     />
 
     <ChatStatusBar
+      v-if="!hideStatusBar"
       :session-id="panel.sessionId"
       :model-name="panel.modelName"
       :prompt-tokens="panel.promptTokens"
@@ -52,6 +58,7 @@ export default {
     placeholder: { type: String, default: '输入消息... (Enter 发送, Ctrl+Enter 换行, @ 选择文件)' },
     customActions: { type: Array, default: () => [] },
     statusActions: { type: Array, default: () => [] },
+    hideStatusBar: { type: Boolean, default: false },
   },
   methods: {
     scrollToBottom(force = false) {
