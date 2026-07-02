@@ -16,7 +16,7 @@
         :class="{ active: currentFolderName === session.folderName }"
         @click="$emit('select', session)"
       >
-        <div class="session-title">{{ session.folderName }}</div>
+        <div class="session-title">{{ session.meta.sessionName || session.folderName }}</div>
         <div class="session-time">{{ formatTime(session.updatedAt) }}</div>
         <span class="session-menu" @click.stop="toggleMenu(session, $event)">⋮</span>
       </div>
@@ -36,7 +36,7 @@
     </el-dialog>
 
     <el-dialog :visible.sync="deleteVisible" title="确认删除" width="360px" :close-on-click-modal="false">
-      <p>确定要删除会话「{{ deleteTarget ? deleteTarget.folderName : '' }}」吗？此操作不可恢复。</p>
+      <p>      确定要删除会话「{{ deleteTarget ? (deleteTarget.meta.sessionName || deleteTarget.folderName) : '' }}」吗？此操作不可恢复。</p>
       <span slot="footer">
         <el-button @click="deleteVisible = false">取消</el-button>
         <el-button type="danger" @click="doDelete">删除</el-button>
@@ -83,7 +83,7 @@ export default {
     },
     startRename() {
       this.renameTarget = this.menuTarget
-      this.renameValue = this.menuTarget.folderName
+      this.renameValue = this.menuTarget.meta.sessionName || this.menuTarget.folderName
       this.menuTarget = null
       this.renameVisible = true
     },

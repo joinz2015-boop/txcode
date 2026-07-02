@@ -4,12 +4,12 @@ export function listPlanSessions() {
   return request('GET', '/plan-code/list')
 }
 
-export function createPlanSession(folderName) {
-  return request('POST', '/plan-code/create', { folderName })
+export function createPlanSession(sessionName, parentPlanPath) {
+  return request('POST', '/plan-code/create', { sessionName, parentPlanPath })
 }
 
-export function renamePlanSession(oldName, newName) {
-  return request('POST', '/plan-code/update', { oldName, newName })
+export function renamePlanSession(folderName, sessionName) {
+  return request('POST', '/plan-code/update', { folderName, sessionName })
 }
 
 export function deletePlanSession(folderName) {

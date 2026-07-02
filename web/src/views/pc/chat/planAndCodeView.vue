@@ -19,7 +19,7 @@
         <!-- ===== 编码模式：聊天面板 ===== -->
         <div class="chat-panel" :class="{ 'hidden-panel': currentMode !== 'code' }">
           <div class="panel-header">
-            <span># {{ currentPlanSession.folderName }}</span>
+            <span># {{ currentPlanSession.meta.sessionName || currentPlanSession.folderName }}</span>
             <button class="float-dev-btn" @click="fillDevPlan" :disabled="!planFilePath">📋 根据方案开发</button>
           </div>
 
@@ -294,7 +294,7 @@ export default {
       try {
         await planCodeApi.createPlanSession(name)
         await this.loadPlanSessions()
-        const s = this.planSessions.find(x => x.folderName === name)
+        const s = this.planSessions[0]
         if (s) await this.selectPlanSession(s)
       } catch (e) { this.$message.error('创建失败: ' + e.message) }
     },
@@ -324,7 +324,7 @@ export default {
         await planCodeApi.renamePlanSession(session.folderName, newName)
         await this.loadPlanSessions()
         if (this.currentPlanSession && this.currentPlanSession.folderName === session.folderName) {
-          const u = this.planSessions.find(s => s.folderName === newName)
+          const u = this.planSessions.find(s => s.folderName === session.folderName)
           if (u) { this.currentPlanSession = u; this.planFilePath = u.meta.planFilePath || '' }
         }
       } catch (e) { this.$message.error('重命名失败: ' + e.message) }
@@ -427,7 +427,14 @@ export default {
       p.input = ''; p.disabled = true; p.stopping = false
       this.pushLogItem(p, { type: 'chat', content: c, mediaFiles: sentMediaFiles })
       this.$refs.planAssistant && this.$refs.planAssistant.scrollDesignToBottom()
-      ws.send('chat', { message: `先在 ${this.planFilePath} 生成方案，先不要修改代码。\n\n用户输入: ${c}`, sessionId: p.sessionId, modelName: p.modelName, mediaFiles: sentMediaFiles.map(f => ({ filePath: f.filePath, type: f.type })) })
+
+      let contextPrefix = ''
+      const parentPath = this.currentPlanSession?.meta?.parentPlanPath
+      if (parentPath) {
+        contextPrefix = `父方案路径：${parentPath}\n`
+      }
+
+      ws.send('chat', { message: `${contextPrefix}先在 ${this.planFilePath} 生成方案，先不要修改代码。\n\n用户输入: ${c}`, sessionId: p.sessionId, modelName: p.modelName, mediaFiles: sentMediaFiles.map(f => ({ filePath: f.filePath, type: f.type })) })
       p.mediaFiles = []
     },
     stopDesignPanel() { if (!this.designPanel.sessionId || this.designPanel.stopping) return; this.designPanel.stopping = true; ws.send('stop', { sessionId: this.designPanel.sessionId }) },
@@ -559,22 +566,17 @@ export default {
     },
 
     handleCreateSubScheme() {
-      this.subSchemeDefaultName = this.planFolderName + '_子方案'
+      const parentSessionName = this.currentPlanSession.meta.sessionName || this.planFolderName
+      this.subSchemeDefaultName = parentSessionName + '_子方案'
       this.subSchemeVisible = true
     },
     async onSubSchemeConfirm(subName) {
       try {
-        await planCodeApi.createPlanSession(subName)
-        const r = await planCodeApi.listPlanSessions()
-        const sessions = r.data || []
-        const newSession = sessions.find(s => s.folderName === subName)
-        if (newSession) {
-          const updatedMeta = { ...newSession.meta, parentPlanPath: this.planFilePath, updatedAt: new Date().toISOString() }
-          await planCodeApi.saveMeta(subName, updatedMeta)
-        }
+        const parentPath = this.planFilePath
+        await planCodeApi.createPlanSession(subName, parentPath)
         await this.loadPlanSessions()
-        const refreshed = this.planSessions.find(s => s.folderName === subName)
-        if (refreshed) await this.selectPlanSession(refreshed)
+        const s = this.planSessions[0]
+        if (s) await this.selectPlanSession(s)
         this.subSchemeVisible = false
       } catch (e) { this.$message.error('创建子方案失败: ' + e.message) }
     },

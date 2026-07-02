@@ -4,6 +4,7 @@ import { projectService } from '../project/project.service.js';
 import { sessionService } from '../session/index.js';
 
 interface PlanCodeMeta {
+  sessionName: string;
   codeSessionId: string;
   designSessionId: string;
   discussSessions: Array<{
@@ -13,6 +14,7 @@ interface PlanCodeMeta {
     createdAt: string;
   }>;
   planFilePath: string;
+  parentPlanPath?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -66,57 +68,100 @@ export class PlanCodeService {
     return sessions;
   }
 
-  create(folderName: string): PlanCodeSession {
+  create(sessionName: string, parentPlanPath?: string): PlanCodeSession {
     const basePath = this.getBasePath();
     this.ensureDir(basePath);
-    const folderPath = path.join(basePath, folderName);
-    if (fs.existsSync(folderPath)) {
-      throw new Error(`会话文件夹已存在: ${folderName}`);
+
+    const now = new Date();
+    let timestamp = [
+      now.getFullYear(),
+      String(now.getMonth() + 1).padStart(2, '0'),
+      String(now.getDate()).padStart(2, '0'),
+      String(now.getHours()).padStart(2, '0'),
+      String(now.getMinutes()).padStart(2, '0'),
+      String(now.getSeconds()).padStart(2, '0'),
+    ].join('');
+
+    let folderPath = path.join(basePath, timestamp);
+    let finalName = timestamp;
+    let retry = 0;
+    while (fs.existsSync(folderPath)) {
+      retry++;
+      finalName = timestamp + '_' + retry;
+      folderPath = path.join(basePath, finalName);
     }
+
     fs.mkdirSync(folderPath, { recursive: true });
-    const now = new Date().toISOString();
+    const nowIso = now.toISOString();
+
     const planFilePath = this.normalizePath(
-      path.join('.txcode', 'plan-code', folderName, `${folderName}_方案.md`)
+      path.join('.txcode', 'plan-code', finalName, `${finalName}_方案.md`)
     );
+
     const meta: PlanCodeMeta = {
+      sessionName,
       codeSessionId: '',
       designSessionId: '',
       discussSessions: [],
       planFilePath,
-      createdAt: now,
-      updatedAt: now,
+      createdAt: nowIso,
+      updatedAt: nowIso,
     };
+
+    if (parentPlanPath) {
+      meta.parentPlanPath = parentPlanPath;
+    }
+
     const metaPath = path.join(folderPath, 'meta.json');
     fs.writeFileSync(metaPath, JSON.stringify(meta, null, 2), 'utf-8');
-    return { folderName, meta, updatedAt: now };
+
+    const planContent = parentPlanPath
+      ? `# ${sessionName}_方案
+
+> 创建时间：${nowIso}
+> 父方案：[${parentPlanPath}](${parentPlanPath})
+
+## 用户原始需求
+
+## 业务目标
+
+## 功能点
+
+`
+      : `# ${sessionName}_方案
+
+> 创建时间：${nowIso}
+
+## 用户原始需求
+
+## 业务目标
+
+## 功能点
+
+`;
+
+    const planFilePathAbs = path.join(folderPath, `${finalName}_方案.md`);
+    fs.writeFileSync(planFilePathAbs, planContent, 'utf-8');
+
+    return { folderName: finalName, meta, updatedAt: nowIso };
   }
 
-  update(oldName: string, newName: string): PlanCodeSession {
+  renameSession(folderName: string, newSessionName: string): PlanCodeSession {
     const basePath = this.getBasePath();
-    const oldPath = path.join(basePath, oldName);
-    const newPath = path.join(basePath, newName);
-    if (!fs.existsSync(oldPath)) {
-      throw new Error(`会话文件夹不存在: ${oldName}`);
+    const metaPath = path.join(basePath, folderName, 'meta.json');
+    if (!fs.existsSync(metaPath)) {
+      throw new Error(`会话文件夹不存在: ${folderName}`);
     }
-    if (fs.existsSync(newPath)) {
-      throw new Error(`目标文件夹已存在: ${newName}`);
-    }
-    fs.renameSync(oldPath, newPath);
-    // update meta.json planFilePath
-    const metaPath = path.join(newPath, 'meta.json');
     const meta = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
-    meta.planFilePath = this.normalizePath(
-      path.join('.txcode', 'plan-code', newName, `${newName}_方案.md`)
-    );
+    meta.sessionName = newSessionName;
     meta.updatedAt = new Date().toISOString();
-    // also rename plan file if it exists using old name
-    const oldPlanFile = path.join(newPath, `${oldName}_方案.md`);
-    const newPlanFile = path.join(newPath, `${newName}_方案.md`);
-    if (fs.existsSync(oldPlanFile)) {
-      fs.renameSync(oldPlanFile, newPlanFile);
-    }
     fs.writeFileSync(metaPath, JSON.stringify(meta, null, 2), 'utf-8');
-    return { folderName: newName, meta, updatedAt: meta.updatedAt };
+    return { folderName, meta, updatedAt: meta.updatedAt };
+  }
+
+  /** @deprecated 使用 renameSession 代替，目录名已改为时间戳不可变 */
+  update(oldName: string, newName: string): PlanCodeSession {
+    return this.renameSession(oldName, newName);
   }
 
   delete(folderName: string): void {
