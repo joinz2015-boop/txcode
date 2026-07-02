@@ -183,10 +183,8 @@
       :visible.sync="commandDialogVisible"
       @execute="handleExecuteCommand"
     />
-    <SubSchemeDialog
+    <CreateSubPlanDialog
       :visible.sync="subSchemeVisible"
-      :category="planFolderName"
-      :default-name="subSchemeDefaultName"
       @confirm="onSubSchemeConfirm"
       @cancel="subSchemeVisible = false"
     />
@@ -207,7 +205,7 @@ import FileSelectDialog from '../../../components/pc/file/FileSelectDialog.vue'
 import SkillSelectDialog from '../../../components/pc/skill/SkillSelectDialog.vue'
 import DesignSelectDialog from '../../../components/pc/design/DesignSelectDialog.vue'
 import CommandDialog from '../../../components/pc/common/CommandDialog.vue'
-import SubSchemeDialog from '../../../components/pc/workflow/SubSchemeDialog.vue'
+import CreateSubPlanDialog from '../../../components/pc/plan-code/CreateSubPlanDialog.vue'
 import ImagePreviewList from '../../../components/pc/chat/ImagePreviewList.vue'
 import ResizableTextarea from '../../../components/pc/chat/ResizableTextarea.vue'
 import { ws } from '../../../api/websocket/websocket.js'
@@ -225,7 +223,7 @@ import * as sessionsApi from '../../../api/session/session.js'
 
 export default {
   name: 'PlanAndCodeView',
-  components: { PlanSessionSidebar, PlanEditor, PlanAssistant, ModelSelectDialog, FileSelectDialog, SkillSelectDialog, DesignSelectDialog, CommandDialog, SubSchemeDialog, ImagePreviewList, ResizableTextarea },
+  components: { PlanSessionSidebar, PlanEditor, PlanAssistant, ModelSelectDialog, FileSelectDialog, SkillSelectDialog, DesignSelectDialog, CommandDialog, CreateSubPlanDialog, ImagePreviewList, ResizableTextarea },
   MAX_LOG_ITEMS: 400,
 
   data() {
@@ -249,7 +247,6 @@ export default {
       designSelectVisible: false,
       commandDialogVisible: false,
       subSchemeVisible: false,
-      subSchemeDefaultName: '',
       previewImage: null,
       customActions: [],
 
@@ -596,14 +593,12 @@ export default {
     },
 
     handleCreateSubScheme() {
-      const parentSessionName = this.currentPlanSession.meta.sessionName || this.planFolderName
-      this.subSchemeDefaultName = parentSessionName + '_子方案'
       this.subSchemeVisible = true
     },
-    async onSubSchemeConfirm(subName) {
+    async onSubSchemeConfirm() {
       try {
         const parentPath = this.planFilePath
-        await planCodeApi.createPlanSession(subName, parentPath)
+        await planCodeApi.createPlanSession('新计划会话', parentPath)
         await this.loadPlanSessions()
         const s = this.planSessions[0]
         if (s) await this.selectPlanSession(s)
@@ -641,7 +636,7 @@ export default {
 .main-area { flex: 1; position: relative; overflow: hidden; min-width: 0; }
 
 .mode-float {
-  position: absolute; top: 60px; left: 50%; transform: translateX(-50%); z-index: 50;
+  position: absolute; top: 22px; left: 50%; transform: translateX(-50%); z-index: 50;
   display: flex; align-items: center; gap: 2px;
   background: var(--color-panelHeader); backdrop-filter: blur(12px);
   border: 1px solid var(--color-border); border-radius: 10px; padding: 3px;

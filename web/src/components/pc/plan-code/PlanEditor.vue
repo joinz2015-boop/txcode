@@ -9,7 +9,7 @@
         <button title="保存方案 (Ctrl+S)" @click="doSave">✓</button>
         <button title="刷新方案" @click="$emit('refresh')">↻</button>
         <button title="导出方案" @click="$emit('export')">⬇</button>
-        <button title="新建子方案" @click="$emit('create-sub-scheme')">+子</button>
+        <button title="新建子方案" @click="$emit('create-sub-scheme')">+</button>
       </div>
     </div>
     <div ref="editorContainer" class="editor-container"></div>

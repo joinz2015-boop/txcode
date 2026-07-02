@@ -179,11 +179,22 @@
               />
               <input type="file" accept="image/*" multiple ref="discussImgInput" style="display:none" @change="(e) => handleImageSelected(e, discussPanel)" />
             </div>
-            <div class="input-actions input-actions-right">
-              <button class="action-btn btn-upload" @click="handleDiscussImageUpload" :disabled="discussPanel.disabled">图片</button>
-              <button v-if="discussPanel.disabled && !discussPanel.stopping" class="action-btn btn-stop" @click="$emit('stopDiscuss')">■ 停止</button>
-              <button v-else-if="discussPanel.stopping" class="action-btn btn-stop" disabled>停止中...</button>
-              <button v-else class="btn-send" :disabled="!discussPanel.input.trim() && (!discussPanel.mediaFiles || !discussPanel.mediaFiles.length)" @click="$emit('sendDiscuss')">发送</button>
+            <div class="input-actions">
+              <div class="input-actions-left">
+                <span class="status-action" @click="fileSelectVisible = true" @mousedown.prevent>选择文件</span>
+                <span class="separator">|</span>
+                <span class="status-action" @click="skillSelectVisible = true" @mousedown.prevent>选择Skill</span>
+                <span class="separator">|</span>
+                <span class="status-action" @click="designSelectVisible = true" @mousedown.prevent>选择设计</span>
+                <span class="separator">|</span>
+                <span class="status-action" @click="commandDialogVisible = true" @mousedown.prevent>命令</span>
+              </div>
+              <div class="input-actions-right">
+                <button class="action-btn btn-upload" @click="handleDiscussImageUpload" :disabled="discussPanel.disabled">图片</button>
+                <button v-if="discussPanel.disabled && !discussPanel.stopping" class="action-btn btn-stop" @click="$emit('stopDiscuss')">■ 停止</button>
+                <button v-else-if="discussPanel.stopping" class="action-btn btn-stop" disabled>停止中...</button>
+                <button v-else class="btn-send" :disabled="!discussPanel.input.trim() && (!discussPanel.mediaFiles || !discussPanel.mediaFiles.length)" @click="$emit('sendDiscuss')">发送</button>
+              </div>
             </div>
           </div>
         </div>
@@ -456,7 +467,7 @@ export default {
 .tab-panel { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
 .tab-panel.hidden { display: none; }
 
-.assistant-chat-messages { flex: 1; overflow-y: auto; padding: 12px 16px 16px; font-size: 13px; line-height: 1.5; }
+.assistant-chat-messages { flex: 1; overflow-y: auto; padding: 12px 16px 16px; font-size: 14px; line-height: 1.5; }
 .assistant-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--color-textMuted); gap: 8px; }
 
 .assistant-input-area { background: #ffffff; padding: 12px 16px; border-top: 1px solid #e5e5e5; flex-shrink: 0; }
@@ -503,16 +514,16 @@ export default {
 .thinking-spinner { width: 10px; height: 10px; border: 2px solid var(--color-border); border-top-color: var(--color-accent); border-radius: 50%; display: inline-block; animation: spin 0.8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-.user-question { color: var(--color-accent); font-weight: 600; border: 1px solid var(--color-accent); padding: 8px 12px; margin: 8px 0 8px auto; border-radius: 10px; display: inline-block; max-width: 85%; word-break: break-word; font-size: 13px; }
+.user-question { color: var(--color-accent); font-weight: 600; border: 1px solid var(--color-accent); padding: 8px 12px; margin: 8px 0 8px auto; border-radius: 10px; display: inline-block; max-width: 85%; word-break: break-word; }
 .ai-thought { color: var(--color-textMain); margin-bottom: 12px; line-height: 1.6; }
-.log-mute { color: var(--color-textMuted); margin-bottom: 8px; font-size: 12px; }
+.log-mute { color: var(--color-textMuted); margin-bottom: 8px; font-size: 13px; }
 .tool-success { color: var(--color-success, #22c55e); }
 .tool-fail { color: var(--color-danger, #ef4444); }
 .tool-input { color: var(--color-accent); margin-left: 6px; }
-.build-info { color: var(--color-textMuted); display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 12px; }
+.build-info { color: var(--color-textMuted); display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 13px; }
 .build-info .icon { color: var(--color-accent); font-size: 11px; }
 .todos-list { margin-bottom: 12px; color: var(--color-textMain); }
-.todo-item { display: flex; align-items: center; gap: 8px; padding: 2px 0; font-size: 12px; }
+.todo-item { display: flex; align-items: center; gap: 8px; padding: 2px 0; font-size: 13px; }
 
 .discuss-dropdown { position: relative; border-bottom: 1px solid var(--color-border); flex-shrink: 0; }
 .dropdown-trigger { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; cursor: pointer; font-size: 13px; color: var(--color-textMain); }
