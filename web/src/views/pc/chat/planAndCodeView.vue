@@ -16,104 +16,25 @@
       </div>
 
       <div class="content-area" v-if="currentPlanSession">
-        <!-- ===== 编码模式：聊天面板 ===== -->
-        <div class="chat-panel" :class="{ 'hidden-panel': currentMode !== 'code' }">
-          <div class="panel-header">
-            <span># {{ currentPlanSession.meta.sessionName || currentPlanSession.folderName }}</span>
-            <button class="float-dev-btn" @click="fillDevPlan" :disabled="!planFilePath">📋 根据方案开发</button>
-          </div>
-
-          <div class="chat-messages" ref="codeLogArea">
-            <div v-if="!codePanel.logItems || codePanel.logItems.length === 0" class="chat-empty">
-              <span class="chat-empty-icon">💬</span>
-              <p>开始对话吧！输入您的问题...</p>
-            </div>
-            <template v-for="(item, idx) in codePanel.logItems">
-              <div v-if="item.type === 'todos'" :key="'c-' + idx" class="todos-list">
-                <div v-for="(todo, tIdx) in item.todos" :key="tIdx" class="todo-item">
-                  <span class="todo-status">{{ getTodoStatusIcon(todo.status) }}</span>
-                  <span class="todo-name">{{ todo.name }}</span>
-                </div>
-              </div>
-              <div v-else-if="item.type === 'chat'" :key="'c-' + idx" class="flex justify-end">
-                <div class="user-question">
-                  <div v-if="item.mediaFiles && item.mediaFiles.length" class="chat-images">
-                    <img v-for="mf in item.mediaFiles" :key="mf.filePath" :src="mf.url || mf.dataUrl || mf.filePath" class="chat-image-thumb" @click.stop="openImagePreview(mf)" />
-                  </div>
-                  <div>{{ item.content }}</div>
-                </div>
-              </div>
-              <div v-else-if="item.type === 'think'" :key="'c-' + idx" class="ai-thought" v-html="renderMarkdown(item.content)"></div>
-              <template v-else-if="item.type === 'step'" :key="'c-' + idx">
-                <div v-if="item.thought" class="ai-thought" v-html="renderMarkdown(item.thought)"></div>
-                <div v-for="(tc, aIdx) in item.toolCalls" :key="aIdx" class="log-mute">
-                  <span :class="item.success !== false ? 'tool-success' : 'tool-fail'">{{ item.success !== false ? '✓' : '✗' }}</span>
-                  {{ getToolCallName(tc) }}
-                  <span v-if="getToolCallArguments(tc)" class="tool-input">{{ formatInput(getToolCallName(tc), getToolCallArguments(tc)) }}</span>
-                </div>
-              </template>
-              <div v-else-if="item.type === 'system'" :key="'c-' + idx" class="system-msg">{{ item.content }}</div>
-            </template>
-            <div class="build-info" v-if="codePanel.modelName">
-              <span class="icon">▣</span> Build · {{ codePanel.modelName }}
-            </div>
-          </div>
-
-          <div class="input-block">
-            <ImagePreviewList
-              v-if="codePanel.mediaFiles && codePanel.mediaFiles.length"
-              :files="codePanel.mediaFiles"
-              :disabled="codePanel.disabled"
-              @remove="(id) => removeMedia(codePanel, id)"
-            />
-            <div class="input-wrapper">
-              <ResizableTextarea
-                v-model="codePanel.input"
-                :rows="5"
-                placeholder="输入消息... (Enter 发送, Ctrl+Enter 换行, @ 选择文件)"
-                :disabled="codePanel.disabled"
-                class="code-input-area"
-                @keydown.enter.native="handleCodeKeydown"
-                @paste-image="(files) => handleCodePasteImages(files)"
-              />
-              <input type="file" accept="image/*" multiple ref="codeImgInput" style="display:none" @change="handleCodeImageSelected" />
-              <div class="input-actions">
-                <button
-                  v-for="action in customActions"
-                  :key="action.id"
-                  class="action-btn btn-custom"
-                  @click="executeCustomAction(action)"
-                  :disabled="codePanel.disabled"
-                >{{ action.name }}</button>
-                <button class="action-btn btn-upload" @click="handleCodeImageUpload" :disabled="codePanel.disabled">图片</button>
-                <button v-if="codePanel.disabled && !codePanel.stopping" class="action-btn btn-stop" @click="stopCodePanel">■ 停止</button>
-                <button v-else-if="codePanel.stopping" class="action-btn btn-stop" disabled>停止中...</button>
-                <button v-else class="action-btn btn-send" :disabled="!codePanel.input.trim() && (!codePanel.mediaFiles || !codePanel.mediaFiles.length)" @click="sendToCodePanel">发送</button>
-              </div>
-            </div>
-          </div>
-
-          <div class="status-bar">
-            <span :class="codePanel.disabled ? 'status-thinking' : 'status-ready'">
-              <span v-if="codePanel.disabled" class="thinking-spinner"></span>
-              {{ codePanel.disabled ? '思考中' : '✓ 就绪' }}
-            </span>
-            <span class="sep">|</span>
-            <span class="status-action" @click="openModelSelector('code')">模型: {{ codePanel.modelName || '-' }} ▾</span>
-            <span class="sep">|</span>
-            <span>会话: {{ codePanel.sessionId ? codePanel.sessionId.slice(0, 8) : '未创建' }}</span>
-            <span class="sep">|</span>
-            <span>token: {{ codePanel.promptTokens || 0 }}</span>
-            <span class="sep">|</span>
-            <span class="status-action" @click="commandDialogVisible = true" @mousedown.prevent>命令</span>
-            <span class="sep">|</span>
-            <span class="status-action" @click="fileSelectVisible = true" @mousedown.prevent>选择文件</span>
-            <span class="sep">|</span>
-            <span class="status-action" @click="skillSelectVisible = true" @mousedown.prevent>选择Skill</span>
-            <span class="sep">|</span>
-            <span class="status-action" @click="designSelectVisible = true" @mousedown.prevent>选择设计</span>
-          </div>
-        </div>
+        <ChatPanel
+          ref="chatPanel"
+          :visible="currentMode === 'code'"
+          :panel="codePanel"
+          :session-name="currentPlanSession.meta.sessionName || currentPlanSession.folderName"
+          :plan-file-path="planFilePath"
+          :custom-actions="customActions"
+          :status-actions="statusActions"
+          placeholder="输入消息... (Enter 发送, Ctrl+Enter 换行, @ 选择文件)"
+          @send="sendToCodePanel"
+          @stop="stopCodePanel"
+          @paste-image="(files) => _uploadFiles(files, codePanel)"
+          @files-selected="(files) => _uploadFiles(files, codePanel)"
+          @remove-media="(id) => removeMedia(codePanel, id)"
+          @custom-action="executeCustomAction"
+          @status-action="handleStatusAction"
+          @fill-dev-plan="fillDevPlan"
+          @preview-image="openImagePreview"
+        />
 
         <!-- ===== 方案模式：编辑器 + 助手 ===== -->
         <PlanEditor
@@ -206,8 +127,7 @@ import SkillSelectDialog from '../../../components/pc/skill/SkillSelectDialog.vu
 import DesignSelectDialog from '../../../components/pc/design/DesignSelectDialog.vue'
 import CommandDialog from '../../../components/pc/common/CommandDialog.vue'
 import CreateSubPlanDialog from '../../../components/pc/plan-code/CreateSubPlanDialog.vue'
-import ImagePreviewList from '../../../components/pc/chat/ImagePreviewList.vue'
-import ResizableTextarea from '../../../components/pc/chat/ResizableTextarea.vue'
+import ChatPanel from '../../../components/pc/chat/ChatPanel.vue'
 import { ws } from '../../../api/websocket/websocket.js'
 import { uploadSingleMedia } from '../../../api/chat/media.js'
 import * as configApi from '../../../api/config/config.js'
@@ -216,14 +136,13 @@ import {
   getTodoStatusIcon, getToolCallName, getToolCallArguments, formatInput,
   renderMarkdown, createThinkItem, createStepItem, withLogId as withLogIdImpl,
 } from '../../../lib/render.js'
-import { scrollToBottom, snapshotScroll } from '../../../utils/scroll'
 import { eventBus } from '../../../utils/eventBus.js'
 import * as planCodeApi from '../../../api/plan-code/planCodeApi.js'
 import * as sessionsApi from '../../../api/session/session.js'
 
 export default {
   name: 'PlanAndCodeView',
-  components: { PlanSessionSidebar, PlanEditor, PlanAssistant, ModelSelectDialog, FileSelectDialog, SkillSelectDialog, DesignSelectDialog, CommandDialog, CreateSubPlanDialog, ImagePreviewList, ResizableTextarea },
+  components: { PlanSessionSidebar, PlanEditor, PlanAssistant, ModelSelectDialog, FileSelectDialog, SkillSelectDialog, DesignSelectDialog, CommandDialog, CreateSubPlanDialog, ChatPanel },
   MAX_LOG_ITEMS: 400,
 
   data() {
@@ -249,6 +168,12 @@ export default {
       subSchemeVisible: false,
       previewImage: null,
       customActions: [],
+      statusActions: [
+        { label: '命令', event: 'open-command' },
+        { label: '选择文件', event: 'open-file' },
+        { label: '选择Skill', event: 'open-skill' },
+        { label: '选择设计', event: 'open-design' },
+      ],
 
       resizeWidth: 420,
       logSeq: 0,
@@ -396,20 +321,6 @@ export default {
     },
 
     // ====== Code Panel ======
-    handleCodeKeydown(e) {
-      if (e.key === 'Enter') {
-        if (e.ctrlKey) {
-          const t = e.target; const s = t.selectionStart; const end = t.selectionEnd
-          this.codePanel.input = this.codePanel.input.substring(0, s) + '\n' + this.codePanel.input.substring(end)
-          this.$nextTick(() => { t.selectionStart = t.selectionEnd = s + 1 })
-        } else { e.preventDefault(); this.sendToCodePanel() }
-      }
-    },
-    handleCodePasteImages(files) {
-      if (this.codePanel.disabled) return
-      this._uploadFiles(files, this.codePanel)
-    },
-
     async sendToCodePanel() {
       const p = this.codePanel; const c = p.input.trim(); const hasMedia = (p.mediaFiles || []).filter(f => !f.uploading).length > 0
       if ((!c && !hasMedia) || p.disabled) return
@@ -421,8 +332,6 @@ export default {
     },
 
     stopCodePanel() { if (!this.codePanel.sessionId || this.codePanel.stopping) return; this.codePanel.stopping = true; ws.send('stop', { sessionId: this.codePanel.sessionId }) },
-    handleCodeImageUpload() { const el = this.$refs.codeImgInput; if (el) (Array.isArray(el) ? el[0] : el).click() },
-    async handleCodeImageSelected(e) { const files = e.target.files; if (!files || !files.length) return; const a = Array.from(files); e.target.value = ''; await this._uploadFiles(a, this.codePanel) },
 
     async _uploadFiles(files, panel) {
       const max = 5; const cur = (panel.mediaFiles || []).length; const rem = max - cur
@@ -510,11 +419,8 @@ export default {
     stopThinking(panel) { panel.disabled = false; panel.stopping = false; panel.sessionStatus = 'idle' },
 
     scrollCodeToBottom(force = false) {
-      const snap = snapshotScroll(this.$refs.codeLogArea)
-      this.$nextTick(() => {
-        const el = this.$refs.codeLogArea
-        if (el) scrollToBottom(el, { force, prevSnapshot: snap })
-      })
+      const cp = this.$refs.chatPanel
+      if (cp) cp.scrollToBottom(force)
     },
     scrollAfterUpdate(key) {
       if (key === 'code') this.scrollCodeToBottom()
@@ -554,6 +460,17 @@ export default {
     openModelSelector(target) { this.modelSelectTarget = target; this.modelSelectVisible = true },
     onModelSelected(model) { const n = model.name.split('/').length > 2 ? model.name.split('/').slice(1).join('/') : model.name; this.codePanel.modelName = n; this.designPanel.modelName = n; this.discussPanel.modelName = n; configApi.setConfig('defaultModel', n) },
     async loadDefaultModel() { try { const r = await configApi.getConfig('defaultModel'); if (r.data?.value) { this.codePanel.modelName = r.data.value; this.designPanel.modelName = r.data.value; this.discussPanel.modelName = r.data.value } } catch {} },
+
+    handleStatusAction(event) {
+      switch (event) {
+        case 'open-model': this.openModelSelector('code'); break
+        case 'open-command': this.commandDialogVisible = true; break
+        case 'open-file': this.fileSelectVisible = true; break
+        case 'open-skill': this.skillSelectVisible = true; break
+        case 'open-design': this.designSelectVisible = true; break
+        default: break
+      }
+    },
 
     // ====== File/Skill ======
     onFileSelected(path) { this.codePanel.input = this.codePanel.input + path + ' '; this.fileSelectVisible = false },
@@ -653,79 +570,9 @@ export default {
 .content-area { flex: 1; display: flex; overflow: hidden; padding: 16px; gap: 8px; height: 100%; }
 .empty-content { align-items: center; justify-content: center; }
 
-/* Chat Panel */
-.chat-panel { flex: 1; display: flex; flex-direction: column; background: var(--color-panelHeader); border: 1px solid var(--color-contentBg); border-radius: 8px; min-width: 0; overflow: hidden; }
-.chat-panel.hidden-panel { display: none; }
-.panel-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--color-contentBg); font-size: 13px; font-weight: 600; color: var(--color-textMain); flex-shrink: 0; }
-.float-dev-btn { display: flex; align-items: center; gap: 4px; padding: 5px 14px; font-size: 12px; font-family: inherit; cursor: pointer; background: var(--color-accent); color: #fff; border: none; border-radius: 6px; box-shadow: 0 2px 8px rgba(99,102,241,0.3); transition: all 0.2s; flex-shrink: 0; }
-.float-dev-btn:hover { background: #818cf8; box-shadow: 0 4px 14px rgba(99,102,241,0.45); }
-.float-dev-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-.chat-messages { flex: 1; overflow-y: auto; padding: 16px 40px 24px; font-size: 14px; line-height: 1.6; }
+/* Empty state (still used in planAndCodeView) */
 .chat-empty { display: flex; align-items: center; justify-content: center; height: 100%; color: var(--color-textMuted); flex-direction: column; gap: 12px; }
 .chat-empty-icon { font-size: 48px; opacity: 0.3; }
-
-.user-question { color: var(--color-accent); font-weight: 600; border: 1px solid var(--color-accent); padding: 12px 16px; margin: 12px 0 12px auto; border-radius: 10px; display: inline-block; max-width: 70%; word-break: break-word; }
-.ai-thought { color: var(--color-textMain); margin-bottom: 16px; line-height: 1.6; }
-.log-mute { color: var(--color-textMuted); margin-bottom: 12px; font-size: 13px; }
-.tool-success { color: var(--color-success, #22c55e); }
-.tool-fail { color: var(--color-danger, #ef4444); }
-.tool-input { color: var(--color-accent); margin-left: 6px; }
-.build-info { color: var(--color-textMuted); display: flex; align-items: center; gap: 8px; margin-top: 16px; font-size: 13px; }
-.build-info .icon { color: var(--color-accent); font-size: 11px; }
-.todos-list { margin-bottom: 16px; color: var(--color-textMain); }
-.todo-item { display: flex; align-items: center; gap: 8px; padding: 2px 0; font-size: 13px; }
-.system-msg { color: var(--color-textMuted); margin-bottom: 12px; font-size: 13px; font-style: italic; }
-
-.input-block {
-  background-color: var(--color-inputBg);
-  padding: 12px 16px;
-  border-top: 1px solid var(--color-border);
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  flex-shrink: 0;
-}
-
-.input-wrapper { position: relative; flex: 1; }
-
-.code-input-area { flex: 1; }
-
-.input-actions {
-  position: absolute;
-  right: 8px;
-  bottom: 8px;
-  display: flex;
-  gap: 6px;
-  z-index: 5;
-}
-
-.input-wrapper ::v-deep .el-textarea__inner {
-  padding-bottom: 50px;
-}
-
-.action-btn { font-size: 12px; padding: 5px 12px; border-radius: 5px; border: none; cursor: pointer; font-family: inherit; transition: all 0.15s; }
-.btn-upload { background: transparent; border: 1px solid var(--color-border); color: var(--color-textMuted); }
-.btn-upload:hover { border-color: var(--color-accent); color: var(--color-accent); }
-.btn-upload:disabled { opacity: 0.4; cursor: not-allowed; }
-.btn-custom { background: transparent; border: 1px solid var(--color-border); color: var(--color-textMuted); }
-.btn-custom:hover { border-color: var(--color-accent); color: var(--color-accent); }
-.btn-custom:disabled { opacity: 0.4; cursor: not-allowed; }
-.btn-stop { background: var(--color-danger, #ef4444); color: #fff; }
-.btn-send { background: var(--color-accent); color: #fff; }
-.btn-send:hover { background: #818cf8; }
-.btn-send:disabled { opacity: 0.5; cursor: not-allowed; }
-
-.status-bar { display: flex; gap: 8px; align-items: center; padding: 6px 16px; font-size: 12px; color: var(--color-textMuted); border-top: 1px solid var(--color-border); flex-shrink: 0; flex-wrap: wrap; }
-.sep { color: var(--color-border); }
-.status-ready { color: var(--color-success); }
-.status-thinking { color: var(--color-accent); display: flex; align-items: center; gap: 6px; }
-.status-action { cursor: pointer; }
-.status-action:hover { color: var(--color-accent); }
-.thinking-spinner { width: 10px; height: 10px; border: 2px solid var(--color-border); border-top-color: var(--color-accent); border-radius: 50%; display: inline-block; animation: spin 0.8s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
-.chat-images { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; }
-.chat-image-thumb { width: 60px; height: 60px; object-fit: cover; border-radius: 6px; cursor: pointer; }
 
 /* Resize */
 .resize-handle { width: 4px; cursor: col-resize; background: transparent; flex-shrink: 0; transition: background 0.15s; display: none; }
