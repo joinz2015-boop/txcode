@@ -16,7 +16,7 @@ Vue.use(VueRouter);
 const routes = [
   {
     path: '/',
-    redirect: '/views/pc/codeView',
+    redirect: '/views/pc/planAndCode',
   },
   appRoutes,
   {
@@ -25,17 +25,17 @@ const routes = [
     children: [
       {
         path: '',
-        redirect: '/views/pc/codeView',
+        redirect: '/views/pc/planAndCode',
       },
       {
-        path: 'codeView',
-        name: 'codeView',
+        path: 'planAndCode',
+        name: 'planAndCode',
         component: PlanAndCodeView,
         meta: { title: '计划编码' },
       },
       {
-        path: 'codeView/:id',
-        name: 'codeView-session',
+        path: 'planAndCode/:id',
+        name: 'planAndCode-session',
         component: PlanAndCodeView,
         meta: { title: '计划编码' },
       },

@@ -55,7 +55,7 @@
     <div class="flex-1 flex overflow-hidden">
       <nav class="w-12 bg-activityBar flex flex-col items-center py-2 shrink-0 border-r border-black z-10 justify-between">
         <div class="flex flex-col items-center w-full">
-          <router-link to="/views/pc/codeView" class="w-10 h-10 mb-2 rounded flex items-center justify-center relative" :class="$route.name === 'codeView' || $route.name === 'codeView-session' ? 'text-white border-l-2 border-accent bg-sidebar' : 'text-textMuted hover:text-white border-l-2 border-transparent'" title="工作台">
+          <router-link to="/views/pc/planAndCode" class="w-10 h-10 mb-2 rounded flex items-center justify-center relative" :class="$route.name === 'planAndCode' || $route.name === 'planAndCode-session' ? 'text-white border-l-2 border-accent bg-sidebar' : 'text-textMuted hover:text-white border-l-2 border-transparent'" title="工作台">
             <i class="fa-regular fa-comments text-xl"></i>
           </router-link>
           <router-link to="/views/pc/files" class="w-10 h-10 mb-2 rounded flex items-center justify-center" :class="$route.name === 'files' ? 'text-white border-l-2 border-accent bg-sidebar' : 'text-textMuted hover:text-white border-l-2 border-transparent'" title="文件">
@@ -93,7 +93,7 @@
         </div>
       </nav>
 
-      <keep-alive :include="['CodeView', 'TerminalView', 'Files']">
+      <keep-alive :include="['PlanAndCodeView', 'TerminalView', 'Files']">
         <router-view class="flex-1 flex overflow-hidden" :sidebar-visible="sidebarVisible" @toggle-sidebar="toggleSidebar" />
       </keep-alive>
     </div>

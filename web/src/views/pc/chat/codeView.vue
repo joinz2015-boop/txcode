@@ -714,7 +714,7 @@ export default {
       }
       this.currentSession = session
       if (this.$route.params.id !== session.id) {
-        this.$router.push({ name: 'codeView-session', params: { id: session.id } }).catch(() => {})
+        this.$router.push({ name: 'planAndCode-session', params: { id: session.id } }).catch(() => {})
       }
       this.bindSessionToPanel(session)
       this.loadDefaultModel(session)

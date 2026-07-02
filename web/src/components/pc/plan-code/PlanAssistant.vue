@@ -32,6 +32,7 @@
             <div v-for="(tc, aIdx) in item.toolCalls" :key="'dst-' + aIdx" class="log-mute">
               <span :class="item.success !== false ? 'tool-success' : 'tool-fail'">{{ item.success !== false ? '✓' : '✗' }}</span>
               {{ getToolCallName(tc) }}
+              <span v-if="getToolCallArguments(tc)" class="tool-input">{{ formatInput(getToolCallName(tc), getToolCallArguments(tc)) }}</span>
             </div>
           </template>
         </template>
@@ -149,6 +150,7 @@
               <div v-for="(tc, aIdx) in item.toolCalls" :key="'dst2-' + aIdx" class="log-mute">
                 <span :class="item.success !== false ? 'tool-success' : 'tool-fail'">{{ item.success !== false ? '✓' : '✗' }}</span>
                 {{ getToolCallName(tc) }}
+                <span v-if="getToolCallArguments(tc)" class="tool-input">{{ formatInput(getToolCallName(tc), getToolCallArguments(tc)) }}</span>
               </div>
             </template>
           </template>
@@ -243,8 +245,8 @@
 </template>
 
 <script>
-import { getTodoStatusIcon, getToolCallName, renderMarkdown } from '../../../lib/render.js'
-import { scrollToBottom } from '../../../utils/scroll'
+import { getTodoStatusIcon, getToolCallName, getToolCallArguments, formatInput, renderMarkdown } from '../../../lib/render.js'
+import { scrollToBottom, snapshotScroll } from '../../../utils/scroll'
 import ResizableTextarea from '../chat/ResizableTextarea.vue'
 import ImagePreviewList from '../chat/ImagePreviewList.vue'
 import FileSelectDialog from '../file/FileSelectDialog.vue'
@@ -290,6 +292,8 @@ export default {
   methods: {
     getTodoStatusIcon,
     getToolCallName,
+    getToolCallArguments,
+    formatInput,
     renderMarkdown,
 
     onMouseDown(e) {
@@ -305,8 +309,20 @@ export default {
     confirmDelete(disc) { this.menuId = null; this.deleteTarget = disc; this.deleteVisible = true },
     doDelete() { if (!this.deleteTarget) return; this.$emit('deleteDiscuss', this.deleteTarget); this.deleteVisible = false; this.deleteTarget = null },
 
-    scrollDesignToBottom() { this.$nextTick(() => { const el = this.$refs.designMsgs; if (el) scrollToBottom(el) }) },
-    scrollDiscussToBottom() { this.$nextTick(() => { const el = this.$refs.discussMsgs; if (el) scrollToBottom(el) }) },
+    scrollDesignToBottom(force = false) {
+      const snap = snapshotScroll(this.$refs.designMsgs)
+      this.$nextTick(() => {
+        const el = this.$refs.designMsgs
+        if (el) scrollToBottom(el, { force, prevSnapshot: snap })
+      })
+    },
+    scrollDiscussToBottom(force = false) {
+      const snap = snapshotScroll(this.$refs.discussMsgs)
+      this.$nextTick(() => {
+        const el = this.$refs.discussMsgs
+        if (el) scrollToBottom(el, { force, prevSnapshot: snap })
+      })
+    },
     scrollAllToBottom() { this.scrollDesignToBottom(); this.scrollDiscussToBottom() },
 
     handleDesignKeydown(e) {
@@ -492,6 +508,7 @@ export default {
 .log-mute { color: var(--color-textMuted); margin-bottom: 8px; font-size: 12px; }
 .tool-success { color: var(--color-success, #22c55e); }
 .tool-fail { color: var(--color-danger, #ef4444); }
+.tool-input { color: var(--color-accent); margin-left: 6px; }
 .build-info { color: var(--color-textMuted); display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 12px; }
 .build-info .icon { color: var(--color-accent); font-size: 11px; }
 .todos-list { margin-bottom: 12px; color: var(--color-textMain); }

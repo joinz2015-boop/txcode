@@ -218,7 +218,8 @@ import {
   getTodoStatusIcon, getToolCallName, getToolCallArguments, formatInput,
   renderMarkdown, createThinkItem, createStepItem, withLogId as withLogIdImpl,
 } from '../../../lib/render.js'
-import { scrollToBottom } from '../../../utils/scroll'
+import { scrollToBottom, snapshotScroll } from '../../../utils/scroll'
+import { eventBus } from '../../../utils/eventBus.js'
 import * as planCodeApi from '../../../api/plan-code/planCodeApi.js'
 import * as sessionsApi from '../../../api/session/session.js'
 
@@ -254,6 +255,7 @@ export default {
 
       resizeWidth: 420,
       logSeq: 0,
+      unsubFileChanged: null,
     }
   },
 
@@ -269,8 +271,18 @@ export default {
   },
 
     created() { ws.init(); this.loadPlanSessions(); this.loadCustomActions() },
-  mounted() { document.addEventListener('keydown', this.onKeydown) },
-  beforeDestroy() { document.removeEventListener('keydown', this.onKeydown); this.unsubscribeAll() },
+  mounted() {
+    document.addEventListener('keydown', this.onKeydown)
+    this.unsubFileChanged = eventBus.on('file:changed', (data) => {
+      if (!this.planFilePath || !data.filePath) return
+      const normPlan = this.planFilePath.replace(/\\/g, '/')
+      const normFile = data.filePath.replace(/\\/g, '/')
+      if (normFile === normPlan || normFile.includes('.txcode/plan-code/')) {
+        this.loadPlanContent()
+      }
+    })
+  },
+  beforeDestroy() { document.removeEventListener('keydown', this.onKeydown); this.unsubscribeAll(); if (this.unsubFileChanged) { this.unsubFileChanged(); this.unsubFileChanged = null } },
   activated() { this.resubscribeActive(); this.loadPlanSessions() },
   deactivated() { this.unsubscribeAll() },
 
@@ -358,7 +370,16 @@ export default {
       } catch (e) { this.$message.error('保存失败: ' + e.message) }
     },
 
-    fillDevPlan() { this.currentMode = 'code'; this.$nextTick(() => { this.codePanel.input = '根据方案开发' }) },
+    fillDevPlan() {
+      this.currentMode = 'code'
+      this.$nextTick(() => {
+        if (this.planFilePath) {
+          this.codePanel.input = `根据 ${this.planFilePath} 方案开发相应功能，先不要修改方案文档。`
+        } else {
+          this.codePanel.input = '根据方案开发相应功能，先不要修改方案文档。'
+        }
+      })
+    },
 
     // ====== Lazy Session ======
     async ensureSession(panelKey) {
@@ -491,7 +512,13 @@ export default {
     pushLogItem(panel, item) { panel.logItems.push(this.withLogId(item)); const max = this.$options.MAX_LOG_ITEMS; if (panel.logItems.length > max) panel.logItems.splice(0, panel.logItems.length - max) },
     stopThinking(panel) { panel.disabled = false; panel.stopping = false; panel.sessionStatus = 'idle' },
 
-    scrollCodeToBottom() { this.$nextTick(() => { const el = this.$refs.codeLogArea; if (el) scrollToBottom(el) }) },
+    scrollCodeToBottom(force = false) {
+      const snap = snapshotScroll(this.$refs.codeLogArea)
+      this.$nextTick(() => {
+        const el = this.$refs.codeLogArea
+        if (el) scrollToBottom(el, { force, prevSnapshot: snap })
+      })
+    },
     scrollAfterUpdate(key) {
       if (key === 'code') this.scrollCodeToBottom()
       else if (key === 'design') this.$refs.planAssistant && this.$refs.planAssistant.scrollDesignToBottom()
@@ -510,6 +537,9 @@ export default {
           if (d?.modelName) panel.modelName = d.modelName
           if (d?.usage?.promptTokens) panel.promptTokens = d.usage.promptTokens
           if (d?.response) { this.pushLogItem(panel, this.createThinkItem(d.response)); this.scrollAfterUpdate(key) }
+          if (key === 'design') {
+            this.loadPlanContent()
+          }
         },
         stopped: () => { this.stopThinking(panel); this.pushLogItem(panel, this.createThinkItem('【已停止】')); this.scrollAfterUpdate(key) },
         error: (d) => { this.$message.error(d?.error || '发生错误'); this.stopThinking(panel) },
