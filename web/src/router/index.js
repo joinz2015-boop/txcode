@@ -4,7 +4,7 @@
 
 import Vue from 'vue';
 import VueRouter from 'vue-router';
-import CodeView from '../views/pc/chat/codeView.vue';
+import PlanAndCodeView from '../views/pc/chat/planAndCodeView.vue';
 import Settings from '../views/pc/settings/settingsView.vue';
 import Files from '../views/pc/file/fileView.vue';
 import Skills from '../views/pc/skill/skillView.vue';
@@ -30,14 +30,14 @@ const routes = [
       {
         path: 'codeView',
         name: 'codeView',
-        component: CodeView,
-        meta: { title: '对话' },
+        component: PlanAndCodeView,
+        meta: { title: '计划编码' },
       },
       {
         path: 'codeView/:id',
         name: 'codeView-session',
-        component: CodeView,
-        meta: { title: '对话' },
+        component: PlanAndCodeView,
+        meta: { title: '计划编码' },
       },
       {
         path: 'files',
