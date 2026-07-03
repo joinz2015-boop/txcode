@@ -10,8 +10,11 @@ import { sessionService } from '../../services/session/index.js';
 import type { Session } from '../../entity/session.entity.js';
 import { codeChatService } from '../../services/codeChat/index.js';
 import { commandChatService } from '../../services/commandChat/index.js';
-import {  isCommand } from '../cli/commands.js';
+import { isCommand } from '../cli/commands.js';
 import { projectService } from '@/services/project/project.service.js';
+import { memoryService } from '../../services/memory/index.js';
+import { getProvider } from '../../core/ai/provider/provider.router.js';
+import { NameAgent } from '../../core/ai/agents/name/name.agent.js';
 
 export class CodeWebSocketHandler {
   private wsClients: Set<WebSocket> = new Set();
@@ -60,6 +63,9 @@ export class CodeWebSocketHandler {
       case 'get_running_sessions':
         this.handleGetRunningSessions(ws);
         break;
+      case 'name_session':
+        await this.handleNameSession(data);
+        break;
       default:
         ws.send(JSON.stringify({ type: 'error', error: 'Unknown message type' }));
     }
@@ -71,6 +77,20 @@ export class CodeWebSocketHandler {
       .filter(s => s.status === 'processing')
       .map(s => s.id);
     ws.send(JSON.stringify({ type: 'running_sessions', data: { runningSessionIds } }));
+  }
+
+  private async handleNameSession(data: any): Promise<void> {
+    const { sessionId, folderName, userInput } = data;
+    if (!sessionId || !folderName) return;
+    try {
+      const provider = getProvider();
+      const agent = new NameAgent({ provider, sessionId, memoryService, userInput });
+      const result = await agent.run();
+      const name = result.name.slice(0, 20);
+      this.broadcast({ type: 'rename', data: { folderName, sessionName: name } });
+    } catch (e) {
+      console.error('[NameSession] Error:', e);
+    }
   }
 
   private handleStop(data: any): void {

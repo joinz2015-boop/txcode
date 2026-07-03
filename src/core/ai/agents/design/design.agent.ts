@@ -344,6 +344,7 @@ export class DesignAgent implements AIProvider {
       metadata: {
         sessionId: this.sessionId || '',
         projectPath: this.projectPath || process.cwd(),
+        agentName: this.name,
       }
     };
 

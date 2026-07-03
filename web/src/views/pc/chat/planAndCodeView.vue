@@ -196,6 +196,7 @@ export default {
       runningSessionIds: [],
       taskStatus: 'idle',
       unsubRunning: null,
+      _renameUnsub: null,
     }
   },
 
@@ -214,7 +215,9 @@ export default {
     },
   },
 
-    created() { ws.init(); this.loadPlanSessions(); this.loadCustomActions(); this.subscribeRunningSessions() },
+    created() {
+      ws.init(); this.loadPlanSessions(); this.loadCustomActions(); this.subscribeRunningSessions(); this._subRename();
+    },
   mounted() {
     document.addEventListener('keydown', this.onKeydown)
     this.unsubFileChanged = eventBus.on('file:changed', (data) => {
@@ -226,9 +229,9 @@ export default {
       }
     })
   },
-  beforeDestroy() { document.removeEventListener('keydown', this.onKeydown); this.unsubscribeAll(); this.unsubscribeRunning(); if (this.unsubFileChanged) { this.unsubFileChanged(); this.unsubFileChanged = null } },
-  activated() { this.resubscribeActive(); this.loadPlanSessions(); this.subscribeRunningSessions(); this.restoreCodeScrollTop() },
-  deactivated() { this.saveCodeScrollTop(); this.unsubscribeAll(); this.unsubscribeRunning() },
+  beforeDestroy() { document.removeEventListener('keydown', this.onKeydown); this.unsubscribeAll(); this.unsubscribeRunning(); if (this.unsubFileChanged) { this.unsubFileChanged(); this.unsubFileChanged = null }; this._unsubRename() },
+  activated() { this.resubscribeActive(); this.loadPlanSessions(); this.subscribeRunningSessions(); this.restoreCodeScrollTop(); this._subRename() },
+  deactivated() { this.saveCodeScrollTop(); this.unsubscribeAll(); this.unsubscribeRunning(); this._unsubRename() },
 
   methods: {
     // ====== Helpers ======
@@ -357,6 +360,9 @@ export default {
       p.input = ''; p.disabled = true; p.stopping = false
       this.pushLogItem(p, { type: 'chat', content: c, mediaFiles: payload.mediaFiles })
       this.scrollCodeToBottom(); ws.send('chat', payload); p.mediaFiles = []
+      if (this.currentPlanSession && this.currentPlanSession.meta.sessionName === '新计划会话') {
+        ws.send('name_session', { sessionId: p.sessionId, folderName: this.planFolderName, userInput: c })
+      }
     },
 
     stopCodePanel() { if (!this.codePanel.sessionId || this.codePanel.stopping) return; this.codePanel.stopping = true; ws.send('stop', { sessionId: this.codePanel.sessionId }) },
@@ -391,6 +397,9 @@ export default {
 
       ws.send('chat', { message: `${contextPrefix}用户输入: ${c}`, sessionId: p.sessionId, modelName: p.modelName, agent: 'plan', planFilePath: this.planFilePath, mediaFiles: sentMediaFiles.map(f => ({ filePath: f.filePath, type: f.type })) })
       p.mediaFiles = []
+      if (this.currentPlanSession && this.currentPlanSession.meta.sessionName === '新计划会话') {
+        ws.send('name_session', { sessionId: p.sessionId, folderName: this.planFolderName, userInput: c })
+      }
     },
     stopDesignPanel() { if (!this.designPanel.sessionId || this.designPanel.stopping) return; this.designPanel.stopping = true; ws.send('stop', { sessionId: this.designPanel.sessionId }) },
 
@@ -474,6 +483,16 @@ export default {
         },
         stopped: () => { this.stopThinking(panel); this.pushLogItem(panel, this.createThinkItem('【已停止】')); this.scrollAfterUpdate(key) },
         error: (d) => { this.$message.error(d?.error || '发生错误'); this.stopThinking(panel) },
+        running_sessions: (d) => {
+          const runningIds = d.runningSessionIds || []
+          if (panel.sessionId && runningIds.includes(panel.sessionId)) {
+            panel.disabled = true
+            panel.sessionStatus = 'processing'
+          } else if (!panel.stopping) {
+            panel.disabled = false
+            panel.sessionStatus = 'idle'
+          }
+        },
       })
     },
 
@@ -481,8 +500,17 @@ export default {
       try { const r = await sessionsApi.getMessages(sid); panel.logItems = (r.data || []).map(i => { if (i.type === 'think') return this.withLogId(this.createThinkItem(i.content || '')); if (i.type === 'step') return this.withLogId(this.createStepItem(i)); if (i.type === 'chat' && i.mediaFiles) return this.withLogId({ type: 'chat', content: i.content, mediaFiles: i.mediaFiles }); return this.withLogId(i) }) } catch { panel.logItems = [] }
     },
 
-    unsubscribeAll() { [this.codePanel, this.designPanel, this.discussPanel].forEach(p => { if (p.wsUnsubscribe) { p.wsUnsubscribe(); p.wsUnsubscribe = null } }) },
-    resubscribeActive() { if (this.codePanel.sessionId) this.subscribePanel(this.codePanel, 'code'); if (this.designPanel.sessionId) this.subscribePanel(this.designPanel, 'design'); if (this.discussPanel.sessionId) this.subscribePanel(this.discussPanel, 'discuss') },
+    unsubscribeAll() {
+      [this.codePanel, this.designPanel, this.discussPanel].forEach(p => {
+        if (p.sessionStatus === 'running') return;
+        if (p.wsUnsubscribe) { p.wsUnsubscribe(); p.wsUnsubscribe = null }
+      })
+    },
+    resubscribeActive() {
+      if (this.codePanel.sessionId && this.codePanel.sessionStatus !== 'running') this.subscribePanel(this.codePanel, 'code');
+      if (this.designPanel.sessionId && this.designPanel.sessionStatus !== 'running') this.subscribePanel(this.designPanel, 'design');
+      if (this.discussPanel.sessionId && this.discussPanel.sessionStatus !== 'running') this.subscribePanel(this.discussPanel, 'discuss');
+    },
 
     // ====== Running Sessions ======
     subscribeRunningSessions() {
@@ -495,6 +523,20 @@ export default {
     },
     unsubscribeRunning() {
       if (this.unsubRunning) { this.unsubRunning(); this.unsubRunning = null }
+    },
+    _unsubRename() {
+      if (this._renameUnsub) { this._renameUnsub(); this._renameUnsub = null }
+    },
+    _subRename() {
+      this._unsubRename()
+      this._renameUnsub = ws.on('rename', (msg) => {
+        const data = msg.data || msg;
+        if (!data.folderName || !data.sessionName) return;
+        const session = this.planSessions.find(s => s.folderName === data.folderName);
+        if (session) {
+          this.renamePlanSession(session, data.sessionName);
+        }
+      });
     },
     updateTaskStatus(runningIds) {
       const mySessions = [

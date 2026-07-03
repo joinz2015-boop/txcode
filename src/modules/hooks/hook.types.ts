@@ -10,6 +10,7 @@ export interface HookMessage {
     sessionId: string;
     projectPath: string;
     roundCount?: number;
+    agentName?: string;
   };
   createdAt: Date;
 }

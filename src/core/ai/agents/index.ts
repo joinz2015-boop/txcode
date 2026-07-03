@@ -9,6 +9,7 @@ export { CommonAgent } from './common/common.agent.js';
 export { SummarizerAgent } from './summarizer/summarizer.agent.js';
 export { DesignAgent } from './design/design.agent.js';
 export { PlanAgent } from './plan/plan.agent.js';
+export { NameAgent } from './name/name.agent.js';
 
 export { CODE_TOOLS } from './code/agent_tool.js';
 export { CHAT_TOOLS } from './chat/agent_tool.js';

@@ -9,7 +9,14 @@ export class MemoryHandler extends HookHandler {
   trigger: HookTrigger = 'round';
   alternateTriggers: HookTrigger[] = ['before_compact', 'chat_end'];
 
+  private static readonly ALLOWED_AGENTS = ['plan', 'code', 'design'];
+
   async handle(message: HookMessage): Promise<void> {
+    const agentName = message.metadata?.agentName;
+    if (agentName && !MemoryHandler.ALLOWED_AGENTS.includes(agentName)) {
+      return;
+    }
+
     try {
       const provider = getProvider();
 
