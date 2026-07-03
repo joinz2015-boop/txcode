@@ -435,7 +435,7 @@ export default {
       p.input = ''; p.disabled = true; p.stopping = false
       this.pushLogItem(p, { type: 'chat', content: c, mediaFiles: sentMediaFiles })
       this.$refs.planAssistant && this.$refs.planAssistant.scrollDiscussToBottom()
-      ws.send('chat', { message: `方案路径：${this.planFilePath}\n\n这个是对这个方案的探讨 你只需要回答用户的问题即可 不需要修改方案 也不要修改代码\n\n用户输入: ${c}`, sessionId: p.sessionId, modelName: p.modelName, mediaFiles: sentMediaFiles.map(f => ({ filePath: f.filePath, type: f.type })) })
+      ws.send('chat', { message: `方案路径：${this.planFilePath}\n\n这个是对这个方案的探讨 你只需要回答用户的问题即可 不需要修改方案 也不要修改代码\n\n用户输入: ${c}`, sessionId: p.sessionId, modelName: p.modelName, agent: 'discuss', mediaFiles: sentMediaFiles.map(f => ({ filePath: f.filePath, type: f.type })) })
       p.mediaFiles = []
     },
     stopDiscussPanel() { if (!this.discussPanel.sessionId || this.discussPanel.stopping) return; this.discussPanel.stopping = true; ws.send('stop', { sessionId: this.discussPanel.sessionId }) },

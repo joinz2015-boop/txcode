@@ -6,7 +6,7 @@ import { ChatInput, ChatOptions, ChatResult, Step } from './codeChat.types.js';
 import type { Session } from '../../entity/session.entity.js';
 import { ConfigService } from '../../services/config/config.service.js';
 import { getProvider } from '../../core/ai/provider/provider.router.js';
-import { CodeAgent, DesignAgent, PlanAgent } from '../../core/ai/agents/index.js';
+import { CodeAgent, DesignAgent, PlanAgent, DiscussionAgent } from '../../core/ai/agents/index.js';
 import { SummarizerAgent } from '../../core/ai/agents/summarizer/summarizer.agent.js';
 import { ChatMessage } from '../../core/ai/ai.types.js';
 
@@ -107,7 +107,7 @@ export class CodeChatService {
       });
     }
 
-    let agent: CodeAgent | DesignAgent | PlanAgent;
+    let agent: CodeAgent | DesignAgent | PlanAgent | DiscussionAgent;
     if (options.agentName === 'design') {
       agent = new DesignAgent({
         provider,
@@ -128,6 +128,16 @@ export class CodeChatService {
         summarizer,
         sessionService: this.sessionService,
         planFilePath: options.planFilePath,
+      });
+    } else if (options.agentName === 'discuss') {
+      agent = new DiscussionAgent({
+        provider,
+        maxIterations: 50,
+        projectPath: options.projectPath,
+        sessionId,
+        memoryService,
+        summarizer,
+        sessionService: this.sessionService,
       });
     } else {
       agent = new CodeAgent({

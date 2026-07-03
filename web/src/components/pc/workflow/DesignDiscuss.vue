@@ -427,6 +427,7 @@ export default {
         message: contextMsg,
         sessionId: this.currentDiscussion.sessionId,
         modelName: this.modelName || undefined,
+        agent: 'discuss',
         mediaFiles: sentMediaFiles.map(f => ({ filePath: f.filePath, type: f.type }))
       })
       this.mediaFiles = []

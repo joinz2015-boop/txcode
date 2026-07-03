@@ -9,6 +9,7 @@ export { CommonAgent } from './common/common.agent.js';
 export { SummarizerAgent } from './summarizer/summarizer.agent.js';
 export { DesignAgent } from './design/design.agent.js';
 export { PlanAgent } from './plan/plan.agent.js';
+export { DiscussionAgent } from './discuss/discuss.agent.js';
 export { NameAgent } from './name/name.agent.js';
 
 export { CODE_TOOLS } from './code/agent_tool.js';
@@ -21,3 +22,4 @@ export { DREAM_TOOLS } from './dream/agent_tool.js';
 export { SUMMARIZER_TOOLS } from './summarizer/agent_tool.js';
 export { DESIGN_TOOLS } from './design/agent_tool.js';
 export { PLAN_TOOLS } from './plan/agent_tool.js';
+export { DISCUSS_TOOLS } from './discuss/agent_tool.js';
