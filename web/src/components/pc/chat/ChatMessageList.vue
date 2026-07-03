@@ -61,6 +61,14 @@ export default {
         if (el) scrollToBottom(el, { force, prevSnapshot: snap })
       })
     },
+    getScrollTop() {
+      const el = this.$refs.messageContainer
+      return el ? el.scrollTop : 0
+    },
+    setScrollTop(v) {
+      const el = this.$refs.messageContainer
+      if (el && v != null) el.scrollTop = v
+    },
   },
 }
 </script>

@@ -65,6 +65,14 @@ export default {
       const ml = this.$refs.messageList
       if (ml) ml.scrollToBottom(force)
     },
+    getScrollTop() {
+      const ml = this.$refs.messageList
+      return ml ? ml.getScrollTop() : 0
+    },
+    setScrollTop(v) {
+      const ml = this.$refs.messageList
+      if (ml) ml.setScrollTop(v)
+    },
   },
 }
 </script>

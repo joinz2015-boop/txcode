@@ -3,6 +3,7 @@
     <PlanSessionSidebar
       :sessions="planSessions"
       :current-folder-name="currentPlanSession ? currentPlanSession.folderName : ''"
+      :running-session-ids="runningSessionIds"
       @create="createPlanSession"
       @select="selectPlanSession"
       @rename="renamePlanSession"
@@ -192,21 +193,28 @@ export default {
       unsubFileChanged: null,
       testDialogVisible: false,
       testSessionId: '',
+      runningSessionIds: [],
+      taskStatus: 'idle',
+      unsubRunning: null,
     }
   },
 
   computed: {
     planFolderName() { return this.currentPlanSession ? this.currentPlanSession.folderName : '' },
     discussSessions() { return this.currentPlanSession ? (this.currentPlanSession.meta.discussSessions || []) : [] },
+    stateStoreKey() { return this.planFolderName ? `txcode:plan-code:${this.planFolderName}:state` : '' },
   },
 
   watch: {
     currentMode(val) {
       if (val === 'plan') this.$nextTick(() => this.$refs.planEditor && this.$refs.planEditor.layout())
     },
+    taskStatus() {
+      this.updateTitle()
+    },
   },
 
-    created() { ws.init(); this.loadPlanSessions(); this.loadCustomActions() },
+    created() { ws.init(); this.loadPlanSessions(); this.loadCustomActions(); this.subscribeRunningSessions() },
   mounted() {
     document.addEventListener('keydown', this.onKeydown)
     this.unsubFileChanged = eventBus.on('file:changed', (data) => {
@@ -218,9 +226,9 @@ export default {
       }
     })
   },
-  beforeDestroy() { document.removeEventListener('keydown', this.onKeydown); this.unsubscribeAll(); if (this.unsubFileChanged) { this.unsubFileChanged(); this.unsubFileChanged = null } },
-  activated() { this.resubscribeActive(); this.loadPlanSessions() },
-  deactivated() { this.unsubscribeAll() },
+  beforeDestroy() { document.removeEventListener('keydown', this.onKeydown); this.unsubscribeAll(); this.unsubscribeRunning(); if (this.unsubFileChanged) { this.unsubFileChanged(); this.unsubFileChanged = null } },
+  activated() { this.resubscribeActive(); this.loadPlanSessions(); this.subscribeRunningSessions(); this.restoreCodeScrollTop() },
+  deactivated() { this.saveCodeScrollTop(); this.unsubscribeAll(); this.unsubscribeRunning() },
 
   methods: {
     // ====== Helpers ======
@@ -230,7 +238,7 @@ export default {
     createPanel() { return { sessionId: null, logItems: [], input: '', disabled: false, stopping: false, modelName: '', promptTokens: 0, sessionStatus: 'idle', mediaFiles: [], wsUnsubscribe: null } },
     onKeydown(e) { if (e.key === 'Escape' && this.previewImage) this.closeImagePreview() },
 
-    switchMode(mode) { this.currentMode = mode },
+    switchMode(mode) { this.currentMode = mode; this.saveState() },
 
     // ====== Plan Session ======
     async loadPlanSessions() {
@@ -249,12 +257,17 @@ export default {
 
     async selectPlanSession(session) {
       if (this.currentPlanSession && this.currentPlanSession.folderName === session.folderName) return
+      this.saveCodeScrollTop()
       this.unsubscribeAll()
       this.currentPlanSession = session
       this.currentDiscuss = null
       this.codePanel = this.createPanel()
       this.designPanel = this.createPanel()
       this.discussPanel = this.createPanel()
+
+      const state = this.loadState(session.folderName)
+      if (state && state.currentMode) this.currentMode = state.currentMode
+      else this.currentMode = 'code'
 
       await this.loadPlanContent()
       const meta = session.meta
@@ -265,6 +278,7 @@ export default {
       if (meta.discussSessions && meta.discussSessions.length) await this.switchDiscuss(meta.discussSessions[0], true)
       await this.loadDefaultModel()
       if (this.currentMode === 'plan') this.$nextTick(() => this.$refs.planEditor && this.$refs.planEditor.initEditor())
+      if (this.currentMode === 'code') this.restoreCodeScrollTop()
     },
 
     async renamePlanSession(session, newName) {
@@ -469,6 +483,72 @@ export default {
 
     unsubscribeAll() { [this.codePanel, this.designPanel, this.discussPanel].forEach(p => { if (p.wsUnsubscribe) { p.wsUnsubscribe(); p.wsUnsubscribe = null } }) },
     resubscribeActive() { if (this.codePanel.sessionId) this.subscribePanel(this.codePanel, 'code'); if (this.designPanel.sessionId) this.subscribePanel(this.designPanel, 'design'); if (this.discussPanel.sessionId) this.subscribePanel(this.discussPanel, 'discuss') },
+
+    // ====== Running Sessions ======
+    subscribeRunningSessions() {
+      if (this.unsubRunning) return
+      this.unsubRunning = ws.on('running_sessions', (msg) => {
+        const runningIds = msg.data?.runningSessionIds || []
+        this.runningSessionIds = runningIds
+        this.updateTaskStatus(runningIds)
+      })
+    },
+    unsubscribeRunning() {
+      if (this.unsubRunning) { this.unsubRunning(); this.unsubRunning = null }
+    },
+    updateTaskStatus(runningIds) {
+      const mySessions = [
+        this.codePanel.sessionId,
+        this.designPanel.sessionId,
+        this.currentDiscuss?.sessionId,
+        this.currentPlanSession?.meta?.testSessionId,
+      ].filter(Boolean)
+      if (mySessions.length === 0) { this.taskStatus = 'idle'; return }
+      const isRunning = mySessions.some(id => runningIds.includes(id))
+      if (isRunning) this.taskStatus = 'running'
+      else if (this.taskStatus === 'running') this.taskStatus = 'idle'
+    },
+    updateTitle() {
+      const prefix = this.taskStatus === 'running' ? '⏳ ' : ''
+      document.title = `${prefix}TXCode`
+    },
+
+    // ====== localStorage State ======
+    getStoreKey(folderName) {
+      return `txcode:plan-code:${folderName}:state`
+    },
+    loadState(folderName) {
+      if (!folderName) return null
+      try {
+        const raw = localStorage.getItem(this.getStoreKey(folderName))
+        return raw ? JSON.parse(raw) : null
+      } catch { return null }
+    },
+    saveState() {
+      if (!this.planFolderName) return
+      const key = this.getStoreKey(this.planFolderName)
+      const existing = this.loadState(this.planFolderName) || {}
+      existing.currentMode = this.currentMode
+      localStorage.setItem(key, JSON.stringify(existing))
+    },
+    saveCodeScrollTop() {
+      if (!this.planFolderName) return
+      const key = this.getStoreKey(this.planFolderName)
+      const existing = this.loadState(this.planFolderName) || {}
+      const cp = this.$refs.chatPanel
+      existing.codeScrollTop = cp ? cp.getScrollTop() : 0
+      localStorage.setItem(key, JSON.stringify(existing))
+    },
+    restoreCodeScrollTop() {
+      if (!this.planFolderName) return
+      const state = this.loadState(this.planFolderName)
+      if (state && state.codeScrollTop != null) {
+        this.$nextTick(() => {
+          const cp = this.$refs.chatPanel
+          if (cp) cp.setScrollTop(state.codeScrollTop)
+        })
+      }
+    },
 
     // ====== Model ======
     openModelSelector(target) { this.modelSelectTarget = target; this.modelSelectVisible = true },

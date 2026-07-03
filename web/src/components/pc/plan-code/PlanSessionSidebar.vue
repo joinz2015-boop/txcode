@@ -18,6 +18,7 @@
       >
         <div class="session-title">{{ session.meta.sessionName || session.folderName }}</div>
         <div class="session-time">{{ formatTime(session.updatedAt) }}</div>
+        <span v-if="isSessionRunning(session)" class="session-spinner"></span>
         <span class="session-menu" @click.stop="toggleMenu(session, $event)">⋮</span>
       </div>
     </div>
@@ -51,6 +52,7 @@ export default {
   props: {
     sessions: { type: Array, default: () => [] },
     currentFolderName: { type: String, default: '' },
+    runningSessionIds: { type: Array, default: () => [] },
   },
   data() {
     return {
@@ -112,6 +114,19 @@ export default {
       const hour = String(d.getHours()).padStart(2, '0')
       const min = String(d.getMinutes()).padStart(2, '0')
       return `${month}-${day} ${hour}:${min}`
+    },
+    isSessionRunning(session) {
+      if (!this.runningSessionIds || !this.runningSessionIds.length) return false
+      const ids = [
+        session.meta?.codeSessionId,
+        session.meta?.designSessionId,
+        session.meta?.testSessionId,
+      ].filter(Boolean)
+      const discussSessions = session.meta?.discussSessions || []
+      for (const d of discussSessions) {
+        if (d.sessionId) ids.push(d.sessionId)
+      }
+      return ids.some(id => this.runningSessionIds.includes(id))
     },
   },
 }
@@ -225,4 +240,21 @@ export default {
 }
 .sidebar-menu-popup .menu-item:hover { background: rgba(255,255,255,0.06); }
 .sidebar-menu-popup .menu-item.danger { color: var(--color-danger, #ef4444); }
+
+.session-spinner {
+  position: absolute;
+  left: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--color-border);
+  border-top-color: var(--color-accent);
+  border-radius: 50%;
+  animation: spinner-rotate 0.8s linear infinite;
+}
+
+@keyframes spinner-rotate {
+  to { transform: translateY(-50%) rotate(360deg); }
+}
 </style>
