@@ -243,7 +243,7 @@ export default {
 
 .session-spinner {
   position: absolute;
-  left: 4px;
+  right: 30px;
   top: 50%;
   transform: translateY(-50%);
   width: 12px;
