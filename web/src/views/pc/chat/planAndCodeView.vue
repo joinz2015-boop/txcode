@@ -35,6 +35,7 @@
           @custom-action="executeCustomAction"
           @status-action="handleStatusAction"
           @fill-dev-plan="fillDevPlan"
+          @open-git-changes="gitChangesDialogVisible = true"
           @preview-image="openImagePreview"
           @open-model="openModelSelector('code')"
           @open-test="testDialogVisible = true"
@@ -126,6 +127,8 @@
       :model-name="codePanel.modelName"
       @test-session-created="onTestSessionCreated"
     />
+
+    <GitChangesDialog :visible.sync="gitChangesDialogVisible" />
   </div>
 </template>
 
@@ -140,6 +143,7 @@ import DesignSelectDialog from '../../../components/pc/design/DesignSelectDialog
 import CommandDialog from '../../../components/pc/common/CommandDialog.vue'
 import CreateSubPlanDialog from '../../../components/pc/plan-code/CreateSubPlanDialog.vue'
 import PlanCodeTest from '../../../components/pc/plan-code/planCodeTest.vue'
+import GitChangesDialog from '../../../components/pc/plan-code/GitChangesDialog.vue'
 import ChatPanel from '../../../components/pc/chat/ChatPanel.vue'
 import { ws } from '../../../api/websocket/websocket.js'
 import { uploadSingleMedia } from '../../../api/chat/media.js'
@@ -155,7 +159,7 @@ import * as sessionsApi from '../../../api/session/session.js'
 
 export default {
   name: 'PlanAndCodeView',
-  components: { PlanSessionSidebar, PlanEditor, PlanAssistant, ModelSelectDialog, FileSelectDialog, SkillSelectDialog, DesignSelectDialog, CommandDialog, CreateSubPlanDialog, PlanCodeTest, ChatPanel },
+  components: { PlanSessionSidebar, PlanEditor, PlanAssistant, ModelSelectDialog, FileSelectDialog, SkillSelectDialog, DesignSelectDialog, CommandDialog, CreateSubPlanDialog, PlanCodeTest, GitChangesDialog, ChatPanel },
   MAX_LOG_ITEMS: 400,
 
   data() {
@@ -193,6 +197,7 @@ export default {
       unsubFileChanged: null,
       testDialogVisible: false,
       testSessionId: '',
+      gitChangesDialogVisible: false,
       runningSessionIds: [],
       taskStatus: 'idle',
       unsubRunning: null,

@@ -42,6 +42,8 @@
           @click="$emit('fill-dev-plan')"
           @mousedown.prevent
         >方案开发</span>
+        <span class="sep">|</span>
+        <span class="status-action" @click="$emit('open-git-changes')" @mousedown.prevent>git变更</span>
         <div class="actions-spacer"></div>
         <button
           v-for="action in customActions"

@@ -25,6 +25,7 @@
       @remove-media="$emit('remove-media', $event)"
       @action="$emit('custom-action', $event)"
       @fill-dev-plan="$emit('fill-dev-plan')"
+      @open-git-changes="$emit('open-git-changes')"
       @open-model="$emit('open-model')"
       @status-action="$emit('status-action', $event)"
       @open-test="$emit('open-test')"
