@@ -6,7 +6,7 @@ import { ChatInput, ChatOptions, ChatResult, Step } from './codeChat.types.js';
 import type { Session } from '../../entity/session.entity.js';
 import { ConfigService } from '../../services/config/config.service.js';
 import { getProvider } from '../../core/ai/provider/provider.router.js';
-import { CodeAgent, DesignAgent } from '../../core/ai/agents/index.js';
+import { CodeAgent, DesignAgent, PlanAgent } from '../../core/ai/agents/index.js';
 import { SummarizerAgent } from '../../core/ai/agents/summarizer/summarizer.agent.js';
 import { ChatMessage } from '../../core/ai/ai.types.js';
 
@@ -30,6 +30,7 @@ export class CodeChatService {
       modelName: input.modelName,
       mediaFiles: input.mediaFiles,
       agentName: input.agentName,
+      planFilePath: input.planFilePath,
       onStep: input.onStep,
       onCompact: input.onCompact,
     });
@@ -106,25 +107,39 @@ export class CodeChatService {
       });
     }
 
-    const agent = options.agentName === 'design'
-      ? new DesignAgent({
-          provider,
-          maxIterations: 50,
-          projectPath: options.projectPath,
-          sessionId,
-          memoryService,
-          summarizer,
-          sessionService: this.sessionService,
-        })
-      : new CodeAgent({
-          provider,
-          maxIterations: 50,
-          projectPath: options.projectPath,
-          sessionId,
-          memoryService,
-          summarizer,
-          sessionService: this.sessionService,
-        });
+    let agent: CodeAgent | DesignAgent | PlanAgent;
+    if (options.agentName === 'design') {
+      agent = new DesignAgent({
+        provider,
+        maxIterations: 50,
+        projectPath: options.projectPath,
+        sessionId,
+        memoryService,
+        summarizer,
+        sessionService: this.sessionService,
+      });
+    } else if (options.agentName === 'plan') {
+      agent = new PlanAgent({
+        provider,
+        maxIterations: 50,
+        projectPath: options.projectPath,
+        sessionId,
+        memoryService,
+        summarizer,
+        sessionService: this.sessionService,
+        planFilePath: options.planFilePath,
+      });
+    } else {
+      agent = new CodeAgent({
+        provider,
+        maxIterations: 50,
+        projectPath: options.projectPath,
+        sessionId,
+        memoryService,
+        summarizer,
+        sessionService: this.sessionService,
+      });
+    }
 
     const abortController = new AbortController();
     const abortHandler = () => abortController.abort();

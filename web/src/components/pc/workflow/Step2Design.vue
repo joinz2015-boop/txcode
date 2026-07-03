@@ -435,7 +435,7 @@ export default {
         extraContext = `\n\n注意：当前方案是「${this.parentInfo.name}」的子方案，请参考父方案内容。父方案路径：${this.parentInfo.specPath}`
       }
 
-      const contextMsg = `先在 ${this.specFilePath} 生成方案，先不要修改代码。${extraContext}\n\n用户输入: ${content}`
+      const contextMsg = `${extraContext ? extraContext + '\n\n' : ''}用户输入: ${content}`
 
       this.inputMessage = ''
       this.disabled = true
@@ -450,6 +450,8 @@ export default {
         message: contextMsg,
         sessionId: this.sessionId,
         modelName: this.modelName || undefined,
+        agent: 'plan',
+        planFilePath: this.specFilePath,
         mediaFiles: sentMediaFiles.map(f => ({ filePath: f.filePath, type: f.type }))
       })
       this.mediaFiles = []

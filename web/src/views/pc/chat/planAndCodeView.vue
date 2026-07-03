@@ -375,7 +375,7 @@ export default {
         contextPrefix = `父方案路径：${parentPath}\n`
       }
 
-      ws.send('chat', { message: `${contextPrefix}先在 ${this.planFilePath} 生成方案，先不要修改代码。\n\n用户输入: ${c}`, sessionId: p.sessionId, modelName: p.modelName, mediaFiles: sentMediaFiles.map(f => ({ filePath: f.filePath, type: f.type })) })
+      ws.send('chat', { message: `${contextPrefix}用户输入: ${c}`, sessionId: p.sessionId, modelName: p.modelName, agent: 'plan', planFilePath: this.planFilePath, mediaFiles: sentMediaFiles.map(f => ({ filePath: f.filePath, type: f.type })) })
       p.mediaFiles = []
     },
     stopDesignPanel() { if (!this.designPanel.sessionId || this.designPanel.stopping) return; this.designPanel.stopping = true; ws.send('stop', { sessionId: this.designPanel.sessionId }) },
