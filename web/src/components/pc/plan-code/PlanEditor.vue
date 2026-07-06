@@ -13,6 +13,12 @@
       </div>
     </div>
     <div ref="editorContainer" class="editor-container"></div>
+    <button
+      v-if="planFilePath"
+      class="generate-code-btn"
+      title="生成代码"
+      @click="$emit('generate-code')"
+    >生成代码</button>
     <div class="status-bar">
       <span class="status-ready">✓ Markdown</span>
       <span class="sep">|</span>
@@ -85,6 +91,7 @@ export default {
   border-radius: 8px;
   min-width: 0;
   overflow: hidden;
+  position: relative;
 }
 .editor-panel.visible { display: flex; }
 
@@ -110,6 +117,42 @@ export default {
 .editor-actions button:hover { color: var(--color-accent); }
 
 .editor-container { flex: 1; min-height: 0; background: #0d0d1a; overflow: hidden; }
+.editor-container ::v-deep .monaco-scrollable-element > .scrollbar > .slider {
+  border-radius: 4px;
+}
+.editor-container ::v-deep .monaco-scrollable-element > .scrollbar.vertical > .slider {
+  width: 6px !important;
+  margin-left: 2px;
+}
+.editor-container ::v-deep .monaco-scrollable-element > .scrollbar.horizontal > .slider {
+  height: 6px !important;
+  margin-top: 2px;
+}
+
+.generate-code-btn {
+  position: absolute;
+  bottom: 44px;
+  right: 24px;
+  z-index: 10;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: none;
+  background: var(--color-accent);
+  color: #fff;
+  font-size: 11px;
+  font-family: inherit;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  transition: all 0.2s;
+  padding: 0;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.generate-code-btn:hover {
+  transform: scale(1.08);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+}
 
 .status-bar {
   display: flex; gap: 8px; align-items: center;

@@ -51,6 +51,7 @@
           @refresh="loadPlanContent"
           @export="handleExport"
           @create-sub-scheme="handleCreateSubScheme"
+          @generate-code="fillDevPlan"
         />
 
         <div class="resize-handle" :class="{ visible: currentMode === 'plan' }" @mousedown="onResizeStart" ref="resizeHandleEl"></div>

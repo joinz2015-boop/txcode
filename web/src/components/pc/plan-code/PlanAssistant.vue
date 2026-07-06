@@ -470,7 +470,7 @@ export default {
 .assistant-chat-messages { flex: 1; overflow-y: auto; padding: 12px 16px 16px; font-size: 14px; line-height: 1.5; }
 .assistant-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--color-textMuted); gap: 8px; }
 
-.assistant-input-area { background: #ffffff; padding: 12px 16px; border-top: 1px solid #e5e5e5; flex-shrink: 0; }
+.assistant-input-area { background: #ffffff; padding: 0px 8px; border-top: 1px solid #e5e5e5; flex-shrink: 0; }
 .assistant-input-area ::v-deep .el-textarea__inner { background: #ffffff; border: none; resize: none; box-shadow: none; color: #333333; }
 .assistant-input-area ::v-deep .el-textarea__inner:focus { border: none; box-shadow: none; }
 .assistant-input-area ::v-deep .el-textarea__inner::placeholder { color: #999999; }
@@ -482,7 +482,7 @@ export default {
 
 .input-wrapper { position: relative; }
 
-.input-actions { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; gap: 6px; flex-wrap: wrap; }
+.input-actions { display: flex; justify-content: space-between; align-items: center;  gap: 6px; flex-wrap: wrap; }
 .input-actions.input-actions-right { justify-content: flex-end; }
 .input-actions-left { display: flex; align-items: center; gap: 6px; }
 .input-actions-right { display: flex; align-items: center; gap: 6px; }

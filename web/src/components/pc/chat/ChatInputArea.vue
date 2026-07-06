@@ -37,13 +37,6 @@
         <span class="status-action" @click="$emit('open-test')" @mousedown.prevent>测试</span>
         <span class="sep">|</span>
         <span class="status-action" @click="$emit('open-git-changes')" @mousedown.prevent>git变更</span>
-        <span class="sep">|</span>
-        <span
-          v-if="planFilePath"
-          class="status-action"
-          @click="$emit('fill-dev-plan')"
-          @mousedown.prevent
-        >根据方案开发</span>
         <div class="actions-spacer"></div>
         <button
           v-for="action in customActions"
