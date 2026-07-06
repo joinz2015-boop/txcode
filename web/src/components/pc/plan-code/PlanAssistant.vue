@@ -42,12 +42,13 @@
       </div>
 
       <div class="assistant-input-area">
-        <ImagePreviewList
-          v-if="designPanel.mediaFiles && designPanel.mediaFiles.length"
-          :files="designPanel.mediaFiles"
-          :disabled="designPanel.disabled"
-          @remove="(id) => removeMedia(designPanel, id)"
-        />
+        <div v-if="designPanel.mediaFiles && designPanel.mediaFiles.length" class="image-preview-wrap">
+          <ImagePreviewList
+            :files="designPanel.mediaFiles"
+            :disabled="designPanel.disabled"
+            @remove="(id) => removeMedia(designPanel, id)"
+          />
+        </div>
         <div class="assistant-input-panel">
           <div class="input-wrapper">
             <ResizableTextarea
@@ -160,12 +161,13 @@
         </div>
 
         <div class="assistant-input-area">
-          <ImagePreviewList
-            v-if="discussPanel.mediaFiles && discussPanel.mediaFiles.length"
-            :files="discussPanel.mediaFiles"
-            :disabled="discussPanel.disabled"
-            @remove="(id) => removeMedia(discussPanel, id)"
-          />
+          <div v-if="discussPanel.mediaFiles && discussPanel.mediaFiles.length" class="image-preview-wrap">
+            <ImagePreviewList
+              :files="discussPanel.mediaFiles"
+              :disabled="discussPanel.disabled"
+              @remove="(id) => removeMedia(discussPanel, id)"
+            />
+          </div>
           <div class="assistant-input-panel">
             <div class="input-wrapper">
               <ResizableTextarea
@@ -470,7 +472,7 @@ export default {
 .assistant-chat-messages { flex: 1; overflow-y: auto; padding: 12px 16px 16px; font-size: 14px; line-height: 1.5; }
 .assistant-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--color-textMuted); gap: 8px; }
 
-.assistant-input-area { background: #ffffff; padding: 0px 8px; border-top: 1px solid #e5e5e5; flex-shrink: 0; }
+.assistant-input-area { background: #ffffff;  flex-shrink: 0; }
 .assistant-input-area ::v-deep .el-textarea__inner { background: #ffffff; border: none; resize: none; box-shadow: none; color: #333333; }
 .assistant-input-area ::v-deep .el-textarea__inner:focus { border: none; box-shadow: none; }
 .assistant-input-area ::v-deep .el-textarea__inner::placeholder { color: #999999; }
@@ -482,7 +484,7 @@ export default {
 
 .input-wrapper { position: relative; }
 
-.input-actions { display: flex; justify-content: space-between; align-items: center;  gap: 6px; flex-wrap: wrap; }
+.input-actions { display: flex; justify-content: space-between; align-items: center;  gap: 6px; flex-wrap: wrap; padding: 0px 8px;}
 .input-actions.input-actions-right { justify-content: flex-end; }
 .input-actions-left { display: flex; align-items: center; gap: 6px; }
 .input-actions-right { display: flex; align-items: center; gap: 6px; }
@@ -549,4 +551,10 @@ export default {
 .image-lightbox { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); display: flex; align-items: center; justify-content: center; z-index: 10000; }
 .lightbox-close { position: absolute; top: 20px; right: 30px; font-size: 30px; color: #fff; cursor: pointer; }
 .lightbox-image { max-width: 90%; max-height: 90%; border-radius: 8px; }
+
+.image-preview-wrap {
+  padding: 4px 8px;
+  background: var(--color-inputBg, #f0f0f0);
+  border-bottom: 1px solid var(--color-border, #e5e5e5);
+}
 </style>
