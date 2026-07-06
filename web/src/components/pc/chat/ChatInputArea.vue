@@ -36,14 +36,14 @@
         <span class="sep">|</span>
         <span class="status-action" @click="$emit('open-test')" @mousedown.prevent>测试</span>
         <span class="sep">|</span>
+        <span class="status-action" @click="$emit('open-git-changes')" @mousedown.prevent>git变更</span>
+        <span class="sep">|</span>
         <span
           v-if="planFilePath"
           class="status-action"
           @click="$emit('fill-dev-plan')"
           @mousedown.prevent
-        >方案开发</span>
-        <span class="sep">|</span>
-        <span class="status-action" @click="$emit('open-git-changes')" @mousedown.prevent>git变更</span>
+        >根据方案开发</span>
         <div class="actions-spacer"></div>
         <button
           v-for="action in customActions"
@@ -125,26 +125,22 @@ export default {
   flex-shrink: 0;
 }
 
-.input-wrapper { position: relative; flex: 1; }
+.input-wrapper { background: #ffffff; flex: 1; }
 
 .code-input-area { flex: 1; }
 
 .input-actions {
-  position: absolute;
-  right: 8px;
-  bottom: 8px;
-  left: 8px;
   display: flex;
   gap: 6px;
-  z-index: 5;
   flex-wrap: wrap;
   align-items: center;
   font-size: 12px;
   color: var(--color-textMuted);
+  padding: 4px 8px;
 }
 
 .input-wrapper ::v-deep .el-textarea__inner {
-  padding-bottom: 70px;
+  border-bottom: none;
 }
 
 .sep { color: var(--color-border); }
