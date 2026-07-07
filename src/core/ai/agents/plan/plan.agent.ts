@@ -13,7 +13,7 @@ import type { MemoryService } from '../../../../services/memory/memory.service.j
 import { buildAvailableSkillsPrompt } from '../../../../services/skill/skill.tool.js';
 import type { SummarizerAgent } from '../summarizer/summarizer.agent.js';
 import type { SessionService } from '../../../../services/session/session.service.js';
-import { specInjector } from '../../../../modules/spec/index.js';
+import { RewriteUserMessage } from './rewrite_user_message.js';
 import { hooks } from '../../../../modules/hooks/index.js';
 import { loadMemory } from '../../../tools/provider/memory.js';
 import { loadProjectContext } from '../../../context/project.context.js';
@@ -129,35 +129,14 @@ export class PlanAgent implements AIProvider {
     }
 
     const messageCount = options?.historyMessages?.length || 0;
+    const rewriter = new RewriteUserMessage(this.projectPath || '', this.planFilePath, messageCount);
 
-    if (specInjector.shouldInject(messageCount)) {
-      const injectedMessage = specInjector.injectIntoMessage(userMessage, this.projectPath);
-      this.pushUserMessage(baseMessages, injectedMessage, this.planFilePath, options?.mediaFiles);
-    } else {
-      const firstUserIndex = baseMessages.findIndex(m => m.role === 'user');
-      if (firstUserIndex >= 0) {
-        const originalFirstUser = baseMessages[firstUserIndex].content;
-        if (typeof originalFirstUser === 'string') {
-          const reinjected = specInjector.injectIntoMessage(originalFirstUser, this.projectPath);
-          baseMessages[firstUserIndex].content = reinjected;
-        } else {
-          const textPart = originalFirstUser.find(c => c.type === 'text');
-          if (textPart) {
-            const reinjected = specInjector.injectIntoMessage(
-              (textPart as MultimodalContent & { type: 'text' }).text,
-              this.projectPath
-            );
-            (textPart as MultimodalContent & { type: 'text' }).text = reinjected;
-          }
-        }
-      }
-      this.pushUserMessage(baseMessages, userMessage, this.planFilePath, options?.mediaFiles);
-    }
+    rewriter.prepare(baseMessages, userMessage, options?.mediaFiles,
+      (msg, mf) => this.pushUserMessage(baseMessages, msg, mf)
+    );
 
     this.mediaFiles = options?.mediaFiles;
-    this.injectedUserMessage = specInjector.shouldInject(messageCount)
-      ? specInjector.injectIntoMessage(userMessage, this.projectPath)
-      : userMessage;
+    this.injectedUserMessage = rewriter.injectedMessage;
 
     this.addMessage('user', userMessage, true, true, undefined, undefined, this.sessionId, options?.mediaFiles);
 
@@ -334,7 +313,7 @@ export class PlanAgent implements AIProvider {
         ) || [];
 
         baseMessages.length = 0;
-        this.pushUserMessage(baseMessages, this.injectedUserMessage, this.planFilePath, this.mediaFiles);
+        this.pushUserMessage(baseMessages, this.injectedUserMessage, this.mediaFiles);
         if (summaryMessages.length > 0) {
           baseMessages.push(...summaryMessages.filter(m => m.role !== 'system'));
         }
@@ -406,15 +385,11 @@ export class PlanAgent implements AIProvider {
   private pushUserMessage(
     baseMessages: ChatMessage[],
     userMessage: string,
-    planFilePath?: string,
     mediaFiles?: { filePath: string; type: string; dataUrl?: string }[]
   ): void {
-    const planInstruction = planFilePath ? `\n\n请在${planFilePath}中生成方案文档内容` : '';
-    const fullMessage = userMessage + planInstruction;
-
     if (mediaFiles && mediaFiles.length > 0) {
       const content: MultimodalContent[] = [
-        { type: 'text', text: fullMessage }
+        { type: 'text', text: userMessage }
       ];
       for (const mf of mediaFiles) {
         content.push({
@@ -424,7 +399,7 @@ export class PlanAgent implements AIProvider {
       }
       baseMessages.push({ role: 'user', content });
     } else {
-      baseMessages.push({ role: 'user', content: fullMessage });
+      baseMessages.push({ role: 'user', content: userMessage });
     }
   }
 }

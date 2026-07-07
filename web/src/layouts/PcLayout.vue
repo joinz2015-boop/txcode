@@ -30,8 +30,11 @@
             <i class="fa-solid fa-chevron-down ml-1 text-xs"></i>
           </span>
           <el-dropdown-menu slot="dropdown">
-            <el-dropdown-item v-for="proj in projects" :key="proj.id" :command="proj.id">
-              <span :class="proj.id === currentProject?.id ? 'text-accent' : ''">{{ proj.name }}</span>
+            <el-dropdown-item v-for="proj in projects" :key="proj.id" :command="proj.id" class="group">
+              <div class="flex items-center justify-between w-full">
+                <span :class="proj.id === currentProject?.id ? 'text-accent' : ''">{{ proj.name }}</span>
+                <i class="fa-solid fa-times text-textMuted hover:text-red-500 ml-3 opacity-0 group-hover:opacity-100 transition-opacity" @click.stop="handleDeleteProject(proj)"></i>
+              </div>
             </el-dropdown-item>
             <el-dropdown-item divided command="__open__">
               <i class="fa-solid fa-folder-open mr-1"></i> 打开项目文件夹
@@ -218,6 +221,29 @@ export default {
       this.loadProjects().then(() => {
         location.reload()
       })
+    },
+    async handleDeleteProject(proj) {
+      try {
+        await this.$confirm(`确定要删除项目「${proj.name}」的记录吗？仅删除数据库记录，不删除实际文件。`, '删除确认', {
+          confirmButtonText: '确定删除',
+          cancelButtonText: '取消',
+          type: 'warning'
+        })
+        await api.deleteProject(proj.id)
+        this.$message.success('项目记录已删除')
+        if (this.currentProject?.id === proj.id) {
+          this.currentProject = null
+        }
+        await this.loadProjects()
+        if (!this.currentProject && this.projects.length > 0) {
+          await api.setCurrentProject(this.projects[0].id)
+          this.currentProject = this.projects[0]
+        }
+      } catch (e) {
+        if (e !== 'cancel' && e !== 'close') {
+          this.$message.error('删除项目失败: ' + (e.message || e))
+        }
+      }
     },
     async loadSystemVersion() {
       try {

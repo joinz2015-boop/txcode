@@ -732,6 +732,10 @@ export const api = {
     return request('POST', '/project/create_project', { name, path, description });
   },
 
+  deleteProject(id) {
+    return request('POST', '/project/delete_project', { id });
+  },
+
   // ==================== 配置导出导入 ====================
 
   exportConfig() {
