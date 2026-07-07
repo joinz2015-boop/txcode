@@ -132,7 +132,7 @@ export class PlanAgent implements AIProvider {
 
     if (specInjector.shouldInject(messageCount)) {
       const injectedMessage = specInjector.injectIntoMessage(userMessage, this.projectPath);
-      this.pushUserMessage(baseMessages, injectedMessage, options?.mediaFiles);
+      this.pushUserMessage(baseMessages, injectedMessage, this.planFilePath, options?.mediaFiles);
     } else {
       const firstUserIndex = baseMessages.findIndex(m => m.role === 'user');
       if (firstUserIndex >= 0) {
@@ -151,7 +151,7 @@ export class PlanAgent implements AIProvider {
           }
         }
       }
-      this.pushUserMessage(baseMessages, userMessage, options?.mediaFiles);
+      this.pushUserMessage(baseMessages, userMessage, this.planFilePath, options?.mediaFiles);
     }
 
     this.mediaFiles = options?.mediaFiles;
@@ -334,7 +334,7 @@ export class PlanAgent implements AIProvider {
         ) || [];
 
         baseMessages.length = 0;
-        this.pushUserMessage(baseMessages, this.injectedUserMessage, this.mediaFiles);
+        this.pushUserMessage(baseMessages, this.injectedUserMessage, this.planFilePath, this.mediaFiles);
         if (summaryMessages.length > 0) {
           baseMessages.push(...summaryMessages.filter(m => m.role !== 'system'));
         }
@@ -406,11 +406,15 @@ export class PlanAgent implements AIProvider {
   private pushUserMessage(
     baseMessages: ChatMessage[],
     userMessage: string,
+    planFilePath?: string,
     mediaFiles?: { filePath: string; type: string; dataUrl?: string }[]
   ): void {
+    const planInstruction = planFilePath ? `\n\n请在${planFilePath}中生成方案文档内容` : '';
+    const fullMessage = userMessage + planInstruction;
+
     if (mediaFiles && mediaFiles.length > 0) {
       const content: MultimodalContent[] = [
-        { type: 'text', text: userMessage },
+        { type: 'text', text: fullMessage }
       ];
       for (const mf of mediaFiles) {
         content.push({
@@ -420,7 +424,7 @@ export class PlanAgent implements AIProvider {
       }
       baseMessages.push({ role: 'user', content });
     } else {
-      baseMessages.push({ role: 'user', content: userMessage });
+      baseMessages.push({ role: 'user', content: fullMessage });
     }
   }
 }
