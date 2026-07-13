@@ -48,7 +48,13 @@ async function buildDesignPrompt(
     memoryBlock = `\n<memory-context>\n${memory}\n</memory-context>`;
   }
 
-  return `${roleTemplate}${memoryBlock}
+  const projectContext = loadProjectContext(workdir);
+  let projectBlock = '';
+  if (projectContext) {
+    projectBlock = `\n<project-context>\n${projectContext}\n</project-context>`;
+  }
+
+  return `${roleTemplate}${projectBlock}${memoryBlock}
 
  ## 可用 Skills
  {skills}
