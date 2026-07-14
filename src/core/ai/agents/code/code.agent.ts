@@ -1,4 +1,5 @@
 import { ChatMessage, BaseProvider, MultimodalContent } from '../../ai.types.js';
+import { createIterationSignal } from '../../helpers/abort.helper.js';
 import { CODE_TOOLS } from './agent_tool.js';
 import { AgentToolRegistry, buildToolContext } from '../agent.tool.js';
 import {
@@ -181,12 +182,13 @@ export class CodeAgent implements AIProvider {
         ...baseMessages,
       ];
 
+      const { signal: iterSignal, cleanup } = createIterationSignal(abortSignal);
       const response = await this.provider.chat(messages, {
         tools: builtinTools,
-        abortSignal,
+        abortSignal: iterSignal,
         sessionId: this.sessionId,
         modelName: this.provider.getModel(),
-      });
+      }).finally(() => cleanup());
 
       if (abortSignal?.aborted) {
         throw new Error('ABORTED');

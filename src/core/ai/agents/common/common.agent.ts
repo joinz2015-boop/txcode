@@ -1,4 +1,5 @@
-﻿import { BaseProvider, ChatMessage, MultimodalContent } from '@/entity/ai.entity.js';
+import { BaseProvider, ChatMessage, MultimodalContent } from '@/entity/ai.entity.js';
+import { createIterationSignal } from '../../helpers/abort.helper.js';
 import { buildProviderPrompt } from './prompts.js';
 import { AgentToolRegistry, buildToolContext } from '../agent.tool.js';
 import {
@@ -126,12 +127,13 @@ export class CommonAgent implements AIProvider {
         ...baseMessages,
       ];
 
+      const { signal: iterSignal, cleanup } = createIterationSignal(abortSignal);
       const response = await this.provider.chat(messages, { 
         tools: builtinTools, 
-        abortSignal,
+        abortSignal: iterSignal,
         sessionId: this.sessionId,
         modelName: this.provider.getModel(),
-      });
+      }).finally(() => cleanup());
 
       // 检查取消信号
       if (abortSignal?.aborted) {

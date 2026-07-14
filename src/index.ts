@@ -12,6 +12,9 @@
  *   npm run dev web --port 40001 -> 指定端口启动 Web 服务
  */
 
+import { setMaxListeners } from 'events';
+setMaxListeners(20);
+
 import { parseArgs } from './gateway/cli/args.js';
 import { dbService } from './core/db/index.js';
 import { projectService } from './services/project/project.service.js';

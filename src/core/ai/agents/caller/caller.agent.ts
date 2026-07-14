@@ -8,6 +8,7 @@
  * - 扩展工具通过 HTTP POST 到 callbackUrl 执行，默认 30s 超时
  */
 import { BaseProvider, ChatMessage, MultimodalContent } from '../../ai.types.js'
+import { createIterationSignal } from '../../helpers/abort.helper.js'
 import { AgentToolRegistry, buildToolContext } from '../agent.tool.js'
 import {
   AIProvider,
@@ -198,12 +199,13 @@ export class CallerAgent implements AIProvider {
       ]
 
       // 调用 AI API
+      const { signal: iterSignal, cleanup } = createIterationSignal(abortSignal);
       const response = await this.provider.chat(messages, {
         tools: builtinTools,
-        abortSignal,
+        abortSignal: iterSignal,
         sessionId: this.sessionId,
         modelName: this.provider.getModel(),
-      })
+      }).finally(() => cleanup());
 
       if (abortSignal?.aborted) {
         throw new Error('ABORTED')
@@ -350,8 +352,10 @@ export class CallerAgent implements AIProvider {
     const timeoutId = setTimeout(() => controller.abort(), this.toolTimeout)
 
     // 外部 stop 信号传播到 HTTP 请求
+    let onAbort: (() => void) | undefined;
     if (abortSignal) {
-      abortSignal.addEventListener('abort', () => controller.abort())
+      onAbort = () => controller.abort();
+      abortSignal.addEventListener('abort', onAbort);
     }
 
     try {
@@ -383,6 +387,9 @@ export class CallerAgent implements AIProvider {
       return { success: false, error: error instanceof Error ? error.message : String(error) }
     } finally {
       clearTimeout(timeoutId)
+      if (abortSignal && onAbort) {
+        abortSignal.removeEventListener('abort', onAbort);
+      }
     }
   }
 
