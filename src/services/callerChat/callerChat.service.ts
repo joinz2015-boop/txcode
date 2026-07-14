@@ -232,14 +232,18 @@ export class CallerChatService {
       const result = await agent.run(userMessage, {
         abortSignal: abortController.signal,
         onStep: (step: any, iteration: number, usage?: any) => {
-          const toolCalls = (step.toolCalls || []).map((tc: any) => ({
-            id: tc.id,
-            type: 'function',
-            function: {
-              name: tc.name,
-              arguments: typeof tc.arguments === 'string' ? tc.arguments : JSON.stringify(tc.arguments),
-            },
-          }))
+          const toolCalls = (step.toolCalls || []).map((tc: any) => {
+            const mapped: any = {
+              id: tc.id,
+              type: 'function',
+              function: {
+                name: tc.name,
+                arguments: typeof tc.arguments === 'string' ? tc.arguments : JSON.stringify(tc.arguments),
+              },
+            };
+            if (tc.status) mapped.status = tc.status;
+            return mapped;
+          })
           const reactFormatStep: CallerStep = {
             thought: step.reasoning || '',
             toolCalls,
