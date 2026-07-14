@@ -61,7 +61,8 @@ export function createStepItem(data) {
     thought,
     renderedThought: renderMarkdown(thought),
     toolCalls: Array.isArray(data?.toolCalls) ? data.toolCalls.filter(Boolean) : [],
-    success: data?.success
+    success: data?.success,
+    iteration: data?.iteration
   }
 }
 

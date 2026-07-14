@@ -13,6 +13,7 @@ export interface ProviderToolCall {
   id: string;
   name: string;
   arguments: Record<string, any>;
+  status?: 'executing' | 'completed';
 }
 
 export interface ProviderTokenUsage {

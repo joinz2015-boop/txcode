@@ -30,9 +30,16 @@
           <template v-else-if="item.type === 'step'" :key="'ds-' + idx">
             <div v-if="item.thought" class="ai-thought" v-html="renderMarkdown(item.thought)"></div>
             <div v-for="(tc, aIdx) in item.toolCalls" :key="'dst-' + aIdx" class="log-mute">
-              <span :class="item.success !== false ? 'tool-success' : 'tool-fail'">{{ item.success !== false ? '✓' : '✗' }}</span>
-              {{ getToolCallName(tc) }}
-              <span v-if="getToolCallArguments(tc)" class="tool-input">{{ formatInput(getToolCallName(tc), getToolCallArguments(tc)) }}</span>
+              <template v-if="tc.status === 'executing'">
+                <span class="tool-spinner"></span>
+                {{ getToolCallName(tc) }}
+                <span v-if="getToolCallArguments(tc)" class="tool-input">{{ formatInput(getToolCallName(tc), getToolCallArguments(tc)) }}</span>
+              </template>
+              <template v-else>
+                <span :class="item.success !== false ? 'tool-success' : 'tool-fail'">{{ item.success !== false ? '✓' : '✗' }}</span>
+                {{ getToolCallName(tc) }}
+                <span v-if="getToolCallArguments(tc)" class="tool-input">{{ formatInput(getToolCallName(tc), getToolCallArguments(tc)) }}</span>
+              </template>
             </div>
           </template>
         </template>
@@ -149,9 +156,16 @@
             <template v-else-if="item.type === 'step'" :key="'ds2-' + idx">
               <div v-if="item.thought" class="ai-thought" v-html="renderMarkdown(item.thought)"></div>
               <div v-for="(tc, aIdx) in item.toolCalls" :key="'dst2-' + aIdx" class="log-mute">
-                <span :class="item.success !== false ? 'tool-success' : 'tool-fail'">{{ item.success !== false ? '✓' : '✗' }}</span>
-                {{ getToolCallName(tc) }}
-                <span v-if="getToolCallArguments(tc)" class="tool-input">{{ formatInput(getToolCallName(tc), getToolCallArguments(tc)) }}</span>
+                <template v-if="tc.status === 'executing'">
+                  <span class="tool-spinner"></span>
+                  {{ getToolCallName(tc) }}
+                  <span v-if="getToolCallArguments(tc)" class="tool-input">{{ formatInput(getToolCallName(tc), getToolCallArguments(tc)) }}</span>
+                </template>
+                <template v-else>
+                  <span :class="item.success !== false ? 'tool-success' : 'tool-fail'">{{ item.success !== false ? '✓' : '✗' }}</span>
+                  {{ getToolCallName(tc) }}
+                  <span v-if="getToolCallArguments(tc)" class="tool-input">{{ formatInput(getToolCallName(tc), getToolCallArguments(tc)) }}</span>
+                </template>
               </div>
             </template>
           </template>
@@ -557,4 +571,14 @@ export default {
   background: var(--color-inputBg, #f0f0f0);
   border-bottom: 1px solid var(--color-border, #e5e5e5);
 }
+
+.tool-spinner {
+  display: inline-block; width: 12px; height: 12px;
+  border: 2px solid var(--color-border);
+  border-top-color: var(--color-accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-right: 6px; vertical-align: middle;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
 </style>

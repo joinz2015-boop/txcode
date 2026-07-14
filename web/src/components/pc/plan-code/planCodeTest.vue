@@ -37,11 +37,18 @@
         <template v-else-if="item.type === 'step'" :key="idx">
           <div v-if="item.thought" class="ai-thought" v-html="renderMarkdown(item.thought)"></div>
           <div v-for="(tc, aIdx) in item.toolCalls" :key="aIdx" class="log-mute">
-            <span :class="item.success !== false ? 'tool-success' : 'tool-fail'">
-              {{ item.success !== false ? '✓' : '✗' }}
-            </span>
-            {{ tc.function.name }}
-            <span v-if="tc.function.arguments" class="tool-input">{{ formatInput(tc.function.name, tc.function.arguments) }}</span>
+            <template v-if="tc.status === 'executing'">
+              <span class="tool-spinner"></span>
+              {{ tc.function.name }}
+              <span v-if="tc.function.arguments" class="tool-input">{{ formatInput(tc.function.name, tc.function.arguments) }}</span>
+            </template>
+            <template v-else>
+              <span :class="item.success !== false ? 'tool-success' : 'tool-fail'">
+                {{ item.success !== false ? '✓' : '✗' }}
+              </span>
+              {{ tc.function.name }}
+              <span v-if="tc.function.arguments" class="tool-input">{{ formatInput(tc.function.name, tc.function.arguments) }}</span>
+            </template>
           </div>
         </template>
       </template>
@@ -205,7 +212,18 @@ export default {
           this.scrollToBottom()
         },
         step: (d) => {
-          this.logItems.push(createStepItem(d))
+          const hasExecuting = d.toolCalls?.some(tc => tc.status === 'executing');
+          if (hasExecuting) {
+            this.logItems = this.logItems.filter(
+              item => !(item.type === 'step' && item.iteration === d.iteration && item._executing)
+            );
+            this.logItems.push({ type: 'step', thought: d.reasoning || d.thought, toolCalls: d.toolCalls, success: d.success, iteration: d.iteration, _executing: true });
+          } else {
+            this.logItems = this.logItems.filter(
+              item => !(item.type === 'step' && item.iteration === d.iteration && item._executing)
+            );
+            this.logItems.push(createStepItem(d));
+          }
           if (d?.usage?.promptTokens) this.promptTokens = d.usage.promptTokens
           this.scrollToBottom()
         },
@@ -214,6 +232,7 @@ export default {
         },
         done: (d) => {
           if (d?.sessionId && this.sessionId && d.sessionId !== this.sessionId) return
+          this.logItems = this.logItems.filter(item => !(item.type === 'step' && item._executing));
           this.disabled = false
           this.stopping = false
           this.sessionStatus = 'completed'
@@ -223,6 +242,7 @@ export default {
           this.scrollToBottom()
         },
         stopped: () => {
+          this.logItems = this.logItems.filter(item => !(item.type === 'step' && item._executing));
           this.disabled = false
           this.stopping = false
           this.sessionStatus = 'idle'
@@ -230,6 +250,7 @@ export default {
           this.scrollToBottom()
         },
         error: (d) => {
+          this.logItems = this.logItems.filter(item => !(item.type === 'step' && item._executing));
           this.$message.error(d?.error || '发生错误')
           this.disabled = false
           this.stopping = false
@@ -364,5 +385,14 @@ export default {
 .status-ready { color: var(--color-success, #22c55e); }
 .status-thinking { color: var(--color-accent); display: flex; align-items: center; gap: 6px; }
 .thinking-spinner { width: 10px; height: 10px; border: 2px solid var(--color-border); border-top-color: var(--color-accent); border-radius: 50%; display: inline-block; animation: spin 0.8s linear infinite; }
+
+.tool-spinner {
+  display: inline-block; width: 12px; height: 12px;
+  border: 2px solid var(--color-border);
+  border-top-color: var(--color-accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-right: 6px; vertical-align: middle;
+}
 @keyframes spin { to { transform: rotate(360deg); } }
 </style>

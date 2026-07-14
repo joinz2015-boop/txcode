@@ -44,11 +44,18 @@
             <template v-else-if="item.type === 'step'">
               <div v-if="item.thought" class="ai-thought" v-html="renderMarkdown(item.thought)"></div>
               <div v-for="(tc, aIdx) in item.toolCalls" :key="aIdx" class="log-mute">
-                <span :class="item.success !== false ? 'tool-success' : 'tool-fail'">
-                  {{ item.success !== false ? '✓' : '✗' }}
-                </span>
-                {{ tc.function.name }}
-                <span v-if="tc.function.arguments" class="tool-input">{{ formatInput(tc.function.name, tc.function.arguments) }}</span>
+                <template v-if="tc.status === 'executing'">
+                  <span class="tool-spinner"></span>
+                  {{ tc.function.name }}
+                  <span v-if="tc.function.arguments" class="tool-input">{{ formatInput(tc.function.name, tc.function.arguments) }}</span>
+                </template>
+                <template v-else>
+                  <span :class="item.success !== false ? 'tool-success' : 'tool-fail'">
+                    {{ item.success !== false ? '✓' : '✗' }}
+                  </span>
+                  {{ tc.function.name }}
+                  <span v-if="tc.function.arguments" class="tool-input">{{ formatInput(tc.function.name, tc.function.arguments) }}</span>
+                </template>
               </div>
             </template>
           </template>
@@ -369,7 +376,18 @@ data() {
           this.scrollChatToBottom()
         },
         step: (data) => {
-          this.logItems.push({ type: 'step', thought: data.thought, toolCalls: data.toolCalls, success: data.success })
+          const hasExecuting = data.toolCalls?.some(tc => tc.status === 'executing');
+          if (hasExecuting) {
+            this.logItems = this.logItems.filter(
+              item => !(item.type === 'step' && item.iteration === data.iteration && item._executing)
+            );
+            this.logItems.push({ type: 'step', thought: data.reasoning || data.thought, toolCalls: data.toolCalls, success: data.success, iteration: data.iteration, _executing: true });
+          } else {
+            this.logItems = this.logItems.filter(
+              item => !(item.type === 'step' && item.iteration === data.iteration && item._executing)
+            );
+            this.logItems.push({ type: 'step', thought: data.thought, toolCalls: data.toolCalls, success: data.success })
+          }
           if (data.usage?.promptTokens) this.promptTokens = data.usage.promptTokens
           this.scrollChatToBottom()
         },
@@ -378,6 +396,7 @@ data() {
           this.loadMessages()
         },
         done: (data) => {
+          this.logItems = this.logItems.filter(item => !(item.type === 'step' && item._executing));
           this.disabled = false
           this.stopping = false
           this.sessionStatus = 'completed'
@@ -388,6 +407,7 @@ data() {
           this.scrollChatToBottom()
         },
         stopped: () => {
+          this.logItems = this.logItems.filter(item => !(item.type === 'step' && item._executing));
           this.disabled = false
           this.stopping = false
           this.sessionStatus = 'idle'
@@ -395,6 +415,7 @@ data() {
           this.scrollChatToBottom()
         },
         error: (data) => {
+          this.logItems = this.logItems.filter(item => !(item.type === 'step' && item._executing));
           this.$message.error(data?.error || '发生错误')
           this.disabled = false
           this.stopping = false
@@ -644,6 +665,14 @@ data() {
 }
 @keyframes spin {
   to { transform: rotate(360deg); }
+}
+.tool-spinner {
+  display: inline-block; width: 12px; height: 12px;
+  border: 2px solid var(--color-border);
+  border-top-color: var(--color-accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-right: 6px; vertical-align: middle;
 }
 .model-selector { cursor: pointer; }
 .model-selector:hover { color: var(--color-accent); }

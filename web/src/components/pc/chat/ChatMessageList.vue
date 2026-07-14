@@ -23,9 +23,16 @@
       <template v-else-if="item.type === 'step'" :key="'ml-' + idx">
         <div v-if="item.thought" class="ai-thought" v-html="renderMarkdown(item.thought)"></div>
         <div v-for="(tc, aIdx) in item.toolCalls" :key="aIdx" class="log-mute">
-          <span :class="item.success !== false ? 'tool-success' : 'tool-fail'">{{ item.success !== false ? '✓' : '✗' }}</span>
-          {{ getToolCallName(tc) }}
-          <span v-if="getToolCallArguments(tc)" class="tool-input">{{ formatInput(getToolCallName(tc), getToolCallArguments(tc)) }}</span>
+          <template v-if="tc.status === 'executing'">
+            <span class="tool-spinner"></span>
+            {{ getToolCallName(tc) }}
+            <span v-if="getToolCallArguments(tc)" class="tool-input">{{ formatInput(getToolCallName(tc), getToolCallArguments(tc)) }}</span>
+          </template>
+          <template v-else>
+            <span :class="item.success !== false ? 'tool-success' : 'tool-fail'">{{ item.success !== false ? '✓' : '✗' }}</span>
+            {{ getToolCallName(tc) }}
+            <span v-if="getToolCallArguments(tc)" class="tool-input">{{ formatInput(getToolCallName(tc), getToolCallArguments(tc)) }}</span>
+          </template>
         </div>
       </template>
       <div v-else-if="item.type === 'system'" :key="'ml-' + idx" class="system-msg">{{ item.content }}</div>
@@ -92,4 +99,14 @@ export default {
 
 .chat-images { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; }
 .chat-image-thumb { width: 60px; height: 60px; object-fit: cover; border-radius: 6px; cursor: pointer; }
+
+.tool-spinner {
+  display: inline-block; width: 12px; height: 12px;
+  border: 2px solid var(--color-border);
+  border-top-color: var(--color-accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-right: 6px; vertical-align: middle;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
 </style>

@@ -208,7 +208,19 @@ export class DesignAgent implements AIProvider {
         const toolContext = buildToolContext({ sessionId: this.sessionId || '', projectPath: this.projectPath });
 
         for (const toolCall of toolCalls) {
+          let timer: ReturnType<typeof setTimeout> | null = setTimeout(() => {
+            options?.onStep?.({
+              reasoning: response.reasoning,
+              toolCalls: toolCalls.map(tc => ({ ...tc, status: 'executing' as const })),
+              results: [],
+            }, iteration);
+            timer = null;
+          }, 1000);
+
           const result = await this.toolRegistry.execute(toolCall.name, toolCall.arguments, toolContext);
+
+          if (timer) clearTimeout(timer);
+
           results.push({
             name: toolCall.name,
             success: result.success,

@@ -475,10 +475,26 @@ export default {
       if (!panel.sessionId) return; if (panel.wsUnsubscribe) panel.wsUnsubscribe()
       panel.wsUnsubscribe = ws.subscribe(panel.sessionId, {
         todos: (d) => { this.pushLogItem(panel, { type: 'todos', todos: d.todos }); this.scrollAfterUpdate(key) },
-        step: (d) => { this.pushLogItem(panel, this.createStepItem(d)); if (d?.usage?.promptTokens) panel.promptTokens = d.usage.promptTokens; this.scrollAfterUpdate(key) },
+        step: (d) => {
+          const hasExecuting = d.toolCalls?.some(tc => tc.status === 'executing');
+          if (hasExecuting) {
+            panel.logItems = panel.logItems.filter(
+              item => !(item.type === 'step' && item.iteration === d.iteration && item._executing)
+            );
+            panel.logItems.push(this.withLogId({ type: 'step', thought: d.reasoning || d.thought, toolCalls: d.toolCalls, success: d.success, iteration: d.iteration, _executing: true }));
+          } else {
+            panel.logItems = panel.logItems.filter(
+              item => !(item.type === 'step' && item.iteration === d.iteration && item._executing)
+            );
+            this.pushLogItem(panel, this.createStepItem(d));
+          }
+          if (d?.usage?.promptTokens) panel.promptTokens = d.usage.promptTokens;
+          this.scrollAfterUpdate(key);
+        },
         compact: () => { if (key === 'code') this.loadMessages(panel, panel.sessionId) },
         done: (d) => {
           if (d?.sessionId && panel.sessionId && d.sessionId !== panel.sessionId) return
+          panel.logItems = panel.logItems.filter(item => !(item.type === 'step' && item._executing));
           this.stopThinking(panel); panel.sessionStatus = 'completed'
           if (d?.modelName) panel.modelName = d.modelName
           if (d?.usage?.promptTokens) panel.promptTokens = d.usage.promptTokens
@@ -487,8 +503,8 @@ export default {
             this.loadPlanContent()
           }
         },
-        stopped: () => { this.stopThinking(panel); this.pushLogItem(panel, this.createThinkItem('【已停止】')); this.scrollAfterUpdate(key) },
-        error: (d) => { this.$message.error(d?.error || '发生错误'); this.stopThinking(panel) },
+        stopped: () => { panel.logItems = panel.logItems.filter(item => !(item.type === 'step' && item._executing)); this.stopThinking(panel); this.pushLogItem(panel, this.createThinkItem('【已停止】')); this.scrollAfterUpdate(key) },
+        error: (d) => { panel.logItems = panel.logItems.filter(item => !(item.type === 'step' && item._executing)); this.$message.error(d?.error || '发生错误'); this.stopThinking(panel) },
         running_sessions: (d) => {
           const runningIds = d.runningSessionIds || []
           if (panel.sessionId && runningIds.includes(panel.sessionId)) {
