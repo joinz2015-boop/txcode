@@ -6,76 +6,95 @@
         <span class="file-path">{{ filePath }}</span>
       </div>
       <div class="plan-editor-actions">
-        <button title="保存方案 (Ctrl+S)" @click="toggleEdit">✓</button>
+        <button title="保存方案 (Ctrl+S)" @click="saveContent">✓</button>
         <button title="刷新方案" @click="refresh">↻</button>
         <button title="导出方案" @click="$emit('export')">⬇</button>
         <button title="新建子方案" @click="$emit('create-sub')">+</button>
       </div>
     </div>
     <div class="plan-editor-body">
-      <div v-if="!editing" class="plan-editor-preview" v-html="previewHtml"></div>
       <textarea
-        v-else
+        ref="textareaEl"
         class="plan-textarea"
-        v-model="content"
+        v-model="localContent"
         placeholder="编写方案文档..."
       ></textarea>
     </div>
     <div class="plan-editor-footer">
-      <span>{{ editing ? '✎ 编辑中' : '✓ Markdown' }}</span>
+      <span>✓ Markdown</span>
       <span>|</span>
       <span>UTF-8</span>
       <span>|</span>
       <span>行: {{ lineCount }}</span>
+      <span v-if="saving">| 保存中...</span>
     </div>
   </div>
 </template>
 
 <script>
+import { readPlan, savePlan } from '@/api/index'
+
 export default {
   name: 'DesktopPlanEditor',
   props: {
-    content: { type: String, default: '' },
     filePath: { type: String, default: '方案文档.md' },
+    folderName: { type: String, default: '' },
     editorFlex: { type: String, default: '1' }
   },
   data() {
     return {
-      editing: false
+      localContent: '',
+      saving: false
     }
   },
   computed: {
     lineCount() {
-      return this.content.split('\n').length
-    },
-    previewHtml() {
-      return this.renderMarkdown(this.content)
+      return this.localContent ? this.localContent.split('\n').length : 0
+    }
+  },
+  watch: {
+    folderName: {
+      handler(val) {
+        if (val) this.loadContent()
+      },
+      immediate: true
     }
   },
   methods: {
-    toggleEdit() {
-      this.editing = !this.editing
-      if (!this.editing) {
-        this.$emit('update:content', this.content)
+    async loadContent() {
+      if (!this.folderName) {
+        this.localContent = ''
+        return
+      }
+      try {
+        const r = await readPlan(this.folderName)
+        this.localContent = (r.data && r.data.content) || ''
+      } catch (e) {
+        console.error('加载方案失败:', e)
+        this.localContent = ''
+      }
+    },
+    async saveContent() {
+      if (!this.folderName) return
+      this.saving = true
+      try {
+        await savePlan(this.folderName, this.localContent)
+        this.$emit('update:content', this.localContent)
+      } catch (e) {
+        console.error('保存方案失败:', e)
+        alert('保存失败: ' + e.message)
+      } finally {
+        this.saving = false
       }
     },
     refresh() {
-      this.editing = false
-      this.$emit('refresh')
+      this.loadContent()
     },
-    renderMarkdown(text) {
-      return text
-        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-        .replace(/^### (.+)$/gm, '<h3>$1</h3>')
-        .replace(/^## (.+)$/gm, '<h2>$1</h2>')
-        .replace(/^# (.+)$/gm, '<h1>$1</h1>')
-        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-        .replace(/`([^`]+)`/g, '<code>$1</code>')
-        .replace(/^- (.+)$/gm, '<li>$1</li>')
-        .replace(/^(\d+)\. (.+)$/gm, '<li>$2</li>')
-        .replace(/\n\n/g, '</p><p>')
-        .replace(/\n/g, '<br>')
-        .replace(/((?:<li>.*?<\/li><br>?)+)/g, (m) => '<ul>' + m.replace(/<br>/g, '') + '</ul>')
+    getValue() {
+      return this.localContent
+    },
+    escapeHtml(str) {
+      return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     }
   }
 }
@@ -162,7 +181,7 @@ export default {
 .plan-textarea::placeholder {
   color: var(--text-muted);
 }
-.plan-editor-preview h1 {
+.plan-editor-preview :deep(h1) {
   font-size: 19px;
   font-weight: 700;
   margin: 14px 0 6px;
@@ -170,28 +189,28 @@ export default {
   border-bottom: 1px solid var(--border);
   padding-bottom: 6px;
 }
-.plan-editor-preview h2 {
+.plan-editor-preview :deep(h2) {
   font-size: 16px;
   font-weight: 600;
   margin: 12px 0 5px;
   color: var(--text-primary);
 }
-.plan-editor-preview h3 {
+.plan-editor-preview :deep(h3) {
   font-size: 14px;
   font-weight: 600;
   margin: 10px 0 4px;
 }
-.plan-editor-preview p { margin: 5px 0; line-height: 1.7; }
-.plan-editor-preview ul { padding-left: 20px; margin: 4px 0; }
-.plan-editor-preview ol { padding-left: 20px; margin: 4px 0; }
-.plan-editor-preview li { margin: 2px 0; }
-.plan-editor-preview code {
+.plan-editor-preview :deep(p) { margin: 5px 0; line-height: 1.7; }
+.plan-editor-preview :deep(ul) { padding-left: 20px; margin: 4px 0; }
+.plan-editor-preview :deep(ol) { padding-left: 20px; margin: 4px 0; }
+.plan-editor-preview :deep(li) { margin: 2px 0; }
+.plan-editor-preview :deep(code) {
   background: #f1f2f6;
   padding: 1px 5px;
   border-radius: 3px;
   font-size: 12px;
 }
-.plan-editor-preview pre {
+.plan-editor-preview :deep(pre) {
   background: #f1f2f6;
   border-radius: 6px;
   padding: 10px 14px;

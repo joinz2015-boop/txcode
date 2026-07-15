@@ -206,7 +206,9 @@ export default {
         this.$refs.sidebar.setCurrentPage(resolved.relativePath)
       }
       this._syncRouteQuery(resolved.relativePath)
-      this.navSource = null
+      this.$nextTick(() => {
+        this.navSource = null
+      })
     },
     async resolveDesignFile(fileName, parentDir) {
       try {
@@ -234,10 +236,14 @@ export default {
     },
     _flattenTree(nodes, basePath) {
       const result = []
+      const normalizedBase = (basePath || '').replace(/\\/g, '/')
       for (const node of nodes) {
-        const relPath = node.path.startsWith(basePath + '/')
-          ? node.path.slice(basePath.length + 1)
-          : node.path
+        const normalizedPath = (node.path || '').replace(/\\/g, '/')
+        let relPath = normalizedPath
+        const baseIdx = normalizedPath.indexOf(normalizedBase)
+        if (baseIdx !== -1) {
+          relPath = normalizedPath.slice(baseIdx + normalizedBase.length).replace(/^\//, '')
+        }
         result.push({ name: node.name, path: node.path, relativePath: relPath })
         if (node.children && node.children.length > 0) {
           result.push(...this._flattenTree(node.children, basePath))
@@ -264,7 +270,9 @@ export default {
         this.$refs.sidebar.setCurrentPage(relativePath)
       }
       this._syncRouteQuery(relativePath)
-      this.navSource = null
+      this.$nextTick(() => {
+        this.navSource = null
+      })
     },
     async openFile(node) {
       console.log('[DesignView] openFile called, node:', node.name, 'path:', node.path, 'is_dir:', node.is_directory)

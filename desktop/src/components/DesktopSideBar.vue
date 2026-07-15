@@ -9,18 +9,23 @@
             </div>
             <span class="section-label" style="color:var(--accent);">编码</span>
           </div>
+          <button class="section-add-btn" @click.stop="createSession" title="新建计划会话">+</button>
         </a>
         <div class="section-body">
           <div
-            v-for="(session, idx) in sessions"
-            :key="idx"
+            v-for="session in sessions"
+            :key="session.folderName"
             class="sub-item"
-            :class="{ active: currentSession && currentSession.id === session.id }"
+            :class="{ active: currentSession && currentSession.folderName === session.folderName }"
             @click="selectSession(session)"
+            @contextmenu.prevent="openContextMenu($event, session)"
           >
-            <span class="sub-item-icon">{{ session.icon }}</span>
-            <span class="sub-item-name">{{ session.name }}</span>
-            <span class="sub-item-extra">{{ session.time }}</span>
+            <span class="sub-item-icon">📋</span>
+            <span class="sub-item-name">{{ session.meta.sessionName || session.folderName }}</span>
+            <span class="sub-item-extra">{{ formatTime(session.meta.updatedAt || session.meta.createdAt) }}</span>
+          </div>
+          <div v-if="sessions.length === 0" class="sub-item-empty">
+            暂无计划会话
           </div>
         </div>
       </div>
@@ -97,10 +102,18 @@
         </div>
       </div>
     </template>
+
+    <div v-if="contextMenu.visible" class="context-menu" :style="{ top: contextMenu.y + 'px', left: contextMenu.x + 'px' }">
+      <div class="context-menu-item" @click="renameContextSession">重命名</div>
+      <div class="context-menu-item danger" @click="deleteContextSession">删除</div>
+    </div>
   </div>
 </template>
 
 <script>
+import { listPlanSessions, createPlanSession, renamePlanSession, deletePlanSession } from '@/api/index'
+import { setItem } from '@/utils/storage'
+
 export default {
   name: 'DesktopSideBar',
   props: {
@@ -109,17 +122,90 @@ export default {
   },
   data() {
     return {
-      sessions: [
-        { id: '1', name: 'Express API 路由开发', icon: '💬', time: '10:32' },
-        { id: '2', name: 'TypeScript 类型优化', icon: '🔧', time: '09:15' },
-        { id: '3', name: '修复 WebSocket 断连', icon: '🐛', time: '昨天' },
-        { id: '4', name: '数据库迁移脚本', icon: '🗄️', time: '昨天' }
-      ]
+      sessions: [],
+      contextMenu: { visible: false, x: 0, y: 0, session: null }
     }
   },
+  mounted() {
+    this.loadSessions()
+    document.addEventListener('click', this.closeContextMenu)
+  },
+  beforeDestroy() {
+    document.removeEventListener('click', this.closeContextMenu)
+  },
   methods: {
+    async loadSessions() {
+      try {
+        const r = await listPlanSessions()
+        this.sessions = r.data || []
+      } catch (e) {
+        console.error('加载计划会话失败:', e)
+      }
+    },
+    async createSession() {
+      try {
+        await createPlanSession('新计划会话')
+        await this.loadSessions()
+        const s = this.sessions[0]
+        if (s) this.selectSession(s)
+      } catch (e) {
+        console.error('创建失败:', e)
+      }
+    },
     selectSession(session) {
+      setItem('planSession:current', session)
       this.$emit('selectSession', session)
+    },
+    openContextMenu(e, session) {
+      this.contextMenu = { visible: true, x: e.clientX, y: e.clientY, session }
+    },
+    closeContextMenu() {
+      this.contextMenu.visible = false
+    },
+    async renameContextSession() {
+      const session = this.contextMenu.session
+      const newName = prompt('输入新名称:', session.meta.sessionName || session.folderName)
+      if (newName && newName.trim()) {
+        try {
+          await renamePlanSession(session.folderName, newName.trim())
+          await this.loadSessions()
+          if (this.currentSession && this.currentSession.folderName === session.folderName) {
+            const updated = this.sessions.find(s => s.folderName === session.folderName)
+            if (updated) this.selectSession(updated)
+          }
+        } catch (e) {
+          console.error('重命名失败:', e)
+        }
+      }
+      this.closeContextMenu()
+    },
+    async deleteContextSession() {
+      const session = this.contextMenu.session
+      if (!confirm(`确定删除 "${session.meta.sessionName || session.folderName}" 吗？`)) {
+        this.closeContextMenu()
+        return
+      }
+      try {
+        await deletePlanSession(session.folderName)
+        if (this.currentSession && this.currentSession.folderName === session.folderName) {
+          this.$emit('selectSession', null)
+        }
+        await this.loadSessions()
+      } catch (e) {
+        console.error('删除失败:', e)
+      }
+      this.closeContextMenu()
+    },
+    formatTime(dateStr) {
+      if (!dateStr) return ''
+      try {
+        const d = new Date(dateStr)
+        const now = new Date()
+        const diff = now - d
+        if (diff < 3600000) return Math.floor(diff / 60000) + '分钟前'
+        if (diff < 86400000) return Math.floor(diff / 3600000) + '小时前'
+        return d.toLocaleDateString()
+      } catch { return '' }
     }
   }
 }
@@ -161,6 +247,14 @@ export default {
 .section-icon.design { background: #f0f0ff; color: #8b5cf6; }
 .section-icon.settings { background: #f0f0f5; color: #555770; }
 .section-label { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.section-add-btn {
+  width: 22px; height: 22px; border: none;
+  background: var(--accent); color: #fff; border-radius: 4px;
+  cursor: pointer; font-size: 14px; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  transition: opacity 0.15s;
+}
+.section-add-btn:hover { opacity: 0.85; }
 .sub-item {
   display: flex;
   align-items: center;
@@ -176,4 +270,23 @@ export default {
 .sub-item-icon { font-size: 13px; width: 18px; text-align: center; flex-shrink: 0; }
 .sub-item-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sub-item-extra { font-size: 10px; color: var(--text-muted); flex-shrink: 0; }
+.sub-item-empty {
+  padding: 12px 14px 12px 44px;
+  font-size: 12px; color: var(--text-muted);
+}
+
+.context-menu {
+  position: fixed; z-index: 1000;
+  background: #fff; border: 1px solid var(--border);
+  border-radius: 6px; box-shadow: 0 4px 14px rgba(0,0,0,0.12);
+  min-width: 120px; padding: 4px;
+}
+.context-menu-item {
+  padding: 7px 14px; font-size: 12.5px;
+  cursor: pointer; border-radius: 4px;
+  color: var(--text-primary); transition: background 0.1s;
+}
+.context-menu-item:hover { background: var(--bg-hover); }
+.context-menu-item.danger { color: #ef4444; }
+.context-menu-item.danger:hover { background: #fef2f2; }
 </style>

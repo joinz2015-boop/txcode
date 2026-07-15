@@ -2,10 +2,11 @@
   <div class="plan-panel">
     <div class="plan-mode-wrap">
       <DesktopPlanEditor
-        :content="planContent"
+        ref="planEditor"
+        :folderName="planFolderName"
         :filePath="planFilePath"
         :editorFlex="editorFlex"
-        @update:content="planContent = $event"
+        @update:content="handleContentUpdated"
         @refresh="refreshPlan"
         @export="exportPlan"
         @create-sub="createSubPlan"
@@ -15,7 +16,14 @@
         @mousedown="startResize"
         :class="{ active: resizing }"
       ></div>
-      <DesktopAssistantPanel :panelWidth="assistantWidth" />
+      <DesktopAssistantPanel
+        ref="assistantPanel"
+        :panelWidth="assistantWidth"
+        :currentModel="currentModel"
+        :currentSession="currentSession"
+        :planFilePath="planFilePath"
+        @planUpdated="refreshPlan"
+      />
     </div>
   </div>
 </template>
@@ -23,42 +31,18 @@
 <script>
 import DesktopPlanEditor from './DesktopPlanEditor.vue'
 import DesktopAssistantPanel from './DesktopAssistantPanel.vue'
-import { getItem, setItem } from '@/utils/storage'
-
-const demoContent = `# txcode 方案设计文档
-
-## 概述
-txcode 是一个 AI 编程助手 CLI 工具，提供 CLI (Ink/React TUI) 与 Web (Vue2 + Vite) 双模式，集成 13 个 AI Agent。
-
-## 架构设计
-- **网关层**：CLI 参数解析 + Ink UI 组件 / Express REST API + WebSocket
-- **核心层**：AI Agent（13个）、Function Calling 工具（15个）、LSP 语言服务、SQLite WASM
-- **服务层**：业务逻辑编排、会话管理、定时任务、队列系统
-
-## 技术栈
-- TypeScript 5.9 · ESM 模块系统
-- Vue2 + Vite + Tailwind v4 + Element UI
-- sql.js (SQLite WASM)
-- Monaco Editor + xterm.js
-- Ink/React (CLI TUI)
-
-## 实施计划
-1. 搭建基础框架与项目结构
-2. 实现 AI 对话与 Agent 调度机制
-3. 集成 Function Calling 工具调用
-4. 添加 Plan-Code 双模式开发方案
-5. 完善 LSP 语言服务与终端集成
-6. 实现会话管理与记忆系统`
+import { createPlanSession } from '@/api/index'
 
 export default {
   name: 'DesktopPlanPanel',
   components: { DesktopPlanEditor, DesktopAssistantPanel },
   props: {
-    currentSession: { type: Object, default: null }
+    currentSession: { type: Object, default: null },
+    currentModel: { type: String, default: 'DeepSeek V3' },
+    runningSessionIds: { type: Array, default: () => [] }
   },
   data() {
     return {
-      planContent: demoContent,
       assistantWidth: 370,
       resizing: false,
       startX: 0,
@@ -66,29 +50,66 @@ export default {
     }
   },
   computed: {
+    planFolderName() {
+      return this.currentSession ? this.currentSession.folderName : ''
+    },
     planFilePath() {
-      return this.currentSession
-        ? this.currentSession.name + '.md'
-        : '方案文档.md'
+      if (this.currentSession && this.currentSession.meta && this.currentSession.meta.planFilePath) {
+        return this.currentSession.meta.planFilePath
+      }
+      return ''
     },
     editorFlex() {
       return '1'
     }
   },
+  watch: {
+    currentSession(val) {
+      if (val) {
+        this.$nextTick(() => {
+          if (this.$refs.planEditor) {
+            this.$refs.planEditor.refresh()
+          }
+        })
+      }
+    }
+  },
   methods: {
     open(data) {
       if (data && data.session) {
-        // handle session data
+        // handled by currentSession prop
       }
     },
+    handleContentUpdated(content) {
+      // content saved by editor
+    },
     refreshPlan() {
-      console.log('Plan refreshed')
+      if (this.$refs.planEditor) {
+        this.$refs.planEditor.refresh()
+      }
     },
     exportPlan() {
-      console.log('Plan exported')
+      if (!this.planFilePath) {
+        alert('请先选择方案')
+        return
+      }
+      const url = `/api/file/download_file?path=${encodeURIComponent(this.planFilePath)}`
+      const a = document.createElement('a')
+      a.href = url
+      a.download = this.planFilePath.split('/').pop() || '方案.md'
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
     },
-    createSubPlan() {
-      console.log('Sub-plan created')
+    async createSubPlan() {
+      try {
+        await createPlanSession('新计划会话', this.planFilePath)
+        this.$emit('refreshSessions')
+        alert('子方案已创建，请在左侧会话列表中查看')
+      } catch (e) {
+        console.error('创建子方案失败:', e)
+        alert('创建失败: ' + e.message)
+      }
     },
     startResize(e) {
       this.resizing = true

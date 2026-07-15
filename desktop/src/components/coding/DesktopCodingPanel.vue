@@ -5,20 +5,17 @@
       <span class="content-header-badge">{{ currentAgent }}</span>
     </div>
     <div class="chat-messages" ref="messagesContainer">
-      <div v-if="messages.length === 0" class="welcome">
+      <div v-if="logItems.length === 0" class="welcome">
         <div class="welcome-logo">T</div>
         <h2 class="welcome-title">欢迎使用 txcode</h2>
         <p class="welcome-desc">AI 编码助手 · 选择左侧会话开始</p>
       </div>
       <DesktopChatMessage
-        v-for="(msg, idx) in messages"
-        :key="idx"
-        :content="msg.content"
-        :isUser="msg.role === 'user'"
-        :agentName="msg.agentName || 'Code Agent'"
-        :time="msg.time || '刚刚'"
+        v-for="(item, idx) in logItems"
+        :key="item.logId || idx"
+        :item="item"
       />
-      <div v-if="sending" class="chat-msg">
+      <div v-if="disabled && !stopping" class="chat-msg">
         <div class="chat-msg-avatar ai">AI</div>
         <div class="chat-msg-content">
           <div class="chat-msg-header">{{ currentAgent }} · 正在输入...</div>
@@ -35,38 +32,27 @@
         <textarea
           class="code-textarea"
           v-model="inputText"
-          placeholder="输入消息... (Enter 发送, Ctrl+Enter 换行, @ 选择文件)"
+          placeholder="输入消息... (Enter 发送, Ctrl+Enter 换行)"
           rows="3"
+          :disabled="disabled"
           @keydown="handleKeydown"
         ></textarea>
         <div class="code-input-actions">
           <div class="code-input-actions-left">
-            <span class="input-status" :style="{ color: sending ? '#f59e0b' : '#22c55e' }">
-              {{ sending ? '● 处理中' : '✓ 就绪' }}
+            <span class="input-status" :style="{ color: disabled ? '#f59e0b' : '#22c55e' }">
+              {{ disabled ? (stopping ? '■ 停止中' : '● 处理中') : '✓ 就绪' }}
             </span>
             <span class="input-sep">|</span>
-            <span class="input-action" @click="cycleAgent">模型: {{ currentModel }} ▾</span>
+            <span class="input-action" @click="openModelSelect">模型: {{ currentModel }} ▾</span>
             <span class="input-sep">|</span>
             <span>会话: {{ sessionIdDisplay }}</span>
             <span class="input-sep">|</span>
-            <span>token: {{ tokenCount }}</span>
-            <span class="input-sep">|</span>
-            <span class="input-action">选择文件</span>
-            <span class="input-sep">|</span>
-            <span class="input-action">选择Skill</span>
-            <span class="input-sep">|</span>
-            <span class="input-action">选择设计</span>
-            <span class="input-sep">|</span>
-            <span class="input-action">命令</span>
-            <span class="input-sep">|</span>
-            <span class="input-action">测试</span>
-            <span class="input-sep">|</span>
-            <span class="input-action">git变更</span>
+            <span>token: {{ panel.promptTokens }}</span>
           </div>
           <div class="code-input-actions-right">
-            <button class="input-btn btn-upload">图片</button>
-            <button v-if="sending" class="input-btn btn-stop" @click="stopSending">■ 停止</button>
-            <button class="input-btn btn-send-code" @click="sendMessage">发送</button>
+            <button v-if="disabled && !stopping" class="input-btn btn-stop" @click="stopSending">■ 停止</button>
+            <button v-if="disabled && stopping" class="input-btn btn-stop" disabled>停止中...</button>
+            <button class="input-btn btn-send-code" @click="sendMessage" :disabled="disabled">发送</button>
           </div>
         </div>
       </div>
@@ -77,9 +63,11 @@
 <script>
 import DesktopChatMessage from './DesktopChatMessage.vue'
 import { getItem, setItem } from '@/utils/storage'
+import { createSession, getMessages } from '@/api/index'
+import { saveMeta } from '@/api/index'
+import { ws } from '@/utils/websocket'
 
-const demoAgents = ['Code Agent', 'Chat Agent', 'Plan Agent', 'Design Agent', 'Task Agent', 'Summarizer']
-const demoModels = ['DeepSeek V3', 'GPT-4o', 'Claude 3.5', 'Gemini Pro', 'Qwen Max', 'Llama 3']
+let logSeq = 0
 
 export default {
   name: 'DesktopCodingPanel',
@@ -87,38 +75,202 @@ export default {
   props: {
     currentAgent: { type: String, default: 'Code Agent' },
     currentModel: { type: String, default: 'DeepSeek V3' },
-    currentSession: { type: Object, default: null }
+    currentSession: { type: Object, default: null },
+    runningSessionIds: { type: Array, default: () => [] }
   },
   data() {
     return {
       inputText: '',
-      messages: [],
-      sending: false,
-      agentIdx: 0,
-      tokenCount: 0
+      panel: this.createPanel(),
+      stopping: false
     }
   },
   computed: {
+    logItems() {
+      return this.panel.logItems
+    },
+    disabled() {
+      return this.panel.disabled
+    },
     sessionTitle() {
-      return this.currentSession ? this.currentSession.name : 'AI 编码对话'
+      if (this.currentSession) {
+        return this.currentSession.meta.sessionName || this.currentSession.folderName || 'AI 编码对话'
+      }
+      return 'AI 编码对话'
     },
     sessionIdDisplay() {
-      return this.currentSession ? 'sess_' + (this.currentSession.id || 'new') : '未创建'
+      return this.panel.sessionId ? 'sess_' + this.panel.sessionId.substring(0, 8) : '未创建'
     }
   },
   watch: {
-    currentSession(val) {
-      if (val) {
-        this.messages = []
-        this.tokenCount = 0
+    currentSession: {
+      handler(val, oldVal) {
+        if (!val) {
+          this.unsubscribePanel()
+          this.panel = this.createPanel()
+          return
+        }
+        if (oldVal && oldVal.folderName === val.folderName) return
+        this.initSession(val)
+      },
+      immediate: true
+    },
+    runningSessionIds(ids) {
+      if (this.panel.sessionId && ids.includes(this.panel.sessionId)) {
+        this.panel.disabled = true
+      } else if (!this.stopping) {
+        this.panel.disabled = false
       }
     }
   },
   methods: {
+    createPanel() {
+      return {
+        sessionId: null,
+        logItems: [],
+        disabled: false,
+        modelName: '',
+        promptTokens: 0,
+        wsUnsubscribe: null
+      }
+    },
+
+    async initSession(session) {
+      this.unsubscribePanel()
+      this.panel = this.createPanel()
+
+      const meta = session.meta || {}
+      if (meta.codeSessionId) {
+        this.panel.sessionId = meta.codeSessionId
+        await this.loadMessages(meta.codeSessionId)
+        this.subscribePanel(meta.codeSessionId)
+      }
+      if (this.currentModel) {
+        this.panel.modelName = this.currentModel
+      }
+    },
+
+    unsubscribePanel() {
+      if (this.panel.wsUnsubscribe) {
+        this.panel.wsUnsubscribe()
+        this.panel.wsUnsubscribe = null
+      }
+    },
+
+    async ensureCodeSession() {
+      let sid = this.panel.sessionId
+      if (!sid) {
+        const sessionName = this.currentSession ? (this.currentSession.meta.sessionName || this.currentSession.folderName) : '新会话'
+        const r = await createSession(sessionName)
+        sid = r.data.id
+        this.panel.sessionId = sid
+
+        if (this.currentSession) {
+          const meta = { ...this.currentSession.meta, codeSessionId: sid, updatedAt: new Date().toISOString() }
+          await saveMeta(this.currentSession.folderName, meta)
+          this.currentSession.meta = meta
+          setItem('planSession:current', this.currentSession)
+        }
+      }
+      return sid
+    },
+
+    subscribePanel(sessionId) {
+      if (!sessionId) return
+      if (this.panel.wsUnsubscribe) this.panel.wsUnsubscribe()
+
+      this.panel.wsUnsubscribe = ws.subscribe(sessionId, {
+        step: (d) => {
+          const hasExecuting = d.toolCalls && d.toolCalls.some(tc => tc.status === 'executing')
+          if (hasExecuting) {
+            this.panel.logItems = this.panel.logItems.filter(
+              item => !(item.type === 'step' && item.iteration === d.iteration && item._executing)
+            )
+            this.panel.logItems.push(this.withLogId({ type: 'step', thought: d.reasoning || d.thought, toolCalls: d.toolCalls, success: d.success, iteration: d.iteration, _executing: true }))
+          } else {
+            this.panel.logItems = this.panel.logItems.filter(
+              item => !(item.type === 'step' && item.iteration === d.iteration && item._executing)
+            )
+            this.pushLogItem({ type: 'step', thought: d.reasoning || d.thought, toolCalls: d.toolCalls, success: d.success, iteration: d.iteration })
+          }
+          if (d.usage && d.usage.promptTokens) this.panel.promptTokens = d.usage.promptTokens
+          this.$nextTick(() => this.scrollToBottom())
+        },
+        done: (d) => {
+          this.panel.logItems = this.panel.logItems.filter(item => !(item.type === 'step' && item._executing))
+          this.panel.disabled = false
+          this.stopping = false
+          if (d.modelName) this.panel.modelName = d.modelName
+          if (d.usage && d.usage.promptTokens) this.panel.promptTokens = d.usage.promptTokens
+          if (d.response) {
+            this.pushLogItem({ type: 'think', content: d.response })
+            this.$nextTick(() => this.scrollToBottom())
+          }
+        },
+        stopped: () => {
+          this.panel.logItems = this.panel.logItems.filter(item => !(item.type === 'step' && item._executing))
+          this.panel.disabled = false
+          this.stopping = false
+          this.pushLogItem({ type: 'think', content: '【已停止】' })
+          this.$nextTick(() => this.scrollToBottom())
+        },
+        error: (d) => {
+          this.panel.logItems = this.panel.logItems.filter(item => !(item.type === 'step' && item._executing))
+          this.panel.disabled = false
+          this.stopping = false
+          alert(d.error || '发生错误')
+        },
+        todos: (d) => {
+          this.pushLogItem({ type: 'todos', todos: d.todos })
+          this.$nextTick(() => this.scrollToBottom())
+        },
+        compact: () => {
+          if (this.panel.sessionId) this.loadMessages(this.panel.sessionId)
+        },
+        running_sessions: (d) => {
+          const runningIds = d.runningSessionIds || []
+          if (this.panel.sessionId && runningIds.includes(this.panel.sessionId)) {
+            this.panel.disabled = true
+          } else if (!this.stopping) {
+            this.panel.disabled = false
+          }
+        }
+      })
+    },
+
+    async loadMessages(sessionId) {
+      try {
+        const r = await getMessages(sessionId)
+        this.panel.logItems = (r.data || []).map(i => {
+          if (i.type === 'think') return this.withLogId({ type: 'think', content: i.content || '' })
+          if (i.type === 'step') return this.withLogId(i)
+          return this.withLogId(i)
+        })
+      } catch (e) {
+        this.panel.logItems = []
+      }
+      this.$nextTick(() => this.scrollToBottom())
+    },
+
+    pushLogItem(item) {
+      this.panel.logItems.push(this.withLogId(item))
+      const max = 400
+      if (this.panel.logItems.length > max) {
+        this.panel.logItems.splice(0, this.panel.logItems.length - max)
+      }
+    },
+
+    withLogId(item) {
+      return { ...item, logId: ++logSeq }
+    },
+
     open(data) {
       if (data && data.sessionId) {
-        this.messages = []
-        this.tokenCount = 0
+        this.unsubscribePanel()
+        this.panel = this.createPanel()
+        this.panel.sessionId = data.sessionId
+        this.subscribePanel(data.sessionId)
+        this.loadMessages(data.sessionId)
       }
     },
     handleKeydown(e) {
@@ -127,41 +279,49 @@ export default {
         this.sendMessage()
       }
     },
-    sendMessage() {
+    async sendMessage() {
       const val = this.inputText.trim()
-      if (!val) return
-      this.messages.push({ role: 'user', content: val, time: '刚刚' })
-      this.tokenCount += Math.floor(val.length * 1.5)
-      this.inputText = ''
-      this.sending = true
-      this.$nextTick(() => this.scrollToBottom())
-      setTimeout(() => {
-        const responses = [
-          '好的，我来处理。已分析你的需求，我会按照最佳实践实现。需要进一步细化方案吗？',
-          '收到。建议方案：\n\n1. 分析现有代码结构\n2. 设计接口和数据模型\n3. 逐步实现\n\n要开始吗？',
-          '理解了。参考实现已准备好，根据实际场景调整即可。'
-        ]
-        this.messages.push({
-          role: 'ai',
-          content: responses[Math.floor(Math.random() * responses.length)],
-          agentName: this.currentAgent,
-          time: '刚刚'
-        })
-        this.sending = false
+      if (!val || this.panel.disabled) return
+
+      try {
+        const sid = await this.ensureCodeSession()
+        this.subscribePanel(sid)
+        const payload = {
+          message: val,
+          sessionId: sid,
+          modelName: this.panel.modelName || undefined
+        }
+        this.pushLogItem({ type: 'chat', content: val, role: 'user' })
+        this.inputText = ''
+        this.panel.disabled = true
+        this.stopping = false
+        ws.send('chat', payload)
+
+        if (this.currentSession && this.currentSession.meta.sessionName === '新计划会话') {
+          ws.send('name_session', { sessionId: sid, folderName: this.currentSession.folderName, userInput: val })
+        }
         this.$nextTick(() => this.scrollToBottom())
-      }, 1500 + Math.random() * 800)
+      } catch (e) {
+        console.error('发送失败:', e)
+        alert('发送失败: ' + e.message)
+      }
     },
     stopSending() {
-      this.sending = false
+      if (!this.panel.sessionId || this.stopping) return
+      this.stopping = true
+      ws.send('stop', { sessionId: this.panel.sessionId })
     },
-    cycleAgent() {
-      this.agentIdx = (this.agentIdx + 1) % demoAgents.length
-      this.$emit('update:agent', demoAgents[this.agentIdx])
-      this.$emit('update:model', demoModels[this.agentIdx])
+    openModelSelect() {
+      this.$emit('update:agent', this.currentAgent)
+      this.$emit('update:model', this.currentModel)
     },
     scrollToBottom() {
       const el = this.$refs.messagesContainer
-      if (el) el.scrollTop = el.scrollHeight
+      if (el) {
+        this.$nextTick(() => {
+          el.scrollTop = el.scrollHeight
+        })
+      }
     }
   }
 }
@@ -260,6 +420,10 @@ export default {
   background: transparent;
   min-height: 60px;
 }
+.code-textarea:disabled {
+  opacity: 0.7;
+  background: #f9fafb;
+}
 .code-textarea::placeholder {
   color: var(--text-muted);
 }
@@ -307,8 +471,10 @@ export default {
 .btn-upload:hover { border-color: var(--accent); color: var(--accent); }
 .btn-stop { background: #ef4444; color: #fff; }
 .btn-stop:hover { background: #dc2626; }
+.btn-stop:disabled { opacity: 0.6; cursor: not-allowed; }
 .btn-send-code { background: var(--accent); color: #fff; }
 .btn-send-code:hover { background: #6366f1; }
+.btn-send-code:disabled { opacity: 0.6; cursor: not-allowed; }
 
 .chat-msg {
   display: flex;

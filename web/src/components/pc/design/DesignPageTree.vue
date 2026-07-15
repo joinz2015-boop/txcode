@@ -56,6 +56,13 @@
         </button>
       </template>
       <template v-else>
+        <button v-if="contextMenu.target && contextMenu.target.name.endsWith('.html')" @click="previewFile" class="w-full text-left px-4 py-2 text-sm text-textMain hover:bg-active flex items-center gap-2">
+          <i class="fa-solid fa-eye text-xs"></i> 预览
+        </button>
+        <button v-if="contextMenu.target && contextMenu.target.name.endsWith('.html')" @click="switchToAiDesign" class="w-full text-left px-4 py-2 text-sm text-accent hover:bg-active flex items-center gap-2">
+          <i class="fa-solid fa-robot text-xs"></i> AI设计
+        </button>
+        <div v-if="contextMenu.target && contextMenu.target.name.endsWith('.html')" class="border-t border-border my-1"></div>
         <button @click="copyPath" class="w-full text-left px-4 py-2 text-sm text-textMain hover:bg-active flex items-center gap-2">
           <i class="fa-solid fa-copy text-xs"></i> 复制路径
         </button>
@@ -209,7 +216,6 @@ export default {
       if (!node.is_directory && relPath.endsWith('.html')) {
         console.log('[DesignPageTree] handleSelect emitting current-page:', relPath)
         this.$emit('current-page', relPath)
-        this.$emit('open-file', node)
       } else {
         console.log('[DesignPageTree] handleSelect skipping (dir or non-html):', node.name, 'isDir:', node.is_directory)
       }
@@ -340,6 +346,21 @@ export default {
       if (!target) return
       api.downloadFilesystemWithProgress(target.path, target.name, () => {})
         .catch(e => this.$message.error('下载失败: ' + e.message))
+    },
+    previewFile() {
+      const node = this.contextMenu.target
+      this.hideContextMenu()
+      this.handleOpenFile(node)
+    },
+    switchToAiDesign() {
+      this.hideContextMenu()
+      const node = this.contextMenu.target
+      let relPath = node.path
+      if (relPath.startsWith(this.basePath + '/')) {
+        relPath = relPath.slice(this.basePath.length + 1)
+      }
+      this.$emit('current-page', relPath)
+      this.$emit('switch-to-ai-tab')
     },
     onPageCreated() {
       this.createPageDialogVisible = false

@@ -24,6 +24,7 @@
       @open-file="$emit('open-file', $event)"
       @current-page="currentPage = $event"
       @file-changed="$emit('file-changed')"
+      @switch-to-ai-tab="activeTab = 'ai'"
     />
 
     <keep-alive>

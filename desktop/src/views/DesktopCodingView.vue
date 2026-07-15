@@ -4,6 +4,7 @@
     :currentAgent="currentAgent"
     :currentModel="currentModel"
     :currentSession="currentSession"
+    :runningSessionIds="runningSessionIds"
     @update:agent="$emit('update:agent', $event)"
     @update:model="$emit('update:model', $event)"
   />
@@ -18,7 +19,8 @@ export default {
   props: {
     currentAgent: { type: String, default: 'Code Agent' },
     currentModel: { type: String, default: 'DeepSeek V3' },
-    currentSession: { type: Object, default: null }
+    currentSession: { type: Object, default: null },
+    runningSessionIds: { type: Array, default: () => [] }
   },
   methods: {
     open(data) {
