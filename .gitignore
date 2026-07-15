@@ -31,10 +31,14 @@ coverage/
 # TypeScript cache
 *.tsbuildinfo
 
+# Desktop
+desktop/dist/
+desktop/node_modules/
+desktop/release/
+
 # Temporary files
 *.tmp
 temp/
 .cluade
 nul
-opencode
 .txcode

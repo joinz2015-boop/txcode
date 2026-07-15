@@ -17,6 +17,10 @@
     "start:web": "node dist/index.js web",
     "web:dev": "cd web && npm run dev",
     "web:build": "cd web && npm install && npm run build",
+    "desktop:dev": "cd desktop && npm run dev",
+    "desktop:build:win": "cd desktop && npm run build:win",
+    "desktop:build:mac": "cd desktop && npm run build:mac",
+    "desktop:build:all": "cd desktop && npm run build:all",
     "test": "jest",
     "test:coverage": "jest --coverage"
   },

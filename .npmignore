@@ -64,3 +64,6 @@ web/package-lock.json
 
 # Node modules - we don't publish these
 web/node_modules/
+
+# Desktop - excluded from npm publish
+desktop/

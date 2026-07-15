@@ -37,6 +37,7 @@
           :file-content="fileContent"
           :file-name="activeFileName"
           :relative-path="relativePath"
+          :nav-source="navSource"
           @navigate="onPreviewNavigate"
           @save-template="saveAsTemplate"
         />
@@ -77,10 +78,12 @@ import DesignEditor from '../../../components/pc/design/DesignEditor.vue'
 import SaveTemplateDialog from '../../../components/pc/design/SaveTemplateDialog.vue'
 import { api } from '../../../api/index.js'
 import { eventBus } from '../../../utils/eventBus.js'
+import { diagMixin } from '../../../utils/diagMixin.js'
 
 export default {
   name: 'DesignView',
   components: { DesignSidebar, DesignPreview, DesignEditor, SaveTemplateDialog },
+  mixins: [diagMixin],
   data() {
     return {
       rightTab: 'preview',
@@ -93,6 +96,7 @@ export default {
       templateDialogVisible: false,
       isResizing: false,
       aiStatus: 'idle',
+      navSource: null,
       unsubFileChanged: null
     }
   },
@@ -104,13 +108,18 @@ export default {
     this.unsubFileChanged = eventBus.on('file:changed', (data) => {
       this.onFileChanged(data)
     })
-    console.log('[DesignView][mounted] subscribed to file:changed')
+    this._log('lifecycle', 'mounted', {
+      hasUnsubFileChanged: !!this.unsubFileChanged,
+      relativePath: this.relativePath,
+      rightTab: this.rightTab,
+      listeners: { mousemove: true, mouseup: true, fileChanged: !!this.unsubFileChanged }
+    })
   },
   watch: {
-    rightTab(val) {
-      console.log('[DesignView] rightTab changed:', val)
+    rightTab(val, oldVal) {
+      this._log('rightTab', 'changed', { oldVal, newVal: val, activeFilePath: this.activeFilePath })
       if (val === 'editor' && this.activeFilePath && !this.fileContent) {
-        console.log('[DesignView] switching to editor, loading file content for:', this.activeFilePath)
+        this._log('rightTab', 'loading file content', { activeFilePath: this.activeFilePath })
         this.loadFileContent()
       }
       if (val === 'editor') {
@@ -124,6 +133,9 @@ export default {
     },
     '$route.query.page': {
       handler(newVal) {
+        if (this.navSource === 'sidebar' || this.navSource === 'iframe') return
+        this._checkCallFrequency('routeQueryPageWatcher')
+        this._log('routeQueryPage', 'watcher triggered', { newVal, relativePath: this.relativePath, willOpen: !!(newVal && newVal.endsWith('.html') && newVal !== this.relativePath) })
         if (newVal && newVal.endsWith('.html') && newVal !== this.relativePath) {
           this.openDesignPage(newVal)
         }
@@ -131,6 +143,10 @@ export default {
     },
   },
   beforeDestroy() {
+    this._log('lifecycle', 'beforeDestroy', {
+      unsubFileChanged: !!this.unsubFileChanged,
+      relativePath: this.relativePath
+    })
     document.removeEventListener('mousemove', this.handleResize)
     document.removeEventListener('mouseup', this.stopResize)
     if (this.unsubFileChanged) {
@@ -154,8 +170,80 @@ export default {
         })
       }
     },
-    onPreviewNavigate(relativePath) {
-      this.openDesignPage(relativePath)
+    onPreviewNavigate(navInfo) {
+      this._checkCallFrequency('onPreviewNavigate')
+      this._log('onPreviewNavigate', 'called', { navInfo })
+      this.syncPageFromIframe(navInfo)
+    },
+    async syncPageFromIframe(navInfo) {
+      if (typeof navInfo === 'string') {
+        const parts = navInfo.replace(/\\/g, '/').split('/')
+        navInfo = {
+          fileName: parts[parts.length - 1],
+          parentDir: parts.length > 1 ? parts[parts.length - 2] : '',
+          rawPath: navInfo
+        }
+      }
+
+      const { fileName, parentDir } = navInfo
+      if (!fileName || !fileName.endsWith('.html')) return
+
+      this._checkCallFrequency('syncPageFromIframe')
+
+      const resolved = await this.resolveDesignFile(fileName, parentDir)
+      if (!resolved) {
+        this._log('syncPageFromIframe', 'file not found in design dir', { fileName, parentDir })
+        return
+      }
+
+      this._log('syncPageFromIframe', 'resolved', { fileName, parentDir, resolvedPath: resolved.relativePath })
+
+      this.navSource = 'iframe'
+      this.relativePath = resolved.relativePath
+      this.activeFileName = resolved.relativePath.split('/').pop()
+      this.activeFilePath = resolved.path
+      if (this.$refs.sidebar) {
+        this.$refs.sidebar.setCurrentPage(resolved.relativePath)
+      }
+      this._syncRouteQuery(resolved.relativePath)
+      this.navSource = null
+    },
+    async resolveDesignFile(fileName, parentDir) {
+      try {
+        const treeRes = await api.getFileTree(this.designBasePath)
+        const files = this._flattenTree(treeRes.data || [], this.designBasePath)
+        const htmlFiles = files.filter(f => f.name.endsWith('.html'))
+        const matches = htmlFiles.filter(f => f.name === fileName)
+
+        if (matches.length === 0) return null
+        if (matches.length === 1) return matches[0]
+
+        if (parentDir) {
+          const byParent = matches.filter(f => {
+            const parts = f.relativePath.split('/')
+            return parts.length > 1 && parts[parts.length - 2] === parentDir
+          })
+          if (byParent.length === 1) return byParent[0]
+        }
+
+        return matches[0]
+      } catch (e) {
+        console.error('resolveDesignFile failed:', e)
+        return null
+      }
+    },
+    _flattenTree(nodes, basePath) {
+      const result = []
+      for (const node of nodes) {
+        const relPath = node.path.startsWith(basePath + '/')
+          ? node.path.slice(basePath.length + 1)
+          : node.path
+        result.push({ name: node.name, path: node.path, relativePath: relPath })
+        if (node.children && node.children.length > 0) {
+          result.push(...this._flattenTree(node.children, basePath))
+        }
+      }
+      return result
     },
     onAiStatusChange(status) {
       this.aiStatus = status
@@ -163,7 +251,9 @@ export default {
     },
     openDesignPage(relativePath) {
       if (!relativePath || !relativePath.endsWith('.html')) return
-      console.log('[DesignView] openDesignPage:', relativePath)
+      this._checkCallFrequency('openDesignPage')
+      this._log('openDesignPage', 'called', { relativePath, prevRelativePath: this.relativePath, stack: new Error().stack?.split('\n').slice(1, 4).join(' → ') })
+      this.navSource = 'sidebar'
       this.relativePath = relativePath
       this.activeFileName = relativePath.split('/').pop()
       this.activeFilePath = this.designBasePath + '/' + relativePath
@@ -173,9 +263,8 @@ export default {
       if (this.$refs.sidebar) {
         this.$refs.sidebar.setCurrentPage(relativePath)
       }
-      if (this.$route.query.page !== relativePath) {
-        this.$router.replace({ query: { page: relativePath } }).catch(() => {})
-      }
+      this._syncRouteQuery(relativePath)
+      this.navSource = null
     },
     async openFile(node) {
       console.log('[DesignView] openFile called, node:', node.name, 'path:', node.path, 'is_dir:', node.is_directory)
@@ -215,22 +304,17 @@ export default {
       }
     },
     onFileChanged(data) {
-      console.log('[DesignView] file:changed received', data)
-      if (!data.filePath || !this.activeFilePath) {
-        console.log('[DesignView] file:changed skipped (no filePath or activeFilePath)')
-        return
-      }
-      const normalizedFilePath = data.filePath.replace(/\\/g, '/')
-      const normalizedActive = this.activeFilePath.replace(/\\/g, '/')
-      const normalizedBase = (this.designBasePath || '.txcode/design').replace(/\\/g, '/')
-      if (normalizedFilePath.indexOf(normalizedBase) === -1 && normalizedActive.indexOf(normalizedFilePath) === -1) {
-        console.log('[DesignView] file:changed skipped (not in designBasePath)')
-        return
-      }
-      console.log('[DesignView] file:changed → refreshCurrentFile()')
-      //this.refreshCurrentFile()
+      if (!data.filePath || !this.activeFilePath) return
+      const normChanged = data.filePath.replace(/\\/g, '/')
+      const normBase = '.txcode/design/'
+      if (!normChanged.includes(normBase)) return
       if (this.$refs.preview) {
         this.$refs.preview.refreshPreview()
+      }
+    },
+    _syncRouteQuery(relativePath) {
+      if (this.$route.query.page !== relativePath) {
+        this.$router.replace({ query: { page: relativePath } }).catch(() => {})
       }
     },
     saveAsTemplate() {

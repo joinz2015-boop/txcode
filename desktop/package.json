@@ -1,0 +1,26 @@
+{
+  "name": "txcode-desktop",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "main.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "electron:dev": "vite build && electron main.js",
+    "build:win": "vite build && electron-builder --win",
+    "build:mac": "vite build && electron-builder --mac",
+    "build:all": "vite build && electron-builder --win --mac"
+  },
+  "dependencies": {
+    "vue": "^2.7.16",
+    "marked": "^15.0.4"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue2": "^2.3.3",
+    "electron": "^34.5.1",
+    "electron-builder": "^25.1.8",
+    "vite": "^6.3.1"
+  }
+}

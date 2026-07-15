@@ -60,19 +60,22 @@
 </template>
 
 <script>
+import { diagMixin } from '../../../utils/diagMixin.js'
+
 export default {
   name: 'DesignPreview',
+  mixins: [diagMixin],
   props: {
     fileContent: { type: String, default: '' },
     fileName: { type: String, default: '' },
-    relativePath: { type: String, default: '' }
+    relativePath: { type: String, default: '' },
+    navSource: { type: String, default: null }
   },
   data() {
     return {
       activeDevice: 'web',
-      refreshKey: 0,
       renderIframe: false,
-      _relativePathVersion: 0,
+      relativePathVersion: 0,
       deviceSizes: [
         { value: 'app', label: 'App', icon: 'fa-solid fa-mobile-screen', width: 375 },
         { value: 'web', label: 'Web', icon: 'fa-solid fa-desktop', width: 0 },
@@ -83,8 +86,9 @@ export default {
   computed: {
     previewSrc() {
       if (!this.relativePath) return ''
-      const src = `/design_html/${encodeURI(this.relativePath)}?_=${this._relativePathVersion}`
-      console.log('[DesignPreview] previewSrc computed:', src)
+      const src = `/design_html/${encodeURI(this.relativePath)}?_=${this.relativePathVersion}`
+      this._checkCallFrequency('previewSrc')
+      this._log('previewSrc', 'computed', { src, renderIframe: this.renderIframe, relativePathVersion: this.relativePathVersion })
       return src
     },
     iframeStyle() {
@@ -107,43 +111,46 @@ export default {
         else if (val.includes('_web.html')) this.activeDevice = 'web'
         else if (val.includes('_pad.html')) this.activeDevice = 'pad'
         else this.activeDevice = 'web'
-        console.log('[DesignPreview] fileName changed:', val, '→ activeDevice:', this.activeDevice)
+        this._log('fileName', 'changed', { val, activeDevice: this.activeDevice })
       }
     },
     relativePath(val, oldVal) {
-      console.log('[DesignPreview] relativePath changed:', oldVal, '→', val)
+      this._log('relativePath', 'changed', { oldVal, newVal: val, navSource: this.navSource })
+      if (this.navSource === 'iframe') {
+        this._log('relativePath', 'suppressed — iframe rebuild skipped')
+        return
+      }
       if (val) {
-        this._relativePathVersion++
-        console.log('[DesignPreview] _relativePathVersion:', this._relativePathVersion)
+        this.relativePathVersion++
         this.renderIframe = false
-        console.log('[DesignPreview] renderIframe set to false, scheduling recreate')
         this.$nextTick(() => {
           this.renderIframe = true
-          console.log('[DesignPreview] renderIframe set to true, iframe should be created with src:', this.previewSrc)
+          this._log('relativePath', 'iframe recreate', { src: this.previewSrc })
         })
       } else {
         this.renderIframe = false
-        console.log('[DesignPreview] renderIframe set to false (no file)')
+        this._log('relativePath', 'iframe destroyed (no file)')
       }
     }
   },
   mounted() {
-    console.log('[DesignPreview] mounted, relativePath:', this.relativePath)
+    this._log('lifecycle', 'mounted', { relativePath: this.relativePath, hasIframe: !!this.$refs.previewFrame })
   },
   updated() {
-    console.log('[DesignPreview] updated, relativePath:', this.relativePath, 'previewSrc:', this.previewSrc)
+    this._checkCallFrequency('updated')
+    this._log('lifecycle', 'updated', { relativePath: this.relativePath, previewSrc: this.previewSrc, renderIframe: this.renderIframe })
   },
   beforeDestroy() {
-    console.log('[DesignPreview] beforeDestroy')
+    this._log('lifecycle', 'beforeDestroy', { hasIframe: !!this.$refs.previewFrame })
   },
   methods: {
     refreshPreview() {
-      this.refreshKey++
-      this._relativePathVersion++
+      this._log('refreshPreview', 'triggered', { relativePathVersion: this.relativePathVersion })
+      this.relativePathVersion++
       this.renderIframe = false
       this.$nextTick(() => {
         this.renderIframe = true
-        console.log('[DesignPreview] refreshPreview, iframe recreated')
+        this._log('refreshPreview', 'iframe recreated', { relativePathVersion: this.relativePathVersion })
       })
     },
     openInNewTab() {
@@ -151,7 +158,8 @@ export default {
       window.open(this.previewSrc, '_blank')
     },
     onIframeLoad() {
-      console.log('[DesignPreview] iframe onload, src:', this.previewSrc)
+      this._checkCallFrequency('onIframeLoad')
+      this._log('onIframeLoad', 'iframe loaded', { src: this.previewSrc, relativePath: this.relativePath })
       try {
         const iframe = this.$refs.previewFrame
         if (!iframe) return
@@ -159,6 +167,7 @@ export default {
         try {
           iframePath = iframe.contentWindow?.location?.pathname
         } catch (e) {
+          this._log('onIframeLoad', 'cannot access iframe location (cross-origin?)')
           return
         }
         if (iframePath && iframePath !== '/') {
@@ -166,14 +175,18 @@ export default {
           if (match) {
             const navPath = decodeURIComponent(match[1])
             if (navPath.endsWith('.html') && !navPath.includes('..') && !navPath.includes('~')) {
+              const parts = navPath.replace(/\\/g, '/').split('/')
+              const fileName = parts[parts.length - 1]
+              const parentDir = parts.length > 1 ? parts[parts.length - 2] : ''
+              this._log('onIframeLoad', 'detected navigation', { fileName, parentDir, rawPath: navPath, relativePath: this.relativePath })
               if (navPath !== this.relativePath) {
-                this.$emit('navigate', navPath)
+                this.$emit('navigate', { fileName, parentDir, rawPath: navPath })
               }
             }
           }
         }
       } catch (e) {
-        console.warn('[DesignPreview] onIframeLoad error:', e)
+        this._log('onIframeLoad', 'error', { error: String(e) })
       }
     }
   }

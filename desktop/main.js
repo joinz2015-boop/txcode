@@ -1,0 +1,219 @@
+import { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage } from 'electron'
+import { spawn } from 'child_process'
+import { createServer } from 'net'
+import { join, dirname } from 'path'
+import { fileURLToPath } from 'url'
+import { existsSync } from 'fs'
+
+const __dirname = dirname(fileURLToPath(import.meta.url))
+
+let mainWindow = null
+let backendProcess = null
+let tray = null
+let backendPort = 40000
+
+function findAvailablePort(startPort) {
+  return new Promise((resolve) => {
+    const server = createServer()
+    server.listen(startPort, () => {
+      server.close(() => resolve(startPort))
+    })
+    server.on('error', async () => {
+      resolve(await findAvailablePort(startPort + 1))
+    })
+  })
+}
+
+function startBackend(port) {
+  const isDev = !app.isPackaged
+  const rootDir = isDev ? join(__dirname, '..') : join(process.resourcesPath, 'app')
+
+  const distIndex = isDev
+    ? join(rootDir, 'dist', 'index.js')
+    : join(process.resourcesPath, 'app', 'dist', 'index.js')
+
+  console.log('Starting backend from:', distIndex)
+  console.log('Backend port:', port)
+
+  backendProcess = spawn('node', [distIndex, 'web', '--port', String(port)], {
+    cwd: rootDir,
+    env: { ...process.env, NODE_ENV: process.env.NODE_ENV || 'production' },
+    stdio: ['pipe', 'pipe', 'pipe']
+  })
+
+  backendProcess.stdout.on('data', (data) => {
+    console.log('[Backend]', data.toString())
+  })
+
+  backendProcess.stderr.on('data', (data) => {
+    console.error('[Backend Error]', data.toString())
+  })
+
+  backendProcess.on('error', (err) => {
+    console.error('Failed to start backend:', err)
+  })
+
+  backendProcess.on('close', (code) => {
+    console.log('Backend process exited with code:', code)
+    backendProcess = null
+  })
+}
+
+function createWindow() {
+  const preloadPath = join(__dirname, 'preload.cjs')
+
+  mainWindow = new BrowserWindow({
+    width: 1200,
+    height: 800,
+    minWidth: 900,
+    minHeight: 600,
+    frame: false,
+    titleBarStyle: 'hidden',
+    backgroundColor: '#ffffff',
+    webPreferences: {
+      preload: preloadPath,
+      contextIsolation: true,
+      nodeIntegration: false
+    },
+    icon: getIconPath()
+  })
+
+  const distIndex = join(__dirname, 'dist', 'index.html')
+
+  if (existsSync(distIndex)) {
+    mainWindow.loadFile(distIndex)
+  } else {
+    mainWindow.loadURL('http://localhost:5173')
+  }
+
+  mainWindow.on('close', (e) => {
+    if (!app.isQuitting) {
+      e.preventDefault()
+      mainWindow.hide()
+    }
+  })
+
+  mainWindow.on('closed', () => {
+    mainWindow = null
+  })
+}
+
+function getIconPath() {
+  const isDev = !app.isPackaged
+  const basePath = isDev ? __dirname : process.resourcesPath
+  if (process.platform === 'win32') {
+    const icoPath = join(basePath, 'assets', 'icon.ico')
+    if (existsSync(icoPath)) return icoPath
+  } else if (process.platform === 'darwin') {
+    const icnsPath = join(basePath, 'assets', 'icon.icns')
+    if (existsSync(icnsPath)) return icnsPath
+  }
+  const pngPath = join(basePath, 'assets', 'icon.png')
+  if (existsSync(pngPath)) return pngPath
+  return undefined
+}
+
+function createTray() {
+  const trayIconPath = getIconPath()
+  if (!trayIconPath || !existsSync(trayIconPath)) {
+    const icon = nativeImage.createEmpty()
+    tray = new Tray(icon.resize({ width: 16, height: 16 }))
+  } else {
+    const icon = nativeImage.createFromPath(trayIconPath)
+    tray = new Tray(icon.resize({ width: 16, height: 16 }))
+  }
+
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: '显示窗口',
+      click: () => {
+        if (mainWindow) {
+          mainWindow.show()
+          mainWindow.focus()
+        }
+      }
+    },
+    { type: 'separator' },
+    {
+      label: '退出',
+      click: () => {
+        app.isQuitting = true
+        app.quit()
+      }
+    }
+  ])
+
+  tray.setToolTip('txcode')
+  tray.setContextMenu(contextMenu)
+
+  tray.on('double-click', () => {
+    if (mainWindow) {
+      mainWindow.show()
+      mainWindow.focus()
+    }
+  })
+}
+
+ipcMain.handle('get-port', () => {
+  return backendPort
+})
+
+ipcMain.handle('get-app-version', () => {
+  return app.getVersion()
+})
+
+ipcMain.handle('get-node-version', () => {
+  return process.version
+})
+
+ipcMain.on('minimize-window', () => {
+  mainWindow && mainWindow.minimize()
+})
+
+ipcMain.on('maximize-window', () => {
+  if (mainWindow) {
+    if (mainWindow.isMaximized()) {
+      mainWindow.unmaximize()
+    } else {
+      mainWindow.maximize()
+    }
+  }
+})
+
+ipcMain.on('close-window', () => {
+  mainWindow && mainWindow.hide()
+})
+
+app.whenReady().then(async () => {
+  backendPort = await findAvailablePort(40000)
+  startBackend(backendPort)
+
+  createWindow()
+  createTray()
+
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) {
+      createWindow()
+    } else if (mainWindow) {
+      mainWindow.show()
+    }
+  })
+})
+
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') {
+    app.quit()
+  }
+})
+
+app.on('before-quit', () => {
+  app.isQuitting = true
+  if (backendProcess) {
+    backendProcess.kill()
+    backendProcess = null
+  }
+  if (tray) {
+    tray.destroy()
+    tray = null
+  }
+})

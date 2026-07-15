@@ -40,6 +40,9 @@
           </div>
         </template>
         <div v-else-if="item.type === 'think'" :key="idx" class="ai-thought mb-2" v-html="renderMarkdown(item.content)"></div>
+        <div v-else :key="idx" class="log-mute text-xs text-textMuted mb-1">
+          [未知消息类型{{ item.type ? ': ' + item.type : '' }}]
+        </div>
       </template>
       <div class="build-info" v-if="modelName">
         <span class="icon">▣</span> Build · {{ modelName }}
@@ -307,7 +310,9 @@ export default {
       if (!this.sessionId) return
       try {
         const res = await api.getMessages(this.sessionId)
-        this.logItems = res.data || []
+        const VALID_TYPES = ['chat', 'system', 'step', 'think']
+        const rawItems = res.data || []
+        this.logItems = rawItems.filter(item => item && VALID_TYPES.includes(item.type))
         this.$nextTick(() => this.scrollChatToBottom(true))
       } catch (e) { console.error('Load messages failed:', e) }
     },

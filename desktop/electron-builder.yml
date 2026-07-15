@@ -1,0 +1,66 @@
+appId: com.txcode.app
+productName: txcode
+copyright: Copyright © 2026
+
+directories:
+  output: release
+  buildResources: assets
+
+files:
+  - dist/**/*
+  - main.js
+  - preload.cjs
+  - node_modules/**/*
+
+extraResources:
+  - from: ../dist
+    to: app/dist
+    filter:
+      - "**/*"
+  - from: ../node_modules
+    to: app/node_modules
+    filter:
+      - "**/*"
+  - from: ../package.json
+    to: app/package.json
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: assets/icon.ico
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: txcode
+
+mac:
+  target:
+    - target: dmg
+      arch:
+        - x64
+        - arm64
+  icon: assets/icon.icns
+  category: public.app-category.developer-tools
+
+dmg:
+  title: txcode
+  contents:
+    - x: 130
+      y: 220
+    - x: 410
+      y: 220
+      type: link
+      path: /Applications
+
+linux:
+  target:
+    - target: AppImage
+      arch:
+        - x64
+  icon: assets/icon.png
+  category: Development
