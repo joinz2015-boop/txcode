@@ -51,6 +51,9 @@
         <button @click="renameItem" class="w-full text-left px-4 py-2 text-sm text-textMain hover:bg-active flex items-center gap-2">
           <i class="fa-solid fa-pen text-xs"></i> 重命名
         </button>
+        <button @click="exportFolder" class="w-full text-left px-4 py-2 text-sm text-textMain hover:bg-active flex items-center gap-2">
+          <i class="fa-solid fa-file-export text-xs"></i> 导出
+        </button>
         <button @click="deleteItem" class="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-active flex items-center gap-2">
           <i class="fa-solid fa-trash text-xs"></i> 删除
         </button>
@@ -346,6 +349,14 @@ export default {
       if (!target) return
       api.downloadFilesystemWithProgress(target.path, target.name, () => {})
         .catch(e => this.$message.error('下载失败: ' + e.message))
+    },
+    exportFolder() {
+      this.hideContextMenu()
+      const target = this.contextMenu.target
+      if (!target) return
+      api.exportFolder(target.path)
+        .then(() => this.$message.success('导出成功'))
+        .catch(e => this.$message.error('导出失败: ' + e.message))
     },
     previewFile() {
       const node = this.contextMenu.target

@@ -143,3 +143,29 @@ export function renameFile(oldPath, newPath) {
 export function getFileTree(path = '/') {
   return request('GET', '/file/tree_file', { path })
 }
+
+export function exportFolder(path) {
+  const url = `${getBaseURL()}/api/file/export_folder?path=${encodeURIComponent(path || '')}`
+  return fetch(url).then((response) => {
+    if (!response.ok) {
+      throw new Error('导出失败: HTTP ' + response.status)
+    }
+    const disposition = response.headers.get('Content-Disposition') || ''
+    const match = disposition.match(/filename\*?=(?:UTF-8''([^;]+)|"([^"]+)")/)
+    let filename = 'download.zip'
+    if (match) {
+      filename = decodeURIComponent(match[1] || match[2] || filename)
+    }
+    return response.blob().then((blob) => {
+      const downloadUrl = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = downloadUrl
+      a.download = filename
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(downloadUrl)
+      return { success: true }
+    })
+  })
+}

@@ -208,6 +208,7 @@
         <button @click="createNewFolder" class="context-menu-item">📁 新建文件夹</button>
         <div class="context-menu-sep"></div>
         <button @click="renameItem" class="context-menu-item">✏ 重命名</button>
+        <button @click="exportFolder" class="context-menu-item">📦 导出</button>
         <button @click="deleteItem" class="context-menu-item danger">🗑 删除</button>
       </template>
       <template v-else>
@@ -289,7 +290,7 @@
 
 <script>
 import { getItem, setItem } from '@/utils/storage'
-import { browseFilesystem, getFileContent, writeFile, createDirectory, deleteFile, renameFile, createSession, getSession, getMessages, getConfig } from '@/api/index'
+import { browseFilesystem, getFileContent, writeFile, createDirectory, deleteFile, renameFile, createSession, getSession, getMessages, getConfig, exportFolder } from '@/api/index'
 import { ws } from '@/utils/websocket'
 
 const DESIGN_BASE = '.txcode/design'
@@ -628,6 +629,18 @@ export default {
         await this.refreshFileTree()
       } catch (e) {
         alert('删除失败: ' + e.message)
+      }
+    },
+
+    async exportFolder() {
+      this.hideContextMenu()
+      const target = this.contextMenu.target
+      if (!target) return
+      try {
+        await exportFolder(target.path)
+        alert('导出成功')
+      } catch (e) {
+        alert('导出失败: ' + e.message)
       }
     },
 

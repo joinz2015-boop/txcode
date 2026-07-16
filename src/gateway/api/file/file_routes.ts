@@ -6,6 +6,7 @@ import * as delete_file from './delete_file.js';
 import * as download_file from './download_file.js';
 import * as drives_file from './drives_file.js';
 import * as edit_file from './edit_file.js';
+import * as export_folder from './export_folder.js';
 import * as mkdir_file from './mkdir_file.js';
 import * as rename_file from './rename_file.js';
 import * as tree_file from './tree_file.js';
@@ -21,6 +22,7 @@ export function registerRoutes(router: Router) {
   router.get('/file/download_file', download_file.GET);
   router.get('/file/drives_file', drives_file.GET);
   router.post('/file/edit_file', edit_file.POST);
+  router.get('/file/export_folder', export_folder.GET);
   router.post('/file/mkdir_file', mkdir_file.POST);
   router.post('/file/rename_file', rename_file.POST);
   router.get('/file/tree_file', tree_file.GET);
