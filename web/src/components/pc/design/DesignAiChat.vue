@@ -1,9 +1,20 @@
 <template>
-    <div class="flex flex-col flex-1 min-h-0">
+  <div class="flex flex-col flex-1 min-h-0">
+    <SessionBar
+      :basePath="basePath"
+      @session-selected="onSessionSelected"
+      @session-created="onSessionCreated"
+      @session-deleted="onSessionDeleted"
+    />
     <div class="chat-messages flex-1 overflow-y-auto px-3 py-2 min-h-0" ref="messagesContainer">
-      <div v-if="!logItems.length" class="empty-state">
+      <div v-if="!state.activeSessionId" class="empty-state">
         <i class="fa-solid fa-robot text-4xl mb-3 opacity-20 block text-center"></i>
         <p class="text-sm text-textMuted text-center">AI设计助手可协助您分析和优化设计</p>
+        <p class="text-xs text-textMuted text-center mt-1">点击"+"创建会话开始对话</p>
+      </div>
+      <div v-else-if="!logItems.length && state.activeSessionId" class="empty-state">
+        <i class="fa-solid fa-comments text-4xl mb-3 opacity-20 block text-center"></i>
+        <p class="text-sm text-textMuted text-center">开始对话吧</p>
         <p class="text-xs text-textMuted text-center mt-1">Enter 发送，Ctrl+Enter 换行</p>
       </div>
       <template v-for="(item, idx) in logItems">
@@ -162,16 +173,22 @@ import SkillSelectDialog from '../skill/SkillSelectDialog.vue'
 import TemplateSelectDialog from './TemplateSelectDialog.vue'
 import ResizableTextarea from '../chat/ResizableTextarea.vue'
 import ImagePreviewList from '../chat/ImagePreviewList.vue'
+import SessionBar from './SessionBar.vue'
+import { useSession } from './useSession.js'
 import { scrollToBottom, snapshotScroll } from '../../../utils/scroll'
 import { mediaChatMixin } from '../../../lib/mediaChat.js'
 
 export default {
   name: 'DesignAiChat',
-  components: { ModelSelectDialog, CommandDialog, FileSelectDialog, SkillSelectDialog, TemplateSelectDialog, ImagePreviewList, ResizableTextarea },
+  components: { ModelSelectDialog, CommandDialog, FileSelectDialog, SkillSelectDialog, TemplateSelectDialog, ImagePreviewList, ResizableTextarea, SessionBar },
   mixins: [mediaChatMixin()],
   props: {
     basePath: { type: String, default: '.txcode/design' },
     currentPage: { type: String, default: '' }
+  },
+  setup() {
+    const { state, createNewSession, loadSessions, deleteSession } = useSession()
+    return { state, createNewSession, loadSessions, deleteSession }
   },
   data() {
     return {
@@ -187,118 +204,78 @@ export default {
       skillSelectVisible: false,
       templateSelectVisible: false,
       skillCursorPos: -1,
-      sessionId: '',
       sessionStatus: 'idle',
       wsUnsubscribe: null,
-      requestSeq: 0
+      requestSeq: 0,
+      _lastHandledSessionId: null,
+    }
+  },
+  computed: {
+    sessionId() {
+      if (!this.state.activeSessionId) return ''
+      const s = this.state.sessions.find(s => s.id === this.state.activeSessionId)
+      return s ? s.sessionId : ''
     }
   },
   watch: {
     currentPage: {
-      immediate: false,
-      handler(newVal) {
-        this.loadSessionForPage(newVal)
+      immediate: true,
+      handler(val) {
+        this.state.currentPage = val || ''
+      }
+    },
+    'state.activeSessionId'(newId) {
+      if (newId && newId !== this._lastHandledSessionId) {
+        this.activateSession(newId)
+      } else if (!newId) {
+        this.deactivateSession()
       }
     }
   },
   async mounted() {
     await this.loadDefaultModel()
     api.ws.init()
-    if (this.currentPage) {
-      await this.loadSessionForPage(this.currentPage)
+    await this.loadSessions(this.basePath)
+    if (this.state.activeSessionId) {
+      this.activateSession(this.state.activeSessionId)
     }
   },
   beforeDestroy() {
-    if (this.wsUnsubscribe) this.wsUnsubscribe()
+    if (this.wsUnsubscribe) {
+      this.wsUnsubscribe()
+      this.wsUnsubscribe = null
+    }
   },
   methods: {
-    getSessionJsonPath() {
-      return this.basePath + '/session.json'
+    activateSession(sessionId) {
+      this._lastHandledSessionId = sessionId
+      if (!sessionId) return
+      if (this.wsUnsubscribe) {
+        this.wsUnsubscribe()
+        this.wsUnsubscribe = null
+      }
+      this.logItems = []
+      this.promptTokens = 0
+      this.subscribeSession()
+      this.loadMessages().catch(() => {})
     },
-    async readSessionJson() {
-      try {
-        const res = await api.getFileContent(this.getSessionJsonPath())
-        if (res && res.data?.content) {
-          const data = JSON.parse(res.data.content)
-          if (data.pageSessions) {
-            const cleaned = {}
-            for (const [key, val] of Object.entries(data.pageSessions)) {
-              if (key.endsWith('.html') && key !== 'session.json') {
-                cleaned[key] = val
-              }
-            }
-            if (Object.keys(cleaned).length !== Object.keys(data.pageSessions).length) {
-              data.pageSessions = cleaned
-              this.writeSessionJson(data).catch(() => {})
-            }
-          }
-          return data
-        }
-      } catch (e) {
+    deactivateSession() {
+      this._lastHandledSessionId = null
+      if (this.wsUnsubscribe) {
+        this.wsUnsubscribe()
+        this.wsUnsubscribe = null
       }
-      return { pageSessions: {} }
+      this.logItems = []
+      this.promptTokens = 0
     },
-    async writeSessionJson(data) {
-      await api.writeFile(this.getSessionJsonPath(), JSON.stringify(data, null, 2))
+    onSessionSelected(session) {
+      this.activateSession(session.id)
     },
-    async loadSessionForPage(pagePath) {
-      const seq = ++this.requestSeq
-      console.log('[DesignAiChat] loadSessionForPage called:', pagePath, 'seq:', seq)
-      const t0 = performance.now()
-      if (!pagePath || !pagePath.endsWith('.html')) {
-        if (this.wsUnsubscribe) { this.wsUnsubscribe(); this.wsUnsubscribe = null }
-        this.sessionId = ''
-        this.logItems = []
-        this.promptTokens = 0
-        this.sessionStatus = 'idle'
-        this.$emit('status-change', 'idle')
-        console.log('[DesignAiChat] loadSessionForPage skipped (not html):', pagePath)
-        return
-      }
-
-      const sessionData = await this.readSessionJson()
-      if (this.requestSeq !== seq) return
-      console.log('[DesignAiChat] sessionData loaded:', Object.keys(sessionData.pageSessions || {}))
-      const pageSession = sessionData.pageSessions?.[pagePath]
-      console.log('[DesignAiChat] pageSession for', pagePath, ':', !!pageSession)
-
-      if (pageSession?.sessionId) {
-        try {
-          console.log('[DesignAiChat] loading existing session:', pageSession.sessionId)
-          const t1 = performance.now()
-          const sessionRes = await api.getSession(pageSession.sessionId)
-          if (this.requestSeq !== seq) return
-          console.log('[DesignAiChat] getSession took:', (performance.now() - t1).toFixed(1), 'ms')
-          if (sessionRes && sessionRes.data) {
-            this.sessionId = pageSession.sessionId
-            this.subscribeSession()
-            const t2 = performance.now()
-            await this.loadMessages()
-            if (this.requestSeq !== seq) return
-            console.log('[DesignAiChat] loadMessages took:', (performance.now() - t2).toFixed(1), 'ms')
-            console.log('[DesignAiChat] loadSessionForPage done (existing), total:', (performance.now() - t0).toFixed(1), 'ms')
-            return
-          }
-        } catch (e) {
-          console.error('[DesignAiChat] getSession failed:', e)
-        }
-      }
-
-      try {
-        console.log('[DesignAiChat] creating new session for:', pagePath)
-        const res = await api.createSession(`设计页面: ${pagePath}`)
-        if (this.requestSeq !== seq) return
-        this.sessionId = res.data.id
-        sessionData.pageSessions[pagePath] = { sessionId: this.sessionId }
-        await this.writeSessionJson(sessionData)
-        if (this.requestSeq !== seq) return
-        this.logItems = []
-        this.promptTokens = 0
-        this.subscribeSession()
-        console.log('[DesignAiChat] loadSessionForPage done (new), total:', (performance.now() - t0).toFixed(1), 'ms')
-      } catch (e) {
-        console.error('Create session failed:', e)
-      }
+    onSessionCreated(session) {
+      this.activateSession(session.id)
+    },
+    onSessionDeleted() {
+      this.deactivateSession()
     },
     async loadDefaultModel() {
       try {
@@ -338,16 +315,22 @@ export default {
       const hasMedia = this.mediaFiles && this.mediaFiles.length > 0
       if ((!content && !hasMedia) || this.disabled) return
 
-      if (!this.sessionId) {
-        this.$message.error('请在左侧选择设计页面')
-        return
+      if (!this.state.activeSessionId) {
+        try {
+          const session = await this.createNewSession(this.basePath)
+          this.activateSession(session.id)
+        } catch (e) {
+          this.$message.error('创建会话失败: ' + (e.message || e))
+          return
+        }
       }
+      if (!this.sessionId) return
 
       if (!this.wsUnsubscribe) this.subscribeSession()
 
       let contextMsg = content
       if (this.currentPage) {
-        contextMsg = `当前设计页面：${this.currentPage}\n用户需求：${content}\n请基于以上设计页面路径，对该页面进行设计或修改。`
+        contextMsg = `当前设计页面：${this.currentPage}\n用户需求：${content}`
       }
 
       this.inputMessage = ''
