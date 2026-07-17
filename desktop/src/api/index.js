@@ -202,6 +202,42 @@ export function getLocalSkills(projectPath) {
   return request('GET', `/skill/local_skill${query}`)
 }
 
+// ========== Custom Action API ==========
+export function listCustomActions(actionType) {
+  return request('GET', '/custom_action/list_custom_action', { type: actionType || 'code' })
+}
+
+// ========== Git API ==========
+export function gitIsRepo() {
+  return request('GET', '/git/is_repo_git')
+}
+
+export function gitStatus() {
+  return request('GET', '/git/status_git')
+}
+
+export function gitDiff(filePath, isNew) {
+  let url = `/git/diff_git?file=${encodeURIComponent(filePath)}`
+  if (isNew) url += '&isNew=true'
+  return request('GET', url)
+}
+
+export function gitRevert(filePath) {
+  return request('POST', '/git/revert_git', { file: filePath })
+}
+
+export function gitRevertAll() {
+  return request('POST', '/git/revert_all_git')
+}
+
+export function gitDeleteFile(filePath) {
+  return request('POST', '/git/delete_file_git', { file: filePath })
+}
+
+export function gitDiscardUntracked() {
+  return request('POST', '/git/discard_untracked_git')
+}
+
 // ========== Project API ==========
 export function getProjects() {
   return request('GET', '/project/list_project')

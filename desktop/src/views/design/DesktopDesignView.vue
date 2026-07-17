@@ -366,12 +366,6 @@ export default {
     document.removeEventListener('keydown', this.onGlobalKeydown)
   },
   methods: {
-    open(data) {
-      if (data && data.file) {
-        this.designTab = 'pages'
-      }
-    },
-
     setDesignTab(tab) {
       this.designTab = tab
     },

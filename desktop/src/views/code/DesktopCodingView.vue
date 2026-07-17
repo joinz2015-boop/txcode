@@ -1,0 +1,660 @@
+<template>
+  <div class="coding-view">
+    <div class="sidebar-panel">
+      <div class="sidebar-header">
+        <span class="sidebar-title">会话列表</span>
+        <button class="sidebar-new-btn" @click="createPlanSession">+ 新建</button>
+      </div>
+      <div class="sidebar-content">
+        <div v-if="planSessions.length === 0" class="sidebar-empty">
+          <p>暂无计划会话</p>
+          <button class="sidebar-new-btn" @click="createPlanSession">+ 新建</button>
+        </div>
+        <div
+          v-for="session in displayedSessions"
+          :key="session.folderName"
+          class="session-item"
+          :class="{ active: currentPlanSession && currentPlanSession.folderName === session.folderName }"
+          @click="selectPlanSession(session)"
+          @contextmenu.prevent="openContextMenu($event, session)"
+        >
+          <div class="session-title">{{ session.meta.sessionName || session.folderName }}</div>
+          <div class="session-time">{{ formatTime(session.meta.updatedAt || session.meta.createdAt) }}</div>
+          <span v-if="isSessionRunning(session)" class="session-spinner"></span>
+        </div>
+        <div v-if="hasMore" class="load-more-item" @click="loadMore">加载更多 ({{ planSessions.length - displayCount }})</div>
+        <div v-else-if="planSessions.length > pageSize" class="load-more-item disabled">已加载全部</div>
+      </div>
+    </div>
+
+    <div class="main-area">
+      <div v-if="currentPlanSession" class="mode-float">
+        <button class="mode-tab" :class="{ active: currentMode === 'code' }" @click="switchMode('code')">编码模式</button>
+        <button class="mode-tab" :class="{ active: currentMode === 'plan' }" @click="switchMode('plan')">方案模式</button>
+      </div>
+
+      <div v-if="currentPlanSession" class="content-panels">
+        <DesktopCodingPanel
+          ref="codingPanel"
+          v-show="currentMode === 'code'"
+          :currentModel="currentModel"
+          :currentSession="currentPlanSession"
+          :runningSessionIds="runningSessionIds"
+          :planFilePath="planFilePath"
+          :customActions="customActions"
+          @open-model-select="handleOpenModelSelect('code')"
+          @custom-action="executeCustomAction"
+          @open-git-changes="gitChangesDialogVisible = true"
+          @open-test="handleOpenTest"
+        />
+
+        <template v-if="currentMode === 'plan'">
+          <DesktopPlanEditor
+            ref="planEditor"
+            :folderName="planFolderName"
+            :filePath="planFilePath"
+            :planFilePath="planFilePath"
+            :editorFlex="'1'"
+            @refresh="loadPlanContent"
+            @export="exportPlan"
+            @create-sub="createSubPlan"
+            @generate-code="fillDevPlan"
+          />
+          <div class="resize-handle" @mousedown="onResizeStart" ref="resizeHandleEl"></div>
+          <DesktopAssistantPanel
+            ref="assistantPanel"
+            :panelWidth="assistantWidth"
+            :currentModel="currentModel"
+            :currentSession="currentPlanSession"
+            :planFilePath="planFilePath"
+            :runningSessionIds="runningSessionIds"
+            @planUpdated="loadPlanContent"
+            @open-model-select="handleOpenModelSelect('design')"
+          />
+        </template>
+      </div>
+
+      <div v-else class="empty-state">
+        <span class="empty-icon">📋</span>
+        <p>选择或创建一个计划会话开始</p>
+        <button class="sidebar-new-btn" style="margin-top:12px;font-size:13px;padding:6px 16px;" @click="createPlanSession">+ 新建会话</button>
+      </div>
+    </div>
+
+    <div v-if="contextMenu.visible" class="context-menu" :style="{ top: contextMenu.y + 'px', left: contextMenu.x + 'px' }">
+      <div class="context-menu-item" @click="renameContextSession">重命名</div>
+      <div class="context-menu-item danger" @click="deleteContextSession">删除</div>
+    </div>
+
+    <DesktopModelSelectDialog
+      v-if="modelSelectVisible"
+      :currentModel="currentModel"
+      @close="modelSelectVisible = false"
+      @select="onModelSelected"
+    />
+
+    <DesktopCreateSubPlanDialog
+      v-if="subPlanDialogVisible"
+      @close="subPlanDialogVisible = false"
+      @confirm="onSubPlanConfirm"
+    />
+
+    <DesktopGitChangesDialog
+      v-if="gitChangesDialogVisible"
+      @close="gitChangesDialogVisible = false"
+    />
+  </div>
+</template>
+
+<script>
+import DesktopCodingPanel from '@/components/coding/DesktopCodingPanel.vue'
+import DesktopPlanEditor from '@/components/plan/DesktopPlanEditor.vue'
+import DesktopAssistantPanel from '@/components/plan/DesktopAssistantPanel.vue'
+import DesktopModelSelectDialog from '@/components/plan-code/DesktopModelSelectDialog.vue'
+import DesktopCreateSubPlanDialog from '@/components/plan-code/DesktopCreateSubPlanDialog.vue'
+import DesktopGitChangesDialog from '@/components/plan-code/DesktopGitChangesDialog.vue'
+import { listPlanSessions, createPlanSession, renamePlanSession, deletePlanSession, readPlan, getModels, listCustomActions, getConfig } from '@/api/index'
+import { getItem, setItem } from '@/utils/storage'
+import { ws } from '@/utils/websocket'
+
+export default {
+  name: 'DesktopCodingView',
+  components: { DesktopCodingPanel, DesktopPlanEditor, DesktopAssistantPanel, DesktopModelSelectDialog, DesktopCreateSubPlanDialog, DesktopGitChangesDialog },
+  inject: ['desktopState'],
+  data() {
+    return {
+      currentMode: getItem('coding:mode', 'code'),
+      currentModel: getItem('model:current', 'DeepSeek V3'),
+      planSessions: [],
+      currentPlanSession: null,
+      planContent: '',
+      planFilePath: '',
+      displayCount: 10,
+      pageSize: 10,
+      assistantWidth: getItem('coding:assistantWidth', 370),
+      contextMenu: { visible: false, x: 0, y: 0, session: null },
+      modelSelectVisible: false,
+      modelSelectTarget: 'code',
+      subPlanDialogVisible: false,
+      gitChangesDialogVisible: false,
+      customActions: [],
+      _renameUnsub: null,
+    }
+  },
+  computed: {
+    runningSessionIds() {
+      return this.desktopState ? this.desktopState.runningSessionIds : []
+    },
+    planFolderName() {
+      return this.currentPlanSession ? this.currentPlanSession.folderName : ''
+    },
+    displayedSessions() {
+      return this.planSessions.slice(0, this.displayCount)
+    },
+    hasMore() {
+      return this.displayCount < this.planSessions.length
+    },
+  },
+  watch: {
+    currentMode(val) {
+      setItem('coding:mode', val)
+      if (val === 'plan') this.$nextTick(() => this.loadPlanContent())
+    },
+    currentModel(val) {
+      setItem('model:current', val)
+      const cp = this.$refs.codingPanel
+      const ap = this.$refs.assistantPanel
+      if (cp) cp.panel.modelName = val
+      if (ap) {
+        ap.designPanel.modelName = val
+        ap.discussPanel.modelName = val
+      }
+    },
+    runningSessionIds() {
+      this.updateTitle()
+    },
+  },
+  methods: {
+    async loadPlanSessions() {
+      try {
+        const r = await listPlanSessions()
+        this.planSessions = r.data || []
+        this.displayCount = this.pageSize
+      } catch (e) {
+        console.error('加载计划会话失败:', e)
+      }
+    },
+    async createPlanSession() {
+      try {
+        await createPlanSession('新计划会话')
+        await this.loadPlanSessions()
+        const s = this.planSessions[0]
+        if (s) await this.selectPlanSession(s)
+      } catch (e) {
+        console.error('创建失败:', e)
+      }
+    },
+    async selectPlanSession(session) {
+      if (this.currentPlanSession && this.currentPlanSession.folderName === session.folderName) return
+      this.currentPlanSession = session
+      setItem('planSession:current', session)
+      this.planFilePath = session.meta.planFilePath || ''
+      this.currentMode = getItem('coding:mode', 'code')
+      if (this.currentMode === 'plan') {
+        await this.loadPlanContent()
+      }
+      this.$nextTick(() => {
+        if (this.$refs.planEditor && this.currentMode === 'plan') {
+          this.$refs.planEditor.refresh()
+        }
+      })
+    },
+    switchMode(mode) {
+      this.currentMode = mode
+      if (mode === 'plan') this.$nextTick(() => this.loadPlanContent())
+    },
+    async loadPlanContent() {
+      if (!this.planFolderName) return
+      try {
+        const r = await readPlan(this.planFolderName)
+        this.planContent = (r.data && r.data.content) || ''
+      } catch (e) {
+        this.planContent = ''
+      }
+    },
+    exportPlan() {
+      if (!this.planFilePath) return
+      const url = `/api/file/download_file?path=${encodeURIComponent(this.planFilePath)}`
+      const a = document.createElement('a')
+      a.href = url
+      a.download = this.planFilePath.split('/').pop() || '方案.md'
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+    },
+    async createSubPlan() {
+      this.subPlanDialogVisible = true
+    },
+    async onSubPlanConfirm(name) {
+      this.subPlanDialogVisible = false
+      try {
+        await createPlanSession(name, this.planFilePath)
+        await this.loadPlanSessions()
+        const s = this.planSessions[0]
+        if (s) await this.selectPlanSession(s)
+      } catch (e) {
+        console.error('创建子方案失败:', e)
+      }
+    },
+    async renamePlanSession(session, newName) {
+      try {
+        await renamePlanSession(session.folderName, newName)
+        await this.loadPlanSessions()
+        if (this.currentPlanSession && this.currentPlanSession.folderName === session.folderName) {
+          const u = this.planSessions.find(s => s.folderName === session.folderName)
+          if (u) { this.currentPlanSession = u; this.planFilePath = u.meta.planFilePath || '' }
+        }
+      } catch (e) { console.error('重命名失败:', e) }
+    },
+    async deletePlanSession(session) {
+      try {
+        await deletePlanSession(session.folderName)
+        if (this.currentPlanSession && this.currentPlanSession.folderName === session.folderName) {
+          this.currentPlanSession = null
+          this.planFilePath = ''
+        }
+        await this.loadPlanSessions()
+      } catch (e) { console.error('删除失败:', e) }
+    },
+    openContextMenu(e, session) {
+      this.contextMenu = { visible: true, x: e.clientX, y: e.clientY, session }
+    },
+    renameContextSession() {
+      const session = this.contextMenu.session
+      const newName = prompt('输入新名称:', session.meta.sessionName || session.folderName)
+      if (newName && newName.trim()) {
+        this.renamePlanSession(session, newName.trim())
+      }
+      this.contextMenu.visible = false
+    },
+    deleteContextSession() {
+      const session = this.contextMenu.session
+      if (confirm(`确定删除 "${session.meta.sessionName || session.folderName}" 吗？`)) {
+        this.deletePlanSession(session)
+      }
+      this.contextMenu.visible = false
+    },
+    handleRenameEvent(data) {
+      if (this.currentPlanSession && this.currentPlanSession.folderName === data.folderName) {
+        this.currentPlanSession = {
+          ...this.currentPlanSession,
+          meta: { ...this.currentPlanSession.meta, sessionName: data.sessionName }
+        }
+        setItem('planSession:current', this.currentPlanSession)
+      }
+      this.loadPlanSessions()
+    },
+    loadMore() {
+      this.displayCount = Math.min(this.displayCount + this.pageSize, this.planSessions.length)
+    },
+    formatTime(dateStr) {
+      if (!dateStr) return ''
+      try {
+        const d = new Date(dateStr)
+        const now = new Date()
+        const diff = now - d
+        if (diff < 3600000) return Math.floor(diff / 60000) + '分钟前'
+        if (diff < 86400000) return Math.floor(diff / 3600000) + '小时前'
+        return d.toLocaleDateString()
+      } catch { return '' }
+    },
+    isSessionRunning(session) {
+      if (!this.runningSessionIds || !this.runningSessionIds.length) return false
+      const meta = session.meta || {}
+      const ids = [
+        meta.codeSessionId,
+        meta.designSessionId,
+        meta.testSessionId,
+      ].filter(Boolean)
+      const discussSessions = meta.discussSessions || []
+      for (const d of discussSessions) {
+        if (d.sessionId) ids.push(d.sessionId)
+      }
+      return ids.some(id => this.runningSessionIds.includes(id))
+    },
+    handleOpenModelSelect(target) {
+      this.modelSelectTarget = target
+      this.modelSelectVisible = true
+    },
+    handleOpenTest() {
+      const cp = this.$refs.codingPanel
+      if (!cp || !cp.panel.sessionId) return
+      cp.inputText = '请运行项目测试'
+      cp.$nextTick(() => {
+        const inputEl = cp.$el.querySelector('.code-textarea')
+        if (inputEl) inputEl.focus()
+      })
+    },
+    onModelSelected(model) {
+      const name = model.name.split('/').length > 2 ? model.name.split('/').slice(1).join('/') : model.name
+      this.currentModel = name
+      this.modelSelectVisible = false
+    },
+    async loadCustomActions() {
+      try {
+        const r = await listCustomActions('code')
+        this.customActions = r.data || []
+      } catch (e) {
+        console.error('加载自定义动作失败:', e)
+      }
+    },
+    async loadDefaultModel() {
+      const stored = getItem('model:current', null)
+      if (stored && stored !== 'DeepSeek V3') return
+      try {
+        const r = await getConfig('defaultModel')
+        if (r.data?.value) {
+          this.currentModel = r.data.value
+        }
+      } catch (e) {}
+    },
+    executeCustomAction(action) {
+      const cp = this.$refs.codingPanel
+      if (!cp) return
+      cp.inputText = action.prompt
+      cp.$nextTick(() => {
+        const ta = cp.$refs.messagesContainer
+        if (ta) {
+          const inputEl = cp.$el.querySelector('.code-textarea')
+          if (inputEl) inputEl.focus()
+        }
+        if (action.auto_send) cp.sendMessage()
+      })
+    },
+    fillDevPlan() {
+      this.currentMode = 'code'
+      this.$nextTick(() => {
+        const cp = this.$refs.codingPanel
+        if (cp && this.planFilePath) {
+          cp.inputText = `根据 ${this.planFilePath} 方案开发相应功能，先不要修改方案文档。`
+        } else if (cp) {
+          cp.inputText = '根据方案开发相应功能，先不要修改方案文档。'
+        }
+      })
+    },
+    saveCodeScrollTop() {
+      const cp = this.$refs.codingPanel
+      if (cp) cp.saveCodeScrollTop()
+    },
+    restoreCodeScrollTop() {
+      const cp = this.$refs.codingPanel
+      if (cp) cp.restoreCodeScrollTop()
+    },
+    updateTitle() {
+      if (!this.runningSessionIds || this.runningSessionIds.length === 0) {
+        document.title = 'TXCode'
+        return
+      }
+      const myIds = []
+      const s = this.currentPlanSession
+      if (s) {
+        const meta = s.meta || {}
+        if (meta.codeSessionId) myIds.push(meta.codeSessionId)
+        if (meta.designSessionId) myIds.push(meta.designSessionId)
+        if (meta.testSessionId) myIds.push(meta.testSessionId)
+        const discuss = meta.discussSessions || []
+        for (const d of discuss) {
+          if (d.sessionId) myIds.push(d.sessionId)
+        }
+      }
+      const running = myIds.some(id => this.runningSessionIds.includes(id))
+      document.title = running ? '⏳ TXCode' : 'TXCode'
+    },
+    onResizeStart(e) {
+      const startX = e.clientX
+      const startW = this.assistantWidth
+      const move = (ev) => {
+        this.assistantWidth = Math.max(260, Math.min(600, startW + (startX - ev.clientX)))
+      }
+      const up = () => {
+        document.removeEventListener('mousemove', move)
+        document.removeEventListener('mouseup', up)
+        document.body.style.cursor = ''
+        document.body.style.userSelect = ''
+        setItem('coding:assistantWidth', this.assistantWidth)
+      }
+      document.addEventListener('mousemove', move)
+      document.addEventListener('mouseup', up)
+      document.body.style.cursor = 'col-resize'
+      document.body.style.userSelect = 'none'
+    },
+  },
+  mounted() {
+    this.loadPlanSessions()
+    this.loadCustomActions()
+    this.loadDefaultModel()
+    this.updateTitle()
+    document.addEventListener('click', () => { this.contextMenu.visible = false })
+    this._renameUnsub = ws.on('rename', (msg) => {
+      const data = msg.data || msg
+      if (data.folderName && data.sessionName && this.currentPlanSession && this.currentPlanSession.folderName === data.folderName) {
+        this.currentPlanSession = {
+          ...this.currentPlanSession,
+          meta: { ...this.currentPlanSession.meta, sessionName: data.sessionName }
+        }
+        setItem('planSession:current', this.currentPlanSession)
+      }
+    })
+  },
+  activated() {
+    if (this.currentPlanSession && this.currentMode === 'code') {
+      const cp = this.$refs.codingPanel
+      if (cp && cp.panel.sessionId) {
+        cp.subscribePanel(cp.panel.sessionId)
+      }
+    }
+    this.restoreCodeScrollTop()
+  },
+  deactivated() {
+    this.saveCodeScrollTop()
+    const cp = this.$refs.codingPanel
+    if (cp) cp.unsubscribePanel()
+    const ap = this.$refs.assistantPanel
+    if (ap) {
+      ap.unsubscribeDesign()
+      ap.unsubscribeDiscuss()
+    }
+  },
+  beforeDestroy() {
+    if (this._renameUnsub) { this._renameUnsub(); this._renameUnsub = null }
+  },
+}
+</script>
+
+<style scoped>
+.coding-view {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+.sidebar-panel {
+  width: 250px;
+  min-width: 250px;
+  background: var(--bg-side);
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.sidebar-title {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.sidebar-new-btn {
+  font-size: 12px;
+  padding: 5px 12px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.sidebar-new-btn:hover { background: #4752c4; }
+.sidebar-content { flex: 1; overflow-y: auto; }
+.sidebar-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 32px 16px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.session-item {
+  padding: 10px 16px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-muted);
+  border-left: 2px solid transparent;
+  transition: all 0.15s;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.session-item:hover { background: var(--bg-hover); color: var(--text-primary); }
+.session-item.active {
+  background: var(--accent-light);
+  border-left-color: var(--accent);
+  color: var(--accent);
+}
+.session-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+.session-time { font-size: 11px; color: var(--text-muted); }
+
+.session-spinner {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: translateY(-50%) rotate(360deg); } }
+
+.load-more-item {
+  padding: 7px 16px;
+  font-size: 12px;
+  color: var(--accent);
+  cursor: pointer;
+  text-align: center;
+}
+.load-more-item:hover { background: var(--bg-hover); }
+.load-more-item.disabled { color: var(--text-muted); cursor: default; }
+
+.main-area {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.mode-float {
+  position: absolute;
+  top: 22px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  padding: 2px;
+}
+.mode-tab {
+  padding: 6px 20px;
+  font-size: 12.5px;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  color: var(--text-muted);
+  transition: all 0.2s;
+  white-space: nowrap;
+  font-weight: 500;
+  font-family: inherit;
+}
+.mode-tab:hover { color: var(--text-primary); background: var(--bg-hover); }
+.mode-tab.active { background: var(--accent); color: #fff; box-shadow: 0 2px 6px rgba(79, 110, 247, 0.3); }
+
+.content-panels {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  padding: 14px;
+  gap: 0;
+}
+
+.resize-handle {
+  width: 5px;
+  cursor: col-resize;
+  flex-shrink: 0;
+  transition: background 0.15s;
+  border-radius: 2px;
+}
+.resize-handle:hover { background: var(--accent); opacity: 0.5; }
+
+.empty-state {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  flex-direction: column;
+  gap: 12px;
+}
+.empty-icon { font-size: 48px; opacity: 0.3; }
+
+.context-menu {
+  position: fixed;
+  z-index: 1000;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+  min-width: 120px;
+  padding: 4px;
+}
+.context-menu-item {
+  padding: 7px 14px;
+  font-size: 12.5px;
+  cursor: pointer;
+  border-radius: 4px;
+  color: var(--text-primary);
+  transition: background 0.1s;
+}
+.context-menu-item:hover { background: var(--bg-hover); }
+.context-menu-item.danger { color: #ef4444; }
+.context-menu-item.danger:hover { background: #fef2f2; }
+</style>

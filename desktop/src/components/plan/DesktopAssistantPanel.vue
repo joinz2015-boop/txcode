@@ -29,7 +29,7 @@
             <div class="amsg-text">{{ item.content }}</div>
           </div>
           <div v-else-if="item.type === 'think'" :key="'dt-' + idx" class="ai-thought" v-html="renderMarkdown(item.content)"></div>
-          <template v-else-if="item.type === 'step'" :key="'ds-' + idx">
+          <div v-else-if="item.type === 'step'" :key="'ds-' + idx">
             <div v-if="item.thought" class="ai-thought" v-html="renderMarkdown(item.thought)"></div>
             <div v-for="(tc, aIdx) in item.toolCalls" :key="'dst-' + aIdx" class="log-mute">
               <template v-if="tc.status === 'executing'">
@@ -43,7 +43,7 @@
                 <span v-if="getToolCallArguments(tc)" class="tool-input">{{ formatInput(getToolCallName(tc), getToolCallArguments(tc)) }}</span>
               </template>
             </div>
-          </template>
+          </div>
           <div v-else :key="idx" class="assistant-msg" :class="item.role">
             <div class="amsg-text" v-html="renderMarkdown(item.content || '')"></div>
           </div>
@@ -104,7 +104,7 @@
           {{ designPanel.disabled ? (designStopping ? '■ 停止中' : '● 处理中') : '✓ 就绪' }}
         </span>
         <span class="sep">|</span>
-        <span>模型: {{ currentModel }}</span>
+        <span class="status-action" @click="$emit('open-model-select')" @mousedown.prevent>模型: {{ currentModel }} ▾</span>
         <template v-if="designSelectedFiles.length > 0">
           <span class="sep">|</span>
           <span class="badge-action" @click="designSelectedFiles = []" title="清除">{{ designSelectedFiles.length }} 文件</span>
@@ -159,7 +159,7 @@
               <div class="amsg-text">{{ item.content }}</div>
             </div>
             <div v-else-if="item.type === 'think'" :key="'dt2-' + idx" class="ai-thought" v-html="renderMarkdown(item.content)"></div>
-            <template v-else-if="item.type === 'step'" :key="'ds2-' + idx">
+            <div v-else-if="item.type === 'step'" :key="'ds2-' + idx">
               <div v-if="item.thought" class="ai-thought" v-html="renderMarkdown(item.thought)"></div>
               <div v-for="(tc, aIdx) in item.toolCalls" :key="'dst2-' + aIdx" class="log-mute">
                 <template v-if="tc.status === 'executing'">
@@ -173,7 +173,7 @@
                   <span v-if="getToolCallArguments(tc)" class="tool-input">{{ formatInput(getToolCallName(tc), getToolCallArguments(tc)) }}</span>
                 </template>
               </div>
-            </template>
+            </div>
             <div v-else :key="idx" class="assistant-msg" :class="item.role">
               <div class="amsg-text" v-html="renderMarkdown(item.content || '')"></div>
             </div>

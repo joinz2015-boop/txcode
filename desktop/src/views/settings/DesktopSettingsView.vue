@@ -1,82 +1,72 @@
 <template>
   <div class="settings-view">
-    <div class="content-header">
-      <div class="content-header-left">
-        <span class="content-header-title">设置 · 供应商</span>
+    <div class="settings-left">
+      <div class="left-header">
+        <span class="left-title">供应商</span>
+        <button class="btn-primary-sm" @click="openProviderDialog(null)">+ 添加</button>
       </div>
-      <div class="content-header-actions">
-        <button class="btn-outline-sm" @click="handleExportConfig">导出配置</button>
-        <button class="btn-outline-sm" @click="handleImportConfig">导入配置</button>
-        <button class="btn-primary-sm" @click="openProviderDialog(null)">+ 添加服务商</button>
+      <div class="left-list">
+        <div
+          v-for="provider in allProviders"
+          :key="provider.id"
+          class="provider-item"
+          :class="{ active: selectedProviderId === provider.id }"
+          @click="selectProvider(provider.id)"
+        >
+          <div class="provider-item-icon">{{ provider.name.charAt(0).toUpperCase() }}</div>
+          <div class="provider-item-info">
+            <div class="provider-item-name">
+              {{ provider.name }}
+              <span v-if="provider.isDefault" class="tag-default">默认</span>
+            </div>
+            <div class="provider-item-url">{{ provider.baseUrl || '自建平台' }}</div>
+          </div>
+        </div>
+        <div v-if="allProviders.length === 0" class="left-empty">暂无供应商</div>
       </div>
     </div>
-    <div class="settings-panel">
-      <div v-if="loading" class="loading-state">加载中...</div>
-
-      <template v-else>
-        <div v-if="songbingProvider" class="settings-card">
-          <div class="settings-card-header">
-            <div class="settings-card-icon provider">S</div>
+    <div class="settings-right">
+      <template v-if="selectedProvider">
+        <div class="right-header">
+          <div class="right-header-left">
+            <div class="right-provider-icon">{{ selectedProvider.name.charAt(0).toUpperCase() }}</div>
             <div>
-              <div class="settings-card-title">自建AI平台 <span class="tag-success">已认证</span></div>
-              <div class="settings-card-subtitle">{{ songbingPlatformUrl }}</div>
+              <div class="right-provider-name">{{ selectedProvider.name }}</div>
+              <div class="right-provider-url">{{ selectedProvider.baseUrl || '自建平台' }}</div>
             </div>
-            <div style="margin-left:auto;display:flex;gap:8px;">
+          </div>
+          <div class="right-header-actions">
+            <template v-if="selectedProvider.name === '自建AI平台'">
               <button class="btn-outline-sm" @click="handleAuthSongbing">重新认证</button>
               <button class="btn-primary-sm" @click="handleSyncSongbingModels">同步模型</button>
               <button class="btn-danger-sm" @click="handleCancelSongbingAuth">取消认证</button>
-            </div>
-          </div>
-          <div class="models-section">
-            <div class="models-section-header">模型列表</div>
-            <div v-if="songbingModels.length === 0" class="empty-hint">暂无模型，请先认证后同步</div>
-            <div v-for="model in songbingModels" :key="model.id" class="model-row">
-              <span class="model-name">{{ model.name }}</span>
-              <span class="tag" :class="model.enabled ? 'tag-success' : 'tag-muted'">{{ model.enabled ? '启用' : '禁用' }}</span>
-            </div>
+            </template>
+            <template v-else>
+              <button class="btn-outline-sm" @click="openProviderDialog(selectedProvider)">修改</button>
+              <button class="btn-danger-sm" @click="handleDeleteProvider(selectedProvider)">删除</button>
+            </template>
           </div>
         </div>
-
-        <div v-for="provider in nonOfficialProviders" :key="provider.id" class="settings-card">
-          <div class="settings-card-header" @click="toggleProvider(provider.id)" style="cursor:pointer;">
-            <span class="expand-arrow" :class="{ expanded: expandedProviders.includes(provider.id) }">▶</span>
-            <div class="settings-card-icon provider">{{ provider.name.charAt(0).toUpperCase() }}</div>
-            <div>
-              <div class="settings-card-title">
-                {{ provider.name }}
-                <span v-if="provider.isDefault" class="tag-success">默认</span>
-              </div>
-              <div class="settings-card-subtitle">{{ provider.baseUrl }}</div>
-            </div>
-            <div style="margin-left:auto;display:flex;gap:8px;" @click.stop>
-              <button class="btn-outline-sm" @click="openProviderDialog(provider)">修改</button>
-              <button class="btn-danger-sm" @click="handleDeleteProvider(provider)">删除</button>
+        <div class="right-body">
+          <div class="models-header">
+            <span class="models-title">模型列表</span>
+            <button class="btn-primary-sm" @click="openModelDialog(selectedProvider.id, null)">+ 添加模型</button>
+          </div>
+          <div v-if="providerModels.length === 0" class="empty-hint">暂无模型</div>
+          <div v-for="model in providerModels" :key="model.id" class="model-row">
+            <span class="model-name">{{ model.name }}</span>
+            <span class="tag" :class="model.enabled ? 'tag-success' : 'tag-muted'">{{ model.enabled ? '启用' : '禁用' }}</span>
+            <div style="margin-left:auto;display:flex;gap:6px;">
+              <button class="btn-outline-sm" @click="openModelDialog(selectedProvider.id, model)">修改</button>
+              <button class="btn-danger-sm" @click="handleDeleteModel(model)">删除</button>
             </div>
           </div>
-          <div v-show="expandedProviders.includes(provider.id)" class="models-section">
-            <div class="models-section-header">
-              <span>模型列表</span>
-              <button class="btn-primary-sm" @click="openModelDialog(provider.id, null)">+ 添加模型</button>
-            </div>
-            <div v-if="getProviderModels(provider.id).length === 0" class="empty-hint">暂无模型</div>
-            <div v-for="model in getProviderModels(provider.id)" :key="model.id" class="model-row">
-              <span class="model-name">{{ model.name }}</span>
-              <span class="tag" :class="model.enabled ? 'tag-success' : 'tag-muted'">{{ model.enabled ? '启用' : '禁用' }}</span>
-              <div style="margin-left:auto;display:flex;gap:6px;">
-                <button class="btn-outline-sm" @click.stop="openModelDialog(provider.id, model)">修改</button>
-                <button class="btn-danger-sm" @click.stop="handleDeleteModel(model)">删除</button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div v-if="!loading && providers.length === 0 && !songbingProvider" class="empty-state">
-          暂无服务商配置，请点击"添加服务商"开始。
         </div>
       </template>
+      <div v-else class="right-empty">请从左侧选择一个供应商</div>
     </div>
 
-    <!-- Provider Dialog Modal -->
+    <!-- Provider Dialog -->
     <div v-if="showProviderDialog" class="modal-overlay" @click.self="closeProviderDialog">
       <div class="modal-content">
         <div class="modal-header">
@@ -119,7 +109,7 @@
       </div>
     </div>
 
-    <!-- Model Dialog Modal -->
+    <!-- Model Dialog -->
     <div v-if="showModelDialog" class="modal-overlay" @click.self="closeModelDialog">
       <div class="modal-content">
         <div class="modal-header">
@@ -153,7 +143,7 @@
       </div>
     </div>
 
-    <!-- Auth Dialog Modal -->
+    <!-- Auth Dialog -->
     <div v-if="showAuthDialog" class="modal-overlay" @click.self="showAuthDialog = false">
       <div class="modal-content">
         <div class="modal-header">
@@ -180,7 +170,7 @@
 import {
   listProviders, getProvider as getProviderDetail,
   createProvider, updateProvider, deleteProvider,
-  getModels, getModelsByProvider, createModel, updateModel, deleteModel,
+  getModels, createModel, updateModel, deleteModel,
   exportConfig, importConfig,
   getSongbingConfig, startSongbingAuth, verifySongbingAuth, cancelSongbingAuth, syncSongbingModels
 } from '@/api/index'
@@ -197,12 +187,13 @@ const presets = [
 
 export default {
   name: 'DesktopSettingsView',
+  inject: ['desktopState'],
   data() {
     return {
       loading: true,
       providers: [],
       models: [],
-      expandedProviders: [],
+      selectedProviderId: '',
       showProviderDialog: false,
       editingProvider: null,
       selectedPreset: '',
@@ -211,7 +202,6 @@ export default {
       providerSaving: false,
       showModelDialog: false,
       editingModel: null,
-      defaultProviderId: null,
       modelForm: { providerId: '', name: '', enabled: true },
       modelFormError: { providerId: '', name: '' },
       modelSaving: false,
@@ -219,27 +209,28 @@ export default {
       authForm: { platformUrl: '' },
       authLoading: false,
       songbingConfig: { platformUrl: '', apiBaseUrl: '' },
-      songbingProvider: null,
-      pollTimer: null
+      pollTimer: null,
     }
   },
   computed: {
-    nonOfficialProviders() {
-      return this.providers.filter(p => p.name !== '自建AI平台')
+    allProviders() {
+      return [...this.providers]
     },
-    songbingModels() {
-      if (!this.songbingProvider) return []
-      return this.models.filter(m => m.providerId === this.songbingProvider.id)
+    selectedProvider() {
+      return this.providers.find(p => p.id === this.selectedProviderId) || null
     },
-    songbingPlatformUrl() {
-      const url = (this.songbingProvider && this.songbingProvider.baseUrl) || ''
-      return url.replace(/\/api\/v1$/, '')
-    }
-  },
-  mounted() {
-    this.loadData()
+    providerModels() {
+      if (!this.selectedProviderId) return []
+      return this.models.filter(m => m.providerId === this.selectedProviderId)
+    },
+    songbingProvider() {
+      return this.providers.find(p => p.name === '自建AI平台') || null
+    },
   },
   methods: {
+    selectProvider(id) {
+      this.selectedProviderId = id
+    },
     async loadData() {
       this.loading = true
       try {
@@ -248,19 +239,17 @@ export default {
         this.loading = false
       }
     },
-
     async loadProviders() {
       try {
         const r = await listProviders()
         this.providers = r.data || []
-        const def = this.providers.find(p => p.isDefault)
-        this.defaultProviderId = def ? def.id : null
-        this.checkSongbingProvider()
+        if (!this.selectedProviderId && this.providers.length > 0) {
+          this.selectedProviderId = this.providers[0].id
+        }
       } catch (e) {
         console.error('加载服务商失败:', e)
       }
     },
-
     async loadModels() {
       try {
         const r = await getModels()
@@ -269,29 +258,11 @@ export default {
         console.error('加载模型失败:', e)
       }
     },
-
     async loadSongbingConfig() {
       try {
         const r = await getSongbingConfig()
         this.songbingConfig = r.data || { platformUrl: '', apiBaseUrl: '' }
-      } catch (e) { /* ignore */ }
-    },
-
-    checkSongbingProvider() {
-      this.songbingProvider = this.providers.find(p => p.name === '自建AI平台') || null
-    },
-
-    toggleProvider(providerId) {
-      const idx = this.expandedProviders.indexOf(providerId)
-      if (idx > -1) {
-        this.expandedProviders.splice(idx, 1)
-      } else {
-        this.expandedProviders.push(providerId)
-      }
-    },
-
-    getProviderModels(providerId) {
-      return this.models.filter(m => m.providerId === providerId)
+      } catch (e) {}
     },
 
     // Provider Dialog
@@ -306,7 +277,6 @@ export default {
       }
       this.showProviderDialog = true
     },
-
     async loadProviderDetail(providerId) {
       try {
         const r = await getProviderDetail(providerId)
@@ -324,7 +294,6 @@ export default {
         }
       }
     },
-
     onPresetChange() {
       const preset = presets.find(p => p.name === this.selectedPreset)
       if (preset) {
@@ -332,13 +301,11 @@ export default {
         this.providerForm.baseUrl = preset.baseUrlValue
       }
     },
-
     closeProviderDialog() {
       this.showProviderDialog = false
       this.editingProvider = null
       this.selectedPreset = ''
     },
-
     async handleSaveProvider() {
       this.providerFormError = { name: '', apiKey: '' }
       let valid = true
@@ -351,36 +318,34 @@ export default {
         valid = false
       }
       if (!valid) return
-
       this.providerSaving = true
       try {
         if (this.editingProvider) {
           const data = { name: this.providerForm.name, baseUrl: this.providerForm.baseUrl }
           if (this.providerForm.apiKey) data.apiKey = this.providerForm.apiKey
           await updateProvider(this.editingProvider.id, data)
-          this.showToast('更新成功')
         } else {
           await createProvider(this.providerForm)
-          this.showToast('添加成功')
         }
         await this.loadProviders()
         this.closeProviderDialog()
       } catch (e) {
-        this.showToast('保存失败: ' + e.message)
+        alert('保存失败: ' + e.message)
       } finally {
         this.providerSaving = false
       }
     },
-
     async handleDeleteProvider(provider) {
       if (!confirm(`确定要删除服务商"${provider.name}"吗？`)) return
       try {
         await deleteProvider(provider.id)
-        this.showToast('删除成功')
+        if (this.selectedProviderId === provider.id) {
+          this.selectedProviderId = ''
+        }
         await this.loadProviders()
         await this.loadModels()
       } catch (e) {
-        this.showToast('删除失败: ' + e.message)
+        alert('删除失败: ' + e.message)
       }
     },
 
@@ -389,26 +354,16 @@ export default {
       this.editingModel = model
       this.modelFormError = { providerId: '', name: '' }
       if (model) {
-        this.modelForm = {
-          providerId: model.providerId,
-          name: model.name,
-          enabled: model.enabled
-        }
+        this.modelForm = { providerId: model.providerId, name: model.name, enabled: model.enabled }
       } else {
-        this.modelForm = {
-          providerId: providerId || this.defaultProviderId || '',
-          name: '',
-          enabled: true
-        }
+        this.modelForm = { providerId: providerId || '', name: '', enabled: true }
       }
       this.showModelDialog = true
     },
-
     closeModelDialog() {
       this.showModelDialog = false
       this.editingModel = null
     },
-
     async handleSaveModel() {
       this.modelFormError = { providerId: '', name: '' }
       let valid = true
@@ -421,7 +376,6 @@ export default {
         valid = false
       }
       if (!valid) return
-
       this.modelSaving = true
       try {
         if (this.editingModel) {
@@ -429,28 +383,24 @@ export default {
             name: this.modelForm.name,
             enabled: this.modelForm.enabled
           })
-          this.showToast('更新成功')
         } else {
           await createModel(this.modelForm)
-          this.showToast('添加成功')
         }
         await this.loadModels()
         this.closeModelDialog()
       } catch (e) {
-        this.showToast('保存失败: ' + e.message)
+        alert('保存失败: ' + e.message)
       } finally {
         this.modelSaving = false
       }
     },
-
     async handleDeleteModel(model) {
       if (!confirm(`确定要删除模型"${model.name}"吗？`)) return
       try {
         await deleteModel(model.id)
-        this.showToast('删除成功')
         await this.loadModels()
       } catch (e) {
-        this.showToast('删除失败: ' + e.message)
+        alert('删除失败: ' + e.message)
       }
     },
 
@@ -473,12 +423,10 @@ export default {
         a.click()
         document.body.removeChild(a)
         URL.revokeObjectURL(url)
-        this.showToast('配置导出成功')
       } catch (e) {
-        this.showToast('导出失败: ' + e.message)
+        alert('导出失败: ' + e.message)
       }
     },
-
     handleImportConfig() {
       const input = document.createElement('input')
       input.type = 'file'
@@ -490,13 +438,12 @@ export default {
           const content = await file.text()
           const res = await importConfig(content)
           if (res.success) {
-            this.showToast('配置导入成功')
             await this.loadData()
           } else {
-            this.showToast('导入失败: ' + res.error)
+            alert('导入失败: ' + res.error)
           }
         } catch (e) {
-          this.showToast('导入失败: ' + e.message)
+          alert('导入失败: ' + e.message)
         }
       }
       input.click()
@@ -504,41 +451,28 @@ export default {
 
     // Songbing Auth
     handleAuthSongbing() {
-      this.authForm.platformUrl = this.songbingConfig.platformUrl || this.songbingPlatformUrl || ''
+      this.authForm.platformUrl = this.songbingConfig.platformUrl || ''
       this.showAuthDialog = true
     },
-
     async handleConfirmAuth() {
       const platformUrl = this.authForm.platformUrl.trim()
-      if (!platformUrl) {
-        this.showToast('请输入平台地址')
-        return
-      }
+      if (!platformUrl) { alert('请输入平台地址'); return }
       if (!platformUrl.startsWith('http://') && !platformUrl.startsWith('https://')) {
-        this.showToast('平台地址必须以 http:// 或 https:// 开头')
-        return
+        alert('平台地址必须以 http:// 或 https:// 开头'); return
       }
       this.showAuthDialog = false
       this.authLoading = true
-
-      if (this.pollTimer) {
-        clearInterval(this.pollTimer)
-        this.pollTimer = null
-      }
-
+      if (this.pollTimer) { clearInterval(this.pollTimer); this.pollTimer = null }
       try {
         const res = await startSongbingAuth(platformUrl)
         const { key, auth_url } = res.data
         window.open(platformUrl + auth_url, '_blank')
-        this.showToast('请在打开的页面完成授权，认证中...')
-
         let attempts = 0
         this.pollTimer = setInterval(async () => {
           attempts++
           if (attempts >= 100) {
             clearInterval(this.pollTimer)
             this.pollTimer = null
-            this.showToast('认证超时，请重试')
             this.authLoading = false
             return
           }
@@ -547,184 +481,177 @@ export default {
             if (vRes.data && vRes.data.active) {
               clearInterval(this.pollTimer)
               this.pollTimer = null
-              this.showToast(`认证成功！已同步 ${vRes.data.syncedModels || 0} 个模型`)
               await this.loadProviders()
               await this.loadModels()
-              this.checkSongbingProvider()
               this.authLoading = false
             }
-          } catch (e) { /* single failure doesn't interrupt */ }
+          } catch (e) {}
         }, 3000)
       } catch (e) {
-        this.showToast('认证失败: ' + e.message)
+        alert('认证失败: ' + e.message)
         this.authLoading = false
       }
     },
-
     async handleCancelSongbingAuth() {
       if (!confirm('确定要取消认证吗？取消后已同步的模型将被删除。')) return
       try {
         await cancelSongbingAuth()
-        this.showToast('已取消认证')
         await this.loadProviders()
         await this.loadModels()
-        this.songbingProvider = null
       } catch (e) {
-        this.showToast('取消认证失败: ' + e.message)
+        alert('取消认证失败: ' + e.message)
       }
     },
-
     async handleSyncSongbingModels() {
-      if (!this.songbingProvider) {
-        this.showToast('请先完成认证')
-        return
-      }
       try {
-        const res = await syncSongbingModels()
-        this.showToast(`同步成功，新增 ${res.data.count} 个模型`)
+        await syncSongbingModels()
         await this.loadModels()
       } catch (e) {
-        this.showToast('同步模型失败: ' + e.message)
+        alert('同步模型失败: ' + e.message)
       }
     },
-
-    showToast(msg) {
-      alert(msg)
-    }
+  },
+  mounted() {
+    this.loadData()
   },
   beforeDestroy() {
-    if (this.pollTimer) {
-      clearInterval(this.pollTimer)
-    }
-  }
+    if (this.pollTimer) clearInterval(this.pollTimer)
+  },
 }
 </script>
 
 <style scoped>
-.settings-view { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
-.content-header {
-  height: 44px; min-height: 44px; display: flex; align-items: center; justify-content: space-between;
-  padding: 0 18px; border-bottom: 1px solid var(--border); background: var(--bg-chat); flex-shrink: 0;
+.settings-view {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
 }
-.content-header-left { display: flex; align-items: center; gap: 10px; }
-.content-header-title { font-size: 14px; font-weight: 600; color: var(--text-primary); }
-.content-header-actions { display: flex; gap: 8px; }
-.settings-panel { flex: 1; overflow-y: auto; padding: 24px 28px; }
 
-.settings-card {
-  background: #fff; border: 1px solid var(--border); border-radius: 10px;
-  padding: 0; margin-bottom: 16px; overflow: hidden;
-  transition: box-shadow 0.2s;
+/* Left Panel */
+.settings-left {
+  width: 230px;
+  min-width: 230px;
+  background: var(--bg-side);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
 }
-.settings-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
-.settings-card-header {
-  display: flex; align-items: center; gap: 10px; padding: 14px 16px;
+.left-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
 }
-.settings-card-icon {
-  width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center;
-  justify-content: center; font-size: 16px; font-weight: 700;
+.left-title { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.left-list { flex: 1; overflow-y: auto; }
+.left-empty { text-align: center; color: var(--text-muted); padding: 30px; font-size: 13px; }
+.provider-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  cursor: pointer;
+  border-left: 2px solid transparent;
+  transition: all 0.15s;
 }
-.settings-card-icon.provider { background: #eef1ff; color: #4f6ef7; }
-.settings-card-title { font-size: 14px; font-weight: 600; color: var(--text-primary); display: flex; align-items: center; gap: 8px; }
-.settings-card-subtitle { font-size: 11px; color: var(--text-muted); }
+.provider-item:hover { background: var(--bg-hover); }
+.provider-item.active { background: var(--accent-light); border-left-color: var(--accent); }
+.provider-item-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: #eef1ff;
+  color: #4f6ef7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.provider-item-info { flex: 1; min-width: 0; }
+.provider-item-name { font-size: 13px; font-weight: 500; color: var(--text-primary); display: flex; align-items: center; gap: 6px; }
+.provider-item-url { font-size: 11px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tag-default { font-size: 10px; padding: 1px 6px; border-radius: 4px; background: #ecfdf5; color: #059669; }
 
-.expand-arrow {
-  width: 18px; height: 18px; display: flex; align-items: center; justify-content: center;
-  font-size: 10px; color: var(--text-muted); transition: transform 0.2s; flex-shrink: 0;
+/* Right Panel */
+.settings-right {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
-.expand-arrow.expanded { transform: rotate(90deg); }
-
-.models-section {
-  border-top: 1px solid var(--border); padding: 12px 16px; background: #fafbfc;
+.right-empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  font-size: 13px;
 }
-.models-section-header {
-  display: flex; align-items: center; justify-content: space-between;
-  font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 10px;
+.right-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
 }
+.right-header-left { display: flex; align-items: center; gap: 10px; }
+.right-provider-icon {
+  width: 36px; height: 36px; border-radius: 8px;
+  background: #eef1ff; color: #4f6ef7;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; font-weight: 700;
+}
+.right-provider-name { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+.right-provider-url { font-size: 11px; color: var(--text-muted); }
+.right-header-actions { display: flex; gap: 6px; }
+.right-body { flex: 1; overflow-y: auto; padding: 16px 20px; }
+.models-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.models-title { font-size: 13px; font-weight: 600; color: var(--text-secondary); }
 .model-row {
-  display: flex; align-items: center; gap: 8px; padding: 8px 10px;
+  display: flex; align-items: center; gap: 8px; padding: 8px 12px;
   background: #fff; border: 1px solid var(--border); border-radius: 6px; margin-bottom: 6px;
 }
 .model-name { font-size: 13px; color: var(--text-primary); flex: 1; }
-
 .tag { font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 600; }
 .tag-success { background: #ecfdf5; color: #059669; }
 .tag-muted { background: #f3f4f6; color: #6b7280; }
+.empty-hint { text-align: center; color: var(--text-muted); padding: 20px; font-size: 13px; }
 
-.empty-hint { text-align: center; color: var(--text-muted); padding: 16px; font-size: 13px; }
-.empty-state { text-align: center; color: var(--text-muted); padding: 40px; font-size: 13px; }
-.loading-state { text-align: center; color: var(--text-muted); padding: 40px; font-size: 13px; }
+/* Buttons */
+.btn-primary { padding: 7px 16px; background: var(--accent); color: #fff; border: none; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; }
+.btn-primary:hover { filter: brightness(1.08); }
+.btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+.btn-primary-sm { padding: 5px 12px; background: var(--accent); color: #fff; border: none; border-radius: 5px; font-size: 11px; font-weight: 600; cursor: pointer; font-family: inherit; }
+.btn-primary-sm:hover { filter: brightness(1.08); }
+.btn-outline { padding: 7px 16px; background: #fff; color: var(--text-secondary); border: 1px solid var(--border); border-radius: 6px; font-size: 12px; font-weight: 500; cursor: pointer; font-family: inherit; }
+.btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+.btn-outline-sm { padding: 5px 12px; background: #fff; color: var(--text-secondary); border: 1px solid var(--border); border-radius: 5px; font-size: 11px; font-weight: 500; cursor: pointer; font-family: inherit; }
+.btn-outline-sm:hover { border-color: var(--accent); color: var(--accent); }
+.btn-danger-sm { padding: 5px 12px; background: #fff; color: #ef4444; border: 1px solid #fecaca; border-radius: 5px; font-size: 11px; font-weight: 500; cursor: pointer; font-family: inherit; }
+.btn-danger-sm:hover { background: #fef2f2; border-color: #ef4444; }
+
+/* Modal */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 1000; display: flex; align-items: center; justify-content: center; }
+.modal-content { background: #fff; border-radius: 10px; box-shadow: 0 8px 30px rgba(0,0,0,0.15); width: 480px; max-width: 90vw; max-height: 80vh; overflow-y: auto; }
+.modal-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid var(--border); font-size: 14px; font-weight: 600; color: var(--text-primary); }
+.modal-close { width: 24px; height: 24px; border: none; background: transparent; color: var(--text-muted); font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 4px; }
+.modal-close:hover { background: var(--bg-hover); color: var(--text-primary); }
+.modal-body { padding: 18px; }
+.modal-footer { padding: 12px 18px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; }
 
 .form-group { margin-bottom: 14px; }
 .form-label { display: block; font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 4px; }
 .form-label .required { color: #ef4444; }
-.form-input {
-  width: 100%; padding: 8px 12px; font-size: 13px; border: 1px solid var(--border);
-  border-radius: 6px; color: var(--text-primary); background: #fafbfc; outline: none;
-  font-family: inherit; transition: all 0.15s; box-sizing: border-box;
-}
+.form-input { width: 100%; padding: 8px 12px; font-size: 13px; border: 1px solid var(--border); border-radius: 6px; color: var(--text-primary); background: #fafbfc; outline: none; font-family: inherit; box-sizing: border-box; }
 .form-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(79,110,247,0.06); background: #fff; }
-.form-select {
-  width: 100%; padding: 8px 12px; font-size: 13px; border: 1px solid var(--border);
-  border-radius: 6px; color: var(--text-primary); background: #fafbfc; outline: none;
-  font-family: inherit; box-sizing: border-box;
-}
-.form-select:focus { border-color: var(--accent); }
+.form-select { width: 100%; padding: 8px 12px; font-size: 13px; border: 1px solid var(--border); border-radius: 6px; color: var(--text-primary); background: #fafbfc; outline: none; font-family: inherit; box-sizing: border-box; }
 .form-error { font-size: 11px; color: #ef4444; margin-top: 2px; display: block; }
 .form-hint { font-size: 11px; color: var(--text-muted); margin-top: 8px; padding: 8px; background: #f0f4ff; border-radius: 4px; }
 .form-checkbox { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--text-secondary); cursor: pointer; }
 .form-checkbox input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--accent); }
-
-/* Buttons */
-.btn-primary {
-  padding: 7px 16px; background: var(--accent); color: #fff; border: none; border-radius: 6px;
-  font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.15s; font-family: inherit;
-}
-.btn-primary:hover { filter: brightness(1.08); }
-.btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
-.btn-primary-sm {
-  padding: 5px 12px; background: var(--accent); color: #fff; border: none; border-radius: 5px;
-  font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.15s; font-family: inherit;
-}
-.btn-primary-sm:hover { filter: brightness(1.08); }
-.btn-outline {
-  padding: 7px 16px; background: #fff; color: var(--text-secondary); border: 1px solid var(--border);
-  border-radius: 6px; font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.15s; font-family: inherit;
-}
-.btn-outline:hover { border-color: var(--accent); color: var(--accent); }
-.btn-outline-sm {
-  padding: 5px 12px; background: #fff; color: var(--text-secondary); border: 1px solid var(--border);
-  border-radius: 5px; font-size: 11px; font-weight: 500; cursor: pointer; transition: all 0.15s; font-family: inherit;
-}
-.btn-outline-sm:hover { border-color: var(--accent); color: var(--accent); }
-.btn-danger-sm {
-  padding: 5px 12px; background: #fff; color: #ef4444; border: 1px solid #fecaca;
-  border-radius: 5px; font-size: 11px; font-weight: 500; cursor: pointer; transition: all 0.15s; font-family: inherit;
-}
-.btn-danger-sm:hover { background: #fef2f2; border-color: #ef4444; }
-
-/* Modal */
-.modal-overlay {
-  position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 1000;
-  display: flex; align-items: center; justify-content: center;
-}
-.modal-content {
-  background: #fff; border-radius: 10px; box-shadow: 0 8px 30px rgba(0,0,0,0.15);
-  width: 480px; max-width: 90vw; max-height: 80vh; overflow-y: auto;
-}
-.modal-header {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 14px 18px; border-bottom: 1px solid var(--border);
-  font-size: 14px; font-weight: 600; color: var(--text-primary);
-}
-.modal-close {
-  width: 24px; height: 24px; border: none; background: transparent; color: var(--text-muted);
-  font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 4px;
-}
-.modal-close:hover { background: var(--bg-hover); color: var(--text-primary); }
-.modal-body { padding: 18px; }
-.modal-footer {
-  padding: 12px 18px; border-top: 1px solid var(--border);
-  display: flex; justify-content: flex-end; gap: 8px;
-}
 </style>

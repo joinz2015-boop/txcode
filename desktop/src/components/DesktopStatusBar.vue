@@ -1,12 +1,6 @@
 <template>
   <div class="statusbar">
-    <div class="statusbar-left">
-      <span class="status-item">📁 {{ currentProjectName }}</span>
-      <span class="status-item">
-        <span class="status-dot green"></span> {{ currentModel }}
-      </span>
-      <span class="status-item">Node.js {{ nodeVersion || 'v20' }}</span>
-    </div>
+    <div class="statusbar-left"></div>
     <div class="statusbar-right">
       <span class="status-item" style="color:var(--text-muted);">v{{ appVersion }}</span>
     </div>

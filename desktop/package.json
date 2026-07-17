@@ -14,8 +14,9 @@
     "build:all": "vite build && electron-builder --win --mac"
   },
   "dependencies": {
+    "marked": "^15.0.4",
     "vue": "^2.7.16",
-    "marked": "^15.0.4"
+    "vue-router": "^3.6.5"
   },
   "devDependencies": {
     "@vitejs/plugin-vue2": "^2.3.3",

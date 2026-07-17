@@ -6,6 +6,7 @@
         <span class="file-path">{{ filePath }}</span>
       </div>
       <div class="plan-editor-actions">
+        <button title="生成代码" @click="$emit('generate-code')">⚡</button>
         <button title="保存方案 (Ctrl+S)" @click="saveContent">✓</button>
         <button title="刷新方案" @click="refresh">↻</button>
         <button title="导出方案" @click="$emit('export')">⬇</button>

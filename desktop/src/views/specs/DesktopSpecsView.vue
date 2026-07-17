@@ -145,9 +145,6 @@ export default {
     }
   },
   methods: {
-    open(data) {
-      // initialize / refresh
-    },
     setFilter(filter) {
       this.currentFilter = filter
       this.currentPage = 1

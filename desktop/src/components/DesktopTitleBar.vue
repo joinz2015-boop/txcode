@@ -30,28 +30,28 @@ const viewLabels = {
   coding: '编码',
   design: '设计',
   specs: '规范',
-  skills: 'Skill 市场',
-  settings: '设置'
+  skills: 'Skill',
+  settings: '设置',
 }
 
 export default {
   name: 'DesktopTitleBar',
   components: { DesktopProjectSwitcher },
   props: {
-    currentView: { type: String, default: 'coding' },
     currentProject: { type: Object, default: () => ({ name: 'txcode', path: '', color: '#4f6ef7' }) },
-    projects: { type: Array, default: () => [] }
+    projects: { type: Array, default: () => [] },
   },
   computed: {
     viewLabel() {
-      return viewLabels[this.currentView] || '编码'
-    }
+      const routeName = this.$route.name
+      return viewLabels[routeName] || '编码'
+    },
   },
   methods: {
     minimizeWindow,
     maximizeWindow,
-    closeWindow
-  }
+    closeWindow,
+  },
 }
 </script>
 
