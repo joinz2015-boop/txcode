@@ -32,19 +32,21 @@
 </template>
 
 <script>
-import { readPlan, savePlan } from '@/api/index'
+import { readPlan, savePlan, getFileContent, writeFile } from '@/api/index'
 
 export default {
   name: 'DesktopPlanEditor',
   props: {
     filePath: { type: String, default: '方案文档.md' },
     folderName: { type: String, default: '' },
+    planFilePath: { type: String, default: '' },
     editorFlex: { type: String, default: '1' }
   },
   data() {
     return {
       localContent: '',
-      saving: false
+      saving: false,
+      _loadKey: 0
     }
   },
   computed: {
@@ -58,10 +60,19 @@ export default {
         if (val) this.loadContent()
       },
       immediate: true
+    },
+    planFilePath: {
+      handler(val) {
+        if (val) this.loadContent()
+      }
     }
   },
   methods: {
     async loadContent() {
+      if (this.planFilePath) {
+        this.loadFromPath(this.planFilePath)
+        return
+      }
       if (!this.folderName) {
         this.localContent = ''
         return
@@ -74,11 +85,24 @@ export default {
         this.localContent = ''
       }
     },
+    async loadFromPath(path) {
+      try {
+        const r = await getFileContent(path)
+        this.localContent = (r.data && r.data.content) || r.data || ''
+      } catch (e) {
+        console.error('加载方案文件失败:', e)
+        this.localContent = ''
+      }
+    },
     async saveContent() {
-      if (!this.folderName) return
+      if (!this.folderName && !this.planFilePath) return
       this.saving = true
       try {
-        await savePlan(this.folderName, this.localContent)
+        if (this.folderName) {
+          await savePlan(this.folderName, this.localContent)
+        } else if (this.planFilePath) {
+          await writeFile(this.planFilePath, this.localContent)
+        }
         this.$emit('update:content', this.localContent)
       } catch (e) {
         console.error('保存方案失败:', e)
@@ -88,6 +112,7 @@ export default {
       }
     },
     refresh() {
+      this._loadKey++
       this.loadContent()
     },
     getValue() {

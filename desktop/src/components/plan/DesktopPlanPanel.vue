@@ -5,6 +5,7 @@
         ref="planEditor"
         :folderName="planFolderName"
         :filePath="planFilePath"
+        :planFilePath="planFilePath"
         :editorFlex="editorFlex"
         @update:content="handleContentUpdated"
         @refresh="refreshPlan"
@@ -46,7 +47,8 @@ export default {
       assistantWidth: 370,
       resizing: false,
       startX: 0,
-      startW: 0
+      startW: 0,
+      _refreshTimer: null
     }
   },
   computed: {
@@ -84,9 +86,12 @@ export default {
       // content saved by editor
     },
     refreshPlan() {
-      if (this.$refs.planEditor) {
-        this.$refs.planEditor.refresh()
-      }
+      if (this._refreshTimer) clearTimeout(this._refreshTimer)
+      this._refreshTimer = setTimeout(() => {
+        if (this.$refs.planEditor) {
+          this.$refs.planEditor.refresh()
+        }
+      }, 300)
     },
     exportPlan() {
       if (!this.planFilePath) {
@@ -131,6 +136,9 @@ export default {
       document.addEventListener('mousemove', move)
       document.addEventListener('mouseup', up)
     }
+  },
+  beforeDestroy() {
+    if (this._refreshTimer) clearTimeout(this._refreshTimer)
   }
 }
 </script>

@@ -1,5 +1,5 @@
 import { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage } from 'electron'
-import { spawn } from 'child_process'
+import { spawn, exec } from 'child_process'
 import { createServer } from 'net'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
@@ -35,7 +35,7 @@ function startBackend(port) {
   console.log('Starting backend from:', distIndex)
   console.log('Backend port:', port)
 
-  backendProcess = spawn('node', [distIndex, 'web', '--port', String(port)], {
+  backendProcess = spawn('node', [distIndex, 'desktop', '--port', String(port)], {
     cwd: rootDir,
     env: { ...process.env, NODE_ENV: process.env.NODE_ENV || 'production' },
     stdio: ['pipe', 'pipe', 'pipe']
@@ -184,6 +184,20 @@ ipcMain.on('close-window', () => {
   mainWindow && mainWindow.hide()
 })
 
+const gotTheLock = app.requestSingleInstanceLock()
+
+if (!gotTheLock) {
+  app.quit()
+} else {
+  app.on('second-instance', () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore()
+      mainWindow.show()
+      mainWindow.focus()
+    }
+  })
+}
+
 app.whenReady().then(async () => {
   backendPort = await findAvailablePort(40000)
   startBackend(backendPort)
@@ -208,10 +222,21 @@ app.on('window-all-closed', () => {
 
 app.on('before-quit', () => {
   app.isQuitting = true
-  if (backendProcess) {
-    backendProcess.kill()
-    backendProcess = null
+  if (backendProcess && backendProcess.pid) {
+    const pid = backendProcess.pid
+    backendProcess.kill('SIGTERM')
+    setTimeout(() => {
+      try {
+        process.kill(pid, 0)
+        if (process.platform === 'win32') {
+          exec(`taskkill /F /PID ${pid}`)
+        } else {
+          process.kill(pid, 'SIGKILL')
+        }
+      } catch { /* 进程已退出 */ }
+    }, 2000)
   }
+  backendProcess = null
   if (tray) {
     tray.destroy()
     tray = null

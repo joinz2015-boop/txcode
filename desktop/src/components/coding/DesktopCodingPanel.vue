@@ -7,8 +7,8 @@
     <div class="chat-messages" ref="messagesContainer">
       <div v-if="logItems.length === 0" class="welcome">
         <div class="welcome-logo">T</div>
-        <h2 class="welcome-title">欢迎使用 txcode</h2>
-        <p class="welcome-desc">AI 编码助手 · 选择左侧会话开始</p>
+        <h2 class="welcome-title">{{ currentSession && !panel.sessionId ? '新方案会话' : '欢迎使用 txcode' }}</h2>
+        <p class="welcome-desc">{{ currentSession && !panel.sessionId ? '发送第一条消息后将自动创建编码会话' : 'AI 编码助手 · 选择左侧会话开始' }}</p>
       </div>
       <DesktopChatMessage
         v-for="(item, idx) in logItems"
@@ -48,6 +48,10 @@
             <span>会话: {{ sessionIdDisplay }}</span>
             <span class="input-sep">|</span>
             <span>token: {{ panel.promptTokens }}</span>
+            <template v-if="planFilePath">
+              <span class="input-sep">|</span>
+              <span class="input-action" @click="fillDevPlan">生成代码</span>
+            </template>
           </div>
           <div class="code-input-actions-right">
             <button v-if="disabled && !stopping" class="input-btn btn-stop" @click="stopSending">■ 停止</button>
@@ -76,7 +80,8 @@ export default {
     currentAgent: { type: String, default: 'Code Agent' },
     currentModel: { type: String, default: 'DeepSeek V3' },
     currentSession: { type: Object, default: null },
-    runningSessionIds: { type: Array, default: () => [] }
+    runningSessionIds: { type: Array, default: () => [] },
+    planFilePath: { type: String, default: '' }
   },
   data() {
     return {
@@ -136,6 +141,7 @@ export default {
     },
 
     async initSession(session) {
+      this.saveCodeScrollTop()
       this.unsubscribePanel()
       this.panel = this.createPanel()
 
@@ -147,6 +153,24 @@ export default {
       }
       if (this.currentModel) {
         this.panel.modelName = this.currentModel
+      }
+      this.$nextTick(() => this.restoreCodeScrollTop())
+    },
+
+    saveCodeScrollTop() {
+      const el = this.$refs.messagesContainer
+      if (el) {
+        setItem('coding:scrollTop', el.scrollTop)
+      }
+    },
+
+    restoreCodeScrollTop() {
+      const el = this.$refs.messagesContainer
+      if (el) {
+        const top = getItem('coding:scrollTop', 0)
+        if (top > 0) {
+          this.$nextTick(() => { el.scrollTop = top })
+        }
       }
     },
 
@@ -314,6 +338,10 @@ export default {
     openModelSelect() {
       this.$emit('update:agent', this.currentAgent)
       this.$emit('update:model', this.currentModel)
+    },
+    fillDevPlan() {
+      if (!this.planFilePath) return
+      this.inputText = `请根据以下方案文件生成代码：${this.planFilePath}`
     },
     scrollToBottom() {
       const el = this.$refs.messagesContainer

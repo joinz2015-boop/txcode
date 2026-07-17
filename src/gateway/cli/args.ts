@@ -21,7 +21,7 @@
 
 export interface Args {
   /** 命令类型：chat(CLI聊天) | web(Web服务) | new(新建项目) */
-  command: 'chat' | 'web' | 'new';
+  command: 'chat' | 'web' | 'new' | 'desktop';
   /** Web 服务端口号，默认 40000 */
   port: number;
 }
@@ -54,26 +54,13 @@ export function parseArgs(argv: string[]): Args {
   const command = argv[2] || 'chat';
   
   // ========== 根据命令类型解析参数 ==========
-  if (command === 'web') {
-    /**
-     * Web 模式处理流程：
-     * 1. 在参数数组中查找 '--port' 的索引位置
-     * 2. 如果找到 '--port'，读取其下一个参数作为端口号
-     * 3. 如果未找到 '--port' 或端口号无效，使用默认端口 40000
-     * 
-     * 参数解析示例：
-     *   ['node', 'index.ts', 'web', '--port', '40001']
-     *   -> portIndex = 3, argv[4] = '40001', port = 40001
-     *   
-     *   ['node', 'index.ts', 'web']
-     *   -> portIndex = -1, port = 40000 (默认)
-     */
+  if (command === 'web' || command === 'desktop') {
     const portIndex = argv.indexOf('--port');
     const port = portIndex !== -1 && argv[portIndex + 1] 
-      ? parseInt(argv[portIndex + 1], 10)  // 解析为十进制整数
-      : 40000;  // 默认端口
+      ? parseInt(argv[portIndex + 1], 10)
+      : 40000;
     
-    return { command: 'web', port };
+    return { command, port };
   }
   
   // ========== 新建项目模式 ==========

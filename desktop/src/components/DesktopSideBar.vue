@@ -1,6 +1,6 @@
 <template>
   <div class="sidebar">
-    <template v-if="currentView === 'coding'">
+    <template v-if="currentView === 'coding' || currentView === 'plan'">
       <div class="sidebar-section">
         <a class="section-header" href="#" @click.prevent="$emit('navigate', 'coding')">
           <div class="section-header-left">
@@ -20,7 +20,10 @@
             @click="selectSession(session)"
             @contextmenu.prevent="openContextMenu($event, session)"
           >
-            <span class="sub-item-icon">📋</span>
+            <span class="sub-item-icon">
+              <span v-if="isSessionRunning(session)" class="session-spinner"></span>
+              <span v-else>📋</span>
+            </span>
             <span class="sub-item-name">{{ session.meta.sessionName || session.folderName }}</span>
             <span class="sub-item-extra">{{ formatTime(session.meta.updatedAt || session.meta.createdAt) }}</span>
           </div>
@@ -38,14 +41,6 @@
             <span class="section-label">设计</span>
           </div>
         </a>
-        <div class="section-body">
-          <div class="sub-item" @click="$emit('navigate', 'specs')">
-            <span class="sub-item-icon">📋</span><span class="sub-item-name">规范</span>
-          </div>
-          <div class="sub-item" @click="$emit('navigate', 'skills')">
-            <span class="sub-item-icon">⚡</span><span class="sub-item-name">Skill</span>
-          </div>
-        </div>
       </div>
       <div class="sidebar-section">
         <a class="section-header" href="#" @click.prevent="$emit('navigate', 'settings')">
@@ -56,6 +51,14 @@
             <span class="section-label">设置</span>
           </div>
         </a>
+        <div class="section-body">
+          <div class="sub-item" @click="$emit('navigate', 'specs')">
+            <span class="sub-item-icon">📋</span><span class="sub-item-name">规范</span>
+          </div>
+          <div class="sub-item" @click="$emit('navigate', 'skills')">
+            <span class="sub-item-icon">⚡</span><span class="sub-item-name">Skill</span>
+          </div>
+        </div>
       </div>
     </template>
 
@@ -118,7 +121,8 @@ export default {
   name: 'DesktopSideBar',
   props: {
     currentView: { type: String, default: 'coding' },
-    currentSession: { type: Object, default: null }
+    currentSession: { type: Object, default: null },
+    runningSessionIds: { type: Array, default: () => [] }
   },
   data() {
     return {
@@ -146,8 +150,6 @@ export default {
       try {
         await createPlanSession('新计划会话')
         await this.loadSessions()
-        const s = this.sessions[0]
-        if (s) this.selectSession(s)
       } catch (e) {
         console.error('创建失败:', e)
       }
@@ -206,6 +208,12 @@ export default {
         if (diff < 86400000) return Math.floor(diff / 3600000) + '小时前'
         return d.toLocaleDateString()
       } catch { return '' }
+    },
+    isSessionRunning(session) {
+      if (!this.runningSessionIds || this.runningSessionIds.length === 0) return false
+      const meta = session.meta || {}
+      return (meta.codeSessionId && this.runningSessionIds.includes(meta.codeSessionId)) ||
+             (meta.designSessionId && this.runningSessionIds.includes(meta.designSessionId))
     }
   }
 }
@@ -289,4 +297,18 @@ export default {
 .context-menu-item:hover { background: var(--bg-hover); }
 .context-menu-item.danger { color: #ef4444; }
 .context-menu-item.danger:hover { background: #fef2f2; }
+
+.session-spinner {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  vertical-align: middle;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
 </style>

@@ -38,7 +38,7 @@ async function main() {
   const { syncOnStartup } = await import('./services/system/device-sync.service.js');
   syncOnStartup();
 
-  if (args.command === 'web') {
+  if (args.command === 'web' || args.command === 'desktop') {
     const net = await import('net');
 
     async function findAvailablePort(port: number): Promise<number> {
@@ -61,7 +61,7 @@ async function main() {
 
     const { WebService } = await import('./gateway/server/web.server.js');
     const webService = new WebService(availablePort);
-    await webService.start();
+    await webService.start({ noBrowser: args.command === 'desktop' });
   } else {
     /**
      * CLI 模式：启动终端交互界面

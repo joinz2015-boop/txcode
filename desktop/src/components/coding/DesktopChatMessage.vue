@@ -20,7 +20,11 @@
 
     <div v-else-if="item.type === 'step'" class="step-msg">
       <div class="step-header">
-        <span class="step-label">🔧 工具调用</span>
+        <span class="step-label">
+          <span v-if="hasExecutingTool(item)" class="tool-spinner"></span>
+          <span v-else>🔧</span>
+          工具调用
+        </span>
         <span v-if="item.iteration" class="step-iter">#{{ item.iteration }}</span>
       </div>
       <div v-if="item.thought" class="step-thought" v-html="renderContent(item.thought)"></div>
@@ -83,6 +87,9 @@ export default {
         const s = String(argsStr)
         return s.length > 80 ? s.substring(0, 80) + '...' : s
       }
+    },
+    hasExecutingTool(item) {
+      return item.toolCalls && item.toolCalls.some(tc => tc.status === 'executing')
     }
   }
 }
@@ -268,5 +275,20 @@ export default {
 @keyframes fadeInUp {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.tool-spinner {
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  vertical-align: middle;
+  margin-right: 3px;
 }
 </style>

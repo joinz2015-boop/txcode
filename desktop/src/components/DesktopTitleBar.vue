@@ -64,6 +64,7 @@ export default {
   padding: 0 12px;
   user-select: none;
   border-bottom: 1px solid var(--border);
+  -webkit-app-region: drag;
 }
 .titlebar-left { display: flex; align-items: center; gap: 10px; }
 .titlebar-logo {
@@ -71,17 +72,19 @@ export default {
   background: linear-gradient(135deg, #4f6ef7, #8b5cf6);
   display: flex; align-items: center; justify-content: center;
   font-size: 12px; font-weight: 700; color: #fff;
+  -webkit-app-region: no-drag;
 }
 .titlebar-title { font-size: 14px; color: var(--text-primary); font-weight: 600; }
 .titlebar-subtitle { font-size: 11px; color: var(--text-muted); }
-.titlebar-right { display: flex; align-items: center; gap: 8px; }
-.titlebar-actions { display: flex; align-items: center; gap: 2px; }
+.titlebar-right { display: flex; align-items: center; gap: 8px; -webkit-app-region: no-drag; }
+.titlebar-actions { display: flex; align-items: center; gap: 2px; -webkit-app-region: no-drag; }
 .win-btn {
   width: 34px; height: 28px; border: none; background: transparent;
   color: var(--text-muted); cursor: pointer; border-radius: 6px;
   font-size: 16px; transition: all 0.15s;
   display: flex; align-items: center; justify-content: center;
   font-family: inherit;
+  -webkit-app-region: no-drag;
 }
 .win-btn:hover { background: #dcdce4; color: var(--text-primary); }
 .win-btn.close:hover { background: #ef4444; color: #fff; }

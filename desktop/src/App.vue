@@ -12,6 +12,7 @@
         v-if="useSidebar"
         :currentView="currentView"
         :currentSession="currentPlanSession"
+        :runningSessionIds="runningSessionIds"
         @navigate="handleNavigate"
         @selectSession="handleSelectSession"
       />
@@ -113,17 +114,20 @@ export default {
   },
   computed: {
     useSidebar() {
-      return ['coding', 'specs', 'skills', 'settings'].includes(this.currentView)
+      return ['coding', 'plan', 'specs', 'skills', 'settings'].includes(this.currentView)
     },
     useNavRail() {
       return this.currentView === 'design'
     },
     showModeSwitcher() {
-      return this.currentView === 'coding' && this.currentPlanSession
+      return (this.currentView === 'coding' || this.currentView === 'plan') && this.currentPlanSession
     }
   },
   methods: {
     handleNavigate(view, data) {
+      if (view !== 'coding' && this.$refs.codingView && this.$refs.codingView.$refs.codingPanel) {
+        this.$refs.codingView.$refs.codingPanel.saveCodeScrollTop()
+      }
       this.currentView = view
       setItem('app:currentView', view)
       this.$nextTick(() => {
@@ -146,6 +150,9 @@ export default {
       setItem('project:current', project)
     },
     handleSelectSession(session) {
+      if (this.$refs.codingView && this.$refs.codingView.$refs.codingPanel) {
+        this.$refs.codingView.$refs.codingPanel.saveCodeScrollTop()
+      }
       this.currentPlanSession = session
       if (!session) {
         this.currentMode = 'code'
@@ -159,6 +166,9 @@ export default {
       setItem('app:currentView', 'coding')
     },
     handleSwitchMode(mode) {
+      if (this.currentMode !== mode && this.currentMode === 'code' && this.$refs.codingView && this.$refs.codingView.$refs.codingPanel) {
+        this.$refs.codingView.$refs.codingPanel.saveCodeScrollTop()
+      }
       this.currentMode = mode
       setItem('mode:current', mode)
       if (mode === 'plan') {

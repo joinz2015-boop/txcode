@@ -225,7 +225,7 @@ export class WebService {
    * 
    * @throws {Error} 如果端口已被占用或其他网络错误
    */
-  async start(): Promise<void> {
+  async start(options?: { noBrowser?: boolean }): Promise<void> {
     await dbService.init();
 
     // 注册新的显式路由系统（自动扫描 gateway/api/**/*_routes.ts）
@@ -276,12 +276,14 @@ export class WebService {
         console.log(`按 Ctrl+C 停止服务\n`);
 
         const url = `http://localhost:${this.port}`;
-        if (process.platform === 'win32') {
-          exec(`start ${url}`);
-        } else if (process.platform === 'darwin') {
-          exec(`open ${url}`);
-        } else {
-          exec(`xdg-open ${url}`);
+        if (!options?.noBrowser) {
+          if (process.platform === 'win32') {
+            exec(`start ${url}`);
+          } else if (process.platform === 'darwin') {
+            exec(`open ${url}`);
+          } else {
+            exec(`xdg-open ${url}`);
+          }
         }
 
         /**

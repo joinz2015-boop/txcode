@@ -5,6 +5,7 @@
     :currentModel="currentModel"
     :currentSession="currentSession"
     :runningSessionIds="runningSessionIds"
+    :planFilePath="planFilePath"
     @update:agent="$emit('update:agent', $event)"
     @update:model="$emit('update:model', $event)"
   />
@@ -21,6 +22,14 @@ export default {
     currentModel: { type: String, default: 'DeepSeek V3' },
     currentSession: { type: Object, default: null },
     runningSessionIds: { type: Array, default: () => [] }
+  },
+  computed: {
+    planFilePath() {
+      if (this.currentSession && this.currentSession.meta && this.currentSession.meta.planFilePath) {
+        return this.currentSession.meta.planFilePath
+      }
+      return ''
+    }
   },
   methods: {
     open(data) {

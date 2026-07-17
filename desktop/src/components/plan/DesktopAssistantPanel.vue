@@ -18,9 +18,36 @@
         <div v-if="designLogItems.length === 0" class="assistant-empty">
           <p>输入需求描述，AI 将协助您完善方案。</p>
         </div>
-        <div v-for="(item, idx) in designLogItems" :key="idx" class="assistant-msg" :class="item.role">
-          <div class="amsg-text" v-html="renderMsgContent(item)"></div>
-        </div>
+        <template v-for="(item, idx) in designLogItems">
+          <div v-if="item.type === 'todos'" :key="'td-' + idx" class="todos-list">
+            <div v-for="(todo, tIdx) in item.todos" :key="'ti-' + tIdx" class="todo-item">
+              <span class="todo-status">{{ getTodoStatusIcon(todo.status) }}</span>
+              <span class="todo-name">{{ todo.name }}</span>
+            </div>
+          </div>
+          <div v-else-if="item.type === 'chat'" :key="'dc-' + idx" class="assistant-msg user">
+            <div class="amsg-text">{{ item.content }}</div>
+          </div>
+          <div v-else-if="item.type === 'think'" :key="'dt-' + idx" class="ai-thought" v-html="renderMarkdown(item.content)"></div>
+          <template v-else-if="item.type === 'step'" :key="'ds-' + idx">
+            <div v-if="item.thought" class="ai-thought" v-html="renderMarkdown(item.thought)"></div>
+            <div v-for="(tc, aIdx) in item.toolCalls" :key="'dst-' + aIdx" class="log-mute">
+              <template v-if="tc.status === 'executing'">
+                <span class="tool-spinner"></span>
+                {{ getToolCallName(tc) }}
+                <span v-if="getToolCallArguments(tc)" class="tool-input">{{ formatInput(getToolCallName(tc), getToolCallArguments(tc)) }}</span>
+              </template>
+              <template v-else>
+                <span :class="item.success !== false ? 'tool-success' : 'tool-fail'">{{ item.success !== false ? '✓' : '✗' }}</span>
+                {{ getToolCallName(tc) }}
+                <span v-if="getToolCallArguments(tc)" class="tool-input">{{ formatInput(getToolCallName(tc), getToolCallArguments(tc)) }}</span>
+              </template>
+            </div>
+          </template>
+          <div v-else :key="idx" class="assistant-msg" :class="item.role">
+            <div class="amsg-text" v-html="renderMarkdown(item.content || '')"></div>
+          </div>
+        </template>
         <div v-if="designPanel.disabled" class="assistant-msg ai">
           <div class="amsg-text" style="color:var(--text-muted)">正在思考...</div>
         </div>
@@ -29,8 +56,8 @@
         <div class="assistant-input-wrap">
           <textarea
             v-model="designPanel.input"
-            placeholder="输入需求描述... (Enter 发送)"
-            rows="1"
+            placeholder="输入需求描述... (Enter 发送, Shift+Enter 换行)"
+            rows="3"
             :disabled="designPanel.disabled"
             @keydown="handleAssistKeydown($event, 'design')"
           ></textarea>
@@ -68,9 +95,36 @@
           <div v-if="discussLogItems.length === 0" class="assistant-empty">
             <p>选择一个探讨或创建新的探讨会话。</p>
           </div>
-          <div v-for="(item, idx) in discussLogItems" :key="idx" class="assistant-msg" :class="item.role">
-            <div class="amsg-text" v-html="renderMsgContent(item)"></div>
-          </div>
+          <template v-for="(item, idx) in discussLogItems">
+            <div v-if="item.type === 'todos'" :key="'td2-' + idx" class="todos-list">
+              <div v-for="(todo, tIdx) in item.todos" :key="'ti2-' + tIdx" class="todo-item">
+                <span class="todo-status">{{ getTodoStatusIcon(todo.status) }}</span>
+                <span class="todo-name">{{ todo.name }}</span>
+              </div>
+            </div>
+            <div v-else-if="item.type === 'chat'" :key="'dc2-' + idx" class="assistant-msg user">
+              <div class="amsg-text">{{ item.content }}</div>
+            </div>
+            <div v-else-if="item.type === 'think'" :key="'dt2-' + idx" class="ai-thought" v-html="renderMarkdown(item.content)"></div>
+            <template v-else-if="item.type === 'step'" :key="'ds2-' + idx">
+              <div v-if="item.thought" class="ai-thought" v-html="renderMarkdown(item.thought)"></div>
+              <div v-for="(tc, aIdx) in item.toolCalls" :key="'dst2-' + aIdx" class="log-mute">
+                <template v-if="tc.status === 'executing'">
+                  <span class="tool-spinner"></span>
+                  {{ getToolCallName(tc) }}
+                  <span v-if="getToolCallArguments(tc)" class="tool-input">{{ formatInput(getToolCallName(tc), getToolCallArguments(tc)) }}</span>
+                </template>
+                <template v-else>
+                  <span :class="item.success !== false ? 'tool-success' : 'tool-fail'">{{ item.success !== false ? '✓' : '✗' }}</span>
+                  {{ getToolCallName(tc) }}
+                  <span v-if="getToolCallArguments(tc)" class="tool-input">{{ formatInput(getToolCallName(tc), getToolCallArguments(tc)) }}</span>
+                </template>
+              </div>
+            </template>
+            <div v-else :key="idx" class="assistant-msg" :class="item.role">
+              <div class="amsg-text" v-html="renderMarkdown(item.content || '')"></div>
+            </div>
+          </template>
           <div v-if="discussPanel.disabled" class="assistant-msg ai">
             <div class="amsg-text" style="color:var(--text-muted)">正在思考...</div>
           </div>
@@ -79,8 +133,8 @@
           <div class="assistant-input-wrap">
             <textarea
               v-model="discussPanel.input"
-              placeholder="输入探讨内容... (Enter 发送)"
-              rows="1"
+              placeholder="输入探讨内容... (Enter 发送, Shift+Enter 换行)"
+              rows="3"
               :disabled="discussPanel.disabled"
               @keydown="handleAssistKeydown($event, 'discuss')"
             ></textarea>
@@ -148,10 +202,18 @@ export default {
   },
   methods: {
     initFromMeta(meta) {
+      this.designLogItems = []
+      this.discussLogItems = []
+      this.unsubscribeDesign()
+      this.unsubscribeDiscuss()
+
       if (meta.designSessionId) {
         this.designPanel.sessionId = meta.designSessionId
         this.loadDesignMessages(meta.designSessionId)
         this.subscribePanel('design', meta.designSessionId)
+      } else {
+        this.designPanel.sessionId = null
+        this.designPanel.disabled = false
       }
       this.discussList = meta.discussSessions || []
       if (this.discussList.length > 0 && !this.currentDiscuss) {
@@ -192,7 +254,7 @@ export default {
       try {
         const sid = await this.ensureDesignSession()
         this.subscribePanel('design', sid)
-        this.designLogItems.push({ role: 'user', content: val })
+        this.pushLogItem('designLogItems', { type: 'chat', content: val, role: 'user' })
         this.designPanel.input = ''
         this.designPanel.disabled = true
         this.designStopping = false
@@ -230,7 +292,7 @@ export default {
       const val = this.discussPanel.input.trim()
       if (!val || this.discussPanel.disabled || !this.discussPanel.sessionId) return
       this.subscribePanel('discuss', this.discussPanel.sessionId)
-      this.discussLogItems.push({ role: 'user', content: val })
+      this.pushLogItem('discussLogItems', { type: 'chat', content: val, role: 'user' })
       this.discussPanel.input = ''
       this.discussPanel.disabled = true
       this.discussStopping = false
@@ -259,10 +321,11 @@ export default {
 
       this[panelKey].wsUnsubscribe = ws.subscribe(sessionId, {
         done: (d) => {
+          this[logKey] = this[logKey].filter(item => !(item.type === 'step' && item._executing))
           this[panelKey].disabled = false
           this[stoppingKey] = false
           if (d.response) {
-            this[logKey].push({ role: 'ai', content: d.response })
+            this.pushLogItem(logKey, { type: 'think', content: d.response })
             this.$nextTick(() => this.scrollMessages(key))
           }
           if (key === 'design') {
@@ -270,24 +333,41 @@ export default {
           }
         },
         stopped: () => {
+          this[logKey] = this[logKey].filter(item => !(item.type === 'step' && item._executing))
           this[panelKey].disabled = false
           this[stoppingKey] = false
-          this[logKey].push({ role: 'ai', content: '【已停止】' })
+          this.pushLogItem(logKey, { type: 'think', content: '【已停止】' })
           this.$nextTick(() => this.scrollMessages(key))
         },
         error: (d) => {
+          this[logKey] = this[logKey].filter(item => !(item.type === 'step' && item._executing))
           this[panelKey].disabled = false
           this[stoppingKey] = false
           alert(d.error || '发生错误')
         },
         step: (d) => {
-          if (d.thought) {
-            this[logKey].push({ role: 'ai', content: d.thought, type: 'step' })
-          } else if (d.toolCalls) {
-            const names = d.toolCalls.map(tc => tc.function?.name || 'unknown').join(', ')
-            this[logKey].push({ role: 'ai', content: `🔧 调用工具: ${names}`, type: 'step' })
+          const hasExecuting = d.toolCalls && d.toolCalls.some(tc => tc.status === 'executing')
+          if (hasExecuting) {
+            this[logKey] = this[logKey].filter(
+              item => !(item.type === 'step' && item.iteration === d.iteration && item._executing)
+            )
+            this.pushLogItem(logKey, { type: 'step', thought: d.reasoning || d.thought, toolCalls: d.toolCalls, success: d.success, iteration: d.iteration, _executing: true })
+          } else {
+            this[logKey] = this[logKey].filter(
+              item => !(item.type === 'step' && item.iteration === d.iteration && item._executing)
+            )
+            this.pushLogItem(logKey, { type: 'step', thought: d.reasoning || d.thought, toolCalls: d.toolCalls, success: d.success, iteration: d.iteration })
           }
+          if (d.usage && d.usage.promptTokens) this[panelKey].promptTokens = d.usage.promptTokens
           this.$nextTick(() => this.scrollMessages(key))
+        },
+        todos: (d) => {
+          this.pushLogItem(logKey, { type: 'todos', todos: d.todos })
+          this.$nextTick(() => this.scrollMessages(key))
+        },
+        compact: () => {
+          if (key === 'design') this.loadDesignMessages(this[panelKey].sessionId)
+          else this.loadDiscussMessages(this[panelKey].sessionId)
         }
       })
     },
@@ -296,9 +376,10 @@ export default {
       try {
         const r = await getMessages(sessionId)
         this.designLogItems = (r.data || []).map(i => {
-          if (i.type === 'chat') return { role: i.role || 'ai', content: i.content || '' }
-          if (i.type === 'think') return { role: 'ai', content: i.content || '' }
-          return { role: 'ai', content: i.content || '' }
+          if (i.type === 'think') return this.withLogId({ type: 'think', content: i.content || '' })
+          if (i.type === 'step') return this.withLogId(i)
+          if (i.type === 'todos') return this.withLogId({ type: 'todos', todos: i.todos })
+          return this.withLogId(i)
         })
       } catch { this.designLogItems = [] }
     },
@@ -307,9 +388,10 @@ export default {
       try {
         const r = await getMessages(sessionId)
         this.discussLogItems = (r.data || []).map(i => {
-          if (i.type === 'chat') return { role: i.role || 'ai', content: i.content || '' }
-          if (i.type === 'think') return { role: 'ai', content: i.content || '' }
-          return { role: 'ai', content: i.content || '' }
+          if (i.type === 'think') return this.withLogId({ type: 'think', content: i.content || '' })
+          if (i.type === 'step') return this.withLogId(i)
+          if (i.type === 'todos') return this.withLogId({ type: 'todos', todos: i.todos })
+          return this.withLogId(i)
         })
       } catch { this.discussLogItems = [] }
     },
@@ -385,17 +467,83 @@ export default {
       }
     },
 
-    renderMsgContent(item) {
-      if (!item.content) return ''
+    getTodoStatusIcon(status) {
+      const icons = { completed: '✅', in_progress: '🔄', pending: '⬜', cancelled: '❌' }
+      return icons[status] || '⬜'
+    },
+
+    getToolCallName(tc) {
+      return tc ? (tc.function ? tc.function.name : tc.name) : 'unknown_tool'
+    },
+
+    getToolCallArguments(tc) {
+      return tc && tc.function ? tc.function.arguments : (tc.arguments || '')
+    },
+
+    formatInput(action, input) {
+      if (!input) return ''
       try {
-        return marked.parse(item.content)
+        const parsed = JSON.parse(input)
+        if (action === 'bash' || action === 'execute_bash') {
+          return parsed.command + (parsed.workdir ? ' (' + parsed.workdir + ')' : '')
+        }
+        if (action === 'read_file') {
+          return parsed.file_path + (parsed.offset ? ':' + parsed.offset : '')
+        }
+        if (action === 'edit_file' || action === 'write_file') {
+          return parsed.file_path || ''
+        }
+        if (action === 'glob' || action === 'find_files') {
+          return parsed.pattern + (parsed.directory ? ' (' + parsed.directory + ')' : '')
+        }
+        if (action === 'grep' || action === 'search_content') {
+          return '"' + parsed.pattern + '" (' + (parsed.directory || '') + ')'
+        }
+        return input
       } catch {
-        return this.escapeHtml(item.content)
+        return input
       }
     },
 
+    renderMarkdown(text) {
+      if (!text) return ''
+      try {
+        return marked.parse(text)
+      } catch {
+        return this.escapeHtml(String(text))
+      }
+    },
+
+    createThinkItem(content) {
+      return { type: 'think', content, renderedContent: this.renderMarkdown(content) }
+    },
+
+    createStepItem(data) {
+      const thought = (data && data.thought) || ''
+      return {
+        type: 'step',
+        thought,
+        renderedThought: this.renderMarkdown(thought),
+        toolCalls: Array.isArray(data && data.toolCalls) ? data.toolCalls.filter(Boolean) : [],
+        success: data && data.success,
+        iteration: data && data.iteration
+      }
+    },
+
+    pushLogItem(logKey, item) {
+      this[logKey].push(this.withLogId(item))
+      const max = 400
+      if (this[logKey].length > max) {
+        this[logKey].splice(0, this[logKey].length - max)
+      }
+    },
+
+    withLogId(item) {
+      return { ...item, logId: ++logSeq }
+    },
+
     escapeHtml(str) {
-      return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     },
 
     scrollMessages(type) {
@@ -514,8 +662,8 @@ export default {
   outline: none;
   font-family: inherit;
   resize: none;
-  min-height: 20px;
-  max-height: 80px;
+  min-height: 60px;
+  max-height: 120px;
 }
 .assistant-input-wrap textarea:disabled { opacity: 0.6; }
 .assistant-input-wrap textarea::placeholder { color: var(--text-muted); }
@@ -609,4 +757,24 @@ export default {
   font-family: inherit;
 }
 .discuss-new-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+
+.tool-spinner {
+  display: inline-block; width: 12px; height: 12px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-right: 6px; vertical-align: middle;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.tool-success { color: #22c55e; font-weight: 600; }
+.tool-fail { color: #ef4444; font-weight: 600; }
+.tool-input { color: var(--accent); margin-left: 6px; font-size: 11.5px; }
+.log-mute { color: var(--text-muted); padding: 3px 0; font-size: 12px; }
+.ai-thought { color: var(--text-primary); margin-bottom: 12px; line-height: 1.6; font-size: 12.5px; }
+.ai-thought :deep(p) { margin: 4px 0; }
+.todos-list { margin-bottom: 12px; }
+.todo-item { display: flex; align-items: center; gap: 8px; padding: 3px 0; font-size: 12.5px; }
+.todo-status { flex-shrink: 0; }
+.todo-name { color: var(--text-primary); }
 </style>
