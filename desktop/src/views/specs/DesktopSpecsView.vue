@@ -11,57 +11,65 @@
             <polyline points="10 9 9 9 8 9"/>
           </svg>
           开发规范
-          <span class="market-title-badge">{{ filteredSpecs.length }} 项规范</span>
+          <span class="market-title-badge">{{ filteredCount }} 项规范</span>
         </div>
       </div>
       <div class="market-search-wrap">
-        <input type="text" class="market-search-input" v-model="searchKeyword" placeholder="搜索规范..." @keyup.enter="filterSpecs">
-        <button class="market-search-btn" @click="filterSpecs">查询</button>
+        <input type="text" class="market-search-input" v-model="searchKeyword" placeholder="搜索规范..." @keyup.enter="onSearch">
+        <button class="market-search-btn" @click="onSearch">查询</button>
       </div>
       <div class="filter-tabs">
         <button class="filter-tab" :class="{ active: currentFilter === 'all' }" @click="setFilter('all')">全部</button>
-        <button class="filter-tab" :class="{ active: currentFilter === 'applied' }" @click="setFilter('applied')">已应用</button>
+        <button class="filter-tab" :class="{ active: currentFilter === 'installed' }" @click="setFilter('installed')">已安装</button>
         <span class="filter-divider"></span>
-        <button class="filter-tab" :class="{ active: currentFilter === '前端' }" @click="setFilter('前端')">前端</button>
-        <button class="filter-tab" :class="{ active: currentFilter === '后端' }" @click="setFilter('后端')">后端</button>
-        <button class="filter-tab" :class="{ active: currentFilter === '工具链' }" @click="setFilter('工具链')">工具链</button>
-        <button class="filter-tab" :class="{ active: currentFilter === '数据库' }" @click="setFilter('数据库')">数据库</button>
-        <button class="filter-tab" :class="{ active: currentFilter === '质量' }" @click="setFilter('质量')">质量</button>
+        <button v-for="cat in categories" :key="cat.id" class="filter-tab" :class="{ active: currentFilter === 'category_' + cat.id }" @click="setFilter('category_' + cat.id)">{{ cat.name }}</button>
       </div>
     </div>
     <div class="spec-grid-wrap">
-      <div class="spec-grid">
-        <div v-for="spec in pagedSpecs" :key="spec.id" class="spec-card">
+      <div v-if="loading" class="loading-hint">加载中...</div>
+      <div v-else-if="pagedSpecs.length === 0" class="empty-hint">暂无规范</div>
+      <div v-else class="spec-grid">
+        <div v-for="spec in pagedSpecs" :key="spec.id || spec.name" class="spec-card">
           <div class="spec-card-top">
-            <div class="spec-card-icon" :class="getIconClass(spec.category)" v-html="getIconSvg(spec.category)"></div>
+            <div class="spec-card-icon" :class="getIconClass(spec)" v-html="getIconSvg(spec)"></div>
             <div class="spec-card-info">
               <div class="spec-card-name-row">
                 <span class="spec-card-name">{{ spec.name }}</span>
-                <span v-if="spec.applied" class="spec-card-badge applied">已应用</span>
+                <span v-if="isInstalled(spec.name)" class="spec-card-badge applied">已安装</span>
               </div>
               <div class="spec-card-desc">{{ spec.description }}</div>
             </div>
           </div>
-          <div class="spec-card-tags">
+          <div class="spec-card-tags" v-if="spec.tags && spec.tags.length">
             <span v-for="tag in spec.tags" :key="tag" class="spec-card-tag">{{ tag }}</span>
           </div>
           <div class="spec-card-foot">
             <div class="spec-card-meta">
-              <span>
+              <span v-if="spec.updated_at">
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                {{ spec.updatedAt }}
+                {{ formatDate(spec.updated_at) }}
               </span>
-              <span>
+              <span v-if="spec.latest_version">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2z"/></svg>
+                {{ spec.latest_version }}
+              </span>
+              <span v-if="spec.download_count !== undefined">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                {{ spec.download_count }}
+              </span>
+              <span v-if="spec.filePath">
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
-                {{ spec.folder }}
+                {{ spec.filePath }}
               </span>
             </div>
             <div class="spec-card-actions">
-              <template v-if="spec.applied">
+              <template v-if="isInstalled(spec.name)">
                 <button class="spec-action-btn" @click="viewSpec(spec)">查看</button>
                 <button class="spec-action-btn" style="color:var(--red);border-color:transparent;background:transparent;" @click="removeSpec(spec)">移除</button>
               </template>
-              <button v-else class="spec-action-btn primary" @click="applySpec(spec)">应用</button>
+              <button v-else class="spec-action-btn primary" :disabled="installingIds[spec.id]" @click="applySpec(spec)">
+                {{ installingIds[spec.id] ? '安装中...' : '安装' }}
+              </button>
             </div>
           </div>
         </div>
@@ -75,55 +83,62 @@
       </template>
       <button class="pagination-btn" :disabled="currentPage >= totalPages" @click="goToPage(currentPage + 1)">›</button>
     </div>
+    <DesktopSpecViewer
+      :visible="showViewer"
+      :spec="currentViewSpec"
+      @close="showViewer = false"
+    />
   </div>
 </template>
 
 <script>
+import { getSpecCategories, getPublishedSpecs, getLocalSpecs, installSpec, uninstallSpec } from '@/api/index'
+import DesktopSpecViewer from '@/components/spec/DesktopSpecViewer.vue'
+
 export default {
   name: 'DesktopSpecsView',
+  components: { DesktopSpecViewer },
   data() {
     return {
       currentFilter: 'all',
+      currentCategoryId: null,
       currentPage: 1,
       pageSize: 9,
       searchKeyword: '',
-      specsData: [
-        { id: 1, name: '前端开发规范', folder: 'front-develop', description: 'Vue2 + Vite + Tailwind v4 项目结构、命名规范、API 请求、路由、组件开发规范，适用于添加新模块和代码审查', category: '前端', tags: ['Vue2', 'Vite', 'Tailwind', '组件'], updatedAt: '2026-01-15', applied: true },
-        { id: 2, name: 'Node.js 开发规范', folder: 'node-develop', description: 'Express 后端项目结构、路由规范、接口规范、命名规范，适用于添加新模块、代码审查', category: '后端', tags: ['Express', '路由', '接口'], updatedAt: '2026-01-10', applied: true },
-        { id: 3, name: 'TypeScript 编码规范', folder: 'ts-standard', description: 'TS 严格模式配置、类型定义、泛型使用、模块导入规范（ESM .js 后缀），全面类型安全保障', category: '前端', tags: ['TypeScript', 'ESM', '类型'], updatedAt: '2026-01-08', applied: true },
-        { id: 4, name: 'Git 提交规范', folder: 'git-standard', description: 'Conventional Commits 规范，分支命名策略，PR 流程，Code Review 标准，确保代码提交质量', category: '工具链', tags: ['Git', 'Commit', 'PR'], updatedAt: '2025-12-28', applied: true },
-        { id: 5, name: '测试规范', folder: 'test-standard', description: 'Jest + ts-jest 单元测试、API 测试、集成测试编写标准，包含覆盖率要求和 Mock 策略', category: '质量', tags: ['Jest', '测试', '覆盖率'], updatedAt: '2025-12-20', applied: false },
-        { id: 6, name: '数据库设计规范', folder: 'db-standard', description: 'SQLite WASM schema 设计、迁移脚本、Repository 层开发规范，数据持久化最佳实践', category: '数据库', tags: ['SQLite', 'WASM', 'Schema'], updatedAt: '2025-12-15', applied: true },
-        { id: 7, name: 'Agent 开发规范', folder: 'agent-standard', description: 'AI Agent 架构设计、Function Calling 工具集成、提示词模板管理，多 Agent 协作模式', category: '后端', tags: ['Agent', 'AI', 'FunctionCalling'], updatedAt: '2026-01-18', applied: true },
-        { id: 8, name: 'API 接口规范', folder: 'api-standard', description: 'RESTful API 设计标准、请求响应格式、错误码规范、WebSocket 通信协议定义', category: '后端', tags: ['REST', 'API', 'WebSocket'], updatedAt: '2026-01-05', applied: false }
-      ]
+      specs: [],
+      localSpecs: [],
+      categories: [],
+      loading: false,
+      total: 0,
+      installingIds: {},
+      showViewer: false,
+      currentViewSpec: null
     }
   },
   computed: {
-    filteredSpecs() {
-      let result = [...this.specsData]
-      if (this.currentFilter === 'applied') {
-        result = result.filter(s => s.applied)
-      } else if (this.currentFilter !== 'all') {
-        result = result.filter(s => s.category === this.currentFilter)
-      }
+    filteredLocalSpecs() {
       const kw = this.searchKeyword.trim().toLowerCase()
-      if (kw) {
-        result = result.filter(s =>
-          s.name.toLowerCase().includes(kw) ||
-          s.description.toLowerCase().includes(kw) ||
-          (s.tags || []).some(t => t.toLowerCase().includes(kw)) ||
-          s.folder.toLowerCase().includes(kw)
-        )
+      if (!kw) return this.localSpecs
+      return this.localSpecs.filter(s =>
+        s.name.toLowerCase().includes(kw) ||
+        (s.description || '').toLowerCase().includes(kw)
+      )
+    },
+    filteredCount() {
+      if (this.currentFilter === 'installed') {
+        return this.filteredLocalSpecs.length
       }
-      return result
+      return this.total
     },
     totalPages() {
-      return Math.ceil(this.filteredSpecs.length / this.pageSize)
+      return Math.ceil(this.filteredCount / this.pageSize)
     },
     pagedSpecs() {
-      const start = (this.currentPage - 1) * this.pageSize
-      return this.filteredSpecs.slice(start, start + this.pageSize)
+      if (this.currentFilter === 'installed') {
+        const start = (this.currentPage - 1) * this.pageSize
+        return this.filteredLocalSpecs.slice(start, start + this.pageSize)
+      }
+      return this.specs
     },
     visiblePages() {
       const total = this.totalPages
@@ -144,24 +159,90 @@ export default {
       return unique
     }
   },
+  mounted() {
+    this.loadCategories()
+    this.loadSpecs()
+    this.loadLocalSpecs()
+  },
   methods: {
+    async loadCategories() {
+      try {
+        const res = await getSpecCategories()
+        this.categories = res.data || []
+      } catch (e) {
+        console.error('Failed to load spec categories:', e)
+        this.categories = []
+      }
+    },
+    async loadSpecs() {
+      this.loading = true
+      try {
+        const res = await getPublishedSpecs({
+          page: this.currentPage,
+          pageSize: this.pageSize,
+          keyword: this.searchKeyword || undefined,
+          categoryId: this.currentCategoryId || undefined
+        })
+        const data = res.data || {}
+        this.specs = data.list || []
+        this.total = data.total || 0
+      } catch (e) {
+        console.error('Failed to load specs:', e)
+        this.specs = []
+        this.total = 0
+      } finally {
+        this.loading = false
+      }
+    },
+    async loadLocalSpecs() {
+      try {
+        const res = await getLocalSpecs()
+        this.localSpecs = res.data?.specs || []
+      } catch (e) {
+        console.error('Failed to load local specs:', e)
+        this.localSpecs = []
+      }
+    },
+    isInstalled(name) {
+      return this.localSpecs.some(s => s.name === name)
+    },
     setFilter(filter) {
       this.currentFilter = filter
       this.currentPage = 1
+      if (filter === 'installed') {
+        this.currentCategoryId = null
+      } else if (filter === 'all') {
+        this.currentCategoryId = null
+        this.loadSpecs()
+      } else if (filter.startsWith('category_')) {
+        this.currentCategoryId = parseInt(filter.split('_')[1])
+        this.loadSpecs()
+      }
     },
-    filterSpecs() {
+    onSearch() {
       this.currentPage = 1
+      if (this.currentFilter !== 'installed') {
+        this.loadSpecs()
+      }
     },
     goToPage(page) {
       if (page < 1 || page > this.totalPages) return
       this.currentPage = page
+      if (this.currentFilter !== 'installed') {
+        this.loadSpecs()
+      }
     },
-    getIconClass(category) {
-      const map = { '前端': 'frontend', '后端': 'backend', '工具链': 'toolchain', '数据库': 'database', '质量': 'quality' }
-      return map[category] || 'frontend'
+    getIconClass(spec) {
+      const cat = (spec.platform_category || '').toLowerCase()
+      if (cat.includes('前端') || cat.includes('frontend')) return 'frontend'
+      if (cat.includes('后端') || cat.includes('backend')) return 'backend'
+      if (cat.includes('工具') || cat.includes('toolchain')) return 'toolchain'
+      if (cat.includes('数据库') || cat.includes('database')) return 'database'
+      if (cat.includes('质量') || cat.includes('quality')) return 'quality'
+      return 'frontend'
     },
-    getIconSvg(category) {
-      const cls = this.getIconClass(category)
+    getIconSvg(spec) {
+      const cls = this.getIconClass(spec)
       if (cls === 'frontend') return '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>'
       if (cls === 'backend') return '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>'
       if (cls === 'toolchain') return '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>'
@@ -169,18 +250,38 @@ export default {
       if (cls === 'quality') return '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>'
       return '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>'
     },
-    applySpec(spec) {
-      if (confirm(`确定要应用 "${spec.name}" 吗？\n\n此操作将在项目中激活该规范。`)) {
-        spec.applied = true
+    formatDate(dateStr) {
+      if (!dateStr) return ''
+      const d = new Date(dateStr)
+      const y = d.getFullYear()
+      const m = String(d.getMonth() + 1).padStart(2, '0')
+      const day = String(d.getDate()).padStart(2, '0')
+      return `${y}-${m}-${day}`
+    },
+    async applySpec(spec) {
+      if (!confirm(`确定要安装 "${spec.name}" 吗？`)) return
+      this.$set(this.installingIds, spec.id, true)
+      try {
+        await installSpec(spec.id, spec.name)
+        await this.loadLocalSpecs()
+      } catch (e) {
+        alert('安装失败: ' + (e.message || '未知错误'))
+      } finally {
+        this.$set(this.installingIds, spec.id, false)
       }
     },
-    removeSpec(spec) {
-      if (confirm(`确定要移除 "${spec.name}" 规范吗？\n\n移除后该规范将不再应用于当前项目。`)) {
-        spec.applied = false
+    async removeSpec(spec) {
+      if (!confirm(`确定要移除 "${spec.name}" 规范吗？\n\n移除后该规范将不再应用于当前项目。`)) return
+      try {
+        await uninstallSpec(spec.name)
+        await this.loadLocalSpecs()
+      } catch (e) {
+        alert('移除失败: ' + (e.message || '未知错误'))
       }
     },
     viewSpec(spec) {
-      alert(`查看规范: ${spec.name}\n\n文件夹: ${spec.folder}\n\n此操作将打开规范详情面板。`)
+      this.currentViewSpec = spec
+      this.showViewer = true
     }
   }
 }
@@ -237,4 +338,5 @@ export default {
 .pagination-btn:hover { border-color: var(--accent); color: var(--accent); }
 .pagination-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
 .pagination-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.loading-hint, .empty-hint { text-align: center; color: var(--text-muted); padding: 60px 20px; font-size: 14px; }
 </style>

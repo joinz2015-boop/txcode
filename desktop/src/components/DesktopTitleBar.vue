@@ -14,9 +14,21 @@
         @openProject="$emit('openProject')"
       />
       <div class="titlebar-actions">
-        <button class="win-btn" title="最小化" @click="minimizeWindow">&#x2014;</button>
-        <button class="win-btn" title="最大化" @click="maximizeWindow">&#x25A1;</button>
-        <button class="win-btn close" title="关闭" @click="closeWindow">&#x2715;</button>
+        <button class="win-btn" title="最小化" @click="minimizeWindow">
+          <svg width="10" height="10" viewBox="0 0 10 10">
+            <rect x="1" y="4" width="8" height="1.2" rx="0.6" fill="currentColor"/>
+          </svg>
+        </button>
+        <button class="win-btn" title="最大化" @click="maximizeWindow">
+          <svg width="10" height="10" viewBox="0 0 10 10">
+            <rect x="1.2" y="1.2" width="7.6" height="7.6" rx="1" stroke="currentColor" stroke-width="1.2" fill="none"/>
+          </svg>
+        </button>
+        <button class="win-btn close" title="关闭" @click="closeWindow">
+          <svg width="10" height="10" viewBox="0 0 10 10">
+            <path d="M1.5 1.5l7 7M8.5 1.5l-7 7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+          </svg>
+        </button>
       </div>
     </div>
   </div>
@@ -79,15 +91,17 @@ export default {
 .titlebar-title { font-size: 14px; color: var(--text-primary); font-weight: 600; }
 .titlebar-subtitle { font-size: 11px; color: var(--text-muted); }
 .titlebar-right { display: flex; align-items: center; gap: 8px; -webkit-app-region: no-drag; }
-.titlebar-actions { display: flex; align-items: center; gap: 2px; -webkit-app-region: no-drag; }
+.titlebar-actions { display: flex; align-items: center; gap: 0; -webkit-app-region: no-drag; }
 .win-btn {
-  width: 34px; height: 28px; border: none; background: transparent;
+  width: 40px; height: 30px; border: none; background: transparent;
   color: var(--text-muted); cursor: pointer; border-radius: 6px;
-  font-size: 16px; transition: all 0.15s;
+  transition: all 0.15s ease;
   display: flex; align-items: center; justify-content: center;
-  font-family: inherit;
   -webkit-app-region: no-drag;
+  line-height: 0;
 }
-.win-btn:hover { background: #dcdce4; color: var(--text-primary); }
+.win-btn:hover { background: rgba(0,0,0,0.06); color: var(--text-primary); }
+.win-btn:active { background: rgba(0,0,0,0.1); }
 .win-btn.close:hover { background: #ef4444; color: #fff; }
+.win-btn.close:active { background: #dc2626; color: #fff; }
 </style>

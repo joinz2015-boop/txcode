@@ -6,6 +6,7 @@
       :class="{ selected: isSelected, 'is-dir': node.isDirectory }"
       @click="handleClick"
       @dblclick="handleDblClick"
+      @contextmenu.prevent="handleContextMenu"
     >
       <span class="expand-icon" v-if="node.isDirectory" @click.stop="toggleExpand">
         <span v-if="loading" class="spinner"></span>
@@ -29,6 +30,7 @@
         @load-children="$emit('load-children', $event)"
         @expand-path="$emit('expand-path', $event)"
         @collapse-path="$emit('collapse-path', $event)"
+        @contextmenu="forwardContextMenu"
       />
     </div>
   </div>
@@ -90,6 +92,13 @@ export default {
       } else {
         this.toggleExpand()
       }
+    },
+    handleContextMenu(e) {
+      this.$emit('contextmenu', e, this.node)
+      this.$emit('select', this.node)
+    },
+    forwardContextMenu(e, node) {
+      this.$emit('contextmenu', e, node)
     },
     async toggleExpand() {
       if (!this.node.isDirectory) return

@@ -185,7 +185,7 @@ export function syncSongbingModels() {
 export function uploadChatImage(file, sessionId) {
   const formData = new FormData()
   formData.append('image', file)
-  formData.append('sessionId', sessionId)
+  formData.append('sessionId', sessionId || '')
   return fetch(`${getBaseURL()}/api/chat/upload_image_chat`, {
     method: 'POST',
     body: formData
@@ -200,6 +200,30 @@ export function getSkills() {
 export function getLocalSkills(projectPath) {
   const query = projectPath ? `?projectPath=${encodeURIComponent(projectPath)}` : ''
   return request('GET', `/skill/local_skill${query}`)
+}
+
+export function getSkillCategories() {
+  return request('GET', '/skill/categories')
+}
+
+export function getPublishedSkills(params = {}) {
+  const { page = 1, pageSize = 20, keyword, categoryId } = params
+  let query = `page=${page}&page_size=${pageSize}`
+  if (keyword) query += `&keyword=${encodeURIComponent(keyword)}`
+  if (categoryId) query += `&category_id=${categoryId}`
+  return request('GET', `/skill/published?${query}`)
+}
+
+export function getSkillContent(name) {
+  return request('GET', `/skill/detail_skill?name=${encodeURIComponent(name)}`)
+}
+
+export function installSkillApi(skillId, skillName) {
+  return request('POST', '/skill/install', { skillId, skillName })
+}
+
+export function uninstallSkillApi(skillName) {
+  return request('POST', '/skill/uninstall', { skillName })
 }
 
 // ========== Custom Action API ==========
@@ -316,4 +340,39 @@ export function exportFolder(path) {
       return { success: true }
     })
   })
+}
+
+// ========== Spec API ==========
+export function getSpecCategories() {
+  return request('GET', '/spec/categories')
+}
+
+export function getPublishedSpecs(params = {}) {
+  const { page = 1, pageSize = 20, keyword, categoryId, platformCategory } = params
+  let query = `page=${page}&page_size=${pageSize}`
+  if (keyword) query += `&keyword=${encodeURIComponent(keyword)}`
+  if (categoryId) query += `&category_id=${categoryId}`
+  if (platformCategory) query += `&platform_category=${encodeURIComponent(platformCategory)}`
+  return request('GET', `/spec/published?${query}`)
+}
+
+export function getLocalSpecs(projectPath) {
+  const query = projectPath ? `?projectPath=${encodeURIComponent(projectPath)}` : ''
+  return request('GET', `/spec/local_spec${query}`)
+}
+
+export function getSpecContent(name) {
+  return request('GET', `/spec/detail_spec?name=${encodeURIComponent(name)}`)
+}
+
+export function installSpec(specId, specName) {
+  return request('POST', '/spec/install', { specId, specName })
+}
+
+export function uninstallSpec(specName) {
+  return request('POST', '/spec/uninstall', { specName })
+}
+
+export function deleteLocalSpec(name) {
+  return request('POST', '/spec/delete_spec', { name })
 }

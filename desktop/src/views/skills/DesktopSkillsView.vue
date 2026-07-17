@@ -7,57 +7,57 @@
             <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
           </svg>
           Skill 市场
-          <span class="market-title-badge">{{ filteredSkills.length }} 个技能</span>
+          <span class="market-title-badge">{{ displayCount }} 个技能</span>
         </div>
       </div>
       <div class="market-search-wrap">
-        <input type="text" class="market-search-input" v-model="searchKeyword" placeholder="搜索 Skill..." @keyup.enter="filterSkills">
-        <button class="market-search-btn" @click="filterSkills">查询</button>
+        <input type="text" class="market-search-input" v-model="searchKeyword" placeholder="搜索 Skill..." @keyup.enter="onSearch">
+        <button class="market-search-btn" @click="onSearch">查询</button>
       </div>
       <div class="filter-tabs">
         <button class="filter-tab" :class="{ active: currentFilter === 'all' }" @click="setFilter('all')">全部</button>
         <button class="filter-tab" :class="{ active: currentFilter === 'installed' }" @click="setFilter('installed')">已安装</button>
         <span class="filter-divider"></span>
-        <button class="filter-tab" :class="{ active: currentFilter === '工具' }" @click="setFilter('工具')">工具</button>
-        <button class="filter-tab" :class="{ active: currentFilter === '文件' }" @click="setFilter('文件')">文件</button>
-        <button class="filter-tab" :class="{ active: currentFilter === '搜索' }" @click="setFilter('搜索')">搜索</button>
-        <button class="filter-tab" :class="{ active: currentFilter === '代码' }" @click="setFilter('代码')">代码</button>
-        <button class="filter-tab" :class="{ active: currentFilter === '记忆' }" @click="setFilter('记忆')">记忆</button>
+        <button v-for="cat in categories" :key="cat.id" class="filter-tab" :class="{ active: currentFilter === 'category_' + cat.id }" @click="setFilter('category_' + cat.id)">{{ cat.name }}</button>
       </div>
     </div>
     <div class="skill-grid-wrap">
-      <div class="skill-grid">
-        <div v-for="skill in pagedSkills" :key="skill.id" class="skill-card">
+      <div v-if="loading" class="loading-hint">加载中...</div>
+      <div v-else-if="displaySkills.length === 0" class="empty-hint">暂无 Skill</div>
+      <div v-else class="skill-grid">
+        <div v-for="skill in displaySkills" :key="skill.id || skill.name" class="skill-card">
           <div class="skill-card-top">
-            <div class="skill-card-icon" :class="getIconClass(skill.category)" v-html="getIconSvg(skill.category)"></div>
+            <div class="skill-card-icon" :class="getIconClass(skill)" v-html="getIconSvg(skill)"></div>
             <div class="skill-card-info">
               <div class="skill-card-name-row">
                 <span class="skill-card-name">{{ skill.name }}</span>
-                <span v-if="skill.installed" class="skill-card-badge installed">已安装</span>
+                <span v-if="isInstalled(skill.name)" class="skill-card-badge installed">已安装</span>
               </div>
               <div class="skill-card-desc">{{ skill.description }}</div>
             </div>
           </div>
           <div class="skill-card-tags">
-            <span v-for="tag in skill.tags" :key="tag" class="skill-card-tag">{{ tag }}</span>
+            <span v-for="tag in getTagList(skill.tags)" :key="tag" class="skill-card-tag">{{ tag }}</span>
           </div>
           <div class="skill-card-foot">
             <div class="skill-card-meta">
-              <span>
+              <span v-if="skill.latest_version">
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 01-9 9"/></svg>
-                {{ skill.version }}
+                {{ skill.latest_version }}
               </span>
-              <span>
+              <span v-if="skill.download_count !== undefined">
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                {{ skill.downloads.toLocaleString() }}
+                {{ skill.download_count }}
               </span>
             </div>
             <div class="skill-card-actions">
-              <template v-if="skill.installed">
+              <template v-if="isInstalled(skill.name)">
                 <button class="skill-action-btn" @click="viewSkill(skill)">查看</button>
-                <button class="skill-action-btn danger" @click="uninstallSkill(skill)">卸载</button>
+                <button class="skill-action-btn danger" @click="handleUninstall(skill)">卸载</button>
               </template>
-              <button v-else class="skill-action-btn primary" @click="installSkill(skill)">安装</button>
+              <button v-else class="skill-action-btn primary" :disabled="installingIds[skill.id]" @click="handleInstall(skill)">
+                {{ installingIds[skill.id] ? '安装中...' : '安装' }}
+              </button>
             </div>
           </div>
         </div>
@@ -71,58 +71,53 @@
       </template>
       <button class="pagination-btn" :disabled="currentPage >= totalPages" @click="goToPage(currentPage + 1)">›</button>
     </div>
+    <DesktopSkillViewer
+      :visible="showViewer"
+      :skill="currentViewSkill"
+      @close="showViewer = false"
+    />
   </div>
 </template>
 
 <script>
+import { getSkillCategories, getPublishedSkills, getLocalSkills, installSkillApi, uninstallSkillApi } from '@/api/index'
+import DesktopSkillViewer from '@/components/skill/DesktopSkillViewer.vue'
+
 export default {
   name: 'DesktopSkillsView',
+  components: { DesktopSkillViewer },
   data() {
     return {
       currentFilter: 'all',
+      currentCategoryId: null,
       currentPage: 1,
       pageSize: 9,
       searchKeyword: '',
-      skillsData: [
-        { id: 1, name: 'bash', description: '执行 shell 命令，支持持久化会话和超时控制，兼容 Windows/macOS/Linux 多平台', category: '工具', tags: ['终端', '命令行', 'shell'], version: 'v1.2.0', downloads: 3420, installed: true },
-        { id: 2, name: 'read_file', description: '读取本地文件或目录内容，支持分页和行号，可读取图片和 PDF', category: '文件', tags: ['文件', '读取'], version: 'v1.0.0', downloads: 5800, installed: true },
-        { id: 3, name: 'write_file', description: '写入文件到本地文件系统，自动创建父目录，避免覆盖已存在文件', category: '文件', tags: ['文件', '写入'], version: 'v1.0.0', downloads: 4950, installed: true },
-        { id: 4, name: 'edit_file', description: '精确字符串替换编辑文件，支持 replace_all 批量替换，需先读取再编辑', category: '文件', tags: ['文件', '编辑'], version: 'v1.1.0', downloads: 4100, installed: true },
-        { id: 5, name: 'glob', description: '快速文件模式匹配，按修改时间排序返回结果，支持 glob 通配符语法', category: '搜索', tags: ['文件搜索', '模式匹配'], version: 'v1.0.0', downloads: 3600, installed: true },
-        { id: 6, name: 'grep', description: '正则表达式搜索文件内容，优先使用 ripgrep 跨平台检测，fallback 纯 JS 并发', category: '搜索', tags: ['搜索', '正则', 'rg'], version: 'v1.2.0', downloads: 3850, installed: true },
-        { id: 7, name: 'web_search', description: '使用 Exa AI 搜索网络，支持实时爬取、深度搜索和域名过滤', category: '搜索', tags: ['网络', '搜索', 'AI'], version: 'v1.0.0', downloads: 2100, installed: true },
-        { id: 8, name: 'web_fetch', description: '从指定 URL 获取内容，支持 markdown/text/html 多种输出格式', category: '工具', tags: ['网络', '抓取'], version: 'v1.0.0', downloads: 1800, installed: true },
-        { id: 9, name: 'memory', description: '项目记忆管理，存储和检索上下文信息，支持会话持久化', category: '记忆', tags: ['记忆', '上下文'], version: 'v1.0.0', downloads: 920, installed: false },
-        { id: 10, name: 'code_search', description: '使用 Exa Code API 搜索编程相关代码和上下文，支持 50k tokens', category: '代码', tags: ['代码', '搜索', 'API'], version: 'v1.0.0', downloads: 1560, installed: false },
-        { id: 11, name: 'lsp_diagnostics', description: 'LSP 语言服务诊断，提供代码错误、警告和提示的实时反馈', category: '代码', tags: ['LSP', '诊断', 'IDE'], version: 'v1.0.0', downloads: 2400, installed: false },
-        { id: 12, name: 'todo_write', description: '任务管理工具，支持创建和更新待办事项列表，追踪项目进度', category: '工具', tags: ['任务', 'TODO', '效率'], version: 'v1.0.0', downloads: 1100, installed: false }
-      ]
+      skills: [],
+      localSkills: [],
+      categories: [],
+      loading: false,
+      total: 0,
+      installingIds: {},
+      showViewer: false,
+      currentViewSkill: null
     }
   },
   computed: {
-    filteredSkills() {
-      let result = [...this.skillsData]
+    displayCount() {
       if (this.currentFilter === 'installed') {
-        result = result.filter(s => s.installed)
-      } else if (this.currentFilter !== 'all') {
-        result = result.filter(s => s.category === this.currentFilter)
+        return this.localSkills.length
       }
-      const kw = this.searchKeyword.trim().toLowerCase()
-      if (kw) {
-        result = result.filter(s =>
-          s.name.toLowerCase().includes(kw) ||
-          s.description.toLowerCase().includes(kw) ||
-          (s.tags || []).some(t => t.toLowerCase().includes(kw))
-        )
+      return this.total
+    },
+    displaySkills() {
+      if (this.currentFilter === 'installed') {
+        return this.localSkills
       }
-      return result
+      return this.skills
     },
     totalPages() {
-      return Math.ceil(this.filteredSkills.length / this.pageSize)
-    },
-    pagedSkills() {
-      const start = (this.currentPage - 1) * this.pageSize
-      return this.filteredSkills.slice(start, start + this.pageSize)
+      return Math.ceil(this.displayCount / this.pageSize) || 1
     },
     visiblePages() {
       const total = this.totalPages
@@ -143,24 +138,93 @@ export default {
       return unique
     }
   },
+  mounted() {
+    this.loadCategories()
+    this.loadSkills()
+    this.loadLocalSkills()
+  },
   methods: {
+    async loadCategories() {
+      try {
+        const res = await getSkillCategories()
+        this.categories = res.data || []
+      } catch (e) {
+        console.error('Failed to load skill categories:', e)
+        this.categories = []
+      }
+    },
+    async loadSkills() {
+      this.loading = true
+      try {
+        const res = await getPublishedSkills({
+          page: this.currentPage,
+          pageSize: this.pageSize,
+          keyword: this.searchKeyword || undefined,
+          categoryId: this.currentCategoryId || undefined
+        })
+        const data = res.data || {}
+        this.skills = data.list || []
+        this.total = data.total || 0
+      } catch (e) {
+        console.error('Failed to load skills:', e)
+        this.skills = []
+        this.total = 0
+      } finally {
+        this.loading = false
+      }
+    },
+    async loadLocalSkills() {
+      try {
+        const res = await getLocalSkills()
+        this.localSkills = res.data || []
+      } catch (e) {
+        console.error('Failed to load local skills:', e)
+        this.localSkills = []
+      }
+    },
+    isInstalled(name) {
+      return this.localSkills.some(s => s.name === name)
+    },
     setFilter(filter) {
       this.currentFilter = filter
       this.currentPage = 1
+      if (filter === 'installed') {
+        this.currentCategoryId = null
+        this.loadLocalSkills()
+      } else if (filter === 'all') {
+        this.currentCategoryId = null
+        this.loadSkills()
+      } else if (filter.startsWith('category_')) {
+        this.currentCategoryId = filter.split('_')[1]
+        this.loadSkills()
+      }
     },
-    filterSkills() {
+    onSearch() {
       this.currentPage = 1
+      if (this.currentFilter !== 'installed') {
+        this.loadSkills()
+      }
     },
     goToPage(page) {
       if (page < 1 || page > this.totalPages) return
       this.currentPage = page
+      if (this.currentFilter !== 'installed') {
+        this.loadSkills()
+      }
     },
-    getIconClass(category) {
+    getTagList(tags) {
+      if (!tags) return []
+      if (Array.isArray(tags)) return tags
+      if (typeof tags === 'string') return tags.split(',').map(t => t.trim()).filter(Boolean)
+      return []
+    },
+    getIconClass(skill) {
+      const cat = (skill.category || '').toLowerCase()
       const map = { '工具': 'tool', '搜索': 'search', '文件': 'file', '代码': 'code', '记忆': 'memory' }
-      return map[category] || 'tool'
+      return map[cat] || 'tool'
     },
-    getIconSvg(category) {
-      const cls = this.getIconClass(category)
+    getIconSvg(skill) {
+      const cls = this.getIconClass(skill)
       if (cls === 'tool') return '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>'
       if (cls === 'search') return '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>'
       if (cls === 'file') return '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>'
@@ -168,18 +232,30 @@ export default {
       if (cls === 'memory') return '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 100 20 10 10 0 000-20z"/><path d="M12 6v6l4 2"/></svg>'
       return '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>'
     },
-    installSkill(skill) {
-      if (confirm(`确定要安装 "${skill.name}" 吗？`)) {
-        skill.installed = true
+    async handleInstall(skill) {
+      if (!confirm(`确定要安装 "${skill.name}" 吗？`)) return
+      this.$set(this.installingIds, skill.id, true)
+      try {
+        await installSkillApi(skill.id, skill.name)
+        await this.loadLocalSkills()
+      } catch (e) {
+        alert('安装失败: ' + (e.message || '未知错误'))
+      } finally {
+        this.$set(this.installingIds, skill.id, false)
       }
     },
-    uninstallSkill(skill) {
-      if (confirm(`确定要卸载 "${skill.name}" 吗？`)) {
-        skill.installed = false
+    async handleUninstall(skill) {
+      if (!confirm(`确定要卸载 "${skill.name}" 吗？`)) return
+      try {
+        await uninstallSkillApi(skill.name)
+        await this.loadLocalSkills()
+      } catch (e) {
+        alert('卸载失败: ' + (e.message || '未知错误'))
       }
     },
     viewSkill(skill) {
-      alert(`查看 Skill: ${skill.name}\n\n此操作将打开 Skill 详情面板。`)
+      this.currentViewSkill = skill
+      this.showViewer = true
     }
   }
 }
@@ -231,6 +307,7 @@ export default {
 .skill-action-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-bg); }
 .skill-action-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
 .skill-action-btn.primary:hover { background: #4752c4; }
+.skill-action-btn.primary:disabled { opacity: 0.6; cursor: not-allowed; }
 .skill-action-btn.danger { color: var(--red); border-color: transparent; background: transparent; }
 .skill-action-btn.danger:hover { background: #fef2f2; border-color: #fecaca; }
 .pagination-row { display: flex; align-items: center; justify-content: center; padding: 12px 20px 16px; gap: 4px; flex-shrink: 0; }
@@ -238,4 +315,5 @@ export default {
 .pagination-btn:hover { border-color: var(--accent); color: var(--accent); }
 .pagination-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
 .pagination-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.loading-hint, .empty-hint { text-align: center; color: var(--text-muted); padding: 60px 20px; font-size: 14px; }
 </style>
