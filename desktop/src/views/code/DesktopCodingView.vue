@@ -1,31 +1,14 @@
 <template>
   <div class="coding-view">
-    <div class="sidebar-panel">
-      <div class="sidebar-header">
-        <span class="sidebar-title">会话列表</span>
-        <button class="sidebar-new-btn" @click="createPlanSession">+ 新建</button>
-      </div>
-      <div class="sidebar-content">
-        <div v-if="planSessions.length === 0" class="sidebar-empty">
-          <p>暂无计划会话</p>
-          <button class="sidebar-new-btn" @click="createPlanSession">+ 新建</button>
-        </div>
-        <div
-          v-for="session in displayedSessions"
-          :key="session.folderName"
-          class="session-item"
-          :class="{ active: currentPlanSession && currentPlanSession.folderName === session.folderName }"
-          @click="selectPlanSession(session)"
-          @contextmenu.prevent="openContextMenu($event, session)"
-        >
-          <div class="session-title">{{ session.meta.sessionName || session.folderName }}</div>
-          <div class="session-time">{{ formatTime(session.meta.updatedAt || session.meta.createdAt) }}</div>
-          <span v-if="isSessionRunning(session)" class="session-spinner"></span>
-        </div>
-        <div v-if="hasMore" class="load-more-item" @click="loadMore">加载更多 ({{ planSessions.length - displayCount }})</div>
-        <div v-else-if="planSessions.length > pageSize" class="load-more-item disabled">已加载全部</div>
-      </div>
-    </div>
+    <DesktopPlanSessionSidebar
+      :sessions="planSessions"
+      :currentFolderName="currentPlanSession ? currentPlanSession.folderName : ''"
+      :runningSessionIds="runningSessionIds"
+      @create="createPlanSession"
+      @select="selectPlanSession"
+      @rename="onSidebarRename"
+      @delete="onSidebarDelete"
+    />
 
     <div class="main-area">
       <div v-if="currentPlanSession" class="mode-float">
@@ -33,7 +16,7 @@
         <button class="mode-tab" :class="{ active: currentMode === 'plan' }" @click="switchMode('plan')">方案模式</button>
       </div>
 
-      <div v-if="currentPlanSession" class="content-panels">
+      <div v-if="currentPlanSession" class="content-panels" :class="{ 'plan-gap': currentMode === 'plan' }">
         <DesktopCodingPanel
           ref="codingPanel"
           v-show="currentMode === 'code'"
@@ -46,6 +29,7 @@
           @custom-action="executeCustomAction"
           @open-git-changes="gitChangesDialogVisible = true"
           @open-test="handleOpenTest"
+          @preview-image="openImagePreview"
         />
 
         <template v-if="currentMode === 'plan'">
@@ -81,11 +65,6 @@
       </div>
     </div>
 
-    <div v-if="contextMenu.visible" class="context-menu" :style="{ top: contextMenu.y + 'px', left: contextMenu.x + 'px' }">
-      <div class="context-menu-item" @click="renameContextSession">重命名</div>
-      <div class="context-menu-item danger" @click="deleteContextSession">删除</div>
-    </div>
-
     <DesktopModelSelectDialog
       v-if="modelSelectVisible"
       :currentModel="currentModel"
@@ -103,6 +82,19 @@
       v-if="gitChangesDialogVisible"
       @close="gitChangesDialogVisible = false"
     />
+
+    <DesktopPlanCodeTest
+      v-if="testDialogVisible"
+      :currentModel="currentModel"
+      :planSession="currentPlanSession"
+      :planFilePath="planFilePath"
+      @close="testDialogVisible = false"
+    />
+
+    <div v-if="previewImage" class="image-lightbox" @click="closeImagePreview">
+      <span class="lightbox-close" @click="closeImagePreview">&times;</span>
+      <img :src="previewImage.url || previewImage.dataUrl || previewImage.filePath" class="lightbox-image" @click.stop />
+    </div>
   </div>
 </template>
 
@@ -110,16 +102,19 @@
 import DesktopCodingPanel from '@/components/coding/DesktopCodingPanel.vue'
 import DesktopPlanEditor from '@/components/plan/DesktopPlanEditor.vue'
 import DesktopAssistantPanel from '@/components/plan/DesktopAssistantPanel.vue'
+import DesktopPlanSessionSidebar from '@/components/plan-code/DesktopPlanSessionSidebar.vue'
 import DesktopModelSelectDialog from '@/components/plan-code/DesktopModelSelectDialog.vue'
 import DesktopCreateSubPlanDialog from '@/components/plan-code/DesktopCreateSubPlanDialog.vue'
 import DesktopGitChangesDialog from '@/components/plan-code/DesktopGitChangesDialog.vue'
+import DesktopPlanCodeTest from '@/components/coding/DesktopPlanCodeTest.vue'
 import { listPlanSessions, createPlanSession, renamePlanSession, deletePlanSession, readPlan, getModels, listCustomActions, getConfig } from '@/api/index'
 import { getItem, setItem } from '@/utils/storage'
 import { ws } from '@/utils/websocket'
+import { eventBus } from '@/utils/eventBus'
 
 export default {
   name: 'DesktopCodingView',
-  components: { DesktopCodingPanel, DesktopPlanEditor, DesktopAssistantPanel, DesktopModelSelectDialog, DesktopCreateSubPlanDialog, DesktopGitChangesDialog },
+  components: { DesktopCodingPanel, DesktopPlanEditor, DesktopAssistantPanel, DesktopPlanSessionSidebar, DesktopModelSelectDialog, DesktopCreateSubPlanDialog, DesktopGitChangesDialog, DesktopPlanCodeTest },
   inject: ['desktopState'],
   data() {
     return {
@@ -132,13 +127,15 @@ export default {
       displayCount: 10,
       pageSize: 10,
       assistantWidth: getItem('coding:assistantWidth', 370),
-      contextMenu: { visible: false, x: 0, y: 0, session: null },
       modelSelectVisible: false,
       modelSelectTarget: 'code',
       subPlanDialogVisible: false,
       gitChangesDialogVisible: false,
+      testDialogVisible: false,
       customActions: [],
+      previewImage: null,
       _renameUnsub: null,
+      _unsubFileChanged: null,
     }
   },
   computed: {
@@ -147,12 +144,6 @@ export default {
     },
     planFolderName() {
       return this.currentPlanSession ? this.currentPlanSession.folderName : ''
-    },
-    displayedSessions() {
-      return this.planSessions.slice(0, this.displayCount)
-    },
-    hasMore() {
-      return this.displayCount < this.planSessions.length
     },
   },
   watch: {
@@ -179,7 +170,6 @@ export default {
       try {
         const r = await listPlanSessions()
         this.planSessions = r.data || []
-        this.displayCount = this.pageSize
       } catch (e) {
         console.error('加载计划会话失败:', e)
       }
@@ -208,6 +198,12 @@ export default {
           this.$refs.planEditor.refresh()
         }
       })
+    },
+    onSidebarRename(session, newName) {
+      this.renamePlanSession(session, newName)
+    },
+    onSidebarDelete(session) {
+      this.deletePlanSession(session)
     },
     switchMode(mode) {
       this.currentMode = mode
@@ -266,74 +262,12 @@ export default {
         await this.loadPlanSessions()
       } catch (e) { console.error('删除失败:', e) }
     },
-    openContextMenu(e, session) {
-      this.contextMenu = { visible: true, x: e.clientX, y: e.clientY, session }
-    },
-    renameContextSession() {
-      const session = this.contextMenu.session
-      const newName = prompt('输入新名称:', session.meta.sessionName || session.folderName)
-      if (newName && newName.trim()) {
-        this.renamePlanSession(session, newName.trim())
-      }
-      this.contextMenu.visible = false
-    },
-    deleteContextSession() {
-      const session = this.contextMenu.session
-      if (confirm(`确定删除 "${session.meta.sessionName || session.folderName}" 吗？`)) {
-        this.deletePlanSession(session)
-      }
-      this.contextMenu.visible = false
-    },
-    handleRenameEvent(data) {
-      if (this.currentPlanSession && this.currentPlanSession.folderName === data.folderName) {
-        this.currentPlanSession = {
-          ...this.currentPlanSession,
-          meta: { ...this.currentPlanSession.meta, sessionName: data.sessionName }
-        }
-        setItem('planSession:current', this.currentPlanSession)
-      }
-      this.loadPlanSessions()
-    },
-    loadMore() {
-      this.displayCount = Math.min(this.displayCount + this.pageSize, this.planSessions.length)
-    },
-    formatTime(dateStr) {
-      if (!dateStr) return ''
-      try {
-        const d = new Date(dateStr)
-        const now = new Date()
-        const diff = now - d
-        if (diff < 3600000) return Math.floor(diff / 60000) + '分钟前'
-        if (diff < 86400000) return Math.floor(diff / 3600000) + '小时前'
-        return d.toLocaleDateString()
-      } catch { return '' }
-    },
-    isSessionRunning(session) {
-      if (!this.runningSessionIds || !this.runningSessionIds.length) return false
-      const meta = session.meta || {}
-      const ids = [
-        meta.codeSessionId,
-        meta.designSessionId,
-        meta.testSessionId,
-      ].filter(Boolean)
-      const discussSessions = meta.discussSessions || []
-      for (const d of discussSessions) {
-        if (d.sessionId) ids.push(d.sessionId)
-      }
-      return ids.some(id => this.runningSessionIds.includes(id))
-    },
     handleOpenModelSelect(target) {
       this.modelSelectTarget = target
       this.modelSelectVisible = true
     },
     handleOpenTest() {
-      const cp = this.$refs.codingPanel
-      if (!cp || !cp.panel.sessionId) return
-      cp.inputText = '请运行项目测试'
-      cp.$nextTick(() => {
-        const inputEl = cp.$el.querySelector('.code-textarea')
-        if (inputEl) inputEl.focus()
-      })
+      this.testDialogVisible = true
     },
     onModelSelected(model) {
       const name = model.name.split('/').length > 2 ? model.name.split('/').slice(1).join('/') : model.name
@@ -363,11 +297,8 @@ export default {
       if (!cp) return
       cp.inputText = action.prompt
       cp.$nextTick(() => {
-        const ta = cp.$refs.messagesContainer
-        if (ta) {
-          const inputEl = cp.$el.querySelector('.code-textarea')
-          if (inputEl) inputEl.focus()
-        }
+        const inputEl = cp.$el.querySelector('.code-textarea')
+        if (inputEl) inputEl.focus()
         if (action.auto_send) cp.sendMessage()
       })
     },
@@ -410,6 +341,12 @@ export default {
       const running = myIds.some(id => this.runningSessionIds.includes(id))
       document.title = running ? '⏳ TXCode' : 'TXCode'
     },
+    openImagePreview(mf) {
+      this.previewImage = mf
+    },
+    closeImagePreview() {
+      this.previewImage = null
+    },
     onResizeStart(e) {
       const startX = e.clientX
       const startW = this.assistantWidth
@@ -434,7 +371,6 @@ export default {
     this.loadCustomActions()
     this.loadDefaultModel()
     this.updateTitle()
-    document.addEventListener('click', () => { this.contextMenu.visible = false })
     this._renameUnsub = ws.on('rename', (msg) => {
       const data = msg.data || msg
       if (data.folderName && data.sessionName && this.currentPlanSession && this.currentPlanSession.folderName === data.folderName) {
@@ -443,6 +379,14 @@ export default {
           meta: { ...this.currentPlanSession.meta, sessionName: data.sessionName }
         }
         setItem('planSession:current', this.currentPlanSession)
+      }
+    })
+    this._unsubFileChanged = eventBus.on('file:changed', (data) => {
+      if (!this.planFilePath || !data.filePath) return
+      const normPlan = this.planFilePath.replace(/\\/g, '/')
+      const normFile = data.filePath.replace(/\\/g, '/')
+      if (normFile === normPlan || normFile.includes('.txcode/plan-code/')) {
+        this.loadPlanContent()
       }
     })
   },
@@ -467,6 +411,7 @@ export default {
   },
   beforeDestroy() {
     if (this._renameUnsub) { this._renameUnsub(); this._renameUnsub = null }
+    if (this._unsubFileChanged) { this._unsubFileChanged(); this._unsubFileChanged = null }
   },
 }
 </script>
@@ -477,97 +422,6 @@ export default {
   display: flex;
   overflow: hidden;
 }
-
-.sidebar-panel {
-  width: 250px;
-  min-width: 250px;
-  background: var(--bg-side);
-  display: flex;
-  flex-direction: column;
-  border-right: 1px solid var(--border);
-  overflow-y: auto;
-  flex-shrink: 0;
-}
-.sidebar-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 11px 14px;
-  border-bottom: 1px solid var(--border);
-}
-.sidebar-title {
-  font-size: 12px;
-  color: var(--text-muted);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-.sidebar-new-btn {
-  font-size: 12px;
-  padding: 5px 12px;
-  background: var(--accent);
-  color: #fff;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-family: inherit;
-}
-.sidebar-new-btn:hover { background: #4752c4; }
-.sidebar-content { flex: 1; overflow-y: auto; }
-.sidebar-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  padding: 32px 16px;
-  color: var(--text-muted);
-  font-size: 13px;
-}
-
-.session-item {
-  padding: 10px 16px;
-  cursor: pointer;
-  font-size: 13px;
-  color: var(--text-muted);
-  border-left: 2px solid transparent;
-  transition: all 0.15s;
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-.session-item:hover { background: var(--bg-hover); color: var(--text-primary); }
-.session-item.active {
-  background: var(--accent-light);
-  border-left-color: var(--accent);
-  color: var(--accent);
-}
-.session-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
-.session-time { font-size: 11px; color: var(--text-muted); }
-
-.session-spinner {
-  position: absolute;
-  right: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 12px;
-  height: 12px;
-  border: 2px solid var(--border);
-  border-top-color: var(--accent);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-@keyframes spin { to { transform: translateY(-50%) rotate(360deg); } }
-
-.load-more-item {
-  padding: 7px 16px;
-  font-size: 12px;
-  color: var(--accent);
-  cursor: pointer;
-  text-align: center;
-}
-.load-more-item:hover { background: var(--bg-hover); }
-.load-more-item.disabled { color: var(--text-muted); cursor: default; }
 
 .main-area {
   flex: 1;
@@ -615,6 +469,9 @@ export default {
   padding: 14px;
   gap: 0;
 }
+.content-panels.plan-gap {
+  gap: 8px;
+}
 
 .resize-handle {
   width: 5px;
@@ -635,26 +492,27 @@ export default {
   gap: 12px;
 }
 .empty-icon { font-size: 48px; opacity: 0.3; }
-
-.context-menu {
-  position: fixed;
-  z-index: 1000;
-  background: #fff;
-  border: 1px solid var(--border);
+.sidebar-new-btn {
+  font-size: 12px;
+  padding: 5px 12px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
   border-radius: 6px;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
-  min-width: 120px;
-  padding: 4px;
-}
-.context-menu-item {
-  padding: 7px 14px;
-  font-size: 12.5px;
   cursor: pointer;
-  border-radius: 4px;
-  color: var(--text-primary);
-  transition: background 0.1s;
+  font-family: inherit;
 }
-.context-menu-item:hover { background: var(--bg-hover); }
-.context-menu-item.danger { color: #ef4444; }
-.context-menu-item.danger:hover { background: #fef2f2; }
+.sidebar-new-btn:hover { background: #4752c4; }
+
+.image-lightbox {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.85); display: flex; align-items: center; justify-content: center;
+  z-index: 10000;
+}
+.lightbox-close {
+  position: absolute; top: 20px; right: 30px; font-size: 30px; color: #fff; cursor: pointer;
+}
+.lightbox-image {
+  max-width: 90%; max-height: 90%; border-radius: 8px;
+}
 </style>

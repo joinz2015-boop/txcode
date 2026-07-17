@@ -5,12 +5,12 @@
         class="assistant-tab"
         :class="{ active: activeTab === 'design' }"
         @click="activeTab = 'design'"
-      >AI方案助手</button>
+      >AI生成方案</button>
       <button
         class="assistant-tab"
         :class="{ active: activeTab === 'discuss' }"
         @click="activeTab = 'discuss'"
-      >探讨</button>
+      >AI方案交流</button>
     </div>
 
     <div v-show="activeTab === 'design'" class="tab-panel">
@@ -935,7 +935,7 @@ export default {
 .assistant-chat-messages {
   flex: 1;
   overflow-y: auto;
-  padding: 12px;
+  padding: 12px 16px 16px;
 }
 .assistant-empty {
   display: flex;

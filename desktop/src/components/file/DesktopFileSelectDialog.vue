@@ -6,27 +6,32 @@
         <button class="dialog-close" @click="$emit('close')">&times;</button>
       </div>
       <div class="dialog-body">
-        <div class="path-bar">
-          <input class="path-input" v-model="currentPath" @keydown.enter="loadDir" placeholder="输入路径..." />
-          <button class="btn-go" @click="loadDir">浏览</button>
+        <div class="toolbar">
+          <button class="toolbar-btn" @click="goHome" title="根目录">⌂</button>
+          <button class="toolbar-btn" @click="refresh" title="刷新">↻</button>
+          <span class="current-path">{{ currentPath || '根目录' }}</span>
         </div>
-        <div class="file-list" v-if="!loading">
-          <div v-if="parentPath !== null" class="file-item" @click="navigateUp">
-            <span class="file-icon">📁</span>
-            <span class="file-name" style="color:var(--accent);">..</span>
-          </div>
-          <div v-for="item in entries" :key="item.path" class="file-item" @click="selectItem(item)">
-            <span class="file-icon">{{ item.isDirectory ? '📁' : '📄' }}</span>
-            <span class="file-name">{{ item.name }}</span>
-          </div>
-          <div v-if="entries.length === 0 && !parentPath" class="empty-hint">空目录</div>
+        <div class="tree-container">
+          <div v-if="loading" class="empty-hint">加载中...</div>
+          <div v-else-if="rootNodes.length === 0" class="empty-hint">空目录</div>
+          <DesktopFileSelectTreeNode
+            v-else
+            v-for="node in rootNodes"
+            :key="node.path"
+            :node="node"
+            :level="0"
+            :selectedPath="selectedPath"
+            @select="handleSelect"
+            @load-children="handleLoadChildren"
+            @open-file="handleSelect"
+          />
         </div>
-        <div v-else class="loading-hint">加载中...</div>
       </div>
       <div class="dialog-footer">
         <span v-if="selectedPath" class="selected-info">已选: {{ selectedPath }}</span>
+        <span v-else class="selected-info placeholder">未选择</span>
         <button class="btn-outline" @click="$emit('close')">取消</button>
-        <button class="btn-primary" @click="confirmSelect" :disabled="!selectedPath">确定</button>
+        <button class="btn-primary" @click="confirmSelect" :disabled="!selectedPath">选择</button>
       </div>
     </div>
   </div>
@@ -34,54 +39,79 @@
 
 <script>
 import { browseFilesystem } from '@/api/index'
+import DesktopFileSelectTreeNode from './DesktopFileSelectTreeNode.vue'
 
 export default {
   name: 'DesktopFileSelectDialog',
+  components: { DesktopFileSelectTreeNode },
   props: {
     title: { type: String, default: '选择文件' }
   },
   emits: ['close', 'select'],
   data() {
     return {
-      currentPath: '',
-      entries: [],
+      rootNodes: [],
       loading: false,
       selectedPath: '',
-      parentPath: null
+      currentPath: ''
     }
   },
   mounted() {
-    this.loadDir()
+    this.loadRoot()
   },
   methods: {
-    async loadDir() {
-      const path = this.currentPath.trim() || ''
+    async loadRoot(path = '') {
       this.loading = true
       try {
         const r = await browseFilesystem(path)
-        const data = r.data || { entries: [], parent: null }
-        this.entries = data.entries || []
-        this.parentPath = data.parent !== undefined ? data.parent : null
-        this.currentPath = data.current || path
+        const d = (r && r.data) || {}
+        this.currentPath = d.current_path || path || ''
+        const items = d.items || []
+        items.sort((a, b) => {
+          if (a.is_directory === b.is_directory) return a.name.localeCompare(b.name)
+          return a.is_directory ? -1 : 1
+        })
+        this.rootNodes = items.map(e => ({
+          name: e.name,
+          path: e.path,
+          isDirectory: e.is_directory,
+          hasChildren: e.is_directory
+        }))
       } catch (e) {
-        this.entries = []
+        this.rootNodes = []
       } finally {
         this.loading = false
       }
     },
-    navigateUp() {
-      if (this.parentPath !== null) {
-        this.currentPath = this.parentPath
-        this.loadDir()
+    handleSelect(node) {
+      if (node.isDirectory) return
+      this.selectedPath = node.path
+    },
+    async handleLoadChildren({ path, callback }) {
+      try {
+        const r = await browseFilesystem(path)
+        const d = (r && r.data) || {}
+        const items = d.items || []
+        items.sort((a, b) => {
+          if (a.is_directory === b.is_directory) return a.name.localeCompare(b.name)
+          return a.is_directory ? -1 : 1
+        })
+        callback(items.map(e => ({
+          name: e.name,
+          path: e.path,
+          isDirectory: e.is_directory,
+          hasChildren: e.is_directory
+        })))
+      } catch (e) {
+        callback([])
       }
     },
-    selectItem(item) {
-      if (item.isDirectory) {
-        this.currentPath = item.path
-        this.loadDir()
-      } else {
-        this.selectedPath = item.path
-      }
+    goHome() {
+      this.selectedPath = ''
+      this.loadRoot('')
+    },
+    refresh() {
+      this.loadRoot(this.currentPath)
     },
     confirmSelect() {
       if (this.selectedPath) {
@@ -112,33 +142,28 @@ export default {
   font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center;
 }
 .dialog-close:hover { background: var(--bg-hover); }
-.dialog-body { flex: 1; overflow-y: auto; padding: 12px; }
-.path-bar { display: flex; gap: 6px; margin-bottom: 10px; }
-.path-input {
-  flex: 1; padding: 6px 10px; font-size: 12px; border: 1px solid var(--border);
-  border-radius: 5px; color: var(--text-primary); background: #fafbfc; outline: none; font-family: inherit;
+.dialog-body { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
+.toolbar {
+  display: flex; align-items: center; gap: 4px;
+  padding: 6px 8px; border-bottom: 1px solid var(--border); flex-shrink: 0;
 }
-.path-input:focus { border-color: var(--accent); }
-.btn-go {
-  padding: 6px 12px; background: var(--accent); color: #fff; border: none; border-radius: 5px;
-  font-size: 12px; cursor: pointer; font-family: inherit;
+.toolbar-btn {
+  padding: 3px 8px; background: var(--bg-input); border: none; border-radius: 4px;
+  color: var(--text-muted); cursor: pointer; font-size: 13px; font-family: inherit;
 }
-.file-list { max-height: 350px; overflow-y: auto; }
-.file-item {
-  display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 4px;
-  cursor: pointer; font-size: 13px; color: var(--text-primary); transition: background 0.1s;
+.toolbar-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+.current-path {
+  flex: 1; padding: 4px 10px; font-size: 12px; color: var(--text-muted);
+  background: var(--bg-input); border-radius: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.file-item:hover { background: var(--bg-hover); }
-.file-icon { flex-shrink: 0; font-size: 14px; }
-.file-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.empty-hint, .loading-hint {
-  text-align: center; color: var(--text-muted); padding: 20px; font-size: 13px;
-}
+.tree-container { flex: 1; overflow-y: auto; padding: 4px 0; min-height: 100px; }
+.empty-hint { text-align: center; color: var(--text-muted); padding: 20px; font-size: 13px; }
 .dialog-footer {
   display: flex; align-items: center; justify-content: flex-end; gap: 8px;
   padding: 10px 16px; border-top: 1px solid var(--border);
 }
 .selected-info { font-size: 12px; color: var(--accent); margin-right: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.selected-info.placeholder { color: var(--text-muted); }
 .btn-outline {
   padding: 6px 14px; background: #fff; color: var(--text-secondary); border: 1px solid var(--border);
   border-radius: 5px; font-size: 12px; cursor: pointer; font-family: inherit;

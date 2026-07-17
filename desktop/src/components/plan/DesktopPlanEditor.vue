@@ -6,7 +6,6 @@
         <span class="file-path">{{ filePath }}</span>
       </div>
       <div class="plan-editor-actions">
-        <button title="生成代码" @click="$emit('generate-code')">⚡</button>
         <button title="保存方案 (Ctrl+S)" @click="saveContent">✓</button>
         <button title="刷新方案" @click="refresh">↻</button>
         <button title="导出方案" @click="$emit('export')">⬇</button>
@@ -20,6 +19,7 @@
         v-model="localContent"
         placeholder="编写方案文档..."
       ></textarea>
+      <button class="generate-code-fab" title="生成代码" @click="$emit('generate-code')">生成代码</button>
     </div>
     <div class="plan-editor-footer">
       <span>✓ Markdown</span>
@@ -191,6 +191,7 @@ export default {
   font-size: 13px;
   line-height: 1.7;
   color: var(--text-primary);
+  position: relative;
 }
 .plan-textarea {
   width: 100%;
@@ -253,5 +254,32 @@ export default {
   font-size: 11px;
   color: var(--text-muted);
   background: var(--bg-titlebar);
+}
+
+.generate-code-fab {
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  height: 40px;
+  padding: 0 18px;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(79, 110, 247, 0.35);
+  transition: all 0.2s;
+  font-family: inherit;
+  white-space: nowrap;
+}
+.generate-code-fab:hover {
+  background: #6366f1;
+  transform: scale(1.05);
+  box-shadow: 0 6px 16px rgba(79, 110, 247, 0.45);
 }
 </style>

@@ -18,7 +18,7 @@
         <div v-else-if="item.type === 'chat'" :key="'ml-' + idx" class="flex justify-end">
           <div class="user-question">
             <div v-if="item.mediaFiles && item.mediaFiles.length" class="chat-images">
-              <img v-for="mf in item.mediaFiles" :key="mf.filePath || mf.id" :src="mf.url || mf.dataUrl || mf.filePath" class="chat-image-thumb" />
+              <img v-for="mf in item.mediaFiles" :key="mf.filePath || mf.id" :src="mf.url || mf.dataUrl || mf.filePath" class="chat-image-thumb" @click.stop="$emit('preview-image', mf)" />
             </div>
             <div>{{ item.content }}</div>
           </div>
@@ -144,7 +144,7 @@ export default {
     planFilePath: { type: String, default: '' },
     customActions: { type: Array, default: () => [] }
   },
-  emits: ['open-model-select', 'custom-action', 'open-git-changes', 'open-test'],
+  emits: ['open-model-select', 'custom-action', 'open-git-changes', 'open-test', 'preview-image'],
   data() {
     return {
       inputText: '',
