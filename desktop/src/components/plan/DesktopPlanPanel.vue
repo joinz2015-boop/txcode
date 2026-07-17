@@ -23,6 +23,7 @@
         :currentModel="currentModel"
         :currentSession="currentSession"
         :planFilePath="planFilePath"
+        :runningSessionIds="runningSessionIds"
         @planUpdated="refreshPlan"
       />
     </div>

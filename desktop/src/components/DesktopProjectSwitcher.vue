@@ -8,13 +8,19 @@
     <div class="project-dropdown" :class="{ show: dropdownVisible }">
       <div
         v-for="project in projects"
-        :key="project.name"
+        :key="project.id || project.name"
         class="project-dropdown-item"
-        :class="{ active: project.name === currentProject.name }"
+        :class="{ active: project.id ? project.id === currentProject.id : project.name === currentProject.name }"
         @click="selectProject(project)"
       >
         <span class="dot" :style="{ background: project.color || '#4f6ef7' }"></span>
-        {{ project.name }}
+        <span class="project-name">{{ project.name }}</span>
+        <button class="delete-btn" @click.stop="deleteProject(project)" title="删除项目">&#x2715;</button>
+      </div>
+      <div class="dropdown-divider"></div>
+      <div class="project-dropdown-item open-project-item" @click="openProjectFolder">
+        <span class="dot open-icon">&#x1F4C2;</span>
+        <span>打开项目文件夹</span>
       </div>
     </div>
   </div>
@@ -27,6 +33,7 @@ export default {
     currentProject: { type: Object, default: () => ({ name: 'txcode', path: '', color: '#4f6ef7' }) },
     projects: { type: Array, default: () => [] }
   },
+  emits: ['selectProject', 'deleteProject', 'openProject'],
   data() {
     return {
       dropdownVisible: false
@@ -38,6 +45,13 @@ export default {
     },
     selectProject(project) {
       this.$emit('selectProject', project)
+      this.dropdownVisible = false
+    },
+    deleteProject(project) {
+      this.$emit('deleteProject', project)
+    },
+    openProjectFolder() {
+      this.$emit('openProject')
       this.dropdownVisible = false
     },
     handleClickOutside(e) {
@@ -107,7 +121,7 @@ export default {
   display: block;
 }
 .project-dropdown-item {
-  padding: 10px 16px;
+  padding: 8px 16px;
   font-size: 13px;
   color: var(--text-primary);
   cursor: pointer;
@@ -129,5 +143,51 @@ export default {
   height: 8px;
   border-radius: 50%;
   flex-shrink: 0;
+}
+.project-dropdown-item .dot.open-icon {
+  width: auto;
+  height: auto;
+  font-size: 14px;
+}
+.project-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.delete-btn {
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+.project-dropdown-item:hover .delete-btn {
+  opacity: 1;
+}
+.delete-btn:hover {
+  background: #fde8e8;
+  color: #ef4444;
+}
+.dropdown-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
+.open-project-item {
+  color: var(--accent);
+  font-weight: 500;
+}
+.open-project-item:hover {
+  background: var(--accent-light);
 }
 </style>

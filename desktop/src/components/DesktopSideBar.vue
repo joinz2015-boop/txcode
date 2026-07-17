@@ -13,19 +13,21 @@
         </a>
         <div class="section-body">
           <div
-            v-for="session in sessions"
+            v-for="session in displayedSessions"
             :key="session.folderName"
             class="sub-item"
             :class="{ active: currentSession && currentSession.folderName === session.folderName }"
             @click="selectSession(session)"
             @contextmenu.prevent="openContextMenu($event, session)"
           >
-            <span class="sub-item-icon">
-              <span v-if="isSessionRunning(session)" class="session-spinner"></span>
-              <span v-else>📋</span>
-            </span>
             <span class="sub-item-name">{{ session.meta.sessionName || session.folderName }}</span>
             <span class="sub-item-extra">{{ formatTime(session.meta.updatedAt || session.meta.createdAt) }}</span>
+          </div>
+          <div v-if="hasMore" class="load-more-item" @click="loadMore">
+            加载更多 ({{ sessions.length - displayCount }})
+          </div>
+          <div v-else-if="sessions.length > pageSize" class="load-more-item disabled">
+            已加载全部
           </div>
           <div v-if="sessions.length === 0" class="sub-item-empty">
             暂无计划会话
@@ -52,6 +54,9 @@
           </div>
         </a>
         <div class="section-body">
+          <div class="sub-item" :class="{ active: currentView === 'settings' }" @click="$emit('navigate', 'settings')">
+            <span class="sub-item-icon">🔌</span><span class="sub-item-name">供应商</span>
+          </div>
           <div class="sub-item" @click="$emit('navigate', 'specs')">
             <span class="sub-item-icon">📋</span><span class="sub-item-name">规范</span>
           </div>
@@ -127,7 +132,17 @@ export default {
   data() {
     return {
       sessions: [],
+      displayCount: 10,
+      pageSize: 10,
       contextMenu: { visible: false, x: 0, y: 0, session: null }
+    }
+  },
+  computed: {
+    displayedSessions() {
+      return this.sessions.slice(0, this.displayCount)
+    },
+    hasMore() {
+      return this.displayCount < this.sessions.length
     }
   },
   mounted() {
@@ -142,6 +157,7 @@ export default {
       try {
         const r = await listPlanSessions()
         this.sessions = r.data || []
+        this.displayCount = this.pageSize
       } catch (e) {
         console.error('加载计划会话失败:', e)
       }
@@ -208,6 +224,9 @@ export default {
         if (diff < 86400000) return Math.floor(diff / 3600000) + '小时前'
         return d.toLocaleDateString()
       } catch { return '' }
+    },
+    loadMore() {
+      this.displayCount = Math.min(this.displayCount + this.pageSize, this.sessions.length)
     },
     isSessionRunning(session) {
       if (!this.runningSessionIds || this.runningSessionIds.length === 0) return false
@@ -281,6 +300,19 @@ export default {
 .sub-item-empty {
   padding: 12px 14px 12px 44px;
   font-size: 12px; color: var(--text-muted);
+}
+
+.load-more-item {
+  padding: 7px 14px 7px 44px;
+  font-size: 12px;
+  color: var(--accent);
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.load-more-item:hover { background: var(--bg-hover); }
+.load-more-item.disabled {
+  color: var(--text-muted);
+  cursor: default;
 }
 
 .context-menu {

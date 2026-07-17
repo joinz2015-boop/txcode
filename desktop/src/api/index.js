@@ -101,9 +101,105 @@ export function setConfig(key, value) {
   return request('POST', '/sys_config/set_config', { key, value })
 }
 
+// ========== Provider API ==========
+export function listProviders() {
+  return request('GET', '/sys_config/list_providers_config')
+}
+
+export function getProvider(id) {
+  return request('GET', '/sys_config/detail_provider_config', { id })
+}
+
+export function createProvider(data) {
+  return request('POST', '/sys_config/create_provider_config', data)
+}
+
+export function updateProvider(id, data) {
+  return request('POST', '/sys_config/update_provider_config', { id, ...data })
+}
+
+export function deleteProvider(id) {
+  return request('POST', '/sys_config/delete_provider_config', { id })
+}
+
+export function setDefaultProvider(id) {
+  return request('POST', '/sys_config/set_default_provider_config', { id })
+}
+
 // ========== Models API ==========
 export function getModels() {
   return request('GET', '/sys_config/list_models_config')
+}
+
+export function getModelsByProvider(providerId) {
+  return request('GET', '/sys_config/list_models_config', { providerId })
+}
+
+export function createModel(data) {
+  return request('POST', '/sys_config/create_model_config', data)
+}
+
+export function updateModel(id, data) {
+  return request('POST', '/sys_config/update_model_config', { id, ...data })
+}
+
+export function deleteModel(id) {
+  return request('POST', '/sys_config/delete_model_config', { id })
+}
+
+// ========== Config Export/Import ==========
+export function exportConfig() {
+  const url = `${getBaseURL()}/api/sys_config/export_config`
+  return fetch(url).then(res => {
+    if (!res.ok) throw new Error('导出失败')
+    return res.blob()
+  })
+}
+
+export function importConfig(content) {
+  return request('POST', '/sys_config/import_config', { content })
+}
+
+// ========== Songbing AI ==========
+export function getSongbingConfig() {
+  return request('GET', '/songbing/config_songbing')
+}
+
+export function startSongbingAuth(platformUrl) {
+  return request('POST', '/songbing/auth_start_songbing', { platformUrl })
+}
+
+export function verifySongbingAuth(key) {
+  return request('POST', '/songbing/auth_verify_songbing', { key })
+}
+
+export function cancelSongbingAuth() {
+  return request('POST', '/songbing/auth_cancel_songbing')
+}
+
+export function syncSongbingModels() {
+  return request('POST', '/songbing/sync_models_songbing')
+}
+
+// ========== Image Upload ==========
+export function uploadChatImage(file, sessionId) {
+  const formData = new FormData()
+  formData.append('image', file)
+  formData.append('sessionId', sessionId)
+  return fetch(`${getBaseURL()}/api/chat/upload_image_chat`, {
+    method: 'POST',
+    body: formData
+  }).then(res => res.json())
+}
+
+// ========== Skill API ==========
+export function getSkills() {
+  return request('GET', '/skill/list_skill')
+}
+
+export function getLocalSkills(projectPath) {
+  const query = projectPath ? `?projectPath=${encodeURIComponent(projectPath)}` : ''
+  return request('GET', `/skill/local_skill${query}`)
 }
 
 // ========== Project API ==========
@@ -111,11 +207,27 @@ export function getProjects() {
   return request('GET', '/project/list_project')
 }
 
-export function setCurrentProject(data) {
-  return request('POST', '/project/set_current_project', data)
+export function getCurrentProject() {
+  return request('GET', '/project/current_project')
+}
+
+export function setCurrentProject(projectId) {
+  return request('POST', '/project/set_current_project', { id: projectId })
+}
+
+export function createProject(name, path, description = '') {
+  return request('POST', '/project/create_project', { name, path, description })
+}
+
+export function deleteProject(id) {
+  return request('POST', '/project/delete_project', { id })
 }
 
 // ========== File API ==========
+export function getDrives() {
+  return request('GET', '/file/drives_file')
+}
+
 export function browseFilesystem(path = '') {
   return request('GET', '/file/browse_file', { path })
 }

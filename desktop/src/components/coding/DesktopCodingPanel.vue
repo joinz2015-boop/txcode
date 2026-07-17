@@ -28,30 +28,73 @@
       </div>
     </div>
     <div class="code-input-block">
+      <DesktopImagePreviewList
+        :files="mediaFiles"
+        :disabled="disabled"
+        @remove="removeMedia"
+      />
       <div class="code-input-wrapper">
         <textarea
           class="code-textarea"
           v-model="inputText"
-          placeholder="输入消息... (Enter 发送, Ctrl+Enter 换行)"
+          placeholder="输入消息... (Enter 发送, Shift+Enter 换行，可粘贴图片)"
           rows="3"
           :disabled="disabled"
           @keydown="handleKeydown"
+          @paste="handlePaste"
         ></textarea>
         <div class="code-input-actions">
           <div class="code-input-actions-left">
+            <button class="fn-btn" @mousedown.prevent @click="showFileDialog = true" title="选择文件">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
+              文件
+            </button>
+            <button class="fn-btn" @mousedown.prevent @click="showSkillDialog = true" title="选择 Skill">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+              Skill
+            </button>
+            <button class="fn-btn" @mousedown.prevent @click="showDesignDialog = true" title="选择设计">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+              设计
+            </button>
+            <button class="fn-btn" @mousedown.prevent @click="showCommandDialog = true" title="命令">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+              命令
+            </button>
+            <button class="fn-btn" @mousedown.prevent @click="triggerImageUpload" title="上传图片">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+              图片
+            </button>
+            <input ref="imageInput" type="file" accept="image/*" multiple style="display:none" @change="handleImageFiles" />
+            <span class="input-sep">|</span>
             <span class="input-status" :style="{ color: disabled ? '#f59e0b' : '#22c55e' }">
               {{ disabled ? (stopping ? '■ 停止中' : '● 处理中') : '✓ 就绪' }}
             </span>
             <span class="input-sep">|</span>
-            <span class="input-action" @click="openModelSelect">模型: {{ currentModel }} ▾</span>
+            <span class="input-action" @click="openModelSelect">模型: {{ panel.modelName || currentModel }} ▾</span>
             <span class="input-sep">|</span>
             <span>会话: {{ sessionIdDisplay }}</span>
             <span class="input-sep">|</span>
             <span>token: {{ panel.promptTokens }}</span>
+            <template v-if="selectedFiles.length > 0">
+              <span class="input-sep">|</span>
+              <span class="input-action" @click="clearSelectedFiles" title="清除已选文件">{{ selectedFiles.length }} 文件</span>
+            </template>
+            <template v-if="selectedSkills.length > 0">
+              <span class="input-sep">|</span>
+              <span class="input-action" @click="clearSelectedSkills" title="清除已选Skill">{{ selectedSkills.length }} Skill</span>
+            </template>
+            <template v-if="selectedDesigns.length > 0">
+              <span class="input-sep">|</span>
+              <span class="input-action" @click="clearSelectedDesigns" title="清除已选设计">{{ selectedDesigns.length }} 设计</span>
+            </template>
             <template v-if="planFilePath">
               <span class="input-sep">|</span>
               <span class="input-action" @click="fillDevPlan">生成代码</span>
             </template>
+            <span class="input-sep">|</span>
+            <button class="fn-btn" @mousedown.prevent @click="handleTest" title="测试">测试</button>
+            <button class="fn-btn" @mousedown.prevent @click="handleGitChanges" title="Git变更">Git</button>
           </div>
           <div class="code-input-actions-right">
             <button v-if="disabled && !stopping" class="input-btn btn-stop" @click="stopSending">■ 停止</button>
@@ -61,21 +104,40 @@
         </div>
       </div>
     </div>
+
+    <DesktopFileSelectDialog v-if="showFileDialog" @close="showFileDialog = false" @select="onFileSelected" />
+    <DesktopSkillSelectDialog v-if="showSkillDialog" @close="showSkillDialog = false" @select="onSkillSelected" />
+    <DesktopDesignSelectDialog v-if="showDesignDialog" @close="showDesignDialog = false" @select="onDesignSelected" />
+    <DesktopCommandDialog v-if="showCommandDialog" @close="showCommandDialog = false" @select="onCommandSelected" />
   </div>
 </template>
 
 <script>
 import DesktopChatMessage from './DesktopChatMessage.vue'
+import DesktopFileSelectDialog from '@/components/file/DesktopFileSelectDialog.vue'
+import DesktopSkillSelectDialog from '@/components/skill/DesktopSkillSelectDialog.vue'
+import DesktopDesignSelectDialog from '@/components/design/DesktopDesignSelectDialog.vue'
+import DesktopCommandDialog from '@/components/common/DesktopCommandDialog.vue'
+import DesktopImagePreviewList from '@/components/chat/DesktopImagePreviewList.vue'
 import { getItem, setItem } from '@/utils/storage'
 import { createSession, getMessages } from '@/api/index'
 import { saveMeta } from '@/api/index'
+import { uploadChatImage } from '@/api/index'
 import { ws } from '@/utils/websocket'
 
 let logSeq = 0
+let mediaIdCounter = 0
 
 export default {
   name: 'DesktopCodingPanel',
-  components: { DesktopChatMessage },
+  components: {
+    DesktopChatMessage,
+    DesktopFileSelectDialog,
+    DesktopSkillSelectDialog,
+    DesktopDesignSelectDialog,
+    DesktopCommandDialog,
+    DesktopImagePreviewList
+  },
   props: {
     currentAgent: { type: String, default: 'Code Agent' },
     currentModel: { type: String, default: 'DeepSeek V3' },
@@ -87,7 +149,15 @@ export default {
     return {
       inputText: '',
       panel: this.createPanel(),
-      stopping: false
+      stopping: false,
+      showFileDialog: false,
+      showSkillDialog: false,
+      showDesignDialog: false,
+      showCommandDialog: false,
+      selectedFiles: [],
+      selectedSkills: [],
+      selectedDesigns: [],
+      mediaFiles: []
     }
   },
   computed: {
@@ -123,7 +193,7 @@ export default {
     runningSessionIds(ids) {
       if (this.panel.sessionId && ids.includes(this.panel.sessionId)) {
         this.panel.disabled = true
-      } else if (!this.stopping) {
+      } else {
         this.panel.disabled = false
       }
     }
@@ -255,7 +325,7 @@ export default {
           const runningIds = d.runningSessionIds || []
           if (this.panel.sessionId && runningIds.includes(this.panel.sessionId)) {
             this.panel.disabled = true
-          } else if (!this.stopping) {
+          } else {
             this.panel.disabled = false
           }
         }
@@ -297,12 +367,137 @@ export default {
         this.loadMessages(data.sessionId)
       }
     },
+
     handleKeydown(e) {
-      if (e.key === 'Enter' && !e.ctrlKey && !e.shiftKey) {
+      if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
         e.preventDefault()
         this.sendMessage()
       }
     },
+
+    handlePaste(e) {
+      const items = e.clipboardData && e.clipboardData.items
+      if (!items) return
+      for (const item of items) {
+        if (item.type.startsWith('image/')) {
+          e.preventDefault()
+          const file = item.getAsFile()
+          if (file) this.processMediaFile(file)
+        }
+      }
+    },
+
+    triggerImageUpload() {
+      this.$refs.imageInput && this.$refs.imageInput.click()
+    },
+
+    handleImageFiles(e) {
+      const files = e.target.files
+      if (!files) return
+      for (const file of files) {
+        this.processMediaFile(file)
+      }
+      e.target.value = ''
+    },
+
+    processMediaFile(file) {
+      if (!file.type.startsWith('image/')) return
+      const id = 'media_' + (++mediaIdCounter)
+      const reader = new FileReader()
+      reader.onload = () => {
+        this.mediaFiles.push({ id, file, dataUrl: reader.result, uploading: false })
+      }
+      reader.readAsDataURL(file)
+    },
+
+    async uploadMediaAndGetUrls() {
+      const sessionId = this.panel.sessionId
+      if (!sessionId || this.mediaFiles.length === 0) return []
+      const results = []
+      for (const mf of this.mediaFiles) {
+        if (mf.uploading) continue
+        mf.uploading = true
+        try {
+          const r = await uploadChatImage(mf.file, sessionId)
+          if (r.data && r.data.url) results.push(r.data.url)
+        } catch (e) {
+          console.error('图片上传失败:', e)
+        } finally {
+          mf.uploading = false
+        }
+      }
+      return results
+    },
+
+    removeMedia(id) {
+      this.mediaFiles = this.mediaFiles.filter(m => m.id !== id)
+    },
+
+    onFileSelected(path) {
+      if (!this.selectedFiles.includes(path)) {
+        this.selectedFiles.push(path)
+      }
+      this.showFileDialog = false
+    },
+
+    onSkillSelected(name) {
+      if (!this.selectedSkills.includes(name)) {
+        this.selectedSkills.push(name)
+      }
+      this.showSkillDialog = false
+    },
+
+    onDesignSelected(path) {
+      if (!this.selectedDesigns.includes(path)) {
+        this.selectedDesigns.push(path)
+      }
+      this.showDesignDialog = false
+    },
+
+    onCommandSelected(cmd) {
+      this.inputText = cmd + ' ' + this.inputText
+      this.showCommandDialog = false
+    },
+
+    clearSelectedFiles() { this.selectedFiles = [] },
+    clearSelectedSkills() { this.selectedSkills = [] },
+    clearSelectedDesigns() { this.selectedDesigns = [] },
+
+    handleTest() {
+      if (!this.panel.sessionId) return
+      ws.send('chat', {
+        message: '请运行项目测试',
+        sessionId: this.panel.sessionId,
+        modelName: this.panel.modelName || undefined
+      })
+    },
+
+    handleGitChanges() {
+      if (!this.panel.sessionId) return
+      ws.send('chat', {
+        message: '请查看 git 变更状态',
+        sessionId: this.panel.sessionId,
+        modelName: this.panel.modelName || undefined
+      })
+    },
+
+    buildMessagePrefix() {
+      let prefix = ''
+      if (this.selectedFiles.length > 0) {
+        prefix += '参考文件:\n' + this.selectedFiles.map(f => '- ' + f).join('\n') + '\n'
+      }
+      if (this.selectedSkills.length > 0) {
+        prefix += '使用的Skill:\n' + this.selectedSkills.map(s => '- ' + s).join('\n') + '\n'
+      }
+      if (this.selectedDesigns.length > 0) {
+        prefix += '参考设计:\n' + this.selectedDesigns.map(d => '- ' + d).join('\n') + '\n'
+      }
+      if (this.planFilePath) {
+        prefix += '方案文件: ' + this.planFilePath + '\n'
+      }
+      return prefix
+    },
+
     async sendMessage() {
       const val = this.inputText.trim()
       if (!val || this.panel.disabled) return
@@ -310,13 +505,21 @@ export default {
       try {
         const sid = await this.ensureCodeSession()
         this.subscribePanel(sid)
+
+        const imageUrls = await this.uploadMediaAndGetUrls()
+        const prefix = this.buildMessagePrefix()
+        let fullMessage = val
+        if (prefix) fullMessage = prefix + '\n用户输入: ' + val
+        if (imageUrls.length > 0) fullMessage += '\n图片: ' + imageUrls.join(', ')
+
         const payload = {
-          message: val,
+          message: fullMessage,
           sessionId: sid,
           modelName: this.panel.modelName || undefined
         }
         this.pushLogItem({ type: 'chat', content: val, role: 'user' })
         this.inputText = ''
+        this.mediaFiles = []
         this.panel.disabled = true
         this.stopping = false
         ws.send('chat', payload)
@@ -330,19 +533,23 @@ export default {
         alert('发送失败: ' + e.message)
       }
     },
+
     stopSending() {
       if (!this.panel.sessionId || this.stopping) return
       this.stopping = true
       ws.send('stop', { sessionId: this.panel.sessionId })
     },
+
     openModelSelect() {
       this.$emit('update:agent', this.currentAgent)
       this.$emit('update:model', this.currentModel)
     },
+
     fillDevPlan() {
       if (!this.planFilePath) return
       this.inputText = `请根据以下方案文件生成代码：${this.planFilePath}`
     },
+
     scrollToBottom() {
       const el = this.$refs.messagesContainer
       if (el) {
@@ -478,6 +685,25 @@ export default {
   gap: 6px;
   flex-shrink: 0;
 }
+.fn-btn {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 7px;
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--text-secondary);
+  border-radius: 4px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: inherit;
+}
+.fn-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-light);
+}
 .input-status { font-weight: 500; }
 .input-sep { color: var(--border); user-select: none; }
 .input-action { cursor: pointer; transition: color 0.15s; }
@@ -491,12 +717,6 @@ export default {
   font-family: inherit;
   transition: all 0.15s;
 }
-.btn-upload {
-  background: transparent;
-  border: 1px solid var(--border);
-  color: var(--text-muted);
-}
-.btn-upload:hover { border-color: var(--accent); color: var(--accent); }
 .btn-stop { background: #ef4444; color: #fff; }
 .btn-stop:hover { background: #dc2626; }
 .btn-stop:disabled { opacity: 0.6; cursor: not-allowed; }

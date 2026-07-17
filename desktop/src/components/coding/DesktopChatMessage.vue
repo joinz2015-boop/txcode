@@ -18,22 +18,19 @@
       </div>
     </div>
 
-    <div v-else-if="item.type === 'step'" class="step-msg">
-      <div class="step-header">
-        <span class="step-label">
-          <span v-if="hasExecutingTool(item)" class="tool-spinner"></span>
-          <span v-else>🔧</span>
-          工具调用
-        </span>
-        <span v-if="item.iteration" class="step-iter">#{{ item.iteration }}</span>
-      </div>
-      <div v-if="item.thought" class="step-thought" v-html="renderContent(item.thought)"></div>
-      <div v-if="item.toolCalls" class="step-tools">
-        <div v-for="(tc, idx) in item.toolCalls" :key="idx" class="step-tool-item" :class="{ executing: tc.status === 'executing', error: tc.status === 'error' }">
-          <span class="tool-status">{{ tc.status === 'executing' ? '⏳' : tc.status === 'error' ? '✗' : '✓' }}</span>
-          <span class="tool-name">{{ tc.function ? tc.function.name : (tc.name || 'unknown') }}</span>
-          <span v-if="tc.function && tc.function.arguments" class="tool-args">{{ formatArgs(tc.function.arguments) }}</span>
-        </div>
+    <div v-else-if="item.type === 'step'">
+      <div v-if="item.thought" class="ai-thought" v-html="renderContent(item.thought)"></div>
+      <div v-for="(tc, idx) in (item.toolCalls || [])" :key="idx" class="log-mute">
+        <template v-if="tc.status === 'executing'">
+          <span class="tool-spinner"></span>
+          {{ getToolCallName(tc) }}
+          <span v-if="getToolCallArguments(tc)" class="tool-input">{{ formatInput(getToolCallName(tc), getToolCallArguments(tc)) }}</span>
+        </template>
+        <template v-else>
+          <span :class="item.success !== false ? 'tool-success' : 'tool-fail'">{{ item.success !== false ? '✓' : '✗' }}</span>
+          {{ getToolCallName(tc) }}
+          <span v-if="getToolCallArguments(tc)" class="tool-input">{{ formatInput(getToolCallName(tc), getToolCallArguments(tc)) }}</span>
+        </template>
       </div>
     </div>
 
@@ -71,25 +68,35 @@ export default {
     escapeHtml(str) {
       return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     },
-    formatArgs(argsStr) {
-      if (!argsStr) return ''
-      try {
-        const parsed = typeof argsStr === 'string' ? JSON.parse(argsStr) : argsStr
-        const keys = Object.keys(parsed)
-        if (keys.length === 0) return ''
-        const summary = keys.slice(0, 3).map(k => {
-          let v = parsed[k]
-          if (typeof v === 'string' && v.length > 60) v = v.substring(0, 60) + '...'
-          return k + ': ' + v
-        }).join(', ')
-        return summary + (keys.length > 3 ? '...' : '')
-      } catch {
-        const s = String(argsStr)
-        return s.length > 80 ? s.substring(0, 80) + '...' : s
-      }
+    getToolCallName(tc) {
+      return tc ? (tc.function ? tc.function.name : tc.name) : 'unknown_tool'
     },
-    hasExecutingTool(item) {
-      return item.toolCalls && item.toolCalls.some(tc => tc.status === 'executing')
+    getToolCallArguments(tc) {
+      return tc && tc.function ? tc.function.arguments : (tc.arguments || '')
+    },
+    formatInput(action, input) {
+      if (!input) return ''
+      try {
+        const parsed = JSON.parse(input)
+        if (action === 'bash' || action === 'execute_bash') {
+          return parsed.command + (parsed.workdir ? ' (' + parsed.workdir + ')' : '')
+        }
+        if (action === 'read_file') {
+          return parsed.file_path + (parsed.offset ? ':' + parsed.offset : '')
+        }
+        if (action === 'edit_file' || action === 'write_file') {
+          return parsed.file_path || ''
+        }
+        if (action === 'glob' || action === 'find_files') {
+          return parsed.pattern + (parsed.directory ? ' (' + parsed.directory + ')' : '')
+        }
+        if (action === 'grep' || action === 'search_content') {
+          return '"' + parsed.pattern + '" (' + (parsed.directory || '') + ')'
+        }
+        return input
+      } catch {
+        return input
+      }
     }
   }
 }
@@ -170,74 +177,21 @@ export default {
   font-size: 12px;
 }
 
-.step-msg {
-  margin-bottom: 16px;
-  padding: 10px 14px;
-  background: #f9fafb;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  font-size: 12.5px;
-}
-.step-header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 6px;
-}
-.step-label {
-  font-weight: 600;
+.ai-thought {
   color: var(--text-primary);
-}
-.step-iter {
-  font-size: 10px;
-  color: var(--text-muted);
-  background: #e5e5ea;
-  padding: 1px 6px;
-  border-radius: 8px;
-}
-.step-thought {
+  margin-bottom: 10px;
+  line-height: 1.6;
   font-size: 12.5px;
-  color: var(--text-secondary);
-  margin-bottom: 6px;
-  line-height: 1.5;
 }
-.step-thought :deep(p) { margin: 3px 0; }
-.step-tools {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-.step-tool-item {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  padding: 4px 8px;
-  background: #fff;
-  border-radius: 4px;
-  font-size: 11.5px;
-  border: 1px solid #e5e5ea;
-}
-.step-tool-item.executing {
-  background: #fefce8;
-  border-color: #fde68a;
-}
-.step-tool-item.error {
-  background: #fef2f2;
-  border-color: #fecaca;
-}
-.tool-status { font-size: 11px; flex-shrink: 0; }
-.tool-name {
-  font-weight: 600;
-  color: var(--accent);
-  flex-shrink: 0;
-}
-.tool-args {
+.ai-thought :deep(p) { margin: 4px 0; }
+.log-mute {
   color: var(--text-muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 11px;
+  padding: 2px 0;
+  font-size: 12px;
 }
+.tool-success { color: #22c55e; font-weight: 600; }
+.tool-fail { color: #ef4444; font-weight: 600; }
+.tool-input { color: var(--accent); margin-left: 6px; font-size: 11.5px; }
 
 .todos-msg {
   margin-bottom: 16px;

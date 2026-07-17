@@ -10,6 +10,8 @@
         :currentProject="currentProject"
         :projects="projects"
         @selectProject="$emit('selectProject', $event)"
+        @deleteProject="$emit('deleteProject', $event)"
+        @openProject="$emit('openProject')"
       />
       <div class="titlebar-actions">
         <button class="win-btn" title="最小化" @click="minimizeWindow">&#x2014;</button>

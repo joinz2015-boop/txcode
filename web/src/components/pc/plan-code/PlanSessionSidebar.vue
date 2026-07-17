@@ -10,7 +10,7 @@
         <button class="sidebar-new-btn" @click="$emit('create')">+ 新建</button>
       </div>
       <div
-        v-for="session in sessions"
+        v-for="session in displayedSessions"
         :key="session.folderName"
         class="session-item"
         :class="{ active: currentFolderName === session.folderName }"
@@ -20,6 +20,12 @@
         <div class="session-time">{{ formatTime(session.updatedAt) }}</div>
         <span v-if="isSessionRunning(session)" class="session-spinner"></span>
         <span class="session-menu" @click.stop="toggleMenu(session, $event)">⋮</span>
+      </div>
+      <div v-if="hasMore" class="load-more-item" @click="loadMore">
+        加载更多 ({{ sessions.length - displayCount }})
+      </div>
+      <div v-else-if="sessions.length > pageSize" class="load-more-item disabled">
+        已加载全部
       </div>
     </div>
 
@@ -63,6 +69,16 @@ export default {
       renameTarget: null,
       deleteVisible: false,
       deleteTarget: null,
+      displayCount: 10,
+      pageSize: 10,
+    }
+  },
+  computed: {
+    displayedSessions() {
+      return this.sessions.slice(0, this.displayCount)
+    },
+    hasMore() {
+      return this.displayCount < this.sessions.length
     }
   },
   mounted() {
@@ -70,6 +86,11 @@ export default {
   },
   beforeDestroy() {
     document.removeEventListener('mousedown', this.onMouseDown)
+  },
+  watch: {
+    sessions() {
+      this.displayCount = this.pageSize
+    }
   },
   methods: {
     onMouseDown(e) {
@@ -105,6 +126,9 @@ export default {
       this.$emit('delete', this.deleteTarget)
       this.deleteVisible = false
       this.deleteTarget = null
+    },
+    loadMore() {
+      this.displayCount = Math.min(this.displayCount + this.pageSize, this.sessions.length)
     },
     formatTime(isoStr) {
       if (!isoStr) return ''
@@ -252,6 +276,20 @@ export default {
   border-top-color: var(--color-accent);
   border-radius: 50%;
   animation: spinner-rotate 0.8s linear infinite;
+}
+
+.load-more-item {
+  padding: 8px 16px;
+  font-size: 12px;
+  color: var(--color-accent);
+  cursor: pointer;
+  text-align: center;
+  transition: background 0.15s;
+}
+.load-more-item:hover { background: var(--color-hoverBg, #1e1e30); }
+.load-more-item.disabled {
+  color: var(--color-textMuted);
+  cursor: default;
 }
 
 @keyframes spinner-rotate {
