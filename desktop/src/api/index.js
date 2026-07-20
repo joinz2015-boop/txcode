@@ -4,10 +4,7 @@ export function setBaseURL(port) {
   baseURL = `http://localhost:${port}`
 }
 
-function getBaseURL() {
-  if (typeof window !== 'undefined' && window.__TXCODE_PORT__) {
-    return `http://localhost:${window.__TXCODE_PORT__}`
-  }
+export function getBaseURL() {
   return baseURL
 }
 

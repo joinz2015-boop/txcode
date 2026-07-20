@@ -71,15 +71,8 @@
 </template>
 
 <script>
-import { browseFilesystem } from '@/api/index'
+import { browseFilesystem, getBaseURL } from '@/api/index'
 import DesktopFileSelectTreeNode from '@/components/file/DesktopFileSelectTreeNode.vue'
-
-function getServerBaseUrl() {
-  if (typeof window !== 'undefined' && window.__TXCODE_PORT__) {
-    return `http://localhost:${window.__TXCODE_PORT__}`
-  }
-  return 'http://localhost:40000'
-}
 
 export default {
   name: 'DesktopDesignSelectDialog',
@@ -173,7 +166,7 @@ export default {
       const relativePath = this.getRelativePath(filePath)
         .replace(/^\.txcode\/design\//, '')
         .replace(/\\/g, '/')
-      this.previewSrc = `${getServerBaseUrl()}/design_html/${encodeURI(relativePath)}?_t=${Date.now()}`
+      this.previewSrc = `${getBaseURL()}/design_html/${encodeURI(relativePath)}?_t=${Date.now()}`
       this.previewKey++
     },
     onIframeLoad() {

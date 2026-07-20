@@ -105,18 +105,11 @@
 
 <script>
 import { getItem, setItem } from '@/utils/storage'
-import { getFileContent } from '@/api/index'
+import { getFileContent, getBaseURL } from '@/api/index'
 import DesktopDesignPageTree from '@/components/design/DesktopDesignPageTree.vue'
 import DesktopDesignAiChat from '@/components/design/DesktopDesignAiChat.vue'
 import DesktopDesignEditor from '@/components/design/DesktopDesignEditor.vue'
 import DesktopSaveTemplateDialog from '@/components/design/DesktopSaveTemplateDialog.vue'
-
-function getServerBaseUrl() {
-  if (typeof window !== 'undefined' && window.__TXCODE_PORT__) {
-    return `http://localhost:${window.__TXCODE_PORT__}`
-  }
-  return 'http://localhost:40000'
-}
 
 export default {
   name: 'DesktopDesignView',
@@ -154,7 +147,7 @@ export default {
     },
     previewSrc() {
       if (!this.currentPage) return ''
-      return `${getServerBaseUrl()}/design_html/${encodeURI(this.currentPage)}?_=${this.relativePathVersion}`
+      return `${getBaseURL()}/design_html/${encodeURI(this.currentPage)}?_=${this.relativePathVersion}`
     }
   },
   watch: {

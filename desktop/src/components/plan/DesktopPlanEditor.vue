@@ -41,6 +41,7 @@ export default {
     filePath: { type: String, default: '方案文档.md' },
     folderName: { type: String, default: '' },
     planFilePath: { type: String, default: '' },
+    content: { type: String, default: '' },
     editorFlex: { type: String, default: '1' }
   },
   data() {
@@ -66,6 +67,10 @@ export default {
       handler(val) {
         if (val) this.loadContent()
       }
+    },
+    content(val) {
+      const v = val || ''
+      if (this.localContent !== v) this.localContent = v
     }
   },
   methods: {

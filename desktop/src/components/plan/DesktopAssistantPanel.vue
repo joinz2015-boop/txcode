@@ -101,7 +101,8 @@
       </div>
       <div class="assistant-status-bar">
         <span :style="{ color: designPanel.disabled ? '#f59e0b' : '#22c55e' }">
-          {{ designPanel.disabled ? (designStopping ? '■ 停止中' : '● 处理中') : '✓ 就绪' }}
+          <span v-if="designPanel.disabled && !designStopping" class="thinking-spinner"></span>
+          {{ designPanel.disabled ? (designStopping ? '■ 停止中' : '处理中') : '✓ 就绪' }}
         </span>
         <span class="sep">|</span>
         <span class="status-action" @click="$emit('open-model-select')" @mousedown.prevent>模型: {{ currentModel }} ▾</span>
@@ -231,7 +232,8 @@
         </div>
         <div class="assistant-status-bar">
           <span :style="{ color: discussPanel.disabled ? '#f59e0b' : '#22c55e' }">
-            {{ discussPanel.disabled ? (discussStopping ? '■ 停止中' : '● 处理中') : '✓ 就绪' }}
+            <span v-if="discussPanel.disabled && !discussStopping" class="thinking-spinner"></span>
+            {{ discussPanel.disabled ? (discussStopping ? '■ 停止中' : '处理中') : '✓ 就绪' }}
           </span>
           <span class="sep">|</span>
           <span>会话: {{ currentDiscussTitle }}</span>

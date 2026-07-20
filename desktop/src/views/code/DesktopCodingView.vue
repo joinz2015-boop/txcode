@@ -38,6 +38,7 @@
             :folderName="planFolderName"
             :filePath="planFilePath"
             :planFilePath="planFilePath"
+            :content="planContent"
             :editorFlex="'1'"
             @refresh="loadPlanContent"
             @export="exportPlan"
@@ -373,12 +374,10 @@ export default {
     this.updateTitle()
     this._renameUnsub = ws.on('rename', (msg) => {
       const data = msg.data || msg
-      if (data.folderName && data.sessionName && this.currentPlanSession && this.currentPlanSession.folderName === data.folderName) {
-        this.currentPlanSession = {
-          ...this.currentPlanSession,
-          meta: { ...this.currentPlanSession.meta, sessionName: data.sessionName }
-        }
-        setItem('planSession:current', this.currentPlanSession)
+      if (!data.folderName || !data.sessionName) return
+      const session = this.planSessions.find(s => s.folderName === data.folderName)
+      if (session) {
+        this.renamePlanSession(session, data.sessionName)
       }
     })
     this._unsubFileChanged = eventBus.on('file:changed', (data) => {

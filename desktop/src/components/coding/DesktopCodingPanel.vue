@@ -384,6 +384,7 @@ export default {
       try {
         await this.ensureCodeSession()
       } catch (e) { return }
+      this.subscribePanel(this.panel.sessionId)
       const payload = {
         message: text,
         sessionId: this.panel.sessionId,
@@ -707,7 +708,7 @@ export default {
   width: 100%;
   border: none;
   outline: none;
-  resize: none;
+  resize: vertical;
   padding: 10px 12px;
   font-size: 13px;
   font-family: inherit;
