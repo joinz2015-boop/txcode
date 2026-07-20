@@ -98,6 +98,15 @@ export function setConfig(key, value) {
   return request('POST', '/sys_config/set_config', { key, value })
 }
 
+// ========== Proxy Config API ==========
+export function getProxyConfig() {
+  return request('GET', '/sys_config/proxy_config')
+}
+
+export function updateProxyConfig(data) {
+  return request('POST', '/sys_config/proxy_config', data)
+}
+
 // ========== Provider API ==========
 export function listProviders() {
   return request('GET', '/sys_config/list_providers_config')

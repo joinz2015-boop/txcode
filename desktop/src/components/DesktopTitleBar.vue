@@ -1,9 +1,15 @@
 <template>
   <div class="titlebar">
     <div class="titlebar-left">
-      <div class="titlebar-logo">T</div>
+      <img :src="logoPng" class="titlebar-logo" />
       <span class="titlebar-title">txcode</span>
       <span class="titlebar-subtitle">/ {{ viewLabel }}</span>
+    </div>
+    <div class="titlebar-center" v-if="$route.name === 'coding'">
+      <div class="mode-float">
+        <button class="mode-tab" :class="{ active: desktopState.currentMode === 'code' }" @click="switchMode('code')">编码模式</button>
+        <button class="mode-tab" :class="{ active: desktopState.currentMode === 'plan' }" @click="switchMode('plan')">方案模式</button>
+      </div>
     </div>
     <div class="titlebar-right">
       <DesktopProjectSwitcher
@@ -37,6 +43,7 @@
 <script>
 import DesktopProjectSwitcher from '@/components/DesktopProjectSwitcher.vue'
 import { minimizeWindow, maximizeWindow, closeWindow } from '@/utils/ipc'
+import logoPng from '../../assets/logo.png'
 
 const viewLabels = {
   coding: '编码',
@@ -49,6 +56,10 @@ const viewLabels = {
 export default {
   name: 'DesktopTitleBar',
   components: { DesktopProjectSwitcher },
+  inject: ['desktopState'],
+  data() {
+    return { logoPng }
+  },
   props: {
     currentProject: { type: Object, default: () => ({ name: 'txcode', path: '', color: '#4f6ef7' }) },
     projects: { type: Array, default: () => [] },
@@ -63,6 +74,9 @@ export default {
     minimizeWindow,
     maximizeWindow,
     closeWindow,
+    switchMode(mode) {
+      this.desktopState.currentMode = mode
+    },
   },
 }
 </script>
@@ -74,23 +88,18 @@ export default {
   min-height: 44px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
   padding: 0 12px;
   user-select: none;
   border-bottom: 1px solid var(--border);
   -webkit-app-region: drag;
 }
-.titlebar-left { display: flex; align-items: center; gap: 10px; }
-.titlebar-logo {
-  width: 24px; height: 24px; border-radius: 6px;
-  background: linear-gradient(135deg, #4f6ef7, #8b5cf6);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 12px; font-weight: 700; color: #fff;
+.titlebar-left { flex: 1; display: flex; align-items: center; gap: 10px; }
+.titlebar-logo { width: 24px; height: 24px; border-radius: 4px; object-fit: contain; }
+.titlebar-center {
+  flex: 0 0 auto;
   -webkit-app-region: no-drag;
 }
-.titlebar-title { font-size: 14px; color: var(--text-primary); font-weight: 600; }
-.titlebar-subtitle { font-size: 11px; color: var(--text-muted); }
-.titlebar-right { display: flex; align-items: center; gap: 8px; -webkit-app-region: no-drag; }
+.titlebar-right { flex: 1; display: flex; align-items: center; justify-content: flex-end; gap: 8px; -webkit-app-region: no-drag; }
 .titlebar-actions { display: flex; align-items: center; gap: 0; -webkit-app-region: no-drag; }
 .win-btn {
   width: 40px; height: 30px; border: none; background: transparent;
@@ -104,4 +113,29 @@ export default {
 .win-btn:active { background: rgba(0,0,0,0.1); }
 .win-btn.close:hover { background: #ef4444; color: #fff; }
 .win-btn.close:active { background: #dc2626; color: #fff; }
+
+.mode-float {
+  display: inline-flex;
+  align-items: center;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  padding: 2px;
+}
+.mode-tab {
+  padding: 6px 20px;
+  font-size: 12.5px;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  color: var(--text-muted);
+  transition: all 0.2s;
+  white-space: nowrap;
+  font-weight: 500;
+  font-family: inherit;
+}
+.mode-tab:hover { color: var(--text-primary); background: var(--bg-hover); }
+.mode-tab.active { background: var(--accent); color: #fff; box-shadow: 0 2px 6px rgba(79, 110, 247, 0.3); }
 </style>

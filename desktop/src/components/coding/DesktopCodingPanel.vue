@@ -60,7 +60,7 @@
       <div class="input-wrapper">
         <DesktopResizableTextarea
           v-model="inputText"
-          :rows="4"
+          :rows="5"
           :minRows="2"
           :maxRows="20"
           placeholder="输入消息... (Enter 发送, Shift+Enter 换行，可粘贴图片)"

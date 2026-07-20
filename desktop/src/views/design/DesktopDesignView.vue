@@ -122,7 +122,7 @@ export default {
   data() {
     return {
       designTab: getItem('design:tab', 'pages'),
-      leftPanelWidth: getItem('design:leftPanelWidth', 280),
+      leftPanelWidth: getItem('design:leftPanelWidth', 420),
       rightTab: getItem('design:rightTab', 'preview'),
       currentDevice: getItem('design:device', 'web'),
       currentPage: '',
@@ -332,7 +332,7 @@ export default {
       document.body.style.cursor = 'col-resize'
       document.body.style.userSelect = 'none'
       const move = (ev) => {
-        const w = Math.max(220, Math.min(500, startW + (ev.clientX - startX)))
+        const w = Math.max(220, Math.min(800, startW + (ev.clientX - startX)))
         this.leftPanelWidth = w
       }
       const up = () => {
@@ -354,7 +354,7 @@ export default {
 .design-view { flex: 1; display: flex; overflow: hidden; }
 
 .left-panel {
-  width: 280px; min-width: 220px; max-width: 500px;
+  width: 420px; min-width: 220px; max-width: 800px;
   background: var(--bg-side); display: flex; flex-direction: column;
   border-right: 1px solid var(--border); overflow: hidden;
 }

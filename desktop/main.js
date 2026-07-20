@@ -101,6 +101,8 @@ function createWindow() {
 function getIconPath() {
   const isDev = !app.isPackaged
   const basePath = isDev ? __dirname : process.resourcesPath
+  const logoPath = join(basePath, 'assets', 'logo.png')
+  if (existsSync(logoPath)) return logoPath
   if (process.platform === 'win32') {
     const icoPath = join(basePath, 'assets', 'icon.ico')
     if (existsSync(icoPath)) return icoPath

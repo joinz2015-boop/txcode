@@ -73,43 +73,45 @@
         @remove="removeMedia"
       />
 
-      <div class="chat-input-wrap">
-        <textarea
-          ref="chatTextarea"
-          class="chat-textarea"
-          v-model="chatInput"
-          placeholder="输入设计需求... (Enter 发送, Ctrl+Enter 换行)"
-          :disabled="disabled && !stopping"
-          @keydown="handleKeydown"
-          @paste="handlePaste"
-          @input="autoResizeTextarea"
-          rows="3"
-        ></textarea>
-        <input
-          type="file"
-          accept="image/*"
-          multiple
-          ref="mediaInput"
-          style="display:none"
-          @change="handleImageSelected"
-        />
-        <button v-if="disabled && !stopping" class="chat-stop" @click="stopChat" title="停止">■</button>
-        <button v-else-if="stopping" class="chat-stop" disabled>⏳</button>
-        <button v-else class="chat-send" @click="sendMessage" :disabled="!chatInput.trim() && (!mediaFiles || mediaFiles.length === 0)" title="发送">▶</button>
-      </div>
-
-      <div class="input-actions">
-        <div class="input-actions-left">
-          <span class="status-action" @click="openFileSelect" @mousedown.prevent>选择文件</span>
-          <span class="sep">|</span>
-          <span class="status-action" @click="openSkillSelect" @mousedown.prevent>选择Skill</span>
-          <span class="sep">|</span>
-          <span class="status-action" @click="openTemplateSelect" @mousedown.prevent>选择模版</span>
-          <span class="sep">|</span>
-          <span class="status-action" @click="openCommandDialog" @mousedown.prevent>命令</span>
+      <div class="input-panel">
+        <div class="input-wrapper">
+          <DesktopResizableTextarea
+            ref="chatTextarea"
+            class="chat-textarea"
+            v-model="chatInput"
+            :rows="4"
+            :minRows="2"
+            :maxRows="15"
+            placeholder="输入设计需求... (Enter 发送, Ctrl+Enter 换行)"
+            :disabled="disabled && !stopping"
+            @keydown="handleKeydown"
+            @paste-image="handlePasteImages"
+          />
+          <input
+            type="file"
+            accept="image/*"
+            multiple
+            ref="mediaInput"
+            style="display:none"
+            @change="handleImageSelected"
+          />
         </div>
-        <div class="input-actions-right">
-          <button class="image-btn" @click="handleImageUpload" :disabled="disabled">🖼</button>
+        <div class="input-actions">
+          <div class="input-actions-left">
+            <span class="status-action" @click="openFileSelect" @mousedown.prevent>选择文件</span>
+            <span class="sep">|</span>
+            <span class="status-action" @click="openSkillSelect" @mousedown.prevent>选择Skill</span>
+            <span class="sep">|</span>
+            <span class="status-action" @click="openTemplateSelect" @mousedown.prevent>选择模版</span>
+            <span class="sep">|</span>
+            <span class="status-action" @click="openCommandDialog" @mousedown.prevent>命令</span>
+          </div>
+          <div class="input-actions-right">
+            <button class="action-btn btn-upload" @click="handleImageUpload" :disabled="disabled">图片</button>
+            <button v-if="disabled && !stopping" class="action-btn btn-stop" @click="stopChat">■ 停止</button>
+            <button v-else-if="stopping" class="action-btn btn-stop" disabled>停止中...</button>
+            <button v-else class="action-btn btn-send" @click="sendMessage" :disabled="!chatInput.trim() && (!mediaFiles || mediaFiles.length === 0)">发送</button>
+          </div>
         </div>
       </div>
 
@@ -178,6 +180,7 @@ import DesktopSkillSelectDialog from '@/components/skill/DesktopSkillSelectDialo
 import DesktopDesignTemplateSelectDialog from './DesktopDesignTemplateSelectDialog.vue'
 import DesktopDesignImagePreviewList from './DesktopDesignImagePreviewList.vue'
 import DesktopDesignSessionBar from './DesktopDesignSessionBar.vue'
+import DesktopResizableTextarea from '@/components/chat/DesktopResizableTextarea.vue'
 import { useSession } from './useSession.js'
 
 const DESIGN_BASE = '.txcode/design'
@@ -193,7 +196,8 @@ export default {
     DesktopSkillSelectDialog,
     DesktopDesignTemplateSelectDialog,
     DesktopDesignImagePreviewList,
-    DesktopDesignSessionBar
+    DesktopDesignSessionBar,
+    DesktopResizableTextarea
   },
   props: {
     currentPage: { type: String, default: '' }
@@ -406,7 +410,6 @@ export default {
           this.chatInput = this.chatInput.substring(0, start) + '\n' + this.chatInput.substring(end)
           this.$nextTick(() => {
             textarea.selectionStart = textarea.selectionEnd = start + 1
-            this.autoResizeTextarea()
           })
         } else {
           e.preventDefault()
@@ -415,28 +418,10 @@ export default {
       }
     },
 
-    handlePaste(e) {
-      const items = e.clipboardData?.items
-      if (!items) return
-      const imageFiles = []
-      for (const item of items) {
-        if (item.type.startsWith('image/')) {
-          imageFiles.push(item.getAsFile())
-        }
+    handlePasteImages(files) {
+      if (files && files.length > 0) {
+        this.uploadFiles(files)
       }
-      if (imageFiles.length > 0) {
-        e.preventDefault()
-        this.uploadFiles(imageFiles)
-      }
-    },
-
-    autoResizeTextarea() {
-      this.$nextTick(() => {
-        const el = this.$refs.chatTextarea
-        if (!el) return
-        el.style.height = 'auto'
-        el.style.height = Math.max(60, Math.min(el.scrollHeight, 200)) + 'px'
-      })
     },
 
     async sendMessage() {
@@ -489,7 +474,6 @@ export default {
       })
       this.$nextTick(() => {
         this.scrollToBottom(true)
-        this.autoResizeTextarea()
       })
     },
 
@@ -644,9 +628,8 @@ export default {
     handleExecuteCommand(cmd) {
       this.chatInput = cmd + ' '
       this.$nextTick(() => {
-        const textarea = this.$refs.chatTextarea
+        const textarea = this.$refs.chatTextarea?.$el?.querySelector('textarea')
         if (textarea) textarea.focus()
-        this.autoResizeTextarea()
       })
     },
 
@@ -665,7 +648,7 @@ export default {
     },
 
     openSkillSelect() {
-      const textarea = this.$refs.chatTextarea
+      const textarea = this.$refs.chatTextarea?.$el?.querySelector('textarea')
       this.skillCursorPos = textarea ? textarea.selectionStart : -1
       this.skillSelectVisible = true
     },
@@ -678,7 +661,7 @@ export default {
     },
 
     openTemplateSelect() {
-      const textarea = this.$refs.chatTextarea
+      const textarea = this.$refs.chatTextarea?.$el?.querySelector('textarea')
       this.skillCursorPos = textarea ? textarea.selectionStart : -1
       this.templateSelectVisible = true
     },
@@ -826,27 +809,61 @@ export default {
 }
 
 .chat-foot { border-top: 1px solid var(--border); flex-shrink: 0; }
-.chat-input-wrap { display: flex; gap: 6px; padding: 0 10px 6px; align-items: flex-end; }
-.chat-textarea { flex: 1; background: var(--bg-input); border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; font-size: 12px; color: var(--text-primary); outline: none; resize: none; font-family: inherit; min-height: 60px; line-height: 1.4; }
-.chat-textarea:focus { border-color: var(--accent); }
-.chat-textarea:disabled { opacity: 0.5; }
-.chat-send { width: 34px; height: 34px; border-radius: 8px; border: none; background: var(--accent); color: #fff; cursor: pointer; font-size: 14px; transition: all 0.15s; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.chat-send:hover { background: #4752c4; }
-.chat-send:disabled { background: #c5c5d0; cursor: not-allowed; }
-.chat-stop { width: 34px; height: 34px; border-radius: 8px; border: none; background: var(--red); color: #fff; cursor: pointer; font-size: 12px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
-.chat-stop:hover { background: #e05555; }
-.chat-stop:disabled { opacity: 0.5; cursor: not-allowed; }
 
-.input-actions { display: flex; justify-content: space-between; align-items: center; padding: 0 10px 6px; gap: 6px; }
+.input-panel {
+  background: #fff;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+  margin: 10px;
+}
+.input-panel:focus-within { border-color: var(--accent); }
+
+.input-wrapper { position: relative; }
+
+.chat-textarea {
+  width: 100%;
+  border: none;
+  outline: none;
+}
+
+.input-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 10px;
+  gap: 6px;
+  border-top: 1px solid var(--border);
+}
 .input-actions-left { display: flex; align-items: center; gap: 4px; }
-.input-actions-right { display: flex; align-items: center; gap: 4px; }
+.input-actions-right { display: flex; align-items: center; gap: 6px; }
+
 .status-action { cursor: pointer; font-size: 11px; color: var(--text-muted); user-select: none; }
 .status-action:hover { color: var(--accent); }
 .sep { color: var(--border); font-size: 11px; }
 
-.image-btn { width: 28px; height: 28px; border-radius: 6px; border: none; background: transparent; color: var(--text-muted); cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; }
-.image-btn:hover { background: var(--bg-hover); color: var(--accent); }
-.image-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.action-btn {
+  font-size: 12px;
+  padding: 5px 12px;
+  border-radius: 5px;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+.btn-upload {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+}
+.btn-upload:hover { border-color: var(--accent); color: var(--accent); }
+.btn-upload:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-stop { background: #ef4444; color: #fff; }
+.btn-stop:hover { background: #dc2626; }
+.btn-stop:disabled { opacity: 0.6; cursor: not-allowed; }
+.btn-send { background: var(--accent); color: #fff; }
+.btn-send:hover { background: #6366f1; }
+.btn-send:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .chat-statusbar { display: flex; align-items: center; gap: 8px; padding: 4px 12px; font-size: 10.5px; color: var(--text-muted); border-top: 1px solid var(--border); flex-shrink: 0; background: var(--bg-titlebar); }
 .chat-status-ready { color: var(--green); }
