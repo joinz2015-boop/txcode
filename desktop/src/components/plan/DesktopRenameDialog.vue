@@ -2,16 +2,21 @@
   <div class="overlay" @click.self="$emit('close')">
     <div class="dialog">
       <div class="dialog-header">
-        <span>新建子方案</span>
+        <span>重命名探讨</span>
         <button class="dialog-close" @click="$emit('close')">&times;</button>
       </div>
       <div class="dialog-body">
-        <p class="confirm-text">是否新建子方案？</p>
-        <p class="form-hint">子方案将关联到当前方案，作为其子方案。</p>
+        <input
+          v-model="name"
+          class="dialog-input"
+          placeholder="请输入新名称"
+          @keydown.enter="handleConfirm"
+          ref="input"
+        />
       </div>
       <div class="dialog-footer">
         <button class="btn-outline" @click="$emit('close')">取消</button>
-        <button class="btn-primary" @click="handleConfirm">确定</button>
+        <button class="btn-primary" @click="handleConfirm" :disabled="!name.trim()">确定</button>
       </div>
     </div>
   </div>
@@ -19,11 +24,21 @@
 
 <script>
 export default {
-  name: 'DesktopCreateSubPlanDialog',
+  name: 'DesktopRenameDialog',
+  props: {
+    value: { type: String, default: '' }
+  },
   emits: ['close', 'confirm'],
+  data() {
+    return { name: this.value }
+  },
+  mounted() {
+    this.$nextTick(() => this.$refs.input && this.$refs.input.focus())
+  },
   methods: {
     handleConfirm() {
-      this.$emit('confirm')
+      if (!this.name.trim()) return
+      this.$emit('confirm', this.name.trim())
     }
   }
 }
@@ -50,8 +65,12 @@ export default {
 }
 .dialog-close:hover { background: var(--bg-hover); }
 .dialog-body { padding: 20px 16px; }
-.confirm-text { text-align: center; font-size: 14px; color: var(--text-primary); padding: 8px 0; }
-.form-hint { font-size: 12px; color: var(--text-muted); margin: 0; text-align: center; }
+.dialog-input {
+  width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px;
+  font-size: 13px; font-family: inherit; outline: none; box-sizing: border-box;
+  color: var(--text-primary);
+}
+.dialog-input:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(79,110,247,0.1); }
 .dialog-footer {
   display: flex; align-items: center; justify-content: flex-end; gap: 8px;
   padding: 10px 16px; border-top: 1px solid var(--border);

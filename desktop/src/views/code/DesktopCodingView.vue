@@ -127,7 +127,7 @@ export default {
       planFilePath: '',
       displayCount: 10,
       pageSize: 10,
-      assistantWidth: getItem('coding:assistantWidth', 370),
+      assistantWidth: getItem('coding:assistantWidth', 500),
       modelSelectVisible: false,
       modelSelectTarget: 'code',
       subPlanDialogVisible: false,
@@ -232,10 +232,10 @@ export default {
     async createSubPlan() {
       this.subPlanDialogVisible = true
     },
-    async onSubPlanConfirm(name) {
+    async onSubPlanConfirm() {
       this.subPlanDialogVisible = false
       try {
-        await createPlanSession(name, this.planFilePath)
+        await createPlanSession('新计划会话', this.planFilePath)
         await this.loadPlanSessions()
         const s = this.planSessions[0]
         if (s) await this.selectPlanSession(s)
@@ -433,10 +433,10 @@ export default {
 
 .mode-float {
   position: absolute;
-  top: 22px;
+  top: -20px;
   left: 50%;
   transform: translateX(-50%);
-  z-index: 50;
+  z-index: 100;
   display: flex;
   align-items: center;
   background: #fff;
@@ -469,7 +469,7 @@ export default {
   gap: 0;
 }
 .content-panels.plan-gap {
-  gap: 8px;
+  gap: 0px;
 }
 
 .resize-handle {

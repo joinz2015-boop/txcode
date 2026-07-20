@@ -192,7 +192,7 @@ export default {
 .plan-editor-body {
   flex: 1;
   padding: 14px;
-  overflow-y: auto;
+  overflow-y: hidden;
   font-size: 13px;
   line-height: 1.7;
   color: var(--text-primary);

@@ -59,45 +59,35 @@
           @remove="removeDesignMedia"
         />
         <div class="assistant-input-wrap">
-          <textarea
+          <DesktopResizableTextarea
             v-model="designPanel.input"
-            placeholder="输入需求描述... (Enter 发送, Shift+Enter 换行，可粘贴图片)"
-            rows="3"
+            :rows="3"
+            :minRows="2"
+            :maxRows="15"
+            placeholder="输入需求描述... (Enter 发送, Ctrl+Enter 换行，可粘贴图片)"
             :disabled="designPanel.disabled"
             @keydown="handleAssistKeydown($event, 'design')"
-            @paste="handleDesignPaste"
-          ></textarea>
+            @paste-image="handleDesignPasteImages"
+          />
           <div class="assistant-input-actions-row">
             <div class="input-actions-left">
-              <button class="fn-btn" @mousedown.prevent @click="showDesignFileDialog = true" title="选择文件">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
-                <span>文件</span>
-              </button>
-              <button class="fn-btn" @mousedown.prevent @click="showDesignSkillDialog = true" title="选择 Skill">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-                <span>Skill</span>
-              </button>
-              <button class="fn-btn" @mousedown.prevent @click="showDesignDesignDialog = true" title="选择设计">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-                <span>设计</span>
-              </button>
-              <button class="fn-btn" @mousedown.prevent @click="showDesignCommandDialog = true" title="命令">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
-                <span>命令</span>
-              </button>
-              <button class="fn-btn" @mousedown.prevent @click="triggerDesignImageUpload" title="上传图片">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-                <span>图片</span>
-              </button>
-              <input ref="designImageInput" type="file" accept="image/*" multiple style="display:none" @change="handleDesignImageFiles" />
+              <span class="status-action" @click="fileSelectVisible = true" @mousedown.prevent>选择文件</span>
+              <span class="separator">|</span>
+              <span class="status-action" @click="skillSelectVisible = true" @mousedown.prevent>选择Skill</span>
+              <span class="separator">|</span>
+              <span class="status-action" @click="designSelectVisible = true" @mousedown.prevent>选择设计</span>
+              <span class="separator">|</span>
+              <span class="status-action" @click="commandDialogVisible = true" @mousedown.prevent>命令</span>
             </div>
             <div class="input-actions-right">
-              <button v-if="designPanel.disabled && !designStopping" class="stop-btn" @click="stopDesign">■ 停止</button>
-              <button v-if="designPanel.disabled && designStopping" class="stop-btn" disabled>停止中...</button>
-              <button class="assistant-send-btn" @click="sendDesignMessage" :disabled="designPanel.disabled">↑</button>
+              <button class="action-btn btn-upload" @click="triggerDesignImageUpload" :disabled="designPanel.disabled">图片</button>
+              <button v-if="designPanel.disabled && !designStopping" class="action-btn btn-stop" @click="stopDesign">■ 停止</button>
+              <button v-else-if="designStopping" class="action-btn btn-stop" disabled>停止中...</button>
+              <button v-else class="btn-send" @click="sendDesignMessage" :disabled="!designPanel.input.trim() && !designMediaFiles.length">发送</button>
             </div>
           </div>
         </div>
+        <input ref="designImageInput" type="file" accept="image/*" multiple style="display:none" @change="handleDesignImageFiles" />
       </div>
       <div class="assistant-status-bar">
         <span :style="{ color: designPanel.disabled ? '#f59e0b' : '#22c55e' }">
@@ -106,17 +96,10 @@
         </span>
         <span class="sep">|</span>
         <span class="status-action" @click="$emit('open-model-select')" @mousedown.prevent>模型: {{ currentModel }} ▾</span>
-        <template v-if="designSelectedFiles.length > 0">
-          <span class="sep">|</span>
-          <span class="badge-action" @click="designSelectedFiles = []" title="清除">{{ designSelectedFiles.length }} 文件</span>
-        </template>
-        <template v-if="designSelectedSkills.length > 0">
-          <span class="sep">|</span>
-          <span class="badge-action" @click="designSelectedSkills = []" title="清除">{{ designSelectedSkills.length }} Skill</span>
-        </template>
-        <template v-if="designPanel.disabled && !designStopping">
-          <button class="stop-btn" @click="stopDesign">停止</button>
-        </template>
+        <span class="sep">|</span>
+        <span>会话: {{ designPanel.sessionId ? designPanel.sessionId.slice(0, 8) : '未创建' }}</span>
+        <span class="sep">|</span>
+        <span>token: {{ designPanel.promptTokens || 0 }}</span>
       </div>
     </div>
 
@@ -129,133 +112,138 @@
           </button>
           <div v-if="discussDropdownOpen" class="discuss-dropdown-menu">
             <div
-              v-for="(d, idx) in discussList"
+              v-for="d in discussList"
               :key="d.id"
               class="discuss-dropdown-item"
               :class="{ active: currentDiscuss && currentDiscuss.id === d.id }"
-              @click="switchDiscuss(d); discussDropdownOpen = false"
             >
-              <span class="d-item-title">{{ d.title }}</span>
-              <div class="d-item-actions">
-                <button class="d-action-btn" @click.stop="renameDiscuss(idx)" title="重命名">✎</button>
-                <button class="d-action-btn danger" @click.stop="deleteDiscuss(idx)" title="删除">×</button>
-              </div>
+              <span class="d-item-title" @click="switchDiscuss(d); discussDropdownOpen = false">{{ d.title }}</span>
+              <span class="d-item-actions" @click.stop>
+                <span class="menu-trigger" @click.stop="menuId = menuId === d.id ? null : d.id">⋮</span>
+                <div class="disc-menu-popup" v-if="menuId === d.id">
+                  <div class="menu-item" @click.stop="startRename(d)">重命名</div>
+                  <div class="menu-item danger" @click.stop="confirmDelete(d)">删除</div>
+                </div>
+              </span>
             </div>
             <button class="discuss-new-btn" @click="createDiscuss">+ 新建探讨</button>
           </div>
         </div>
-        <button v-else class="discuss-new-btn" @click="createDiscuss">+ 新建探讨</button>
-        <div class="assistant-chat-messages" ref="discussMessages" style="flex:1;">
-          <div v-if="discussLogItems.length === 0" class="assistant-empty">
-            <p>选择一个探讨或创建新的探讨会话。</p>
-          </div>
-          <template v-for="(item, idx) in discussLogItems">
-            <div v-if="item.type === 'todos'" :key="'td2-' + idx" class="todos-list">
-              <div v-for="(todo, tIdx) in item.todos" :key="'ti2-' + tIdx" class="todo-item">
-                <span class="todo-status">{{ getTodoStatusIcon(todo.status) }}</span>
-                <span class="todo-name">{{ todo.name }}</span>
-              </div>
-            </div>
-            <div v-else-if="item.type === 'chat'" :key="'dc2-' + idx" class="assistant-msg user">
-              <div class="amsg-text">{{ item.content }}</div>
-            </div>
-            <div v-else-if="item.type === 'think'" :key="'dt2-' + idx" class="ai-thought" v-html="renderMarkdown(item.content)"></div>
-            <div v-else-if="item.type === 'step'" :key="'ds2-' + idx">
-              <div v-if="item.thought" class="ai-thought" v-html="renderMarkdown(item.thought)"></div>
-              <div v-for="(tc, aIdx) in item.toolCalls" :key="'dst2-' + aIdx" class="log-mute">
-                <template v-if="tc.status === 'executing'">
-                  <span class="tool-spinner"></span>
-                  {{ getToolCallName(tc) }}
-                  <span v-if="getToolCallArguments(tc)" class="tool-input">{{ formatInput(getToolCallName(tc), getToolCallArguments(tc)) }}</span>
-                </template>
-                <template v-else>
-                  <span :class="item.success !== false ? 'tool-success' : 'tool-fail'">{{ item.success !== false ? '✓' : '✗' }}</span>
-                  {{ getToolCallName(tc) }}
-                  <span v-if="getToolCallArguments(tc)" class="tool-input">{{ formatInput(getToolCallName(tc), getToolCallArguments(tc)) }}</span>
-                </template>
-              </div>
-            </div>
-            <div v-else :key="idx" class="assistant-msg" :class="item.role">
-              <div class="amsg-text" v-html="renderMarkdown(item.content || '')"></div>
-            </div>
-          </template>
-          <div v-if="discussPanel.disabled" class="assistant-msg ai">
-            <div class="amsg-text" style="color:var(--text-muted)">正在思考...</div>
-          </div>
+        <div v-else class="assistant-empty" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;" @click="createDiscuss">
+          <p>与AI探讨方案内容，不会修改方案文件</p>
+          <button class="btn-send" style="margin-top:8px;">新建探讨</button>
         </div>
-        <div class="assistant-input-area">
-          <DesktopImagePreviewList
-            :files="discussMediaFiles"
-            :disabled="discussPanel.disabled"
-            @remove="removeDiscussMedia"
-          />
-          <div class="assistant-input-wrap">
-            <textarea
-              v-model="discussPanel.input"
-              placeholder="输入探讨内容... (Enter 发送, Shift+Enter 换行，可粘贴图片)"
-              rows="3"
+
+        <template v-if="currentDiscuss">
+          <div class="assistant-chat-messages" ref="discussMessages" style="flex:1;">
+            <template v-for="(item, idx) in discussLogItems">
+              <div v-if="item.type === 'todos'" :key="'td2-' + idx" class="todos-list">
+                <div v-for="(todo, tIdx) in item.todos" :key="'ti2-' + tIdx" class="todo-item">
+                  <span class="todo-status">{{ getTodoStatusIcon(todo.status) }}</span>
+                  <span class="todo-name">{{ todo.name }}</span>
+                </div>
+              </div>
+              <div v-else-if="item.type === 'chat'" :key="'dc2-' + idx" class="assistant-msg user">
+                <div class="amsg-text">{{ item.content }}</div>
+              </div>
+              <div v-else-if="item.type === 'think'" :key="'dt2-' + idx" class="ai-thought" v-html="renderMarkdown(item.content)"></div>
+              <div v-else-if="item.type === 'step'" :key="'ds2-' + idx">
+                <div v-if="item.thought" class="ai-thought" v-html="renderMarkdown(item.thought)"></div>
+                <div v-for="(tc, aIdx) in item.toolCalls" :key="'dst2-' + aIdx" class="log-mute">
+                  <template v-if="tc.status === 'executing'">
+                    <span class="tool-spinner"></span>
+                    {{ getToolCallName(tc) }}
+                    <span v-if="getToolCallArguments(tc)" class="tool-input">{{ formatInput(getToolCallName(tc), getToolCallArguments(tc)) }}</span>
+                  </template>
+                  <template v-else>
+                    <span :class="item.success !== false ? 'tool-success' : 'tool-fail'">{{ item.success !== false ? '✓' : '✗' }}</span>
+                    {{ getToolCallName(tc) }}
+                    <span v-if="getToolCallArguments(tc)" class="tool-input">{{ formatInput(getToolCallName(tc), getToolCallArguments(tc)) }}</span>
+                  </template>
+                </div>
+              </div>
+              <div v-else :key="idx" class="assistant-msg" :class="item.role">
+                <div class="amsg-text" v-html="renderMarkdown(item.content || '')"></div>
+              </div>
+            </template>
+            <div v-if="discussPanel.disabled" class="assistant-msg ai">
+              <div class="amsg-text" style="color:var(--text-muted)">正在思考...</div>
+            </div>
+          </div>
+          <div class="assistant-input-area">
+            <DesktopImagePreviewList
+              :files="discussMediaFiles"
               :disabled="discussPanel.disabled"
-              @keydown="handleAssistKeydown($event, 'discuss')"
-              @paste="handleDiscussPaste"
-            ></textarea>
-            <div class="assistant-input-actions-row">
-              <div class="input-actions-left">
-                <button class="fn-btn" @mousedown.prevent @click="showDiscussFileDialog = true" title="选择文件">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
-                  <span>文件</span>
-                </button>
-                <button class="fn-btn" @mousedown.prevent @click="showDiscussSkillDialog = true" title="选择 Skill">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-                  <span>Skill</span>
-                </button>
-                <button class="fn-btn" @mousedown.prevent @click="showDiscussDesignDialog = true" title="选择设计">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-                  <span>设计</span>
-                </button>
-                <button class="fn-btn" @mousedown.prevent @click="showDiscussCommandDialog = true" title="命令">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
-                  <span>命令</span>
-                </button>
-                <button class="fn-btn" @mousedown.prevent @click="triggerDiscussImageUpload" title="上传图片">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-                  <span>图片</span>
-                </button>
-                <input ref="discussImageInput" type="file" accept="image/*" multiple style="display:none" @change="handleDiscussImageFiles" />
-              </div>
-              <div class="input-actions-right">
-                <button v-if="discussPanel.disabled && !discussStopping" class="stop-btn" @click="stopDiscuss">■ 停止</button>
-                <button v-if="discussPanel.disabled && discussStopping" class="stop-btn" disabled>停止中...</button>
-                <button class="assistant-send-btn" @click="sendDiscussMessage" :disabled="discussPanel.disabled">↑</button>
+              @remove="removeDiscussMedia"
+            />
+            <div class="assistant-input-wrap">
+              <DesktopResizableTextarea
+                v-model="discussPanel.input"
+                :rows="3"
+                :minRows="2"
+                :maxRows="15"
+                placeholder="输入探讨内容... (Enter 发送, Ctrl+Enter 换行，可粘贴图片)"
+                :disabled="discussPanel.disabled"
+                @keydown="handleAssistKeydown($event, 'discuss')"
+                @paste-image="handleDiscussPasteImages"
+              />
+              <div class="assistant-input-actions-row">
+                <div class="input-actions-left">
+                  <span class="status-action" @click="fileSelectVisible = true" @mousedown.prevent>选择文件</span>
+                  <span class="separator">|</span>
+                  <span class="status-action" @click="skillSelectVisible = true" @mousedown.prevent>选择Skill</span>
+                  <span class="separator">|</span>
+                  <span class="status-action" @click="designSelectVisible = true" @mousedown.prevent>选择设计</span>
+                  <span class="separator">|</span>
+                  <span class="status-action" @click="commandDialogVisible = true" @mousedown.prevent>命令</span>
+                </div>
+                <div class="input-actions-right">
+                  <button class="action-btn btn-upload" @click="triggerDiscussImageUpload" :disabled="discussPanel.disabled">图片</button>
+                  <button v-if="discussPanel.disabled && !discussStopping" class="action-btn btn-stop" @click="stopDiscuss">■ 停止</button>
+                  <button v-else-if="discussStopping" class="action-btn btn-stop" disabled>停止中...</button>
+                  <button v-else class="btn-send" @click="sendDiscussMessage" :disabled="!discussPanel.input.trim() && !discussMediaFiles.length">发送</button>
+                </div>
               </div>
             </div>
+            <input ref="discussImageInput" type="file" accept="image/*" multiple style="display:none" @change="handleDiscussImageFiles" />
           </div>
-        </div>
-        <div class="assistant-status-bar">
-          <span :style="{ color: discussPanel.disabled ? '#f59e0b' : '#22c55e' }">
-            <span v-if="discussPanel.disabled && !discussStopping" class="thinking-spinner"></span>
-            {{ discussPanel.disabled ? (discussStopping ? '■ 停止中' : '处理中') : '✓ 就绪' }}
-          </span>
-          <span class="sep">|</span>
-          <span>会话: {{ currentDiscussTitle }}</span>
-          <template v-if="discussSelectedFiles.length > 0">
+          <div class="assistant-status-bar">
+            <span :style="{ color: discussPanel.disabled ? '#f59e0b' : '#22c55e' }">
+              <span v-if="discussPanel.disabled && !discussStopping" class="thinking-spinner"></span>
+              {{ discussPanel.disabled ? (discussStopping ? '■ 停止中' : '处理中') : '✓ 就绪' }}
+            </span>
             <span class="sep">|</span>
-            <span class="badge-action" @click="discussSelectedFiles = []" title="清除">{{ discussSelectedFiles.length }} 文件</span>
-          </template>
-          <template v-if="discussPanel.disabled && !discussStopping">
-            <button class="stop-btn" @click="stopDiscuss">停止</button>
-          </template>
-        </div>
+            <span>会话: {{ discussPanel.sessionId ? discussPanel.sessionId.slice(0, 8) : '未创建' }}</span>
+            <span class="sep">|</span>
+            <span>token: {{ discussPanel.promptTokens || 0 }}</span>
+          </div>
+        </template>
       </div>
     </div>
 
-    <DesktopFileSelectDialog v-if="showDesignFileDialog" @close="showDesignFileDialog = false" @select="onDesignFileSelected" />
-    <DesktopFileSelectDialog v-if="showDiscussFileDialog" @close="showDiscussFileDialog = false" @select="onDiscussFileSelected" />
-    <DesktopSkillSelectDialog v-if="showDesignSkillDialog" @close="showDesignSkillDialog = false" @select="onDesignSkillSelected" />
-    <DesktopSkillSelectDialog v-if="showDiscussSkillDialog" @close="showDiscussSkillDialog = false" @select="onDiscussSkillSelected" />
-    <DesktopDesignSelectDialog v-if="showDesignDesignDialog" @close="showDesignDesignDialog = false" @select="onDesignDesignSelected" />
-    <DesktopDesignSelectDialog v-if="showDiscussDesignDialog" @close="showDiscussDesignDialog = false" @select="onDiscussDesignSelected" />
-    <DesktopCommandDialog v-if="showDesignCommandDialog" @close="showDesignCommandDialog = false" @select="onDesignCommandSelected" />
-    <DesktopCommandDialog v-if="showDiscussCommandDialog" @close="showDiscussCommandDialog = false" @select="onDiscussCommandSelected" />
+    <DesktopFileSelectDialog v-if="fileSelectVisible" @close="fileSelectVisible = false" @select="onFileSelected" />
+    <DesktopSkillSelectDialog v-if="skillSelectVisible" @close="skillSelectVisible = false" @select="onSkillSelected" />
+    <DesktopDesignSelectDialog v-if="designSelectVisible" @close="designSelectVisible = false" @select="onDesignSelected" />
+    <DesktopCommandDialog v-if="commandDialogVisible" @close="commandDialogVisible = false" @select="onCommandSelected" />
+
+    <DesktopRenameDialog v-if="renameVisible" :value="renameValue" @close="renameVisible = false" @confirm="doRename" />
+
+    <div v-if="deleteVisible" class="overlay" @click.self="deleteVisible = false">
+      <div class="dialog">
+        <div class="dialog-header">
+          <span>确认删除</span>
+          <button class="dialog-close" @click="deleteVisible = false">&times;</button>
+        </div>
+        <div class="dialog-body">
+          <p class="confirm-text">确定要删除探讨「{{ deleteTarget ? deleteTarget.title : '' }}」吗？</p>
+          <p class="form-hint">此操作不可恢复</p>
+        </div>
+        <div class="dialog-footer">
+          <button class="btn-outline" @click="deleteVisible = false">取消</button>
+          <button class="btn-primary btn-danger" @click="doDelete">删除</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -270,6 +258,8 @@ import DesktopSkillSelectDialog from '@/components/skill/DesktopSkillSelectDialo
 import DesktopDesignSelectDialog from '@/components/design/DesktopDesignSelectDialog.vue'
 import DesktopCommandDialog from '@/components/common/DesktopCommandDialog.vue'
 import DesktopImagePreviewList from '@/components/chat/DesktopImagePreviewList.vue'
+import DesktopResizableTextarea from '@/components/chat/DesktopResizableTextarea.vue'
+import DesktopRenameDialog from '@/components/plan/DesktopRenameDialog.vue'
 
 let logSeq = 10000
 let mediaIdCounter = 10000
@@ -281,7 +271,9 @@ export default {
     DesktopSkillSelectDialog,
     DesktopDesignSelectDialog,
     DesktopCommandDialog,
-    DesktopImagePreviewList
+    DesktopImagePreviewList,
+    DesktopResizableTextarea,
+    DesktopRenameDialog
   },
   props: {
     panelWidth: { type: Number, default: 370 },
@@ -295,29 +287,25 @@ export default {
       activeTab: 'design',
       designStopping: false,
       discussStopping: false,
-      designPanel: { sessionId: null, input: '', disabled: false, wsUnsubscribe: null },
-      discussPanel: { sessionId: null, input: '', disabled: false, wsUnsubscribe: null },
+      designPanel: { sessionId: null, input: '', disabled: false, wsUnsubscribe: null, promptTokens: 0 },
+      discussPanel: { sessionId: null, input: '', disabled: false, wsUnsubscribe: null, promptTokens: 0 },
       designLogItems: [],
       discussLogItems: [],
       discussList: [],
       currentDiscuss: null,
       discussDropdownOpen: false,
-      designSelectedFiles: [],
-      designSelectedSkills: [],
-      designSelectedDesigns: [],
-      discussSelectedFiles: [],
-      discussSelectedSkills: [],
-      discussSelectedDesigns: [],
       designMediaFiles: [],
       discussMediaFiles: [],
-      showDesignFileDialog: false,
-      showDesignSkillDialog: false,
-      showDesignDesignDialog: false,
-      showDesignCommandDialog: false,
-      showDiscussFileDialog: false,
-      showDiscussSkillDialog: false,
-      showDiscussDesignDialog: false,
-      showDiscussCommandDialog: false
+      fileSelectVisible: false,
+      skillSelectVisible: false,
+      designSelectVisible: false,
+      commandDialogVisible: false,
+      menuId: null,
+      renameVisible: false,
+      renameValue: '',
+      renameTarget: null,
+      deleteVisible: false,
+      deleteTarget: null
     }
   },
   computed: {
@@ -347,7 +335,20 @@ export default {
       }
     }
   },
+  mounted() {
+    document.addEventListener('mousedown', this.onMouseDown)
+  },
+  beforeDestroy() {
+    document.removeEventListener('mousedown', this.onMouseDown)
+    this.unsubscribeDesign()
+    this.unsubscribeDiscuss()
+  },
   methods: {
+    onMouseDown(e) {
+      if (this.menuId && !e.target.closest('.d-item-actions')) this.menuId = null
+      if (this.discussDropdownOpen && !e.target.closest('.discuss-dropdown')) this.discussDropdownOpen = false
+    },
+
     initFromMeta(meta) {
       this.designLogItems = []
       this.discussLogItems = []
@@ -356,11 +357,13 @@ export default {
 
       if (meta.designSessionId) {
         this.designPanel.sessionId = meta.designSessionId
+        this.designPanel.promptTokens = 0
         this.loadDesignMessages(meta.designSessionId)
         this.subscribePanel('design', meta.designSessionId)
       } else {
         this.designPanel.sessionId = null
         this.designPanel.disabled = false
+        this.designPanel.promptTokens = 0
       }
       this.discussList = meta.discussSessions || []
       if (this.discussList.length > 0 && !this.currentDiscuss) {
@@ -393,23 +396,6 @@ export default {
         await this.saveMetaToServer(meta)
       }
       return sid
-    },
-
-    buildDesignMessagePrefix() {
-      let prefix = ''
-      if (this.designSelectedFiles.length > 0) {
-        prefix += '参考文件:\n' + this.designSelectedFiles.map(f => '- ' + f).join('\n') + '\n'
-      }
-      if (this.designSelectedSkills.length > 0) {
-        prefix += '使用的Skill:\n' + this.designSelectedSkills.map(s => '- ' + s).join('\n') + '\n'
-      }
-      if (this.designSelectedDesigns.length > 0) {
-        prefix += '参考设计:\n' + this.designSelectedDesigns.map(d => '- ' + d).join('\n') + '\n'
-      }
-      if (this.planFilePath) {
-        prefix += '当前方案文件: ' + this.planFilePath + '\n'
-      }
-      return prefix
     },
 
     async uploadDesignMediaAndGetUrls() {
@@ -504,33 +490,24 @@ export default {
       e.target.value = ''
     },
 
-    handleDesignPaste(e) {
-      const items = e.clipboardData && e.clipboardData.items
-      if (!items) return
-      for (const item of items) {
-        if (item.type.startsWith('image/')) {
-          e.preventDefault()
-          const file = item.getAsFile()
-          if (file) this.processDesignMediaFile(file)
-        }
+    handleDesignPasteImages(files) {
+      if (!files) return
+      for (const file of files) {
+        this.processDesignMediaFile(file)
       }
     },
 
-    handleDiscussPaste(e) {
-      const items = e.clipboardData && e.clipboardData.items
-      if (!items) return
-      for (const item of items) {
-        if (item.type.startsWith('image/')) {
-          e.preventDefault()
-          const file = item.getAsFile()
-          if (file) this.processDiscussMediaFile(file)
-        }
+    handleDiscussPasteImages(files) {
+      if (!files) return
+      for (const file of files) {
+        this.processDiscussMediaFile(file)
       }
     },
 
     async sendDesignMessage() {
       const val = this.designPanel.input.trim()
-      if (!val || this.designPanel.disabled) return
+      const hasMedia = this.designMediaFiles.length > 0
+      if ((!val && !hasMedia) || this.designPanel.disabled) return
       try {
         const sid = await this.ensureDesignSession()
         this.subscribePanel('design', sid)
@@ -538,9 +515,7 @@ export default {
         this.designPanel.input = ''
 
         const imageUrls = await this.uploadDesignMediaAndGetUrls()
-        const prefix = this.buildDesignMessagePrefix()
         let fullMessage = val
-        if (prefix) fullMessage = prefix + '\n用户输入: ' + val
         if (imageUrls.length > 0) fullMessage += '\n图片: ' + imageUrls.join(', ')
 
         let contextPrefix = ''
@@ -579,18 +554,14 @@ export default {
 
     async sendDiscussMessage() {
       const val = this.discussPanel.input.trim()
-      if (!val || this.discussPanel.disabled || !this.discussPanel.sessionId) return
+      const hasMedia = this.discussMediaFiles.length > 0
+      if ((!val && !hasMedia) || this.discussPanel.disabled || !this.discussPanel.sessionId) return
       this.subscribePanel('discuss', this.discussPanel.sessionId)
       this.pushLogItem('discussLogItems', { type: 'chat', content: val, role: 'user' })
       this.discussPanel.input = ''
 
       const imageUrls = await this.uploadDiscussMediaAndGetUrls()
-      let prefix = ''
-      if (this.discussSelectedFiles.length > 0) {
-        prefix += '参考文件:\n' + this.discussSelectedFiles.map(f => '- ' + f).join('\n') + '\n'
-      }
       let fullMessage = val
-      if (prefix) fullMessage = prefix + '\n用户输入: ' + val
       if (imageUrls.length > 0) fullMessage += '\n图片: ' + imageUrls.join(', ')
 
       this.discussPanel.disabled = true
@@ -731,33 +702,44 @@ export default {
       if (!d) return
       this.unsubscribeDiscuss()
       this.currentDiscuss = d
-      this.discussPanel = { sessionId: d.sessionId, input: '', disabled: false, wsUnsubscribe: null }
+      this.discussPanel = { sessionId: d.sessionId, input: '', disabled: false, wsUnsubscribe: null, promptTokens: 0 }
       this.loadDiscussMessages(d.sessionId)
       this.subscribePanel('discuss', d.sessionId)
       this.discussDropdownOpen = false
-      this.discussSelectedFiles = []
       this.discussMediaFiles = []
     },
 
-    renameDiscuss(idx) {
-      const item = this.discussList[idx]
-      const newName = prompt('输入新名称:', item.title)
-      if (newName && newName.trim()) {
-        item.title = newName.trim()
-        const meta = { ...this.getMeta() }
-        meta.discussSessions = [...this.discussList]
-        meta.updatedAt = new Date().toISOString()
-        this.saveMetaToServer(meta)
-        if (this.currentDiscuss && this.currentDiscuss.id === item.id) {
-          this.currentDiscuss.title = item.title
-        }
-      }
+    startRename(disc) {
+      this.menuId = null
+      this.renameTarget = disc
+      this.renameValue = disc.title
+      this.renameVisible = true
     },
 
-    async deleteDiscuss(idx) {
-      const item = this.discussList[idx]
+    doRename(newName) {
+      if (!newName || !this.renameTarget) return
+      this.renameTarget.title = newName
+      const meta = { ...this.getMeta() }
+      meta.discussSessions = [...this.discussList]
+      meta.updatedAt = new Date().toISOString()
+      this.saveMetaToServer(meta)
+      if (this.currentDiscuss && this.currentDiscuss.id === this.renameTarget.id) {
+        this.currentDiscuss.title = newName
+      }
+      this.renameVisible = false
+      this.renameTarget = null
+    },
+
+    confirmDelete(disc) {
+      this.menuId = null
+      this.deleteTarget = disc
+      this.deleteVisible = true
+    },
+
+    async doDelete() {
+      if (!this.deleteTarget) return
+      const item = this.deleteTarget
       const wasActive = this.currentDiscuss && this.currentDiscuss.id === item.id
-      if (!confirm(`确定删除探讨"${item.title}"吗？`)) return
       try {
         if (item.sessionId) await deleteSession(item.sessionId)
       } catch (e) {}
@@ -766,6 +748,8 @@ export default {
       meta.updatedAt = new Date().toISOString()
       await this.saveMetaToServer(meta)
       this.discussList = meta.discussSessions
+      this.deleteVisible = false
+      this.deleteTarget = null
 
       if (wasActive) {
         this.unsubscribeDiscuss()
@@ -774,13 +758,21 @@ export default {
         } else {
           this.currentDiscuss = null
           this.discussLogItems = []
-          this.discussPanel = { sessionId: null, input: '', disabled: false, wsUnsubscribe: null }
+          this.discussPanel = { sessionId: null, input: '', disabled: false, wsUnsubscribe: null, promptTokens: 0 }
         }
       }
     },
 
     handleAssistKeydown(e, type) {
-      if (e.key === 'Enter' && !e.shiftKey) {
+      if (e.key !== 'Enter') return
+      const panel = type === 'design' ? this.designPanel : this.discussPanel
+      if (e.ctrlKey) {
+        const textarea = e.target
+        const start = textarea.selectionStart
+        const end = textarea.selectionEnd
+        panel.input = panel.input.substring(0, start) + '\n' + panel.input.substring(end)
+        this.$nextTick(() => { textarea.selectionStart = textarea.selectionEnd = start + 1 })
+      } else if (!e.shiftKey) {
         e.preventDefault()
         if (type === 'design') this.sendDesignMessage()
         else this.sendDiscussMessage()
@@ -858,43 +850,30 @@ export default {
       }
     },
 
-    // Dialog handlers
-    onDesignFileSelected(path) {
-      if (!this.designSelectedFiles.includes(path)) this.designSelectedFiles.push(path)
-      this.showDesignFileDialog = false
+    onFileSelected(path) {
+      const panel = this.activeTab === 'design' ? this.designPanel : this.discussPanel
+      panel.input = panel.input + path + ' '
+      this.fileSelectVisible = false
     },
-    onDiscussFileSelected(path) {
-      if (!this.discussSelectedFiles.includes(path)) this.discussSelectedFiles.push(path)
-      this.showDiscussFileDialog = false
+
+    onSkillSelected(name) {
+      const panel = this.activeTab === 'design' ? this.designPanel : this.discussPanel
+      panel.input = '[Skill:' + name + '] ' + panel.input
+      this.skillSelectVisible = false
     },
-    onDesignSkillSelected(name) {
-      if (!this.designSelectedSkills.includes(name)) this.designSelectedSkills.push(name)
-      this.showDesignSkillDialog = false
+
+    onDesignSelected(design) {
+      const panel = this.activeTab === 'design' ? this.designPanel : this.discussPanel
+      const tag = `[设计:${design.name || design}](${design.path || design}) `
+      panel.input += tag
+      this.designSelectVisible = false
     },
-    onDiscussSkillSelected(name) {
-      if (!this.discussSelectedSkills.includes(name)) this.discussSelectedSkills.push(name)
-      this.showDiscussSkillDialog = false
-    },
-    onDesignDesignSelected(path) {
-      if (!this.designSelectedDesigns.includes(path)) this.designSelectedDesigns.push(path)
-      this.showDesignDesignDialog = false
-    },
-    onDiscussDesignSelected(path) {
-      if (!this.discussSelectedDesigns.includes(path)) this.discussSelectedDesigns.push(path)
-      this.showDiscussDesignDialog = false
-    },
-    onDesignCommandSelected(cmd) {
-      this.designPanel.input = cmd + ' ' + this.designPanel.input
-      this.showDesignCommandDialog = false
-    },
-    onDiscussCommandSelected(cmd) {
-      this.discussPanel.input = cmd + ' ' + this.discussPanel.input
-      this.showDiscussCommandDialog = false
+
+    onCommandSelected(cmd) {
+      const panel = this.activeTab === 'design' ? this.designPanel : this.discussPanel
+      panel.input = cmd + ' ' + panel.input
+      this.commandDialogVisible = false
     }
-  },
-  beforeDestroy() {
-    this.unsubscribeDesign()
-    this.unsubscribeDiscuss()
   }
 }
 </script>
@@ -997,9 +976,7 @@ export default {
   font-size: 12.5px;
   outline: none;
   font-family: inherit;
-  resize: none;
   min-height: 50px;
-  max-height: 120px;
   padding: 6px 8px;
 }
 .assistant-input-wrap textarea:disabled { opacity: 0.6; }
@@ -1024,42 +1001,44 @@ export default {
   gap: 6px;
   flex-shrink: 0;
 }
-.assistant-send-btn {
-  width: 28px;
-  height: 28px;
+.status-action {
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.status-action:hover { color: var(--accent); }
+.separator { color: var(--border); font-size: 12px; user-select: none; }
+.btn-send {
+  padding: 4px 14px;
+  font-size: 12px;
   border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-family: inherit;
   background: var(--accent);
   color: #fff;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 13px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  transition: all 0.15s;
 }
-.assistant-send-btn:hover { filter: brightness(1.08); }
-.assistant-send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.fn-btn {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  padding: 3px 7px;
-  border: 1px solid var(--border);
-  background: #fff;
-  color: var(--text-secondary);
-  border-radius: 3px;
-  font-size: 10.5px;
+.btn-send:hover { background: #6366f1; }
+.btn-send:disabled { opacity: 0.5; cursor: not-allowed; }
+.action-btn {
+  font-size: 12px;
+  padding: 5px 12px;
+  border-radius: 5px;
+  border: none;
   cursor: pointer;
-  transition: all 0.15s;
   font-family: inherit;
+  transition: all 0.15s;
 }
-.fn-btn:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-  background: var(--accent-light);
+.btn-upload {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
 }
+.btn-upload:hover { border-color: var(--accent); color: var(--accent); }
+.btn-upload:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-stop { background: #ef4444; color: #fff; }
+.btn-stop:hover { background: #dc2626; }
+.btn-stop:disabled { opacity: 0.6; cursor: not-allowed; }
 .assistant-status-bar {
   display: flex;
   align-items: center;
@@ -1071,18 +1050,6 @@ export default {
   background: var(--bg-titlebar);
 }
 .sep { color: var(--border); }
-.badge-action { cursor: pointer; color: var(--accent); }
-.stop-btn {
-  font-size: 10px;
-  padding: 2px 6px;
-  background: #ef4444;
-  color: #fff;
-  border: none;
-  border-radius: 3px;
-  cursor: pointer;
-  font-family: inherit;
-}
-.stop-btn:hover { background: #dc2626; }
 
 .discuss-section { display: flex; flex-direction: column; height: 100%; }
 .discuss-dropdown { position: relative; border-bottom: 1px solid var(--border); }
@@ -1108,14 +1075,17 @@ export default {
 .discuss-dropdown-item:hover { background: var(--bg-hover); }
 .discuss-dropdown-item.active { background: var(--accent-light); color: var(--accent); font-weight: 600; }
 .d-item-title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.d-item-actions { display: flex; gap: 2px; margin-left: 8px; }
-.d-action-btn {
-  width: 22px; height: 22px; border: none; background: transparent;
-  color: var(--text-muted); cursor: pointer; border-radius: 3px;
-  font-size: 13px; display: flex; align-items: center; justify-content: center;
+.d-item-actions { display: flex; align-items: center; position: relative; }
+.menu-trigger { cursor: pointer; padding: 2px 6px; border-radius: 4px; font-size: 14px; color: var(--text-muted); }
+.menu-trigger:hover { background: var(--bg-hover); color: var(--text-primary); }
+.disc-menu-popup {
+  position: absolute; right: 0; top: 100%; z-index: 101; min-width: 80px;
+  background: #fff; border: 1px solid var(--border); border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.12); padding: 4px;
 }
-.d-action-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
-.d-action-btn.danger:hover { color: #ef4444; }
+.disc-menu-popup .menu-item { padding: 6px 12px; font-size: 12px; cursor: pointer; border-radius: 4px; color: var(--text-primary); }
+.disc-menu-popup .menu-item:hover { background: var(--bg-hover); }
+.disc-menu-popup .menu-item.danger { color: #ef4444; }
 .discuss-new-btn {
   width: 100%;
   padding: 6px;
@@ -1138,6 +1108,16 @@ export default {
   animation: spin 0.8s linear infinite;
   margin-right: 6px; vertical-align: middle;
 }
+.thinking-spinner {
+  width: 10px; height: 10px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  display: inline-block;
+  animation: spin 0.8s linear infinite;
+  margin-right: 4px;
+  vertical-align: middle;
+}
 @keyframes spin { to { transform: rotate(360deg); } }
 .tool-success { color: #22c55e; font-weight: 600; }
 .tool-fail { color: #ef4444; font-weight: 600; }
@@ -1149,4 +1129,43 @@ export default {
 .todo-item { display: flex; align-items: center; gap: 8px; padding: 3px 0; font-size: 12.5px; }
 .todo-status { flex-shrink: 0; }
 .todo-name { color: var(--text-primary); }
+
+.overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 1100;
+  display: flex; align-items: center; justify-content: center;
+}
+.dialog {
+  background: #fff; border-radius: 10px; box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+  width: 400px; max-width: 90vw;
+}
+.dialog-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 16px; border-bottom: 1px solid var(--border);
+  font-size: 14px; font-weight: 600; color: var(--text-primary);
+}
+.dialog-close {
+  width: 24px; height: 24px; border: none; background: transparent; color: var(--text-muted);
+  font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  border-radius: 4px;
+}
+.dialog-close:hover { background: var(--bg-hover); }
+.dialog-body { padding: 20px 16px; }
+.confirm-text { text-align: center; font-size: 14px; color: var(--text-primary); padding: 8px 0; }
+.form-hint { font-size: 12px; color: var(--text-muted); margin: 0; text-align: center; }
+.dialog-footer {
+  display: flex; align-items: center; justify-content: flex-end; gap: 8px;
+  padding: 10px 16px; border-top: 1px solid var(--border);
+}
+.btn-outline {
+  padding: 6px 14px; background: #fff; color: var(--text-secondary); border: 1px solid var(--border);
+  border-radius: 5px; font-size: 12px; cursor: pointer; font-family: inherit;
+}
+.btn-outline:hover { background: var(--bg-hover); }
+.btn-primary {
+  padding: 6px 14px; background: var(--accent); color: #fff; border: none; border-radius: 5px;
+  font-size: 12px; cursor: pointer; font-family: inherit; font-weight: 600;
+}
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-danger { background: #ef4444; }
+.btn-danger:hover { background: #dc2626; }
 </style>

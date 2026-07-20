@@ -58,15 +58,17 @@
         @remove="removeMedia"
       />
       <div class="input-wrapper">
-        <textarea
-          class="code-textarea"
+        <DesktopResizableTextarea
           v-model="inputText"
+          :rows="4"
+          :minRows="2"
+          :maxRows="20"
           placeholder="输入消息... (Enter 发送, Shift+Enter 换行，可粘贴图片)"
-          rows="4"
           :disabled="disabled"
+          class="code-textarea"
           @keydown="handleKeydown"
-          @paste="handlePaste"
-        ></textarea>
+          @paste-image="handlePasteImages"
+        />
         <input ref="imageInput" type="file" accept="image/*" multiple style="display:none" @change="handleImageFiles" />
         <div class="input-actions">
           <span :class="disabled ? 'status-thinking' : 'status-ready'">
@@ -117,6 +119,7 @@ import DesktopSkillSelectDialog from '@/components/skill/DesktopSkillSelectDialo
 import DesktopDesignSelectDialog from '@/components/design/DesktopDesignSelectDialog.vue'
 import DesktopCommandDialog from '@/components/common/DesktopCommandDialog.vue'
 import DesktopImagePreviewList from '@/components/chat/DesktopImagePreviewList.vue'
+import DesktopResizableTextarea from '@/components/chat/DesktopResizableTextarea.vue'
 import { getItem, setItem } from '@/utils/storage'
 import { createSession, getMessages } from '@/api/index'
 import { saveMeta } from '@/api/index'
@@ -134,7 +137,8 @@ export default {
     DesktopSkillSelectDialog,
     DesktopDesignSelectDialog,
     DesktopCommandDialog,
-    DesktopImagePreviewList
+    DesktopImagePreviewList,
+    DesktopResizableTextarea
   },
   props: {
     currentAgent: { type: String, default: 'Code Agent' },
@@ -407,15 +411,10 @@ export default {
       }
     },
 
-    handlePaste(e) {
-      const items = e.clipboardData && e.clipboardData.items
-      if (!items) return
-      for (const item of items) {
-        if (item.type.startsWith('image/')) {
-          e.preventDefault()
-          const file = item.getAsFile()
-          if (file) this.processMediaFile(file)
-        }
+    handlePasteImages(files) {
+      if (!files) return
+      for (const file of files) {
+        this.processMediaFile(file)
       }
     },
 
@@ -708,7 +707,6 @@ export default {
   width: 100%;
   border: none;
   outline: none;
-  resize: vertical;
   padding: 10px 12px;
   font-size: 13px;
   font-family: inherit;
