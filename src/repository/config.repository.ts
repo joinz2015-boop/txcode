@@ -2,9 +2,9 @@ import { BaseRepository } from './base.repository.js';
 import { v4 as uuidv4 } from 'uuid';
 import type { ProviderRow } from '../entity/provider.entity.js';
 import type { ModelRow } from '../entity/model.entity.js';
-import type { ConfigRow, ProxyRow, DingTalkRow } from '../entity/config.entity.js';
+import type { ConfigRow, ProxyRow, DingTalkRow, HostRow } from '../entity/config.entity.js';
 
-export type { ProviderRow, ModelRow, ConfigRow, ProxyRow, DingTalkRow };
+export type { ProviderRow, ModelRow, ConfigRow, ProxyRow, DingTalkRow, HostRow };
 
 export class ConfigRepository extends BaseRepository {
   listProviders(): ProviderRow[] {
@@ -150,6 +150,50 @@ export class ConfigRepository extends BaseRepository {
       values.push(1);
       this.execute(`UPDATE proxy_config SET ${updates.join(', ')} WHERE id = ?`, values);
     }
+  }
+
+  listHosts(): HostRow[] {
+    return this.query<HostRow>('SELECT * FROM hosts ORDER BY is_local DESC, created_at ASC');
+  }
+
+  getHost(id: string): HostRow | undefined {
+    return this.queryOne<HostRow>('SELECT * FROM hosts WHERE id = ?', [id]) || undefined;
+  }
+
+  getActiveHost(): HostRow | undefined {
+    return this.queryOne<HostRow>('SELECT * FROM hosts WHERE is_active = 1 LIMIT 1') || undefined;
+  }
+
+  insertHost(data: { id?: string; name: string; ip: string; port?: number }): string {
+    const id = data.id || uuidv4();
+    this.execute(
+      `INSERT INTO hosts (id, name, ip, port, is_local, is_active) VALUES (?, ?, ?, ?, 0, 0)`,
+      [id, data.name, data.ip, data.port || 40000]
+    );
+    return id;
+  }
+
+  updateHost(id: string, data: { name?: string; ip?: string; port?: number }): void {
+    const updates: string[] = [];
+    const values: unknown[] = [];
+    if (data.name !== undefined) { updates.push('name = ?'); values.push(data.name); }
+    if (data.ip !== undefined) { updates.push('ip = ?'); values.push(data.ip); }
+    if (data.port !== undefined) { updates.push('port = ?'); values.push(data.port); }
+    if (updates.length > 0) {
+      updates.push('updated_at = CURRENT_TIMESTAMP');
+      values.push(id);
+      this.execute(`UPDATE hosts SET ${updates.join(', ')} WHERE id = ?`, values);
+    }
+  }
+
+  deleteHost(id: string): void {
+    this.execute('DELETE FROM hosts WHERE id = ? AND is_local = 0', [id]);
+  }
+
+  switchHost(id: string): HostRow | undefined {
+    this.execute('UPDATE hosts SET is_active = 0');
+    this.execute('UPDATE hosts SET is_active = 1 WHERE id = ?', [id]);
+    return this.getHost(id);
   }
 }
 

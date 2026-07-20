@@ -15,6 +15,12 @@ import * as set_config from './set_config.js';
 import * as set_default_provider_config from './set_default_provider_config.js';
 import * as update_model_config from './update_model_config.js';
 import * as update_provider_config from './update_provider_config.js';
+import * as list_hosts from './list_hosts.js';
+import * as create_host from './create_host.js';
+import * as update_host from './update_host.js';
+import * as delete_host from './delete_host.js';
+import * as switch_host from './switch_host.js';
+import * as test_host from './test_host.js';
 
 export function registerRoutes(router: Router) {
   router.post('/sys_config/create_model_config', create_model_config.POST);
@@ -33,4 +39,10 @@ export function registerRoutes(router: Router) {
   router.post('/sys_config/set_default_provider_config', set_default_provider_config.POST);
   router.post('/sys_config/update_model_config', update_model_config.POST);
   router.post('/sys_config/update_provider_config', update_provider_config.POST);
+  router.get('/sys_config/list_hosts', list_hosts.GET);
+  router.post('/sys_config/create_host', create_host.POST);
+  router.post('/sys_config/update_host', update_host.POST);
+  router.post('/sys_config/delete_host', delete_host.POST);
+  router.post('/sys_config/switch_host', switch_host.POST);
+  router.get('/sys_config/test_host', test_host.GET);
 }

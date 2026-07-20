@@ -52,13 +52,14 @@ function handleMessage(msg) {
   }
 }
 
-function connect(port) {
+function connect(port, host) {
   if (wsInstance && wsInstance.readyState === WebSocket.OPEN) {
     return
   }
 
   try {
-    const wsUrl = `ws://localhost:${port}/ws/code`
+    const wsHost = host || 'localhost'
+    const wsUrl = `ws://${wsHost}:${port}/ws/code`
     wsInstance = new WebSocket(wsUrl)
 
     wsInstance.onopen = () => {
@@ -84,7 +85,7 @@ function connect(port) {
       console.log('[WS] Closed')
       wsInstance = null
       stopStatusPoll()
-      scheduleReconnect(port)
+      scheduleReconnect(port, host)
     }
 
     wsInstance.onerror = (err) => {
@@ -92,11 +93,11 @@ function connect(port) {
     }
   } catch (err) {
     console.error('[WS] Connection error:', err)
-    scheduleReconnect(port)
+    scheduleReconnect(port, host)
   }
 }
 
-function scheduleReconnect(port) {
+function scheduleReconnect(port, host) {
   if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
     console.log('[WS] Max reconnect attempts reached')
     return
@@ -109,7 +110,7 @@ function scheduleReconnect(port) {
 
   reconnectTimer = setTimeout(() => {
     reconnectTimer = null
-    connect(port)
+    connect(port, host)
   }, delay)
 }
 
@@ -159,8 +160,8 @@ function stopStatusPoll() {
 }
 
 export const ws = {
-  init(port) {
-    connect(port)
+  init(port, host) {
+    connect(port, host)
   },
 
   disconnect,

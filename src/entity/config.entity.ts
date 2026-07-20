@@ -27,3 +27,31 @@ export interface ProxyConfig {
   host: string;
   port: number;
 }
+
+export interface HostRow {
+  id: string;
+  name: string;
+  ip: string;
+  port: number;
+  is_local: number;
+  is_active: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Host {
+  id: string;
+  name: string;
+  ip: string;
+  port: number;
+  isLocal: boolean;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface HostInput {
+  name: string;
+  ip: string;
+  port?: number;
+}

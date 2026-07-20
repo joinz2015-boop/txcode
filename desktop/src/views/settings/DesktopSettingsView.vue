@@ -110,6 +110,33 @@
           </div>
         </div>
       </div>
+
+      <div v-show="activeTab === 'hosts'" class="hosts-panel">
+        <div class="hosts-top-bar">
+          <span class="hosts-title">主机管理</span>
+          <button class="btn-primary-sm" @click="openHostDialog(null)">+ 添加主机</button>
+        </div>
+        <div v-if="hosts.length === 0" class="empty-hint">暂无主机</div>
+        <div v-for="host in hosts" :key="host.id" class="host-card" :class="{ active: host.isActive }">
+          <div class="host-main">
+            <div class="host-info">
+              <div class="host-name">
+                {{ host.name }}
+                <span v-if="host.isLocal" class="tag tag-local">本地</span>
+                <span v-if="host.isActive" class="tag tag-success">当前</span>
+              </div>
+              <div class="host-addr">{{ host.ip }}:{{ host.port }}</div>
+            </div>
+            <div class="host-actions">
+              <button v-if="!host.isLocal" class="btn-outline-sm" @click="openHostDialog(host)">编辑</button>
+              <button v-if="!host.isLocal && !host.isActive" class="btn-danger-sm" @click="handleDeleteHost(host)">删除</button>
+              <button v-if="!host.isActive" class="btn-primary-sm" @click="handleSwitchHost(host)" :disabled="hostTestingId === host.id">
+                {{ hostTestingId === host.id ? '测试中...' : '切换' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Provider Dialog -->
@@ -199,9 +226,49 @@
         </div>
         <div class="modal-footer">
           <button class="btn-outline" @click="showAuthDialog = false">取消</button>
-          <button class="btn-primary" @click="handleConfirmAuth" :disabled="authLoading">{{ authLoading ? '认证中...' : '开始认证' }}</button>
+      <button class="btn-primary" @click="handleConfirmAuth" :disabled="authLoading">{{ authLoading ? '认证中...' : '开始认证' }}</button>
+          <button class="btn-outline" @click="showAuthDialog = false">取消</button>
         </div>
       </div>
+    </div>
+
+    <!-- Host Dialog -->
+    <div v-if="showHostDialog" class="modal-overlay" @click.self="closeHostDialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <span>{{ editingHost ? '编辑主机' : '添加主机' }}</span>
+          <button class="modal-close" @click="closeHostDialog">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">名称 <span class="required">*</span></label>
+            <input class="form-input" v-model="hostForm.name" placeholder="例如: 服务器1" />
+            <span v-if="hostFormError.name" class="form-error">{{ hostFormError.name }}</span>
+          </div>
+          <div class="form-group">
+            <label class="form-label">IP / 域名 <span class="required">*</span></label>
+            <input class="form-input" v-model="hostForm.ip" placeholder="例如: 192.168.1.100" />
+            <span v-if="hostFormError.ip" class="form-error">{{ hostFormError.ip }}</span>
+          </div>
+          <div class="form-group">
+            <label class="form-label">端口</label>
+            <input class="form-input" type="number" v-model.number="hostForm.port" placeholder="40000" min="1" max="65535" />
+            <span v-if="hostFormError.port" class="form-error">{{ hostFormError.port }}</span>
+          </div>
+          <div class="host-tip">
+            <p><strong>温馨提示：</strong>目标主机需先安装 txcode：</p>
+            <p><code>npm install -g tianxincode</code></p>
+            <p>然后后台运行 web 模式：</p>
+            <p><code>nohup txcode web &</code></p>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-outline" @click="closeHostDialog">取消</button>
+          <button class="btn-primary" @click="handleSaveHost" :disabled="hostSaving">{{ hostSaving ? '保存中...' : '保存' }}</button>
+        </div>
+      </div>
+    </div>
+  </div>
     </div>
   </div>
 </template>
@@ -213,7 +280,8 @@ import {
   getModels, createModel, updateModel, deleteModel,
   exportConfig, importConfig,
   getProxyConfig, updateProxyConfig,
-  getSongbingConfig, startSongbingAuth, verifySongbingAuth, cancelSongbingAuth, syncSongbingModels
+  getSongbingConfig, startSongbingAuth, verifySongbingAuth, cancelSongbingAuth, syncSongbingModels,
+  listHosts, createHost, updateHost, deleteHost, switchHost, testHost, setBaseURLByHost
 } from '@/api/index'
 
 const presets = [
@@ -236,6 +304,7 @@ export default {
       tabs: [
         { key: 'providers', label: 'AI 服务商' },
         { key: 'proxy', label: '代理设置' },
+        { key: 'hosts', label: '主机管理' },
       ],
       providers: [],
       models: [],
@@ -262,6 +331,13 @@ export default {
       },
       songbingConfig: { platformUrl: '', apiBaseUrl: '' },
       pollTimer: null,
+      hosts: [],
+      showHostDialog: false,
+      editingHost: null,
+      hostForm: { name: '', ip: '', port: 40000 },
+      hostFormError: { name: '', ip: '', port: '' },
+      hostSaving: false,
+      hostTestingId: null,
     }
   },
   computed: {
@@ -599,10 +675,98 @@ export default {
         alert('同步模型失败: ' + e.message)
       }
     },
+
+    // Host Management
+    async loadHosts() {
+      try {
+        const r = await listHosts()
+        this.hosts = r.data || []
+      } catch (e) {
+        console.error('加载主机列表失败:', e)
+      }
+    },
+    openHostDialog(host) {
+      this.editingHost = host
+      this.hostFormError = { name: '', ip: '', port: '' }
+      if (host) {
+        this.hostForm = { name: host.name, ip: host.ip, port: host.port }
+      } else {
+        this.hostForm = { name: '', ip: '', port: 40000 }
+      }
+      this.showHostDialog = true
+    },
+    closeHostDialog() {
+      this.showHostDialog = false
+      this.editingHost = null
+    },
+    async handleSaveHost() {
+      this.hostFormError = { name: '', ip: '', port: '' }
+      let valid = true
+      if (!this.hostForm.name.trim()) {
+        this.hostFormError.name = '请输入名称'
+        valid = false
+      }
+      if (!this.hostForm.ip.trim()) {
+        this.hostFormError.ip = '请输入IP/域名'
+        valid = false
+      }
+      if (!this.hostForm.port || this.hostForm.port < 1 || this.hostForm.port > 65535) {
+        this.hostFormError.port = '端口范围 1-65535'
+        valid = false
+      }
+      if (!valid) return
+      this.hostSaving = true
+      try {
+        if (this.editingHost) {
+          await updateHost(this.editingHost.id, this.hostForm)
+        } else {
+          await createHost(this.hostForm)
+        }
+        await this.loadHosts()
+        this.closeHostDialog()
+      } catch (e) {
+        alert('保存失败: ' + e.message)
+      } finally {
+        this.hostSaving = false
+      }
+    },
+    async handleDeleteHost(host) {
+      if (!confirm(`确定要删除主机"${host.name}"吗？`)) return
+      try {
+        await deleteHost(host.id)
+        await this.loadHosts()
+      } catch (e) {
+        alert('删除失败: ' + e.message)
+      }
+    },
+    async handleSwitchHost(host) {
+      this.hostTestingId = host.id
+      try {
+        const res = await testHost(host.ip, host.port)
+        if (!res.data || !res.data.reachable) {
+          alert(`主机"${host.name}" (${host.ip}:${host.port}) 无法连接`)
+          return
+        }
+      } catch (e) {
+        alert(`连接测试失败: ${e.message}`)
+        return
+      } finally {
+        this.hostTestingId = null
+      }
+      try {
+        const r = await switchHost(host.id)
+        const h = r.data
+        setBaseURLByHost(h)
+        location.reload()
+      } catch (e) {
+        alert('切换失败: ' + e.message)
+      }
+    },
   },
   mounted() {
     this.loadData()
     this.loadProxyConfig()
+    this.loadHosts()
   },
   beforeDestroy() {
     if (this.pollTimer) clearInterval(this.pollTimer)
@@ -844,6 +1008,72 @@ export default {
 .form-select:disabled { opacity: 0.5; cursor: not-allowed; }
 .form-error { font-size: 11px; color: #ef4444; margin-top: 2px; display: block; }
 .form-hint { font-size: 11px; color: var(--text-muted); margin-top: 8px; padding: 8px; background: #f0f4ff; border-radius: 4px; }
+.host-tip { margin-top: 12px; padding: 10px 12px; background: #fefce8; border: 1px solid #fde68a; border-radius: 6px; font-size: 12px; color: #92400e; line-height: 1.6; }
+.host-tip p { margin: 0; }
+.host-tip code { background: #fef3c7; padding: 1px 6px; border-radius: 3px; font-size: 11px; }
 .form-checkbox { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--text-secondary); cursor: pointer; }
 .form-checkbox input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--accent); }
+
+/* Hosts Panel */
+.hosts-panel {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+}
+.hosts-top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.hosts-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.host-card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 10px;
+  background: #fff;
+}
+.host-card.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(79,110,247,0.15);
+}
+.host-main {
+  display: flex;
+  align-items: center;
+  padding: 12px;
+}
+.host-info {
+  flex: 1;
+  min-width: 0;
+}
+.host-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.host-addr {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+.host-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.tag-local {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 600;
+  background: #f0f4ff;
+  color: #4f6ef7;
+}
 </style>

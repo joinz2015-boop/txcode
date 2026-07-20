@@ -1,7 +1,8 @@
 import { configRepository, ProviderRow, ModelRow, ProxyRow, DingTalkRow } from '../../repository/config.repository.js';
 import type { Provider, ProviderInput } from '../../entity/provider.entity.js';
 import type { Model, ModelInput } from '../../entity/model.entity.js';
-import type { ProxyConfig } from '../../entity/config.entity.js';
+import type { ProxyConfig, Host, HostInput } from '../../entity/config.entity.js';
+import type { HostRow } from '../../entity/config.entity.js';
 import { v4 as uuidv4 } from 'uuid';
 
 export class ConfigService {
@@ -149,6 +150,71 @@ export class ConfigService {
       clientSecret: data.clientSecret,
       botName: data.botName,
     });
+  }
+
+  getHosts(): Host[] {
+    return this.repo.listHosts().map(this.rowToHost);
+  }
+
+  getHost(id: string): Host | undefined {
+    const row = this.repo.getHost(id);
+    return row ? this.rowToHost(row) : undefined;
+  }
+
+  getActiveHost(): Host | undefined {
+    const row = this.repo.getActiveHost();
+    return row ? this.rowToHost(row) : undefined;
+  }
+
+  createHost(data: HostInput): Host {
+    const id = this.repo.insertHost({ name: data.name, ip: data.ip, port: data.port });
+    const row = this.repo.getHost(id);
+    return this.rowToHost(row!);
+  }
+
+  updateHost(id: string, data: Partial<HostInput>): void {
+    this.repo.updateHost(id, { name: data.name, ip: data.ip, port: data.port });
+  }
+
+  deleteHost(id: string): void {
+    const host = this.repo.getHost(id);
+    if (!host) throw new Error('主机不存在');
+    if (host.is_local === 1) throw new Error('不可删除本地主机');
+    if (host.is_active === 1) throw new Error('不可删除当前激活的主机');
+    this.repo.deleteHost(id);
+  }
+
+  switchHost(id: string): Host {
+    const row = this.repo.switchHost(id);
+    if (!row) throw new Error('主机不存在');
+    return this.rowToHost(row);
+  }
+
+  async testHost(ip: string, port: number): Promise<boolean> {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 5000);
+      const res = await fetch(`http://${ip}:${port}/api/sys_config/get_config?key=test`, {
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+      return res.ok;
+    } catch {
+      return false;
+    }
+  }
+
+  private rowToHost(row: HostRow): Host {
+    return {
+      id: row.id,
+      name: row.name,
+      ip: row.ip,
+      port: row.port,
+      isLocal: row.is_local === 1,
+      isActive: row.is_active === 1,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
   }
 
   private rowToProvider(row: ProviderRow): Provider {

@@ -55,7 +55,7 @@ import DesktopNavRail from '@/components/DesktopNavRail.vue'
 import DesktopStatusBar from '@/components/DesktopStatusBar.vue'
 import DesktopSelectProjectDialog from '@/components/config/DesktopSelectProjectDialog.vue'
 import { getPort, getAppVersion, getNodeVersion } from '@/utils/ipc'
-import { setBaseURL, getConfig, getProjects, getCurrentProject, setCurrentProject, deleteProject } from '@/api/index'
+import { setBaseURL, setLocalBaseURL, setBaseURLByHost, listHosts, getConfig, getProjects, getCurrentProject, setCurrentProject, deleteProject } from '@/api/index'
 import { ws } from '@/utils/websocket'
 import { getItem, setItem } from '@/utils/storage'
 
@@ -152,8 +152,24 @@ export default {
   async mounted() {
     try {
       const port = await getPort()
-      setBaseURL(port)
-      ws.init(port)
+      setLocalBaseURL(port)
+
+      let wsHost = null
+      try {
+        const res = await listHosts()
+        const hosts = res.data || []
+        const activeHost = hosts.find(h => h.isActive === true)
+        if (activeHost && !activeHost.isLocal) {
+          setBaseURLByHost(activeHost)
+          wsHost = activeHost.ip
+        } else {
+          setBaseURL(port)
+        }
+      } catch (e) {
+        setBaseURL(port)
+      }
+
+      ws.init(port, wsHost)
     } catch (e) {
       console.error('Init error:', e)
     }

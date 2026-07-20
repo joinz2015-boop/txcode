@@ -1,11 +1,48 @@
 let baseURL = 'http://localhost:40000'
+let localBaseURL = 'http://localhost:40000'
 
 export function setBaseURL(port) {
   baseURL = `http://localhost:${port}`
 }
 
+export function setLocalBaseURL(port) {
+  localBaseURL = `http://localhost:${port}`
+}
+
+export function setBaseURLByHost(host) {
+  if (host && host.ip && host.port) {
+    baseURL = `http://${host.ip}:${host.port}`
+  }
+}
+
 export function getBaseURL() {
   return baseURL
+}
+
+export function getLocalBaseURL() {
+  return localBaseURL
+}
+
+async function hostRequest(method, path, data = null) {
+  const url = `${localBaseURL}/api${path}`
+  const options = {
+    method,
+    headers: { 'Content-Type': 'application/json' }
+  }
+  if (data && method !== 'GET') {
+    options.body = JSON.stringify(data)
+  }
+  if (data && method === 'GET') {
+    const params = new URLSearchParams(data).toString()
+    const res = await fetch(`${url}?${params}`, options)
+    const json = await res.json()
+    if (json.success === false) throw new Error(json.error || json.message || '请求失败')
+    return json
+  }
+  const res = await fetch(url, options)
+  const json = await res.json()
+  if (json.success === false) throw new Error(json.error || json.message || '请求失败')
+  return json
 }
 
 async function request(method, path, data = null) {
@@ -381,4 +418,29 @@ export function uninstallSpec(specName) {
 
 export function deleteLocalSpec(name) {
   return request('POST', '/spec/delete_spec', { name })
+}
+
+// ========== Host Management API (通过本地后端) ==========
+export function listHosts() {
+  return hostRequest('GET', '/sys_config/list_hosts')
+}
+
+export function createHost(data) {
+  return hostRequest('POST', '/sys_config/create_host', data)
+}
+
+export function updateHost(id, data) {
+  return hostRequest('POST', '/sys_config/update_host', { id, ...data })
+}
+
+export function deleteHost(id) {
+  return hostRequest('POST', '/sys_config/delete_host', { id })
+}
+
+export function switchHost(id) {
+  return hostRequest('POST', '/sys_config/switch_host', { id })
+}
+
+export function testHost(ip, port) {
+  return hostRequest('GET', '/sys_config/test_host', { ip, port: String(port) })
 }
