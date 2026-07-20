@@ -11,6 +11,8 @@
       @preview-image="$emit('preview-image', $event)"
     />
 
+    <InputHistory :log-items="panel.logItems" />
+
     <ChatInputArea
       :panel="panel"
       :placeholder="placeholder"
@@ -47,10 +49,11 @@
 import ChatMessageList from './ChatMessageList.vue'
 import ChatInputArea from './ChatInputArea.vue'
 import ChatStatusBar from './ChatStatusBar.vue'
+import InputHistory from './InputHistory.vue'
 
 export default {
   name: 'ChatPanel',
-  components: { ChatMessageList, ChatInputArea, ChatStatusBar },
+  components: { ChatMessageList, ChatInputArea, ChatStatusBar, InputHistory },
   props: {
     visible: { type: Boolean, default: true },
     panel: { type: Object, required: true },
@@ -79,7 +82,7 @@ export default {
 </script>
 
 <style scoped>
-.chat-panel { flex: 1; display: flex; flex-direction: column; background: var(--color-panelHeader); border: 1px solid var(--color-contentBg); border-radius: 8px; min-width: 0; overflow: hidden; }
+.chat-panel { flex: 1; display: flex; flex-direction: column; background: var(--color-panelHeader); border: 1px solid var(--color-contentBg); border-radius: 8px; min-width: 0; overflow: hidden; position: relative; }
 .chat-panel.hidden-panel { display: none; }
 .panel-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--color-contentBg); font-size: 13px; font-weight: 600; color: var(--color-textMain); flex-shrink: 0; }
 

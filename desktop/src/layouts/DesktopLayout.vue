@@ -79,7 +79,6 @@ export default {
       currentModel: getItem('model:current', 'DeepSeek V3'),
       nodeVersion: '',
       appVersion: '1.0.55',
-      currentMode: getItem('coding:mode', 'code'),
       runningSessionIds: [],
       unsubRunning: null,
       projectDialogVisible: false,
@@ -88,11 +87,7 @@ export default {
       deleteLoading: false,
     }
   },
-  watch: {
-    currentMode(val) {
-      setItem('coding:mode', val)
-    },
-  },
+  watch: {},
   methods: {
     async handleSelectProject(project) {
       try {

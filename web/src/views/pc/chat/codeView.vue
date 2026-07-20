@@ -379,9 +379,20 @@ export default {
       this.designSelectVisible = false
     },
 
+    saveChatMode(sessionId, mode) {
+      if (!sessionId) return
+      localStorage.setItem(`txcode:code-view:${sessionId}:chatMode`, mode)
+    },
+
+    loadChatMode(sessionId) {
+      if (!sessionId) return 'code'
+      return localStorage.getItem(`txcode:code-view:${sessionId}:chatMode`) || 'code'
+    },
+
     toggleChatMode(panel) {
       if (!panel) return
       panel.chatMode = panel.chatMode === 'plan' ? 'code' : 'plan'
+      this.saveChatMode(panel.session.id, panel.chatMode)
     },
 
     async handleExecuteCommand(cmd) {
@@ -535,18 +546,25 @@ export default {
         if (panel.session?.id) {
           const logArea = this.getLogAreaEl(panel)
           if (logArea) savePos(panel.session.id, logArea)
+          this.saveChatMode(panel.session.id, panel.chatMode)
         }
       }
       const count = this.layoutMode
       const newActive = []
       for (let i = 0; i < count; i++) {
-        newActive.push(this.activeSessions[i] || {
+        const existing = this.activeSessions[i]
+        newActive.push(existing || {
           session: null, logItems: [], userQuestion: '', modelName: '',
           input: '', disabled: false, stopping: false, wsConnected: false,
           promptTokens: 0, dotInterval: null, compactionRatio: 0,
           sessionStatus: 'idle', enableDevLog: false, chatMode: 'code',
           mediaFiles: []
         })
+      }
+      for (const panel of newActive) {
+        if (panel.session?.id) {
+          panel.chatMode = this.loadChatMode(panel.session.id)
+        }
       }
       this.activeSessions = newActive
       this.$nextTick(() => {
@@ -594,7 +612,7 @@ export default {
       panel.disabled = false
       panel.stopping = false
       panel.promptTokens = 0
-      panel.chatMode = 'code'
+      panel.chatMode = this.loadChatMode(this.draggedSession.id)
       panel.mediaFiles = []
       panel.sessionStatus = this.draggedSession.status || 'idle'
       if (panel.sessionStatus === 'processing') {
@@ -617,7 +635,7 @@ export default {
         Object.assign(panel, {
           session, logItems: [], userQuestion: '', disabled: isProcessing,
           stopping: false, promptTokens: 0, compactionRatio: 0,
-          sessionStatus: session.status || 'idle', chatMode: 'code',
+          sessionStatus: session.status || 'idle', chatMode: this.loadChatMode(session.id),
           mediaFiles: []
         })
         this.loadMessagesForPanel(panel, session.id)
@@ -711,6 +729,9 @@ export default {
           if (logArea) recoverPos(session.id, logArea)
         })
         return
+      }
+      if (currentPanel?.session?.id) {
+        this.saveChatMode(currentPanel.session.id, currentPanel.chatMode)
       }
       this.currentSession = session
       if (this.$route.params.id !== session.id) {

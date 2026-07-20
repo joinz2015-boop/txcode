@@ -1,3 +1,5 @@
+import { eventBus } from '@/utils/eventBus'
+
 let wsInstance = null
 let reconnectTimer = null
 let reconnectAttempts = 0
@@ -25,6 +27,27 @@ function handleMessage(msg) {
       callback(msg)
     } catch (e) {
       console.error('[WS] Listener error:', e)
+    }
+  }
+
+  if (type === 'step') {
+    const stepData = msg.data || msg
+    const toolCalls = stepData.toolCalls
+    if (toolCalls && Array.isArray(toolCalls)) {
+      for (const tc of toolCalls) {
+        const fnName = tc.function?.name
+        if (fnName === 'edit_file' || fnName === 'write_file') {
+          try {
+            const args = JSON.parse(tc.function.arguments || '{}')
+            if (args.file_path) {
+              console.log('[WS] emit file:changed', { filePath: args.file_path, action: fnName })
+              eventBus.emit('file:changed', { filePath: args.file_path, action: fnName })
+            }
+          } catch (e) {
+            console.warn('[WS] parse toolCall arguments failed:', e)
+          }
+        }
+      }
     }
   }
 }

@@ -110,6 +110,7 @@ import DesktopDesignPageTree from '@/components/design/DesktopDesignPageTree.vue
 import DesktopDesignAiChat from '@/components/design/DesktopDesignAiChat.vue'
 import DesktopDesignEditor from '@/components/design/DesktopDesignEditor.vue'
 import DesktopSaveTemplateDialog from '@/components/design/DesktopSaveTemplateDialog.vue'
+import { eventBus } from '@/utils/eventBus'
 
 export default {
   name: 'DesktopDesignView',
@@ -168,6 +169,21 @@ export default {
       this.activeFileName = savedFile.split(/[\\/]/).pop()
       this.currentPage = this.getRelativePath(savedFile)
       this.loadPreview()
+    }
+    this._unsubFileChanged = eventBus.on('file:changed', (data) => {
+      if (!data.filePath) return
+      const normFile = data.filePath.replace(/\\/g, '/')
+      if (normFile.includes('.txcode/design/')) {
+        this.refreshPreview()
+        if (this.$refs.pageTree) {
+          this.$refs.pageTree.refresh()
+        }
+      }
+    })
+  },
+  beforeDestroy() {
+    if (this._unsubFileChanged) {
+      this._unsubFileChanged()
     }
   },
   methods: {

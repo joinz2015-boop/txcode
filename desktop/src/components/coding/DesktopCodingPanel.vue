@@ -3,6 +3,7 @@
     <div class="panel-header">
       <span># {{ sessionTitle }}</span>
     </div>
+    <DesktopInputHistory :log-items="logItems" />
     <div class="chat-messages" ref="messagesContainer">
       <div v-if="logItems.length === 0" class="chat-empty">
         <span class="chat-empty-icon">&#x1F4AC;</span>
@@ -16,7 +17,7 @@
           </div>
         </div>
         <div v-else-if="item.type === 'chat'" :key="'ml-' + idx" class="flex justify-end">
-          <div class="user-question">
+          <div class="user-question" :data-log-id="item.logId">
             <div v-if="item.mediaFiles && item.mediaFiles.length" class="chat-images">
               <img v-for="mf in item.mediaFiles" :key="mf.filePath || mf.id" :src="mf.url || mf.dataUrl || mf.filePath" class="chat-image-thumb" @click.stop="$emit('preview-image', mf)" />
             </div>
@@ -120,6 +121,7 @@ import DesktopDesignSelectDialog from '@/components/design/DesktopDesignSelectDi
 import DesktopCommandDialog from '@/components/common/DesktopCommandDialog.vue'
 import DesktopImagePreviewList from '@/components/chat/DesktopImagePreviewList.vue'
 import DesktopResizableTextarea from '@/components/chat/DesktopResizableTextarea.vue'
+import DesktopInputHistory from '@/components/chat/DesktopInputHistory.vue'
 import { getItem, setItem } from '@/utils/storage'
 import { createSession, getMessages } from '@/api/index'
 import { saveMeta } from '@/api/index'
@@ -138,7 +140,8 @@ export default {
     DesktopDesignSelectDialog,
     DesktopCommandDialog,
     DesktopImagePreviewList,
-    DesktopResizableTextarea
+    DesktopResizableTextarea,
+    DesktopInputHistory
   },
   props: {
     currentAgent: { type: String, default: 'Code Agent' },
@@ -234,18 +237,34 @@ export default {
     saveCodeScrollTop() {
       const el = this.$refs.messagesContainer
       if (el) {
-        const key = this.currentSession ? `coding:scrollTop:${this.currentSession.folderName}` : 'coding:scrollTop'
-        setItem(key, el.scrollTop)
+        const key = this.currentSession ? `txcode:plan-code:${this.currentSession.folderName}:state` : 'coding:scrollTop'
+        if (this.currentSession) {
+          const raw = localStorage.getItem(key)
+          const existing = raw ? JSON.parse(raw) : {}
+          existing.codeScrollTop = el.scrollTop
+          localStorage.setItem(key, JSON.stringify(existing))
+        } else {
+          setItem(key, el.scrollTop)
+        }
       }
     },
 
     restoreCodeScrollTop() {
       const el = this.$refs.messagesContainer
       if (el) {
-        const key = this.currentSession ? `coding:scrollTop:${this.currentSession.folderName}` : 'coding:scrollTop'
-        const top = getItem(key, 0)
-        if (top > 0) {
-          this.$nextTick(() => { el.scrollTop = top })
+        const key = this.currentSession ? `txcode:plan-code:${this.currentSession.folderName}:state` : 'coding:scrollTop'
+        if (this.currentSession) {
+          const raw = localStorage.getItem(key)
+          const state = raw ? JSON.parse(raw) : null
+          const top = (state && state.codeScrollTop != null) ? state.codeScrollTop : 0
+          if (top > 0) {
+            this.$nextTick(() => { el.scrollTop = top })
+          }
+        } else {
+          const top = getItem(key, 0)
+          if (top > 0) {
+            this.$nextTick(() => { el.scrollTop = top })
+          }
         }
       }
     },
@@ -572,6 +591,7 @@ export default {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  position: relative;
 }
 .panel-header {
   display: flex;

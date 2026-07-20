@@ -237,7 +237,7 @@ export default {
   },
   beforeDestroy() { document.removeEventListener('keydown', this.onKeydown); this.unsubscribeAll(); this.unsubscribeRunning(); if (this.unsubFileChanged) { this.unsubFileChanged(); this.unsubFileChanged = null }; this._unsubRename() },
   activated() { this.resubscribeActive(); this.loadPlanSessions(); this.subscribeRunningSessions(); this.restoreCodeScrollTop(); this._subRename() },
-  deactivated() { this.saveCodeScrollTop(); this.unsubscribeAll(); this.unsubscribeRunning(); this._unsubRename() },
+  deactivated() { this.saveCodeScrollTop(); this.saveState(); this.unsubscribeAll(); this.unsubscribeRunning(); this._unsubRename() },
 
   methods: {
     // ====== Helpers ======
@@ -676,7 +676,7 @@ export default {
         await planCodeApi.createPlanSession('新计划会话', parentPath)
         await this.loadPlanSessions()
         const s = this.planSessions[0]
-        if (s) await this.selectPlanSession(s)
+        if (s) { await this.selectPlanSession(s); this.currentMode = 'plan'; this.saveState() }
         this.subSchemeVisible = false
       } catch (e) { this.$message.error('创建子方案失败: ' + e.message) }
     },

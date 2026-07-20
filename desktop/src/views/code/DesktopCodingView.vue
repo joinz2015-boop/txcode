@@ -129,15 +129,13 @@ export default {
       testDialogVisible: false,
       customActions: [],
       previewImage: null,
+      currentMode: 'code',
       _renameUnsub: null,
       _unsubFileChanged: null,
+      _unsubSwitchMode: null,
     }
   },
   computed: {
-    currentMode: {
-      get() { return this.desktopState.currentMode },
-      set(val) { this.desktopState.currentMode = val },
-    },
     runningSessionIds() {
       return this.desktopState ? this.desktopState.runningSessionIds : []
     },
@@ -187,7 +185,14 @@ export default {
       this.currentPlanSession = session
       setItem('planSession:current', session)
       this.planFilePath = session.meta.planFilePath || ''
-      this.currentMode = getItem('coding:mode', 'code')
+      const state = this.loadState(session.folderName)
+      if (state && state.currentMode) {
+        this.currentMode = state.currentMode
+      } else {
+        this.currentMode = 'code'
+      }
+      this.saveChatMode(session.folderName)
+      eventBus.emit('coding:modeChanged', this.currentMode)
       if (this.currentMode === 'plan') {
         await this.loadPlanContent()
       }
@@ -196,6 +201,7 @@ export default {
           this.$refs.planEditor.refresh()
         }
       })
+      this.$nextTick(() => this.restoreCodeScrollTop())
     },
     onSidebarRename(session, newName) {
       this.renamePlanSession(session, newName)
@@ -228,10 +234,15 @@ export default {
     async onSubPlanConfirm() {
       this.subPlanDialogVisible = false
       try {
+        this.saveState()
         await createPlanSession('新计划会话', this.planFilePath)
         await this.loadPlanSessions()
         const s = this.planSessions[0]
-        if (s) await this.selectPlanSession(s)
+        if (s) {
+          const key = this.getStoreKey(s.folderName)
+          localStorage.setItem(key, JSON.stringify({ currentMode: 'plan' }))
+          await this.selectPlanSession(s)
+        }
       } catch (e) {
         console.error('创建子方案失败:', e)
       }
@@ -298,6 +309,8 @@ export default {
     },
     fillDevPlan() {
       this.currentMode = 'code'
+      this.saveState()
+      eventBus.emit('coding:modeChanged', 'code')
       this.$nextTick(() => {
         const cp = this.$refs.codingPanel
         if (cp && this.planFilePath) {
@@ -314,6 +327,36 @@ export default {
     restoreCodeScrollTop() {
       const cp = this.$refs.codingPanel
       if (cp) cp.restoreCodeScrollTop()
+    },
+    getStoreKey(folderName) {
+      return `txcode:plan-code:${folderName}:state`
+    },
+    loadState(folderName) {
+      if (!folderName) return null
+      const raw = localStorage.getItem(this.getStoreKey(folderName))
+      return raw ? JSON.parse(raw) : null
+    },
+    saveState() {
+      if (!this.planFolderName) return
+      const key = this.getStoreKey(this.planFolderName)
+      const existing = this.loadState(this.planFolderName) || {}
+      existing.currentMode = this.currentMode
+      localStorage.setItem(key, JSON.stringify(existing))
+    },
+    saveChatMode(folderName) {
+      if (!folderName) return
+      localStorage.setItem(`txcode:code-view:${folderName}:chatMode`, this.currentMode)
+    },
+    loadChatMode(folderName) {
+      return localStorage.getItem(`txcode:code-view:${folderName}:chatMode`) || null
+    },
+    onSwitchMode(mode) {
+      if (this.currentMode === mode) return
+      this.currentMode = mode
+      this.saveState()
+      this.saveChatMode(this.planFolderName)
+      eventBus.emit('coding:modeChanged', mode)
+      if (mode === 'plan') this.$nextTick(() => this.loadPlanContent())
     },
     updateTitle() {
       if (!this.runningSessionIds || this.runningSessionIds.length === 0) {
@@ -381,6 +424,9 @@ export default {
         this.loadPlanContent()
       }
     })
+    this._unsubSwitchMode = eventBus.on('coding:switchMode', (mode) => {
+      this.onSwitchMode(mode)
+    })
   },
   activated() {
     if (this.currentPlanSession && this.currentMode === 'code') {
@@ -393,6 +439,7 @@ export default {
   },
   deactivated() {
     this.saveCodeScrollTop()
+    this.saveState()
     const cp = this.$refs.codingPanel
     if (cp) cp.unsubscribePanel()
     const ap = this.$refs.assistantPanel
@@ -404,6 +451,7 @@ export default {
   beforeDestroy() {
     if (this._renameUnsub) { this._renameUnsub(); this._renameUnsub = null }
     if (this._unsubFileChanged) { this._unsubFileChanged(); this._unsubFileChanged = null }
+    if (this._unsubSwitchMode) { this._unsubSwitchMode(); this._unsubSwitchMode = null }
   },
 }
 </script>

@@ -7,8 +7,8 @@
     </div>
     <div class="titlebar-center" v-if="$route.name === 'coding'">
       <div class="mode-float">
-        <button class="mode-tab" :class="{ active: desktopState.currentMode === 'code' }" @click="switchMode('code')">编码模式</button>
-        <button class="mode-tab" :class="{ active: desktopState.currentMode === 'plan' }" @click="switchMode('plan')">方案模式</button>
+        <button class="mode-tab" :class="{ active: currentMode === 'code' }" @click="switchMode('code')">编码模式</button>
+        <button class="mode-tab" :class="{ active: currentMode === 'plan' }" @click="switchMode('plan')">方案模式</button>
       </div>
     </div>
     <div class="titlebar-right">
@@ -43,6 +43,7 @@
 <script>
 import DesktopProjectSwitcher from '@/components/DesktopProjectSwitcher.vue'
 import { minimizeWindow, maximizeWindow, closeWindow } from '@/utils/ipc'
+import { eventBus } from '@/utils/eventBus'
 import logoPng from '../../assets/logo.png'
 
 const viewLabels = {
@@ -58,7 +59,10 @@ export default {
   components: { DesktopProjectSwitcher },
   inject: ['desktopState'],
   data() {
-    return { logoPng }
+    return {
+      logoPng,
+      currentMode: 'code',
+    }
   },
   props: {
     currentProject: { type: Object, default: () => ({ name: 'txcode', path: '', color: '#4f6ef7' }) },
@@ -75,8 +79,17 @@ export default {
     maximizeWindow,
     closeWindow,
     switchMode(mode) {
-      this.desktopState.currentMode = mode
+      this.currentMode = mode
+      eventBus.emit('coding:switchMode', mode)
     },
+  },
+  mounted() {
+    this._unsubMode = eventBus.on('coding:modeChanged', (mode) => {
+      this.currentMode = mode
+    })
+  },
+  beforeDestroy() {
+    if (this._unsubMode) { this._unsubMode(); this._unsubMode = null }
   },
 }
 </script>
