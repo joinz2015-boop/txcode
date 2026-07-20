@@ -135,6 +135,7 @@ export default {
   },
   mounted() {
     this._log('lifecycle', 'mounted', { relativePath: this.relativePath, hasIframe: !!this.$refs.previewFrame })
+    window.addEventListener('message', this._onDesignMessage)
   },
   updated() {
     this._checkCallFrequency('updated')
@@ -142,6 +143,7 @@ export default {
   },
   beforeDestroy() {
     this._log('lifecycle', 'beforeDestroy', { hasIframe: !!this.$refs.previewFrame })
+    window.removeEventListener('message', this._onDesignMessage)
   },
   methods: {
     refreshPreview() {
@@ -157,6 +159,20 @@ export default {
       if (!this.previewSrc) return
       window.open(this.previewSrc, '_blank')
     },
+    _handleIframePath(iframePath) {
+      if (!iframePath || iframePath === '/') return
+      const match = iframePath.match(/\/design_html\/(.+)$/)
+      if (!match) return
+      const navPath = decodeURIComponent(match[1])
+      if (!navPath.endsWith('.html') || navPath.includes('..') || navPath.includes('~')) return
+      const parts = navPath.replace(/\\/g, '/').split('/')
+      const fileName = parts[parts.length - 1]
+      const parentDir = parts.length > 1 ? parts[parts.length - 2] : ''
+      this._log('_handleIframePath', 'detected navigation', { fileName, parentDir, rawPath: navPath, relativePath: this.relativePath })
+      if (navPath !== this.relativePath) {
+        this.$emit('navigate', { fileName, parentDir, rawPath: navPath })
+      }
+    },
     onIframeLoad() {
       this._checkCallFrequency('onIframeLoad')
       this._log('onIframeLoad', 'iframe loaded', { src: this.previewSrc, relativePath: this.relativePath })
@@ -170,24 +186,17 @@ export default {
           this._log('onIframeLoad', 'cannot access iframe location (cross-origin?)')
           return
         }
-        if (iframePath && iframePath !== '/') {
-          const match = iframePath.match(/\/design_html\/(.+)$/)
-          if (match) {
-            const navPath = decodeURIComponent(match[1])
-            if (navPath.endsWith('.html') && !navPath.includes('..') && !navPath.includes('~')) {
-              const parts = navPath.replace(/\\/g, '/').split('/')
-              const fileName = parts[parts.length - 1]
-              const parentDir = parts.length > 1 ? parts[parts.length - 2] : ''
-              this._log('onIframeLoad', 'detected navigation', { fileName, parentDir, rawPath: navPath, relativePath: this.relativePath })
-              if (navPath !== this.relativePath) {
-                this.$emit('navigate', { fileName, parentDir, rawPath: navPath })
-              }
-            }
-          }
-        }
+        this._handleIframePath(iframePath)
       } catch (e) {
         this._log('onIframeLoad', 'error', { error: String(e) })
       }
+    },
+    _onDesignMessage(event) {
+      if (!event.data || event.data.type !== 'txcode:design-navigate') return
+      const iframePath = event.data.pathname
+      if (!iframePath) return
+      this._log('_onDesignMessage', 'received postMessage', { iframePath })
+      this._handleIframePath(iframePath)
     }
   }
 }

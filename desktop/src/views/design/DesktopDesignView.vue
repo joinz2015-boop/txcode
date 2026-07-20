@@ -13,21 +13,22 @@
       <div class="panel-content" v-show="designTab === 'pages'">
         <DesktopDesignPageTree
           ref="pageTree"
-          @open-file="onOpenFile"
+          @open-file="openFile"
           @current-page="onCurrentPage"
           @switch-to-ai-tab="setDesignTab('ai')"
           @file-changed="onFileChanged"
         />
       </div>
 
-      <div class="panel-content" v-show="designTab === 'ai'">
+      <keep-alive>
         <DesktopDesignAiChat
+          v-if="designTab === 'ai'"
           ref="aiChat"
-          :currentPage="currentPage"
+          :currentPage="relativePath"
           @design-updated="onDesignUpdated"
           @status-change="onAiStatusChange"
         />
-      </div>
+      </keep-alive>
     </div>
 
     <div class="resize-handle" @mousedown="startResize" :class="{ active: resizing }"></div>
@@ -37,60 +38,35 @@
         <div class="right-tab" :class="{ active: rightTab === 'preview' }" @click="rightTab = 'preview'">
           预览
         </div>
-        <div class="right-tab" :class="{ active: rightTab === 'editor' }" @click="switchToEditor">
+        <div class="right-tab" :class="{ active: rightTab === 'editor' }" @click="rightTab = 'editor'">
           编辑
         </div>
       </div>
 
-      <div class="right-content" v-show="rightTab === 'preview'">
-        <div class="preview-toolbar">
-          <span class="preview-toolbar-label">视口：</span>
-          <button class="device-btn" :class="{ active: currentDevice === 'web' }" @click="setDevice('web')">🖥 Web</button>
-          <button class="device-btn" :class="{ active: currentDevice === 'app' }" @click="setDevice('app')">📱 App</button>
-          <button class="device-btn" :class="{ active: currentDevice === 'pad' }" @click="setDevice('pad')">📱 Pad</button>
-          <span class="preview-toolbar-spacer"></span>
-          <button class="icon-btn" title="新窗口打开" @click="openInNewWindow" v-if="activeFilePath">🔗</button>
-          <button class="icon-btn" title="保存为模版" @click="openSaveTemplate" v-if="activeFilePath">💾</button>
-          <button class="icon-btn" title="刷新预览" @click="refreshPreview">↻</button>
-        </div>
-        <div class="preview-body">
-          <div class="preview-empty" v-if="!activeFilePath || !isHtmlFile">
-            <div class="preview-empty-icon">👁</div>
-            <p class="preview-empty-text">双击左侧 HTML 文件预览</p>
-          </div>
-          <div class="device-frame" :class="'device-frame-' + currentDevice" v-else>
-            <div v-if="currentDevice === 'web'" class="device-browser-bar">
-              <span class="browser-dot red"></span>
-              <span class="browser-dot yellow"></span>
-              <span class="browser-dot green"></span>
-            </div>
-            <div class="device-screen">
-              <iframe
-                v-if="renderIframe"
-                class="preview-iframe"
-                :src="previewSrc"
-                ref="previewIframe"
-                sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-popups"
-                @load="onIframeLoad"
-              ></iframe>
-            </div>
-            <div v-if="currentDevice === 'app'" class="device-home-bar"></div>
-          </div>
-        </div>
-        <div class="preview-filebar">
-          <span>{{ filebarPath }}</span>
-        </div>
-      </div>
-
-      <div class="right-content" v-show="rightTab === 'editor'">
+      <div class="right-content">
+        <DesktopDesignPreview
+          v-show="rightTab === 'preview'"
+          ref="preview"
+          :file-content="fileContent"
+          :file-name="activeFileName"
+          :relative-path="relativePath"
+          :nav-source="navSource"
+          @navigate="onPreviewNavigate"
+          @save-template="openSaveTemplate"
+        />
         <DesktopDesignEditor
+          v-show="rightTab === 'editor'"
           ref="editor"
           :fileContent="fileContent"
           :fileName="activeFileName"
           :filePath="activeFilePath"
           @content-saved="onEditorContentSaved"
-          @refresh="refreshFileContent"
+          @refresh="refreshCurrentFile"
         />
+      </div>
+
+      <div class="preview-filebar">
+        <span>{{ activeFilePath || '双击左侧文件打开' }}</span>
       </div>
     </div>
 
@@ -105,10 +81,11 @@
 
 <script>
 import { getItem, setItem } from '@/utils/storage'
-import { getFileContent, getBaseURL } from '@/api/index'
+import { getFileContent, getFileTree } from '@/api/index'
 import DesktopDesignPageTree from '@/components/design/DesktopDesignPageTree.vue'
 import DesktopDesignAiChat from '@/components/design/DesktopDesignAiChat.vue'
 import DesktopDesignEditor from '@/components/design/DesktopDesignEditor.vue'
+import DesktopDesignPreview from '@/components/design/DesktopDesignPreview.vue'
 import DesktopSaveTemplateDialog from '@/components/design/DesktopSaveTemplateDialog.vue'
 import { eventBus } from '@/utils/eventBus'
 
@@ -118,6 +95,7 @@ export default {
     DesktopDesignPageTree,
     DesktopDesignAiChat,
     DesktopDesignEditor,
+    DesktopDesignPreview,
     DesktopSaveTemplateDialog
   },
   data() {
@@ -125,41 +103,36 @@ export default {
       designTab: getItem('design:tab', 'pages'),
       leftPanelWidth: getItem('design:leftPanelWidth', 420),
       rightTab: getItem('design:rightTab', 'preview'),
-      currentDevice: getItem('design:device', 'web'),
-      currentPage: '',
+      relativePath: '',
       activeFilePath: '',
       activeFileName: '',
       fileContent: '',
       resizing: false,
       saveTemplateVisible: false,
       aiStatus: 'idle',
-      relativePathVersion: 0,
-      renderIframe: false,
-      navSource: null
+      navSource: null,
+      designBasePath: '.txcode/design'
     }
   },
   computed: {
     isHtmlFile() {
       return this.activeFileName && this.activeFileName.endsWith('.html')
-    },
-    filebarPath() {
-      if (!this.activeFilePath) return '未打开文件'
-      return this.activeFilePath
-    },
-    previewSrc() {
-      if (!this.currentPage) return ''
-      return `${getBaseURL()}/design_html/${encodeURI(this.currentPage)}?_=${this.relativePathVersion}`
     }
   },
   watch: {
     designTab(val) {
       setItem('design:tab', val)
-      if (val === 'editor' && this.activeFilePath && this.$refs.editor) {
-        this.$nextTick(() => this.$refs.editor.layout())
-      }
     },
     rightTab(val) {
       setItem('design:rightTab', val)
+      if (val === 'editor' && this.activeFilePath && !this.fileContent) {
+        this.loadFileContent()
+      }
+      if (val === 'editor') {
+        this.$nextTick(() => {
+          if (this.$refs.editor) this.$refs.editor.layout()
+        })
+      }
     }
   },
   mounted() {
@@ -167,18 +140,10 @@ export default {
     if (savedFile) {
       this.activeFilePath = savedFile
       this.activeFileName = savedFile.split(/[\\/]/).pop()
-      this.currentPage = this.getRelativePath(savedFile)
-      this.loadPreview()
+      this.relativePath = this.extractRelativePath(savedFile)
     }
     this._unsubFileChanged = eventBus.on('file:changed', (data) => {
-      if (!data.filePath) return
-      const normFile = data.filePath.replace(/\\/g, '/')
-      if (normFile.includes('.txcode/design/')) {
-        this.refreshPreview()
-        if (this.$refs.pageTree) {
-          this.$refs.pageTree.refresh()
-        }
-      }
+      this.onFileChanged(data)
     })
   },
   beforeDestroy() {
@@ -187,123 +152,162 @@ export default {
     }
   },
   methods: {
-    getRelativePath(fullPath) {
-      const normalized = (fullPath || '').replace(/\\/g, '/')
-      const prefix = '.txcode/design/'
-      const idx = normalized.indexOf(prefix)
-      if (idx !== -1) return normalized.slice(idx + prefix.length)
+    _log(scope, msg, extra = {}) {
+      const t = (performance.now() / 1000).toFixed(3)
+      console.log(`[DesktopDesignView][${scope}][${t}]`, msg, extra)
+    },
+    extractRelativePath(fullPath) {
+      const markers = ['/.txcode/design/', '.txcode/design/', '\\.txcode\\design\\', '.txcode\\design\\']
+      for (const marker of markers) {
+        const idx = fullPath.indexOf(marker)
+        if (idx !== -1) {
+          return fullPath.slice(idx + marker.length).replace(/\\/g, '/')
+        }
+      }
       return ''
     },
+
     setDesignTab(tab) {
       this.designTab = tab
     },
 
-    setDevice(device) {
-      this.currentDevice = device
-      setItem('design:device', device)
+    async openFile(node) {
+      this._log('openFile', 'opening file', { nodePath: node.path, isDirectory: node.is_directory })
+      if (node.is_directory) return
+      this.activeFilePath = node.path
+      const extracted = this.extractRelativePath(node.path)
+      this._log('openFile', 'extracted relativePath', { fullPath: node.path, extracted })
+      this.openDesignPage(extracted)
     },
 
-    onOpenFile({ path, name, relativePath }) {
-      this.activeFilePath = path
-      this.activeFileName = name
-      this.currentPage = relativePath
-      setItem('design:currentFile', path)
+    openDesignPage(relativePath) {
+      this._log('openDesignPage', 'opening design page', { relativePath, navSource: 'sidebar' })
+      if (!relativePath || !relativePath.endsWith('.html')) {
+        this._log('openDesignPage', 'invalid path, skip', { relativePath })
+        return
+      }
       this.navSource = 'sidebar'
-      this.loadPreview()
-      this.autoDetectDevice(name)
+      this.relativePath = relativePath
+      this.activeFileName = relativePath.split('/').pop()
+      this.activeFilePath = this.designBasePath + '/' + relativePath
+      this.fileContent = ''
+      this.rightTab = 'preview'
+      setItem('design:currentFile', this.activeFilePath)
+      this._log('openDesignPage', 'page opened', { relativePath, activeFilePath: this.activeFilePath, activeFileName: this.activeFileName })
+      this.$nextTick(() => {
+        this.navSource = null
+      })
     },
 
     onCurrentPage(relativePath) {
-      this.currentPage = relativePath
+      this.relativePath = relativePath
     },
 
-    async loadPreview() {
-      if (!this.activeFilePath || !this.isHtmlFile) return
+    onPreviewNavigate(navInfo) {
+      this._log('onPreviewNavigate', 'received navigate event', { navInfo })
+      this.syncPageFromIframe(navInfo)
+    },
+
+    async syncPageFromIframe(navInfo) {
+      this._log('syncPageFromIframe', 'start', { navInfo, type: typeof navInfo })
+      if (typeof navInfo === 'string') {
+        const parts = navInfo.replace(/\\/g, '/').split('/')
+        navInfo = {
+          fileName: parts[parts.length - 1],
+          parentDir: parts.length > 1 ? parts[parts.length - 2] : '',
+          rawPath: navInfo
+        }
+        this._log('syncPageFromIframe', 'parsed string navInfo', { navInfo })
+      }
+
+      const { fileName, parentDir } = navInfo
+      if (!fileName || !fileName.endsWith('.html')) {
+        this._log('syncPageFromIframe', 'invalid fileName, skip', { fileName })
+        return
+      }
+
+      const resolved = await this.resolveDesignFile(fileName, parentDir)
+      this._log('syncPageFromIframe', 'resolved', { resolved: resolved ? { relativePath: resolved.relativePath, path: resolved.path } : null })
+      if (!resolved) {
+        this._log('syncPageFromIframe', 'resolve failed, skip')
+        return
+      }
+
+      this.navSource = 'iframe'
+      this.relativePath = resolved.relativePath
+      this.activeFileName = resolved.relativePath.split('/').pop()
+      this.activeFilePath = resolved.path
+      setItem('design:currentFile', this.activeFilePath)
+      this._log('syncPageFromIframe', 'updated activeFilePath', { activeFilePath: this.activeFilePath, relativePath: resolved.relativePath })
+      this.$nextTick(() => {
+        this.navSource = null
+      })
+    },
+
+    async resolveDesignFile(fileName, parentDir) {
+      this._log('resolveDesignFile', 'searching', { fileName, parentDir, basePath: this.designBasePath })
+      try {
+        const treeRes = await getFileTree(this.designBasePath)
+        const files = this._flattenTree(treeRes.data || [], this.designBasePath)
+        const htmlFiles = files.filter(f => f.name.endsWith('.html'))
+        const matches = htmlFiles.filter(f => f.name === fileName)
+        this._log('resolveDesignFile', 'search result', { fileName, htmlFilesCount: htmlFiles.length, matchesCount: matches.length })
+
+        if (matches.length === 0) {
+          this._log('resolveDesignFile', 'no matches', { fileName })
+          return null
+        }
+        if (matches.length === 1) {
+          this._log('resolveDesignFile', 'single match resolved', { resolved: matches[0].relativePath })
+          return matches[0]
+        }
+
+        if (parentDir) {
+          const byParent = matches.filter(f => {
+            const parts = f.relativePath.split('/')
+            return parts.length > 1 && parts[parts.length - 2] === parentDir
+          })
+          if (byParent.length === 1) {
+            this._log('resolveDesignFile', 'resolved by parentDir', { resolved: byParent[0].relativePath, parentDir })
+            return byParent[0]
+          }
+          this._log('resolveDesignFile', 'multiple matches with parentDir, using first', { parentDir, matchesCount: matches.length })
+        }
+
+        this._log('resolveDesignFile', 'using first match (fallback)', { resolved: matches[0].relativePath })
+        return matches[0]
+      } catch (e) {
+        this._log('resolveDesignFile', 'error', { error: String(e), stack: e.stack })
+        console.error('resolveDesignFile failed:', e)
+        return null
+      }
+    },
+
+    _flattenTree(nodes, basePath) {
+      const result = []
+      const normalizedBase = (basePath || '').replace(/\\/g, '/')
+      for (const node of nodes) {
+        const normalizedPath = (node.path || '').replace(/\\/g, '/')
+        let relPath = normalizedPath
+        const baseIdx = normalizedPath.indexOf(normalizedBase)
+        if (baseIdx !== -1) {
+          relPath = normalizedPath.slice(baseIdx + normalizedBase.length).replace(/^\//, '')
+        }
+        result.push({ name: node.name, path: node.path, relativePath: relPath })
+        if (node.children && node.children.length > 0) {
+          result.push(...this._flattenTree(node.children, basePath))
+        }
+      }
+      return result
+    },
+
+    async loadFileContent() {
+      if (!this.activeFilePath) return
       try {
         const res = await getFileContent(this.activeFilePath)
         this.fileContent = res.data?.content || ''
-        this.relativePathVersion++
-        this.renderIframe = false
-        this.$nextTick(() => {
-          this.renderIframe = true
-        })
       } catch (e) {
         this.fileContent = ''
-      }
-    },
-
-    refreshPreview() {
-      this.relativePathVersion++
-      this.renderIframe = false
-      this.$nextTick(() => {
-        this.renderIframe = true
-      })
-    },
-
-    autoDetectDevice(fileName) {
-      if (!fileName) return
-      if (fileName.includes('_app.html')) this.setDevice('app')
-      else if (fileName.includes('_web.html')) this.setDevice('web')
-      else if (fileName.includes('_pad.html')) this.setDevice('pad')
-    },
-
-    onIframeLoad() {
-      try {
-        const iframe = this.$refs.previewIframe
-        if (!iframe) return
-        if (this.navSource === 'sidebar') {
-          this.navSource = null
-          return
-        }
-        let iframePath = null
-        try {
-          iframePath = iframe.contentWindow?.location?.pathname
-        } catch (e) {
-          return
-        }
-        if (iframePath && iframePath !== '/') {
-          const match = iframePath.match(/\/design_html\/(.+)$/)
-          if (match) {
-            const navPath = decodeURIComponent(match[1])
-            if (navPath.endsWith('.html') && !navPath.includes('..') && !navPath.includes('~')) {
-              if (navPath !== this.currentPage) {
-                this.navSource = 'iframe'
-                this.currentPage = navPath
-                this.activeFilePath = '.txcode/design/' + navPath
-                this.activeFileName = navPath.split('/').pop()
-                setItem('design:currentFile', this.activeFilePath)
-                if (this.$refs.pageTree) {
-                  this.$refs.pageTree.selectByPath(navPath)
-                }
-                getFileContent(this.activeFilePath).then(res => {
-                  this.fileContent = res.data?.content || ''
-                }).catch(() => {})
-                this.$nextTick(() => {
-                  this.navSource = null
-                })
-              }
-            }
-          }
-        }
-      } catch (e) {
-        // cross-origin restriction, ignore
-      }
-    },
-
-    switchToEditor() {
-      this.rightTab = 'editor'
-      if (!this.fileContent && this.activeFilePath) {
-        this.loadPreview()
-      }
-      this.$nextTick(() => {
-        if (this.$refs.editor) this.$refs.editor.layout()
-      })
-    },
-
-    async refreshFileContent() {
-      await this.loadPreview()
-      if (this.$refs.editor) {
-        this.$refs.editor.updateContent(this.fileContent)
       }
     },
 
@@ -311,16 +315,30 @@ export default {
       this.fileContent = content
     },
 
+    async refreshCurrentFile() {
+      if (!this.activeFilePath) return
+      await this.loadFileContent()
+      if (this.$refs.editor && this.rightTab === 'editor') {
+        this.$refs.editor.updateContent(this.fileContent)
+      }
+    },
+
     onDesignUpdated() {
-      this.loadPreview()
       if (this.$refs.pageTree) {
         this.$refs.pageTree.refresh()
       }
     },
 
-    onFileChanged() {
-      if (this.activeFilePath) {
-        this.loadPreview()
+    onFileChanged(data) {
+      if (!data.filePath || !this.activeFilePath) return
+      const normChanged = data.filePath.replace(/\\/g, '/')
+      const normBase = '.txcode/design/'
+      if (!normChanged.includes(normBase)) return
+      if (this.$refs.preview) {
+        this.$refs.preview.refreshPreview()
+      }
+      if (this.$refs.pageTree) {
+        this.$refs.pageTree.refresh()
       }
     },
 
@@ -334,11 +352,6 @@ export default {
 
     onTemplateSaved() {
       // template saved successfully
-    },
-
-    openInNewWindow() {
-      if (!this.previewSrc) return
-      window.open(this.previewSrc, '_blank')
     },
 
     startResize(e) {
@@ -402,105 +415,6 @@ export default {
 .right-tab.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
 
 .right-content { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
-
-.preview-toolbar {
-  display: flex; align-items: center; gap: 6px; padding: 6px 12px;
-  border-bottom: 1px solid var(--border); background: var(--bg-side); flex-shrink: 0;
-}
-.preview-toolbar-label { font-size: 11px; color: var(--text-muted); }
-.preview-toolbar-spacer { flex: 1; }
-.device-btn {
-  padding: 4px 12px; font-size: 11px; border-radius: 8px; cursor: pointer;
-  border: 1px solid transparent; background: transparent; color: var(--text-muted);
-  transition: all 0.15s;
-}
-.device-btn:hover { border-color: var(--border); color: var(--text-primary); }
-.device-btn.active { background: var(--accent-light); border-color: var(--accent); color: var(--accent); }
-.icon-btn {
-  width: 28px; height: 28px; border-radius: 6px; border: none;
-  background: transparent; color: var(--text-muted); cursor: pointer;
-  font-size: 13px; display: flex; align-items: center; justify-content: center;
-}
-.icon-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
-
-.preview-body {
-  flex: 1; display: flex; align-items: center; justify-content: center;
-  overflow: auto; padding: 16px;
-  background: #fafafa;
-  background-image: radial-gradient(circle, #e5e5ea 1px, transparent 1px);
-  background-size: 20px 20px;
-}
-.preview-empty { text-align: center; color: var(--text-muted); }
-.preview-empty-icon { font-size: 56px; margin-bottom: 12px; opacity: 0.3; }
-.preview-empty-text { font-size: 13px; }
-
-/* Device frames */
-.device-frame { display: flex; flex-direction: column; transition: all 0.2s; }
-.device-frame-web {
-  width: 100%; height: 100%; max-width: 100%;
-  border-radius: 8px;
-  box-shadow: 0 4px 24px rgba(0,0,0,0.10);
-  background: #fff;
-}
-.device-frame-app {
-  width: 390px; height: 100%; max-height: 760px;
-  background: #333;
-  border-radius: 32px;
-  padding: 7px;
-  box-shadow: 0 0 0 2px #bbb, 0 0 0 4px #f5f5f5, 0 0 0 6px #999, 0 12px 30px rgba(0,0,0,0.3);
-  position: relative;
-}
-.device-frame-app::before {
-  content: '';
-  position: absolute;
-  top: 4px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 120px;
-  height: 24px;
-  background: #333;
-  border-radius: 0 0 14px 14px;
-  z-index: 10;
-}
-.device-frame-pad {
-  width: 800px; height: 100%; max-height: 95%;
-  background: #444;
-  border-radius: 14px;
-  padding: 8px;
-  box-shadow: 0 0 0 2px #ddd, 0 0 0 4px #f5f5f5, 0 0 0 6px #bbb, 0 12px 30px rgba(0,0,0,0.25);
-}
-
-.device-browser-bar {
-  display: flex; align-items: center; gap: 6px;
-  padding: 6px 10px; background: #e8e8e8; border-radius: 6px 6px 0 0;
-  flex-shrink: 0;
-}
-.browser-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-.browser-dot.red { background: #ff5f57; }
-.browser-dot.yellow { background: #febc2e; }
-.browser-dot.green { background: #28c840; }
-
-.device-screen {
-  flex: 1; overflow: hidden; background: #fff;
-  border-radius: 0 0 6px 6px;
-}
-.device-frame-app .device-screen {
-  border-radius: 28px;
-  margin-top: 14px;
-}
-.device-frame-pad .device-screen {
-  border-radius: 8px;
-}
-.device-frame-web .device-screen {
-  border-radius: 0 0 6px 6px;
-}
-
-.device-home-bar {
-  width: 80px; height: 4px; background: #666;
-  border-radius: 2px; margin: 4px auto 0;
-}
-
-.preview-iframe { width: 100%; height: 100%; border: none; display: block; }
 
 .preview-filebar {
   height: 26px; background: var(--bg-titlebar); border-top: 1px solid var(--border);

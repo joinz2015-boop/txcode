@@ -27,6 +27,7 @@
 <script>
 export default {
   name: 'DesktopResizableTextarea',
+  inheritAttrs: false,
   props: {
     value: { type: String, default: '' },
     rows: { type: Number, default: 5 },

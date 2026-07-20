@@ -305,7 +305,9 @@ export default {
       renameValue: '',
       renameTarget: null,
       deleteVisible: false,
-      deleteTarget: null
+      deleteTarget: null,
+      _designManuallyEnded: false,
+      _discussManuallyEnded: false
     }
   },
   computed: {
@@ -323,15 +325,19 @@ export default {
       immediate: true
     },
     runningSessionIds(ids) {
-      if (this.designPanel.sessionId && ids.includes(this.designPanel.sessionId)) {
-        this.designPanel.disabled = true
-      } else {
-        this.designPanel.disabled = false
+      if (!this._designManuallyEnded) {
+        if (this.designPanel.sessionId && ids.includes(this.designPanel.sessionId)) {
+          this.designPanel.disabled = true
+        } else {
+          this.designPanel.disabled = false
+        }
       }
-      if (this.discussPanel.sessionId && ids.includes(this.discussPanel.sessionId)) {
-        this.discussPanel.disabled = true
-      } else {
-        this.discussPanel.disabled = false
+      if (!this._discussManuallyEnded) {
+        if (this.discussPanel.sessionId && ids.includes(this.discussPanel.sessionId)) {
+          this.discussPanel.disabled = true
+        } else {
+          this.discussPanel.disabled = false
+        }
       }
     }
   },
@@ -525,6 +531,7 @@ export default {
         }
 
         this.designPanel.disabled = true
+        this._designManuallyEnded = false
         this.designStopping = false
         this.designMediaFiles = []
 
@@ -565,6 +572,7 @@ export default {
       if (imageUrls.length > 0) fullMessage += '\n图片: ' + imageUrls.join(', ')
 
       this.discussPanel.disabled = true
+      this._discussManuallyEnded = false
       this.discussStopping = false
       this.discussMediaFiles = []
 
@@ -594,6 +602,7 @@ export default {
         done: (d) => {
           this[logKey] = this[logKey].filter(item => !(item.type === 'step' && item._executing))
           this[panelKey].disabled = false
+          this['_' + key + 'ManuallyEnded'] = true
           this[stoppingKey] = false
           if (d.response) {
             this.pushLogItem(logKey, { type: 'think', content: d.response })
@@ -606,6 +615,7 @@ export default {
         stopped: () => {
           this[logKey] = this[logKey].filter(item => !(item.type === 'step' && item._executing))
           this[panelKey].disabled = false
+          this['_' + key + 'ManuallyEnded'] = true
           this[stoppingKey] = false
           this.pushLogItem(logKey, { type: 'think', content: '【已停止】' })
           this.$nextTick(() => this.scrollMessages(key))
@@ -613,6 +623,7 @@ export default {
         error: (d) => {
           this[logKey] = this[logKey].filter(item => !(item.type === 'step' && item._executing))
           this[panelKey].disabled = false
+          this['_' + key + 'ManuallyEnded'] = true
           this[stoppingKey] = false
           alert(d.error || '发生错误')
         },

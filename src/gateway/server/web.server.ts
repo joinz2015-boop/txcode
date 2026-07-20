@@ -165,7 +165,14 @@ export class WebService {
       if (!fs.existsSync(fullPath)) {
         return res.status(404).send('Not Found');
       }
-      const content = fs.readFileSync(fullPath, 'utf-8');
+      let content = fs.readFileSync(fullPath, 'utf-8');
+      const navScript = '<script>(function(){function n(){try{window.parent.postMessage({type:"txcode:design-navigate",pathname:window.location.pathname},"*")}catch(e){}}n();window.addEventListener("hashchange",n)})();</script>';
+      const bodyCloseIdx = content.lastIndexOf('</body>');
+      if (bodyCloseIdx !== -1) {
+        content = content.slice(0, bodyCloseIdx) + navScript + content.slice(bodyCloseIdx);
+      } else {
+        content += navScript;
+      }
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
       res.send(content);
     });

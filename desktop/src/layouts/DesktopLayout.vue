@@ -10,9 +10,10 @@
     <div class="main-body">
       <DesktopNavRail />
       <div class="content-area">
-        <keep-alive>
+        <keep-alive v-if="initialized">
           <router-view />
         </keep-alive>
+        <div v-else class="init-loading">加载中...</div>
       </div>
     </div>
     <DesktopStatusBar
@@ -85,6 +86,7 @@ export default {
       deleteConfirmVisible: false,
       deleteTarget: null,
       deleteLoading: false,
+      initialized: false,
     }
   },
   watch: {},
@@ -148,54 +150,59 @@ export default {
         console.error('加载项目失败:', e)
       }
     },
-  },
-  async mounted() {
-    try {
-      const port = await getPort()
-      setLocalBaseURL(port)
-
-      let wsHost = null
+    async initBase() {
       try {
-        const res = await listHosts()
-        const hosts = res.data || []
-        const activeHost = hosts.find(h => h.isActive === true)
-        if (activeHost && !activeHost.isLocal) {
-          setBaseURLByHost(activeHost)
-          wsHost = activeHost.ip
-        } else {
+        const port = await getPort()
+        setLocalBaseURL(port)
+
+        let wsHost = null
+        try {
+          const res = await listHosts()
+          const hosts = res.data || []
+          const activeHost = hosts.find(h => h.isActive === true)
+          if (activeHost && !activeHost.isLocal) {
+            setBaseURLByHost(activeHost)
+            wsHost = activeHost.ip
+          } else {
+            setBaseURL(port)
+          }
+        } catch (e) {
           setBaseURL(port)
         }
+
+        ws.init(port, wsHost)
       } catch (e) {
-        setBaseURL(port)
+        console.error('Init error:', e)
+      }
+      try {
+        const nv = await getNodeVersion()
+        this.nodeVersion = nv
+      } catch (e) {}
+
+      try {
+        const r = await getConfig('defaultModel')
+        if (r.data && r.data.value) {
+          this.currentModel = r.data.value
+          setItem('model:current', r.data.value)
+        }
+      } catch (e) {}
+
+      try {
+        await this.loadProjects()
+        setItem('project:list', this.projects)
+      } catch (e) {
+        console.error('Init projects error:', e)
       }
 
-      ws.init(port, wsHost)
-    } catch (e) {
-      console.error('Init error:', e)
-    }
-    try {
-      const nv = await getNodeVersion()
-      this.nodeVersion = nv
-    } catch (e) {}
+      this.unsubRunning = ws.on('running_sessions', (msg) => {
+        this.runningSessionIds = (msg.data && msg.data.runningSessionIds) || (msg.runningSessionIds) || []
+      })
 
-    try {
-      const r = await getConfig('defaultModel')
-      if (r.data && r.data.value) {
-        this.currentModel = r.data.value
-        setItem('model:current', r.data.value)
-      }
-    } catch (e) {}
-
-    try {
-      await this.loadProjects()
-      setItem('project:list', this.projects)
-    } catch (e) {
-      console.error('Init projects error:', e)
-    }
-
-    this.unsubRunning = ws.on('running_sessions', (msg) => {
-      this.runningSessionIds = (msg.data && msg.data.runningSessionIds) || (msg.runningSessionIds) || []
-    })
+      this.initialized = true
+    },
+  },
+  async mounted() {
+    await this.initBase()
   },
   beforeDestroy() {
     if (this.unsubRunning) { this.unsubRunning(); this.unsubRunning = null }
@@ -225,6 +232,15 @@ export default {
   overflow: hidden;
   background: var(--bg-chat);
   position: relative;
+}
+.init-loading {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  color: var(--text-muted);
+  user-select: none;
 }
 
 .overlay {

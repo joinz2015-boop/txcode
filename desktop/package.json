@@ -1,6 +1,6 @@
 {
   "name": "txcode-desktop",
-  "version": "1.0.0",
+  "version": "1.0.56",
   "private": true,
   "type": "module",
   "main": "main.js",

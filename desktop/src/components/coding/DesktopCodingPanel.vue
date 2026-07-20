@@ -161,7 +161,8 @@ export default {
       showSkillDialog: false,
       showDesignDialog: false,
       showCommandDialog: false,
-      mediaFiles: []
+      mediaFiles: [],
+      _manuallyEnded: false
     }
   },
   computed: {
@@ -198,6 +199,7 @@ export default {
       immediate: true
     },
     runningSessionIds(ids) {
+      if (this._manuallyEnded) return
       if (this.panel.sessionId && ids.includes(this.panel.sessionId)) {
         this.panel.disabled = true
       } else {
@@ -318,6 +320,7 @@ export default {
         done: (d) => {
           this.panel.logItems = this.panel.logItems.filter(item => !(item.type === 'step' && item._executing))
           this.panel.disabled = false
+          this._manuallyEnded = true
           this.stopping = false
           if (d.modelName) this.panel.modelName = d.modelName
           if (d.usage && d.usage.promptTokens) this.panel.promptTokens = d.usage.promptTokens
@@ -329,6 +332,7 @@ export default {
         stopped: () => {
           this.panel.logItems = this.panel.logItems.filter(item => !(item.type === 'step' && item._executing))
           this.panel.disabled = false
+          this._manuallyEnded = true
           this.stopping = false
           this.pushLogItem({ type: 'think', content: '【已停止】' })
           this.$nextTick(() => this.scrollToBottom())
@@ -336,6 +340,7 @@ export default {
         error: (d) => {
           this.panel.logItems = this.panel.logItems.filter(item => !(item.type === 'step' && item._executing))
           this.panel.disabled = false
+          this._manuallyEnded = true
           this.stopping = false
           alert(d.error || '发生错误')
         },
@@ -350,7 +355,7 @@ export default {
           const runningIds = d.runningSessionIds || []
           if (this.panel.sessionId && runningIds.includes(this.panel.sessionId)) {
             this.panel.disabled = true
-          } else {
+          } else if (!this.stopping) {
             this.panel.disabled = false
           }
         }
@@ -419,6 +424,7 @@ export default {
       }
       this.inputText = ''
       this.panel.disabled = true
+      this._manuallyEnded = false
       this.stopping = false
       this.pushLogItem({ type: 'chat', content: text })
       this.$nextTick(() => this.scrollToBottom())

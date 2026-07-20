@@ -11,6 +11,7 @@ files:
   - main.js
   - preload.cjs
   - node_modules/**/*
+  - assets/**/*
 
 extraResources:
   - from: ../dist
@@ -37,6 +38,7 @@ nsis:
   createDesktopShortcut: true
   createStartMenuShortcut: true
   shortcutName: txcode
+  artifactName: txcode_${version}_win.${ext}
 
 mac:
   target:

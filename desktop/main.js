@@ -10,7 +10,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 let mainWindow = null
 let backendProcess = null
 let tray = null
-let backendPort = 40000
+let backendPort = 41000
 
 function findAvailablePort(startPort) {
   return new Promise((resolve) => {
@@ -201,7 +201,7 @@ if (!gotTheLock) {
 }
 
 app.whenReady().then(async () => {
-  backendPort = await findAvailablePort(40000)
+  backendPort = await findAvailablePort(41000)
   startBackend(backendPort)
 
   createWindow()

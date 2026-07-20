@@ -17,10 +17,8 @@
         <p class="chat-empty-hint">Enter 发送，Ctrl+Enter 换行</p>
       </div>
       <div v-for="(item, idx) in logItems" :key="idx">
-        <div v-if="item.type === 'chat'" class="chat-msg user">
-          <div class="chat-msg-avatar user">U</div>
-          <div class="chat-msg-content">
-            <div class="chat-msg-header">我 · 刚刚</div>
+        <div v-if="item.type === 'chat'" class="chat-user-row">
+          <div class="user-question">
             <div v-if="item.mediaFiles && item.mediaFiles.length > 0" class="chat-images">
               <img
                 v-for="mf in item.mediaFiles"
@@ -30,16 +28,10 @@
                 @click.stop="openImagePreview(mf)"
               />
             </div>
-            <div class="chat-msg-text">{{ item.content }}</div>
+            <div>{{ item.content }}</div>
           </div>
         </div>
-        <div v-else-if="item.type === 'think'" class="chat-msg">
-          <div class="chat-msg-avatar ai">AI</div>
-          <div class="chat-msg-content">
-            <div class="chat-msg-header">AI · 回复</div>
-            <div class="chat-msg-text" v-html="renderMarkdown(item.content)"></div>
-          </div>
-        </div>
+        <div v-else-if="item.type === 'think'" class="ai-thought mb-2" v-html="renderMarkdown(item.content)"></div>
         <div v-else-if="item.type === 'system'" class="chat-system-msg" v-html="renderMarkdown(item.content)"></div>
         <div v-else-if="item.type === 'step'">
           <div v-if="item.thought" class="ai-thought" v-html="renderMarkdown(item.thought)"></div>
@@ -62,6 +54,9 @@
       </div>
       <div v-if="thinking" class="thinking-indicator">
         <span class="chat-spinner"></span> 思考中...
+      </div>
+      <div class="build-info" v-if="modelName">
+        <span class="icon">▣</span> Build · {{ modelName }}
       </div>
     </div>
 
@@ -239,8 +234,11 @@ export default {
     }
   },
   watch: {
-    currentPage(val) {
-      this.state.currentPage = val || ''
+    currentPage: {
+      immediate: true,
+      handler(val) {
+        this.state.currentPage = val || ''
+      }
     },
     'state.activeSessionId'(newId) {
       if (newId && newId !== this._lastHandledSessionId) {
@@ -248,6 +246,19 @@ export default {
       } else if (!newId) {
         this.deactivateSession()
       }
+    }
+  },
+  activated() {
+    this.state.currentPage = this.currentPage || ''
+    if (this.state.activeSessionId && this.sessionId) {
+      this.subscribeSession()
+      this.loadMessages().catch(() => {})
+    }
+  },
+  deactivated() {
+    if (this.wsUnsubscribe) {
+      this.wsUnsubscribe()
+      this.wsUnsubscribe = null
     }
   },
   async mounted() {
@@ -688,84 +699,23 @@ export default {
 .chat-empty { text-align: center; color: var(--text-muted); padding: 30px 10px; font-size: 13px; }
 .chat-empty-hint { font-size: 11px; margin-top: 4px; }
 
-.chat-msg {
+.chat-user-row {
   display: flex;
-  gap: 10px;
-  margin-bottom: 20px;
-  max-width: 82%;
-  animation: fadeInUp 0.25s ease-out;
+  justify-content: flex-end;
+  margin-bottom: 12px;
 }
-.chat-msg.user {
-  margin-left: auto;
-  flex-direction: row-reverse;
-}
-.chat-msg-avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  font-weight: 700;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
-}
-.chat-msg-avatar.user {
-  background: linear-gradient(135deg, #4f6ef7, #6366f1);
-  color: #fff;
-}
-.chat-msg-avatar.ai {
-  background: linear-gradient(135deg, #8b5cf6, #ec4899);
-  color: #fff;
-}
-.chat-msg-content {
-  flex: 1;
-  min-width: 0;
-}
-.chat-msg-header {
-  font-size: 11px;
-  color: var(--text-muted);
-  margin-bottom: 3px;
-}
-.chat-msg.user .chat-msg-header {
-  text-align: right;
-}
-.chat-msg-text {
+
+.user-question {
+  color: var(--accent);
+  font-weight: bold;
+  border: 1px solid var(--accent);
+  padding: 10px 15px;
+  border-radius: 10px;
+  display: inline-block;
+  max-width: 80%;
+  text-align: left;
   font-size: 13.5px;
-  color: var(--text-primary);
-  line-height: 1.65;
-  background: #f8f9fb;
-  padding: 10px 14px;
-  border-radius: 2px 10px 10px 10px;
-  border: 1px solid var(--border);
-  word-break: break-word;
 }
-.chat-msg.user .chat-msg-text {
-  background: #eef1ff;
-  border-radius: 10px 2px 10px 10px;
-  border-color: #d8dcf8;
-}
-.chat-msg-text :deep(p) { margin: 4px 0; }
-.chat-msg-text :deep(pre) {
-  background: #f1f2f6;
-  border-radius: 4px;
-  padding: 8px 12px;
-  overflow-x: auto;
-  font-size: 12px;
-  margin: 6px 0;
-}
-.chat-msg-text :deep(code) {
-  background: #f1f2f6;
-  padding: 1px 4px;
-  border-radius: 3px;
-  font-size: 12px;
-}
-.chat-msg-text :deep(table) { border-collapse: collapse; width: 100%; margin: 6px 0; font-size: 12px; }
-.chat-msg-text :deep(th), .chat-msg-text :deep(td) { border: 1px solid var(--border); padding: 4px 8px; text-align: left; }
-.chat-msg-text :deep(th) { background: var(--bg-input); font-weight: 600; }
-.chat-msg-text :deep(ul), .chat-msg-text :deep(ol) { padding-left: 18px; margin: 4px 0; }
-.chat-msg-text :deep(blockquote) { border-left: 3px solid var(--accent); padding-left: 10px; color: var(--text-muted); margin: 4px 0; }
 
 .chat-images { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
 .chat-image-thumb { width: 80px; height: 80px; object-fit: cover; border-radius: 6px; border: 1px solid var(--border); cursor: zoom-in; transition: border-color 0.2s; }
@@ -783,7 +733,8 @@ export default {
 
 .log-mute {
   color: var(--text-muted);
-  padding: 2px 0 2px 42px;
+  margin-bottom: 10px;
+  white-space: pre;
   font-size: 12px;
 }
 .tool-spinner {
@@ -801,11 +752,15 @@ export default {
 .tool-fail { color: #ef4444; font-weight: 600; }
 .tool-input { color: var(--accent); margin-left: 6px; font-size: 11.5px; }
 
-.thinking-indicator { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--accent); padding: 4px 0 4px 42px; }
+.thinking-indicator { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--accent); padding: 4px 0; }
 
-@keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+.build-info {
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-size: 12px;
 }
 
 .chat-foot { border-top: 1px solid var(--border); flex-shrink: 0; }
