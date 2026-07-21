@@ -1,15 +1,30 @@
 <template>
   <div class="chat-panel">
     <div class="chat-messages" ref="msgContainer">
-      <div v-if="messages.length === 0 && !thinking" class="assistant-empty">
+      <div v-if="logItems.length === 0 && !thinking && !streaming" class="assistant-empty">
         向 AI 发送消息，自动分析并执行远程命令
       </div>
-      <div v-for="(msg, idx) in messages" :key="idx" class="msg-item" :class="msg.role">
-        <div v-if="msg.role === 'user'" class="amsg-text user-text">{{ msg.content }}</div>
-        <div v-else-if="msg.role === 'assistant'" class="amsg-text ai-text" v-html="renderMarkdown(msg.content)"></div>
-        <div v-else-if="msg.role === 'tool'" class="log-mute">
-          <span class="tool-label">{{ msg.toolName || '工具执行' }}</span>
-          <pre class="tool-args">{{ msg.content }}</pre>
+      <div v-for="(item, idx) in logItems" :key="idx">
+        <div v-if="item.type === 'chat' && item.role === 'user'" class="msg-item user">
+          <div class="amsg-text user-text">{{ item.content }}</div>
+        </div>
+        <div v-else-if="item.type === 'step'">
+          <div v-if="item.thought" class="ai-thought" v-html="renderMarkdown(item.thought)"></div>
+          <div v-for="(tc, tcIdx) in (item.toolCalls || [])" :key="tcIdx" class="log-mute">
+            <template v-if="tc.status === 'executing'">
+              <span class="tool-spinner"></span>
+              {{ getToolCallName(tc) }}
+              <span v-if="getToolCallArguments(tc)" class="tool-input">{{ formatInput(getToolCallName(tc), getToolCallArguments(tc)) }}</span>
+            </template>
+            <template v-else>
+              <span :class="item.success !== false ? 'tool-success' : 'tool-fail'">{{ item.success !== false ? '✓' : '✗' }}</span>
+              {{ getToolCallName(tc) }}
+              <span v-if="getToolCallArguments(tc)" class="tool-input">{{ formatInput(getToolCallName(tc), getToolCallArguments(tc)) }}</span>
+            </template>
+          </div>
+        </div>
+        <div v-else-if="item.type === 'think'" class="msg-item assistant">
+          <div class="amsg-text ai-text" v-html="renderMarkdown(item.content)"></div>
         </div>
       </div>
       <div v-if="streaming" class="msg-item assistant">
@@ -33,7 +48,8 @@
         <div class="assistant-input-actions-row">
           <div class="input-actions-left"></div>
           <div class="input-actions-right">
-            <button class="btn-send" :disabled="disabled || !input.trim()" @click="handleSend">发送</button>
+            <button v-if="disabled" class="btn-stop" @click="handleStop">停止</button>
+            <button v-else class="btn-send" :disabled="!input.trim()" @click="handleSend">发送</button>
           </div>
         </div>
       </div>
@@ -42,6 +58,10 @@
       <span :style="{ color: disabled ? '#f59e0b' : '#22c55e' }">
         <span v-if="disabled" class="thinking-spinner"></span>
         {{ disabled ? '处理中' : '✓ 就绪' }}
+      </span>
+      <span v-if="currentUsage.totalTokens > 0" class="sep">|</span>
+      <span v-if="currentUsage.totalTokens > 0" class="token-stats">
+        Prompt: {{ currentUsage.promptTokens }} | Completion: {{ currentUsage.completionTokens }} | Total: {{ currentUsage.totalTokens }}
       </span>
       <span class="sep">|</span>
       <span class="status-action" @click="$emit('open-model-select')" @mousedown.prevent>模型: {{ modelName }} ▾</span>
@@ -53,6 +73,7 @@
 
 <script>
 import DesktopResizableTextarea from '@/components/chat/DesktopResizableTextarea.vue'
+import { marked } from 'marked'
 
 export default {
   name: 'AiChatPanel',
@@ -65,52 +86,88 @@ export default {
   },
   data() {
     return {
-      messages: [],
+      logItems: [],
       input: '',
       streamContent: '',
       streaming: false,
       thinking: false,
+      currentUsage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
     }
   },
   methods: {
     renderMarkdown(text) {
       if (!text) return ''
-      return text
-        .replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>')
-        .replace(/`([^`]+)`/g, '<code>$1</code>')
-        .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-        .replace(/\n/g, '<br>')
-        .replace(/^- (.+)$/gm, '&bull; $1')
+      try {
+        return marked.parse(text)
+      } catch {
+        return this.escapeHtml(text)
+      }
+    },
+
+    escapeHtml(str) {
+      return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    },
+
+    getToolCallName(tc) {
+      return tc ? (tc.function ? tc.function.name : tc.name) : 'unknown_tool'
+    },
+
+    getToolCallArguments(tc) {
+      return tc && tc.function ? tc.function.arguments : (tc.arguments || '')
+    },
+
+    formatInput(action, input) {
+      if (!input) return ''
+      try {
+        const parsed = JSON.parse(input)
+        if (action === 'web_search') {
+          return '"' + (parsed.query || '') + '"'
+        }
+        if (action === 'web_shell_exec') {
+          return parsed.command || ''
+        }
+        if (action === 'bash') {
+          return parsed.command + (parsed.workdir ? ' (' + parsed.workdir + ')' : '')
+        }
+        return input
+      } catch {
+        return input
+      }
     },
 
     handleSend() {
       const msg = this.input.trim()
       if (!msg || this.disabled) return
-      this.messages.push({ role: 'user', content: msg })
+      this.logItems.push({ type: 'chat', role: 'user', content: msg })
       this.input = ''
       this.thinking = true
       this.$emit('send', msg)
       this.$nextTick(() => this.scrollBottom())
     },
 
-    addAssistant(content) {
-      this.messages.push({ role: 'assistant', content })
-      this.$nextTick(() => this.scrollBottom())
+    handleStop() {
+      this.$emit('stop')
     },
 
-    addTool(content) {
-      const toolInfo = this.parseToolInfo(content)
-      this.messages.push({ role: 'tool', content: toolInfo.args, toolName: toolInfo.name })
-      this.$nextTick(() => this.scrollBottom())
-    },
-
-    parseToolInfo(content) {
-      try {
-        const parsed = JSON.parse(content)
-        return { name: parsed.name || '工具执行', args: content }
-      } catch {
-        return { name: '工具执行', args: content }
+    addStep(data) {
+      const hasExecuting = data.toolCalls && data.toolCalls.some(tc => tc.status === 'executing')
+      if (hasExecuting) {
+        this.logItems = this.logItems.filter(
+          item => !(item.type === 'step' && item.iteration === data.iteration && item._executing)
+        )
+        this.logItems.push({ type: 'step', thought: data.reasoning || data.thought, toolCalls: data.toolCalls, success: data.success, iteration: data.iteration, _executing: true })
+      } else {
+        this.logItems = this.logItems.filter(
+          item => !(item.type === 'step' && item.iteration === data.iteration && item._executing)
+        )
+        this.logItems.push({ type: 'step', thought: data.reasoning || data.thought, toolCalls: data.toolCalls, success: data.success, iteration: data.iteration })
       }
+      this.$nextTick(() => this.scrollBottom())
+    },
+
+    addAssistant(content) {
+      this.logItems.push({ type: 'think', content })
+      this.$nextTick(() => this.scrollBottom())
     },
 
     setStreaming(content) {
@@ -124,7 +181,7 @@ export default {
       this.streaming = false
       this.thinking = false
       if (content) {
-        this.messages.push({ role: 'assistant', content })
+        this.logItems.push({ type: 'think', content })
       }
       this.streamContent = ''
       this.$nextTick(() => this.scrollBottom())
@@ -135,10 +192,20 @@ export default {
     },
 
     clearMessages() {
-      this.messages = []
+      this.logItems = []
       this.streamContent = ''
       this.streaming = false
       this.thinking = false
+    },
+
+    updateUsage(usage) {
+      if (usage) {
+        this.currentUsage = {
+          promptTokens: usage.promptTokens || 0,
+          completionTokens: usage.completionTokens || 0,
+          totalTokens: usage.totalTokens || 0,
+        }
+      }
     },
 
     scrollBottom() {
@@ -201,17 +268,29 @@ export default {
 .ai-text :deep(pre) { background: #f1f2f6; border-radius: 4px; padding: 6px 10px; font-size: 11px; overflow-x: auto; margin: 4px 0; }
 .ai-text :deep(code) { background: #f1f2f6; padding: 1px 4px; border-radius: 3px; font-size: 11px; }
 
-.log-mute { color: var(--text-muted); padding: 3px 0; font-size: 12px; }
-.tool-label { font-size: 11px; color: var(--accent); font-weight: 600; }
-.tool-args {
-  margin: 4px 0 0;
-  padding: 6px;
-  background: #f8fafc;
-  border-radius: 4px;
-  overflow-x: auto;
-  font-size: 11px;
-  white-space: pre-wrap;
-  font-family: monospace;
+.ai-thought {
+  color: var(--text-primary);
+  margin-bottom: 10px;
+  line-height: 1.6;
+  font-size: 12.5px;
+}
+.ai-thought :deep(p) { margin: 4px 0; }
+
+.log-mute { color: var(--text-muted); padding: 2px 0; font-size: 12px; }
+.tool-success { color: #22c55e; font-weight: 600; }
+.tool-fail { color: #ef4444; font-weight: 600; }
+.tool-input { color: var(--accent); margin-left: 6px; font-size: 11.5px; }
+
+.tool-spinner {
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  vertical-align: middle;
+  margin-right: 3px;
 }
 
 .assistant-input-area {
@@ -267,6 +346,18 @@ export default {
 .btn-send:hover { background: #6366f1; }
 .btn-send:disabled { opacity: 0.5; cursor: not-allowed; }
 
+.btn-stop {
+  padding: 4px 14px;
+  font-size: 12px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-family: inherit;
+  background: #ef4444;
+  color: #fff;
+}
+.btn-stop:hover { background: #dc2626; }
+
 .assistant-status-bar {
   display: flex;
   align-items: center;
@@ -278,6 +369,13 @@ export default {
   background: var(--bg-titlebar);
 }
 .sep { color: var(--border); }
+.token-stats {
+  font-size: 10px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .status-action {
   cursor: pointer;
   font-size: 12px;

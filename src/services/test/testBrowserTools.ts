@@ -7,17 +7,13 @@ export interface BrowserToolResult {
   error?: string;
 }
 
-function getPage(webContentsId: number): Page {
-  const page = playwrightManager.getPage(webContentsId);
-  if (!page) {
-    throw new Error(`webContentsId=${webContentsId} 未注册，请先加载 webview 页面`);
-  }
-  return page;
+async function getPage(webContentsId: number): Promise<Page> {
+  return playwrightManager.attachPage(webContentsId);
 }
 
 export async function navigate(webContentsId: number, url: string): Promise<BrowserToolResult> {
   try {
-    const page = getPage(webContentsId);
+    const page = await getPage(webContentsId);
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
     return { success: true, data: { url: page.url(), title: await page.title() } };
   } catch (e: any) {
@@ -27,7 +23,7 @@ export async function navigate(webContentsId: number, url: string): Promise<Brow
 
 export async function click(webContentsId: number, selector: string): Promise<BrowserToolResult> {
   try {
-    const page = getPage(webContentsId);
+    const page = await getPage(webContentsId);
     await page.waitForSelector(selector, { timeout: 10000 });
     await page.click(selector);
     return { success: true, data: { selector } };
@@ -38,7 +34,7 @@ export async function click(webContentsId: number, selector: string): Promise<Br
 
 export async function typeText(webContentsId: number, selector: string, text: string): Promise<BrowserToolResult> {
   try {
-    const page = getPage(webContentsId);
+    const page = await getPage(webContentsId);
     await page.waitForSelector(selector, { timeout: 10000 });
     await page.fill(selector, text);
     return { success: true, data: { selector, text } };
@@ -49,7 +45,7 @@ export async function typeText(webContentsId: number, selector: string, text: st
 
 export async function screenshot(webContentsId: number): Promise<BrowserToolResult> {
   try {
-    const page = getPage(webContentsId);
+    const page = await getPage(webContentsId);
     const buffer = await page.screenshot({ type: 'png', fullPage: false });
     const base64 = buffer.toString('base64');
     return { success: true, data: { screenshot: base64 } };
@@ -60,7 +56,7 @@ export async function screenshot(webContentsId: number): Promise<BrowserToolResu
 
 export async function hover(webContentsId: number, selector: string): Promise<BrowserToolResult> {
   try {
-    const page = getPage(webContentsId);
+    const page = await getPage(webContentsId);
     await page.waitForSelector(selector, { timeout: 10000 });
     await page.hover(selector);
     return { success: true, data: { selector } };
@@ -71,7 +67,7 @@ export async function hover(webContentsId: number, selector: string): Promise<Br
 
 export async function selectOption(webContentsId: number, selector: string, value: string): Promise<BrowserToolResult> {
   try {
-    const page = getPage(webContentsId);
+    const page = await getPage(webContentsId);
     await page.waitForSelector(selector, { timeout: 10000 });
     await page.selectOption(selector, value);
     return { success: true, data: { selector, value } };
@@ -82,7 +78,7 @@ export async function selectOption(webContentsId: number, selector: string, valu
 
 export async function waitFor(webContentsId: number, target: string): Promise<BrowserToolResult> {
   try {
-    const page = getPage(webContentsId);
+    const page = await getPage(webContentsId);
     const ms = parseInt(target, 10);
     if (!isNaN(ms) && ms > 0) {
       await page.waitForTimeout(ms);
@@ -97,7 +93,7 @@ export async function waitFor(webContentsId: number, target: string): Promise<Br
 
 export async function getContent(webContentsId: number): Promise<BrowserToolResult> {
   try {
-    const page = getPage(webContentsId);
+    const page = await getPage(webContentsId);
     const html = await page.content();
 
     let summary = html;
@@ -112,7 +108,7 @@ export async function getContent(webContentsId: number): Promise<BrowserToolResu
 
 export async function assertElement(webContentsId: number, selector: string): Promise<BrowserToolResult> {
   try {
-    const page = getPage(webContentsId);
+    const page = await getPage(webContentsId);
     const count = await page.locator(selector).count();
     if (count > 0) {
       return { success: true, data: { selector, count } };
@@ -125,7 +121,7 @@ export async function assertElement(webContentsId: number, selector: string): Pr
 
 export async function assertText(webContentsId: number, text: string): Promise<BrowserToolResult> {
   try {
-    const page = getPage(webContentsId);
+    const page = await getPage(webContentsId);
     const visible = await page.getByText(text).first().isVisible();
     if (visible) {
       return { success: true, data: { text } };
@@ -138,7 +134,7 @@ export async function assertText(webContentsId: number, text: string): Promise<B
 
 export async function getPageUrl(webContentsId: number): Promise<BrowserToolResult> {
   try {
-    const page = getPage(webContentsId);
+    const page = await getPage(webContentsId);
     return { success: true, data: { url: page.url(), title: await page.title() } };
   } catch (e: any) {
     return { success: false, error: e.message };

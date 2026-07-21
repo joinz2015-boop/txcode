@@ -2,7 +2,6 @@ import { ChatMessage, BaseProvider, MultimodalContent } from '../../ai.types.js'
 import { createIterationSignal } from '../../helpers/abort.helper.js';
 import { SHELL_TOOLS } from './agent_tool.js';
 import { AgentToolRegistry, buildToolContext } from '../agent.tool.js';
-import { getOpenAITools } from '../../../tools/provider/tools.js';
 import {
   AIProvider,
   ProviderRunOptions,
@@ -92,9 +91,9 @@ export class ShellAgent implements AIProvider {
       }
 
       if (response.usage) {
-        totalUsage.promptTokens += response.usage.promptTokens;
-        totalUsage.completionTokens += response.usage.completionTokens;
-        totalUsage.totalTokens += response.usage.totalTokens;
+        totalUsage.promptTokens = response.usage.promptTokens;
+        totalUsage.completionTokens = response.usage.completionTokens;
+        totalUsage.totalTokens = response.usage.totalTokens;
       }
 
       if (response.finishReason === 'stop' && response.content) {
@@ -190,40 +189,8 @@ export class ShellAgent implements AIProvider {
   }
 
   private async buildPrompt(_builtinTools: any[] = []): Promise<string> {
-    const platform = process.platform;
-    const workdir = this.projectPath || process.cwd();
-
-    const platformName = platform === 'win32' ? 'Windows'
-      : platform === 'darwin' ? 'macOS'
-      : platform === 'linux' ? 'Linux'
-      : platform;
-
-    const roleTemplate = await this.loadRoleTemplate();
-
-    const promptTemplate = `${roleTemplate}
-
-  ## 可用工具
-
-  {builtinTools}
-
-  ## 重要规则
-
-  - 先使用 web_search 查询运维知识，再执行命令
-  - 如果工具执行失败，思考原因并尝试其他方法
-  - 最大迭代次数: {maxIterations}
-
-  ## 运行环境
-  - 操作系统: {platform}
-  - 工作目录: {workdir}
-  `;
-
-    const openaiTools = await getOpenAITools();
-    const builtinToolsDesc = openaiTools.map(t => `- **${t.function.name}**: ${t.function.description}`).join('\n');
-
+    const promptTemplate = await this.loadRoleTemplate();
     return promptTemplate
-      .replace('{platform}', platformName)
-      .replace('{workdir}', workdir)
-      .replace('{builtinTools}', builtinToolsDesc || '（无）')
       .replace('{maxIterations}', String(this.maxIterations));
   }
 

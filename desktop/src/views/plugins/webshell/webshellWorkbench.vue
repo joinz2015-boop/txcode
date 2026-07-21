@@ -1,21 +1,20 @@
 <template>
   <div class="workbench">
-    <div class="workbench-header">
-      <button class="btn-back" @click="$router.push('/views/plugins/webshellManage')">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
-      </button>
-      <span class="header-title">WebShell - {{ hostName }}</span>
-      <span v-if="connected" class="status connected">已连接</span>
-      <span v-else class="status disconnected">未连接</span>
-      <span v-if="processing" class="status processing">AI处理中</span>
-      <button v-if="connected" class="btn-disconnect" @click="handleDisconnect">断开</button>
-    </div>
     <div class="workbench-body">
       <div class="terminal-panel" ref="termPanel">
-        <ShellTerminal ref="term" :onData="handleTermData" />
+        <div class="terminal-header">
+          <button class="btn-back" @click="$router.push('/views/plugins/webshellManage')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+          </button>
+          <span class="header-title">WebShell - {{ hostName }}</span>
+          <span v-if="processing" class="status processing">AI处理中</span>
+        </div>
+        <div class="terminal-wrap">
+          <ShellTerminal ref="term" :onData="handleTermData" />
+        </div>
       </div>
       <div class="resize-handle" @mousedown="startResize"></div>
-      <div class="chat-panel-wrap" :style="{ width: chatWidth + 'px', flexShrink: 0 }">
+      <div class="chat-panel-wrap" :style="{ width: chatWidth + 'px', flex: 'none' }">
         <AiChatPanel
           ref="chatPanel"
           :disabled="processing"
@@ -23,6 +22,7 @@
           :sessionId="sessionId"
           :modelName="modelName"
           @send="handleChatSend"
+          @stop="handleStop"
           @open-model-select="$emit('open-model-select')"
         />
       </div>
@@ -47,7 +47,8 @@ export default {
       connected: false,
       processing: false,
       shellWs: null,
-      chatWidth: 400,
+      chatWidth: 480,
+      _lastOutputEndsWithNewline: true,
     }
   },
   computed: {
@@ -91,22 +92,32 @@ export default {
           break
 
         case 'terminal:output':
+          const text = data || ''
+          this.$refs.term?.write(text)
+          this._lastOutputEndsWithNewline = text.endsWith('\n') || text.endsWith('\r\n')
+          break
+
+        case 'ai:input':
+          this.$refs.term?.write('\x1b[33m' + (message || '') + '\x1b[0m')
+          this._lastOutputEndsWithNewline = true
+          break
+
+        case 'ai:output':
           this.$refs.term?.write(data || '')
           break
 
-        case 'shell:display':
-          this.$refs.term?.writeln('\r\n\x1b[33m' + (message || '') + '\x1b[0m')
+        case 'ai:exec-done':
+          this.$nextTick(() => {
+            if (this.shellWs && this.connected) {
+              this.shellWs.send(JSON.stringify({ type: 'terminal:input', data: '\r' }))
+            }
+          })
           break
 
         case 'step':
           this.processing = true
-          if (msg.data?.toolCalls) {
-            for (const tc of msg.data.toolCalls) {
-              const fnName = tc.function?.name || tc.name
-              const args = tc.function?.arguments || tc.arguments
-              this.$refs.chatPanel?.addTool('工具: ' + fnName + ' ' + JSON.stringify(args))
-            }
-          }
+          this.$refs.chatPanel?.addStep(msg.data)
+          this.$refs.chatPanel?.updateUsage(msg.data?.usage)
           break
 
         case 'chat:response':
@@ -120,6 +131,7 @@ export default {
           if (msg.data?.response) {
             this.$refs.chatPanel?.finishStreaming(msg.data.response)
           }
+          this.$refs.chatPanel?.updateUsage(msg.data?.usage)
           break
 
         case 'stopped':
@@ -146,12 +158,30 @@ export default {
       }
     },
 
+    handleStop() {
+      if (this.shellWs) {
+        this.shellWs.send(JSON.stringify({ type: 'stop' }))
+      }
+    },
+
     handleDisconnect() {
       if (this.shellWs) {
         this.shellWs.send(JSON.stringify({ type: 'terminal:disconnect' }))
         this.shellWs.close()
       }
       this.connected = false
+    },
+
+    async reconnect() {
+      try {
+        const ws = await this.connectWebSocket()
+        ws.send(JSON.stringify({
+          type: 'terminal:connect',
+          data: { hostId: this.hostId }
+        }))
+      } catch (e) {
+        console.error('WebSocket重连失败:', e)
+      }
     },
 
     startResize(e) {
@@ -196,6 +226,15 @@ export default {
       this.shellWs = null
     }
   },
+  activated() {
+    this.$refs.term?.reset()
+    if (!this.connected && this.hostId) {
+      this.reconnect()
+    }
+  },
+  deactivated() {
+    this._lastOutputEndsWithNewline = true
+  },
   computed: {
     termWidth() {
       return (this.termRatio * 100) + '%'
@@ -210,68 +249,56 @@ export default {
 <style scoped>
 .workbench {
   height: 100%;
-  display: flex;
-  flex-direction: column;
   overflow: hidden;
 }
-.workbench-header {
+.workbench-body {
+  height: 100%;
+  display: flex;
+  overflow: hidden;
+}
+.terminal-panel {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: #1e1e1e;
+}
+.terminal-header {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 14px;
-  border-bottom: 1px solid var(--border);
+  padding: 6px 14px;
   flex-shrink: 0;
-  background: #fff;
+  background: #252526;
+  border-bottom: 1px solid #3c3c3c;
 }
 .btn-back {
-  width: 28px;
-  height: 28px;
-  border: 1px solid var(--border);
-  background: #fff;
-  border-radius: 5px;
+  width: 26px;
+  height: 26px;
+  border: 1px solid #555;
+  background: transparent;
+  border-radius: 4px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--text-secondary);
+  color: #ccc;
 }
-.btn-back:hover { background: var(--bg-hover); }
+.btn-back:hover { background: #3c3c3c; }
 .header-title {
   font-size: 13px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: #ccc;
 }
 .status {
   font-size: 11px;
   padding: 2px 8px;
   border-radius: 10px;
 }
-.status.connected { background: #ecfdf5; color: #065f46; }
-.status.disconnected { background: #fef2f2; color: #991b1b; }
-.status.processing { background: #eff6ff; color: #1e40af; }
-.btn-disconnect {
-  margin-left: auto;
-  padding: 4px 10px;
-  background: #fff;
-  color: #ef4444;
-  border: 1px solid #fecaca;
-  border-radius: 4px;
-  font-size: 11px;
-  cursor: pointer;
-  font-family: inherit;
-}
-.btn-disconnect:hover { background: #fef2f2; }
-.workbench-body {
+.status.processing { background: #1e3a5f; color: #60a5fa; }
+.terminal-wrap {
   flex: 1;
-  display: flex;
-  overflow: hidden;
-}
-.terminal-panel {
-  flex: 1;
-  height: 100%;
-  min-width: 0;
-  padding: 14px 0 14px 14px;
-  box-sizing: border-box;
+  min-height: 0;
 }
 .resize-handle {
   width: 5px;
@@ -279,12 +306,11 @@ export default {
   flex-shrink: 0;
   transition: background 0.15s;
   border-radius: 2px;
+  background: #3c3c3c;
 }
 .resize-handle:hover { background: var(--accent); opacity: 0.5; }
 .chat-panel-wrap {
-  flex: 1;
   height: 100%;
   overflow: hidden;
-  padding: 14px 14px 14px 0;
 }
 </style>

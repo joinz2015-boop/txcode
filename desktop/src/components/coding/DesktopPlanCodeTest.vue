@@ -87,7 +87,8 @@ export default {
   props: {
     currentModel: { type: String, default: '' },
     planSession: { type: Object, default: null },
-    planFilePath: { type: String, default: '' }
+    planFilePath: { type: String, default: '' },
+    projectPath: { type: String, default: '' }
   },
   emits: ['close'],
   data() {
@@ -159,7 +160,8 @@ export default {
         message: content,
         sessionId: this.sessionId,
         modelName: this.currentModel || undefined,
-        agent: 'code'
+        agent: 'code',
+        projectPath: this.projectPath
       })
     },
     stopChat() {

@@ -70,6 +70,18 @@ export default {
       }
     },
 
+    clear() {
+      if (this.term) {
+        this.term.clear()
+      }
+    },
+
+    reset() {
+      if (this.term) {
+        this.term.reset()
+      }
+    },
+
     destroy() {
       if (this._resizeObserver) {
         this._resizeObserver.disconnect()

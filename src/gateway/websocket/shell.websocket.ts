@@ -3,6 +3,7 @@ import { Client, ClientChannel } from 'ssh2';
 import { shellChatService } from '../../services/shellChat/shellChat.service.js';
 import { pluginWebshellHostService } from '../../services/pluginWebshellHost/pluginWebshellHostService.js';
 import { getProvider } from '../../core/ai/provider/provider.router.js';
+import type { ProviderTokenUsage } from '../../core/ai/provider/base.js';
 
 export class ShellWebSocketHandler {
   private abortControllers: Map<string, AbortController> = new Map();
@@ -181,12 +182,12 @@ export class ShellWebSocketHandler {
         sessionId,
         message,
         provider,
-        (step: any) => {
+        (step: any, _iteration: number, usage?: ProviderTokenUsage) => {
           if (ws.readyState === WebSocket.OPEN) {
             ws.send(JSON.stringify({
               type: 'step',
               sessionId,
-              data: step,
+              data: { ...step, usage },
             }));
           }
         },
@@ -211,6 +212,7 @@ export class ShellWebSocketHandler {
             response: result.answer,
             iterations: result.iterations,
             success: result.success,
+            usage: result.usage,
           },
         }));
       }

@@ -84,6 +84,7 @@
       :currentModel="currentModel"
       :planSession="currentPlanSession"
       :planFilePath="planFilePath"
+      :projectPath="desktopState.currentProject?.path || ''"
       @close="testDialogVisible = false"
     />
 
@@ -449,6 +450,7 @@ export default {
         testUrl: meta.testUrl || '',
         modelName: this.currentModel,
         sessionId: meta.testSessionId || '',
+        projectPath: this.desktopState.currentProject?.path || '',
       })
     })
 

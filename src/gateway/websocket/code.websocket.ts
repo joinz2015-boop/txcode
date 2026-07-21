@@ -117,7 +117,7 @@ export class CodeWebSocketHandler {
     let chatMessage = message;
     if (!session) {
       const title = message.length > 10 ? message.slice(0, 10) + '...' : message;
-      session = sessionService.createWithId(sessionId, title);
+      session = sessionService.createWithId(sessionId, title, projectPath);
     }
 
     const existingController = this.abortControllers.get(sessionId);
@@ -167,7 +167,7 @@ export class CodeWebSocketHandler {
         const result = await codeChatService.handleChat({
           message: chatMessage,
           sessionId: session.id,
-          projectPath: session.projectPath ?? projectService.getCurrentProjectPath(),
+          projectPath: projectPath || session.projectPath || projectService.getCurrentProjectPath(),
           enableDevLog,
           abortSignal: abortController.signal,
           mediaFiles: processedMediaFiles,

@@ -15,6 +15,7 @@
       :webContentsId="webContentsId"
       :modelName="modelName"
       :backendPort="backendPort"
+      :projectPath="projectPath"
       :width="chatWidth"
       @session-created="onSessionCreated"
     />
@@ -33,6 +34,7 @@ export default {
     return {
       planFolderName: '',
       planFilePath: '',
+      projectPath: '',
       testUrl: '',
       modelName: '',
       testSessionId: '',
@@ -47,7 +49,8 @@ export default {
     const params = new URLSearchParams(queryIdx >= 0 ? hash.substring(queryIdx + 1) : '')
     this.planFolderName = params.get('planFolderName') || ''
     this.planFilePath = params.get('planFilePath') || ''
-    this.testUrl = params.get('testUrl') || ''
+    this.projectPath = params.get('projectPath') || ''
+    this.testUrl = params.get('testUrl') || getItem('test:testUrl', '')
     this.modelName = params.get('modelName') || ''
     this.testSessionId = params.get('sessionId') || ''
     this.backendPort = params.get('backendPort') || '41000'
@@ -75,9 +78,6 @@ export default {
     onUrlChanged(url) {
       this.testUrl = url
     },
-    onSessionCreated(sessionId) {
-      this.testSessionId = sessionId
-    },
     onResizeStart(e) {
       const startX = e.clientX
       const startW = this.chatWidth
@@ -98,6 +98,7 @@ export default {
     },
     saveTestUrl() {
       if (!this.testUrl) return
+      setItem('test:testUrl', this.testUrl)
       window.electronAPI?.saveTestUrl(this.testUrl)
     },
   },

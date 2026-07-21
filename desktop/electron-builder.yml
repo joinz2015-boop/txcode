@@ -39,6 +39,7 @@ nsis:
   createStartMenuShortcut: true
   shortcutName: txcode
   artifactName: txcode_${version}_win.${ext}
+  include: installer.nsh
 
 mac:
   target:

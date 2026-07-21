@@ -3,6 +3,7 @@ import { WebSocket } from 'ws';
 import { memoryService } from '../memory/index.js';
 import { ShellAgent } from '../../core/ai/agents/shell/shell.agent.js';
 import type { BaseProvider } from '../../core/ai/ai.types.js';
+import type { ProviderTokenUsage } from '../../core/ai/provider/base.js';
 
 interface ShellSession {
   sshClient: Client;
@@ -55,9 +56,9 @@ export class ShellChatService {
 
     const { sshClient, ws } = session;
 
-    const displayMsg = `\r\n$ AI执行: ${command}\r\n`;
+    const displayMsg = `${command}\r\n`;
     if (ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ type: 'shell:display', message: displayMsg }));
+      ws.send(JSON.stringify({ type: 'ai:input', message: displayMsg }));
     }
 
     return new Promise((resolve) => {
@@ -84,24 +85,24 @@ export class ShellChatService {
         }, timeoutMs);
 
         stream.on('data', (data: Buffer) => {
-          const text = data.toString();
+          const text = data.toString().replace(/\n/g, '\r\n');
           output += text;
           byteCount += data.length;
           lineCount += (text.match(/\n/g) || []).length;
 
           if (ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: 'terminal:output', data: text }));
+            ws.send(JSON.stringify({ type: 'ai:output', data: text }));
           }
         });
 
         stream.stderr.on('data', (data: Buffer) => {
-          const text = data.toString();
+          const text = data.toString().replace(/\n/g, '\r\n');
           output += text;
           byteCount += data.length;
           lineCount += (text.match(/\n/g) || []).length;
 
           if (ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: 'terminal:output', data: text }));
+            ws.send(JSON.stringify({ type: 'ai:output', data: text }));
           }
         });
 
@@ -109,6 +110,10 @@ export class ShellChatService {
           clearTimeout(timer);
           if (resolved) return;
           resolved = true;
+
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'ai:exec-done', data: {} }));
+          }
 
           if (byteCount > maxBytes || lineCount > maxLines) {
             const lines = output.split('\n');
@@ -126,9 +131,9 @@ export class ShellChatService {
     sessionId: string,
     userMessage: string,
     provider: BaseProvider,
-    onStep: (step: any) => void,
+    onStep: (step: any, iteration: number, usage?: ProviderTokenUsage) => void,
     abortSignal?: AbortSignal
-  ): Promise<{ answer: string; steps: any[]; success: boolean; iterations: number; error?: string }> {
+  ): Promise<{ answer: string; steps: any[]; success: boolean; iterations: number; usage?: ProviderTokenUsage; error?: string }> {
     const agent = new ShellAgent({
       provider,
       maxIterations: 50,
@@ -148,6 +153,7 @@ export class ShellChatService {
         steps: result.steps,
         success: result.success,
         iterations: result.iterations,
+        usage: result.usage,
         error: result.error,
       };
     } catch (err: any) {

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage } from 'electron'
+import { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage, dialog } from 'electron'
 import { spawn, exec } from 'child_process'
 import { createServer } from 'net'
 import { join, dirname } from 'path'
@@ -87,10 +87,24 @@ function createWindow() {
     mainWindow.loadURL('http://localhost:5173')
   }
 
-  mainWindow.on('close', (e) => {
+  mainWindow.on('close', async (e) => {
     if (!app.isQuitting) {
       e.preventDefault()
-      mainWindow.hide()
+      const { response } = await dialog.showMessageBox(mainWindow, {
+        type: 'question',
+        buttons: ['最小化到托盘', '退出应用'],
+        defaultId: 0,
+        cancelId: 0,
+        title: 'txcode',
+        message: '请选择操作',
+        detail: '是否要退出 txcode 或将其最小化到系统托盘？',
+      })
+      if (response === 0) {
+        mainWindow.hide()
+      } else {
+        app.isQuitting = true
+        app.quit()
+      }
     }
   })
 
@@ -232,6 +246,7 @@ function createTestWindow(context) {
     testUrl: context.testUrl || '',
     modelName: context.modelName || '',
     sessionId: context.sessionId || '',
+    projectPath: context.projectPath || '',
   }).toString()
 
   const distIndex = join(__dirname, 'dist', 'index.html')
@@ -308,7 +323,7 @@ app.on('before-quit', () => {
       try {
         process.kill(pid, 0)
         if (process.platform === 'win32') {
-          exec(`taskkill /F /PID ${pid}`)
+          exec(`taskkill /F /T /PID ${pid}`)
         } else {
           process.kill(pid, 'SIGKILL')
         }

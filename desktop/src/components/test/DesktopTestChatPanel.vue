@@ -83,6 +83,7 @@ export default {
     webContentsId: { type: Number, default: null },
     modelName: { type: String, default: '' },
     backendPort: { type: String, default: '41000' },
+    projectPath: { type: String, default: '' },
     width: { type: Number, default: 420 },
   },
   emits: ['session-created'],
@@ -206,6 +207,7 @@ export default {
             agent: 'test',
             planFilePath: this.planFilePath,
             webContentsId: this.webContentsId,
+            projectPath: this.projectPath,
           },
         }
         this.ws.send(JSON.stringify(payload))
@@ -220,6 +222,7 @@ export default {
                 agent: 'test',
                 planFilePath: this.planFilePath,
                 webContentsId: this.webContentsId,
+                projectPath: this.projectPath,
               },
             }
             this.ws.send(JSON.stringify(payload))
