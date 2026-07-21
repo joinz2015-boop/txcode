@@ -1,5 +1,5 @@
 <template>
-  <div v-if="historyItems.length > 0" class="input-history">
+  <div v-if="historyItems.length > 1" class="input-history">
     <div class="history-list">
       <div
         v-for="item in historyItems"
@@ -11,9 +11,6 @@
         {{ item.content }}
       </div>
     </div>
-  </div>
-  <div v-else class="input-history input-history-empty">
-    <span class="history-empty-text">暂无历史记录</span>
   </div>
 </template>
 

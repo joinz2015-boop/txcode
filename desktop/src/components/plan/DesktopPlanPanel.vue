@@ -33,7 +33,7 @@
 <script>
 import DesktopPlanEditor from './DesktopPlanEditor.vue'
 import DesktopAssistantPanel from './DesktopAssistantPanel.vue'
-import { createPlanSession } from '@/api/index'
+import { createPlanSession, getBaseURL } from '@/api/index'
 
 export default {
   name: 'DesktopPlanPanel',
@@ -99,13 +99,24 @@ export default {
         alert('请先选择方案')
         return
       }
-      const url = `/api/file/download_file?path=${encodeURIComponent(this.planFilePath)}`
-      const a = document.createElement('a')
-      a.href = url
-      a.download = this.planFilePath.split('/').pop() || '方案.md'
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
+      const fileName = this.planFilePath.split('/').pop() || '方案.md'
+      const url = `${getBaseURL()}/api/file/download_file?path=${encodeURIComponent(this.planFilePath)}`
+      fetch(url)
+        .then(res => {
+          if (!res.ok) throw new Error('下载失败')
+          return res.blob()
+        })
+        .then(blob => {
+          const downloadUrl = URL.createObjectURL(blob)
+          const a = document.createElement('a')
+          a.href = downloadUrl
+          a.download = fileName
+          document.body.appendChild(a)
+          a.click()
+          document.body.removeChild(a)
+          URL.revokeObjectURL(downloadUrl)
+        })
+        .catch(e => alert('导出失败: ' + e.message))
     },
     async createSubPlan() {
       try {

@@ -103,7 +103,7 @@ import DesktopModelSelectDialog from '@/components/plan-code/DesktopModelSelectD
 import DesktopCreateSubPlanDialog from '@/components/plan-code/DesktopCreateSubPlanDialog.vue'
 import DesktopGitChangesDialog from '@/components/plan-code/DesktopGitChangesDialog.vue'
 import DesktopPlanCodeTest from '@/components/coding/DesktopPlanCodeTest.vue'
-import { listPlanSessions, createPlanSession, renamePlanSession, deletePlanSession, readPlan, getModels, listCustomActions, getConfig } from '@/api/index'
+import { listPlanSessions, createPlanSession, renamePlanSession, deletePlanSession, readPlan, getModels, listCustomActions, getConfig, getBaseURL } from '@/api/index'
 import { getItem, setItem } from '@/utils/storage'
 import { ws } from '@/utils/websocket'
 import { eventBus } from '@/utils/eventBus'
@@ -220,13 +220,24 @@ export default {
     },
     exportPlan() {
       if (!this.planFilePath) return
-      const url = `/api/file/download_file?path=${encodeURIComponent(this.planFilePath)}`
-      const a = document.createElement('a')
-      a.href = url
-      a.download = this.planFilePath.split('/').pop() || '方案.md'
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
+      const fileName = this.planFilePath.split('/').pop() || '方案.md'
+      const url = `${getBaseURL()}/api/file/download_file?path=${encodeURIComponent(this.planFilePath)}`
+      fetch(url)
+        .then(res => {
+          if (!res.ok) throw new Error('下载失败')
+          return res.blob()
+        })
+        .then(blob => {
+          const downloadUrl = URL.createObjectURL(blob)
+          const a = document.createElement('a')
+          a.href = downloadUrl
+          a.download = fileName
+          document.body.appendChild(a)
+          a.click()
+          document.body.removeChild(a)
+          URL.revokeObjectURL(downloadUrl)
+        })
+        .catch(e => alert('导出失败: ' + e.message))
     },
     async createSubPlan() {
       this.subPlanDialogVisible = true
