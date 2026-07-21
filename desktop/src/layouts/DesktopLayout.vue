@@ -155,6 +155,7 @@ export default {
         const port = await getPort()
         setLocalBaseURL(port)
 
+        let wsPort = port
         let wsHost = null
         try {
           const res = await listHosts()
@@ -163,6 +164,7 @@ export default {
           if (activeHost && !activeHost.isLocal) {
             setBaseURLByHost(activeHost)
             wsHost = activeHost.ip
+            wsPort = activeHost.port
           } else {
             setBaseURL(port)
           }
@@ -170,7 +172,7 @@ export default {
           setBaseURL(port)
         }
 
-        ws.init(port, wsHost)
+        ws.init(wsPort, wsHost)
       } catch (e) {
         console.error('Init error:', e)
       }

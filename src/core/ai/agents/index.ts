@@ -23,3 +23,5 @@ export { SUMMARIZER_TOOLS } from './summarizer/agent_tool.js';
 export { DESIGN_TOOLS } from './design/agent_tool.js';
 export { PLAN_TOOLS } from './plan/agent_tool.js';
 export { DISCUSS_TOOLS } from './discuss/agent_tool.js';
+export { ShellAgent } from './shell/shell.agent.js';
+export { SHELL_TOOLS } from './shell/agent_tool.js';

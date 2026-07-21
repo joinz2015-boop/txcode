@@ -21,6 +21,11 @@
           <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
         </svg>
       </router-link>
+      <router-link to="/views/plugins/pluginsView" class="nav-item" title="插件">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2l3 6 6 1-4 4 1 6-6-3-6 3 1-6-4-4 6-1 3-6z"/><rect x="9" y="9" width="6" height="6" rx="1"/>
+        </svg>
+      </router-link>
     </div>
     <div class="nav-bottom">
       <router-link to="/views/settings/settingsView" class="nav-item" title="设置">

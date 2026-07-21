@@ -34,6 +34,7 @@ import { initZihaoTables } from './init_sql/zihao.init.js';
 import { initMessageFileTables } from './init_sql/message_file.init.js';
 import { initSystemTables } from './init_sql/system.init.js';
 import { initHostTables } from './init_sql/host.init.js';
+import { initPluginWebshellHostTables } from './init_sql/plugin_webshell_host.init.js';
 
 export class DbService {
   private db: SqlJsDatabase | null = null;
@@ -246,6 +247,7 @@ export class DbService {
       () => this.migration018AddMessageFile(),
       () => this.migration019AddSystem(),
       () => this.migration020AddHosts(),
+      () => this.migration021AddPluginHosts(),
     ];
 
     for (let i = 0; i < migrations.length; i++) {
@@ -444,6 +446,11 @@ export class DbService {
   private migration020AddHosts(): void {
     if (!this.db) return
     initHostTables(this.db)
+  }
+
+  private migration021AddPluginHosts(): void {
+    if (!this.db) return
+    initPluginWebshellHostTables(this.db)
   }
 
   private getTableColumns(tableName: string): string[] {

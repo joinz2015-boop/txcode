@@ -19,6 +19,7 @@ import { codeSearchTool } from './code_search.js'
 import { memoryTool } from './memory.js'
 import { skillTool } from '../../../services/skill/skill.tool.js'
 import { emailTool } from './email.tool.js'
+import { webShellExecTool } from './web_shell_exec.js'
 
 export async function getProviderTools(): Promise<Tool[]> {
   return [
@@ -37,5 +38,6 @@ export async function getProviderTools(): Promise<Tool[]> {
     memoryTool,
     skillTool,
     emailTool,
+    webShellExecTool,
   ]
 }

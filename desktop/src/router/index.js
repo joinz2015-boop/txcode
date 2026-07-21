@@ -15,6 +15,9 @@ const routes = [
       { path: 'specs/specsView', name: 'specs', component: () => import('../views/specs/DesktopSpecsView.vue') },
       { path: 'skills/skillsView', name: 'skills', component: () => import('../views/skills/DesktopSkillsView.vue') },
       { path: 'settings/settingsView', name: 'settings', component: () => import('../views/settings/DesktopSettingsView.vue') },
+      { path: 'plugins/pluginsView', name: 'plugins', component: () => import('../views/plugins/DesktopPluginsView.vue') },
+      { path: 'plugins/webshellManage', name: 'webshellManage', component: () => import('../views/plugins/webshell/webshellManage.vue') },
+      { path: 'plugins/webshellWorkbench', name: 'webshellWorkbench', component: () => import('../views/plugins/webshell/webshellWorkbench.vue') },
     ]
   }
 ]
