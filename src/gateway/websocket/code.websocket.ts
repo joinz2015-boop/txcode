@@ -106,7 +106,7 @@ export class CodeWebSocketHandler {
   }
 
   private async handleChat(data: any): Promise<void> {
-    const { message, sessionId, projectPath, enableDevLog, mediaFiles, agent, planFilePath } = data;
+    const { message, sessionId, projectPath, enableDevLog, mediaFiles, agent, planFilePath, webContentsId } = data;
 
     if (!sessionId) {
       this.broadcast({ type: 'error', error: 'sessionId is required' });
@@ -173,6 +173,7 @@ export class CodeWebSocketHandler {
           mediaFiles: processedMediaFiles,
           agentName: agent || 'code',
           planFilePath,
+          webContentsId,
           onStep: (step: any, iteration: number, usage?: any) => {
             this.broadcast({ type: 'step', data: { ...step, iteration, sessionId: currentSession.id, usage: usage ? {
               promptTokens: usage.promptTokens,

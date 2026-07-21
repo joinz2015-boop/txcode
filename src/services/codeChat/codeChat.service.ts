@@ -6,7 +6,7 @@ import { ChatInput, ChatOptions, ChatResult, Step } from './codeChat.types.js';
 import type { Session } from '../../entity/session.entity.js';
 import { ConfigService } from '../../services/config/config.service.js';
 import { getProvider } from '../../core/ai/provider/provider.router.js';
-import { CodeAgent, DesignAgent, PlanAgent, DiscussionAgent } from '../../core/ai/agents/index.js';
+import { CodeAgent, DesignAgent, PlanAgent, DiscussionAgent, TestAgent } from '../../core/ai/agents/index.js';
 import { SummarizerAgent } from '../../core/ai/agents/summarizer/summarizer.agent.js';
 import { ChatMessage } from '../../core/ai/ai.types.js';
 
@@ -31,6 +31,7 @@ export class CodeChatService {
       mediaFiles: input.mediaFiles,
       agentName: input.agentName,
       planFilePath: input.planFilePath,
+      webContentsId: input.webContentsId,
       onStep: input.onStep,
       onCompact: input.onCompact,
     });
@@ -107,7 +108,7 @@ export class CodeChatService {
       });
     }
 
-    let agent: CodeAgent | DesignAgent | PlanAgent | DiscussionAgent;
+    let agent: CodeAgent | DesignAgent | PlanAgent | DiscussionAgent | TestAgent;
     if (options.agentName === 'design') {
       agent = new DesignAgent({
         provider,
@@ -138,6 +139,15 @@ export class CodeChatService {
         memoryService,
         summarizer,
         sessionService: this.sessionService,
+      });
+    } else if (options.agentName === 'test') {
+      agent = new TestAgent({
+        provider,
+        maxIterations: 50,
+        projectPath: options.projectPath,
+        sessionId,
+        memoryService,
+        webContentsId: options.webContentsId,
       });
     } else {
       agent = new CodeAgent({
@@ -184,6 +194,10 @@ export class CodeChatService {
             toolCalls,
             success: step.results?.[0]?.success ?? true,
           };
+          const firstResult = step.results?.[0];
+          if (firstResult?.metadata?.screenshot) {
+            (reactFormatStep as any).screenshot = firstResult.metadata.screenshot;
+          }
           reactSteps.push({ iteration, ...reactFormatStep });
           options.onStep?.(reactFormatStep, iteration, usage);
         },

@@ -20,6 +20,17 @@ import { memoryTool } from './memory.js'
 import { skillTool } from '../../../services/skill/skill.tool.js'
 import { emailTool } from './email.tool.js'
 import { webShellExecTool } from './web_shell_exec.js'
+import { testNavigateTool } from './test_navigate.js'
+import { testClickTool } from './test_click.js'
+import { testTypeTool } from './test_type.js'
+import { testScreenshotTool } from './test_screenshot.js'
+import { testHoverTool } from './test_hover.js'
+import { testSelectTool } from './test_select.js'
+import { testWaitTool } from './test_wait.js'
+import { testGetContentTool } from './test_get_content.js'
+import { testAssertElementTool } from './test_assert_element.js'
+import { testAssertTextTool } from './test_assert_text.js'
+import { testGetUrlTool } from './test_get_url.js'
 
 export async function getProviderTools(): Promise<Tool[]> {
   return [
@@ -39,5 +50,16 @@ export async function getProviderTools(): Promise<Tool[]> {
     skillTool,
     emailTool,
     webShellExecTool,
+    testNavigateTool,
+    testClickTool,
+    testTypeTool,
+    testScreenshotTool,
+    testHoverTool,
+    testSelectTool,
+    testWaitTool,
+    testGetContentTool,
+    testAssertElementTool,
+    testAssertTextTool,
+    testGetUrlTool,
   ]
 }

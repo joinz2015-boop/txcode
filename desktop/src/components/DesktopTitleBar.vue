@@ -9,6 +9,8 @@
       <div class="mode-float">
         <button class="mode-tab" :class="{ active: currentMode === 'code' }" @click="switchMode('code')">编码模式</button>
         <button class="mode-tab" :class="{ active: currentMode === 'plan' }" @click="switchMode('plan')">方案模式</button>
+        <span class="mode-sep"></span>
+        <button class="mode-tab" @click="openTestWindow">测试</button>
       </div>
     </div>
     <div class="titlebar-right">
@@ -42,7 +44,7 @@
 
 <script>
 import DesktopProjectSwitcher from '@/components/DesktopProjectSwitcher.vue'
-import { minimizeWindow, maximizeWindow, closeWindow } from '@/utils/ipc'
+import { minimizeWindow, maximizeWindow, closeWindow, openTestWindow } from '@/utils/ipc'
 import { eventBus } from '@/utils/eventBus'
 import logoPng from '../../assets/logo.png'
 
@@ -78,6 +80,7 @@ export default {
     minimizeWindow,
     maximizeWindow,
     closeWindow,
+    openTestWindow,
     switchMode(mode) {
       this.currentMode = mode
       eventBus.emit('coding:switchMode', mode)
@@ -151,4 +154,11 @@ export default {
 }
 .mode-tab:hover { color: var(--text-primary); background: var(--bg-hover); }
 .mode-tab.active { background: var(--accent); color: #fff; box-shadow: 0 2px 6px rgba(79, 110, 247, 0.3); }
+.mode-sep {
+  width: 1px;
+  height: 18px;
+  background: var(--border);
+  margin: 0 4px;
+  border-radius: 1px;
+}
 </style>

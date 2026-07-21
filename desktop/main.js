@@ -8,6 +8,7 @@ import { existsSync } from 'fs'
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
 let mainWindow = null
+let testWindow = null
 let backendProcess = null
 let tray = null
 let backendPort = 41000
@@ -200,6 +201,78 @@ if (!gotTheLock) {
   })
 }
 
+function createTestWindow(context) {
+  const preloadPath = join(__dirname, 'preload.cjs')
+  const isDev = !app.isPackaged
+
+  if (testWindow && !testWindow.isDestroyed()) {
+    testWindow.focus()
+    return
+  }
+
+  testWindow = new BrowserWindow({
+    width: 1400,
+    height: 900,
+    minWidth: 1000,
+    minHeight: 600,
+    frame: true,
+    title: '测试 - ' + (context.planFolderName || ''),
+    webPreferences: {
+      preload: preloadPath,
+      contextIsolation: true,
+      nodeIntegration: false,
+      webviewTag: true,
+    },
+  })
+
+  const query = new URLSearchParams({
+    backendPort: String(context.backendPort),
+    planFolderName: context.planFolderName || '',
+    planFilePath: context.planFilePath || '',
+    testUrl: context.testUrl || '',
+    modelName: context.modelName || '',
+    sessionId: context.sessionId || '',
+  }).toString()
+
+  const distIndex = join(__dirname, 'dist', 'index.html')
+
+  if (isDev) {
+    testWindow.loadURL(`http://localhost:5173/#/test?${query}`)
+  } else {
+    testWindow.loadFile(distIndex, { hash: `/test?${query}` })
+  }
+
+  testWindow.on('closed', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('test-window-closed')
+    }
+    testWindow = null
+  })
+}
+
+// IPC: 测试窗口相关
+ipcMain.on('open-test-window', () => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('request-test-context')
+  }
+})
+
+ipcMain.on('test-context-ready', (event, context) => {
+  createTestWindow({ ...context, backendPort })
+})
+
+ipcMain.on('close-test-window', () => {
+  if (testWindow && !testWindow.isDestroyed()) testWindow.close()
+})
+
+ipcMain.on('test-window-save-url', (event, testUrl) => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('save-test-url', testUrl)
+  }
+})
+
+app.commandLine.appendSwitch('remote-debugging-port', '9222')
+
 app.whenReady().then(async () => {
   backendPort = await findAvailablePort(41000)
   startBackend(backendPort)
@@ -224,6 +297,10 @@ app.on('window-all-closed', () => {
 
 app.on('before-quit', () => {
   app.isQuitting = true
+  if (testWindow && !testWindow.isDestroyed()) {
+    testWindow.close()
+  }
+  testWindow = null
   if (backendProcess && backendProcess.pid) {
     const pid = backendProcess.pid
     backendProcess.kill('SIGTERM')

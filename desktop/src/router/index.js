@@ -5,6 +5,7 @@ Vue.use(VueRouter)
 
 const routes = [
   { path: '/', redirect: '/views/code/coding' },
+  { path: '/test', name: 'test', component: () => import('../views/test/testWindow.vue') },
   {
     path: '/views',
     component: () => import('../layouts/DesktopLayout.vue'),

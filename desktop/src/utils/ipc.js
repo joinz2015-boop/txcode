@@ -38,3 +38,40 @@ export function onBackendReady(callback) {
     electronAPI.onBackendReady(callback)
   }
 }
+
+export function openTestWindow() {
+  electronAPI.openTestWindow && electronAPI.openTestWindow()
+}
+
+export function onRequestTestContext(callback) {
+  if (electronAPI.onRequestTestContext) {
+    return electronAPI.onRequestTestContext(callback)
+  }
+  return () => {}
+}
+
+export function sendTestContext(context) {
+  electronAPI.sendTestContext && electronAPI.sendTestContext(context)
+}
+
+export function onSaveTestUrl(callback) {
+  if (electronAPI.onSaveTestUrl) {
+    return electronAPI.onSaveTestUrl(callback)
+  }
+  return () => {}
+}
+
+export function onTestWindowClosed(callback) {
+  if (electronAPI.onTestWindowClosed) {
+    return electronAPI.onTestWindowClosed(callback)
+  }
+  return () => {}
+}
+
+export function closeTestWindow() {
+  electronAPI.closeTestWindow && electronAPI.closeTestWindow()
+}
+
+export function saveTestUrl(url) {
+  electronAPI.saveTestUrl && electronAPI.saveTestUrl(url)
+}

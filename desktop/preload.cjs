@@ -9,5 +9,21 @@ contextBridge.exposeInMainWorld('electronAPI', {
   closeWindow: () => ipcRenderer.send('close-window'),
   onBackendReady: (callback) => {
     ipcRenderer.on('backend-ready', (event, port) => callback(port))
-  }
+  },
+  openTestWindow: () => ipcRenderer.send('open-test-window'),
+  onRequestTestContext: (callback) => {
+    ipcRenderer.on('request-test-context', () => callback())
+    return () => ipcRenderer.removeAllListeners('request-test-context')
+  },
+  sendTestContext: (context) => ipcRenderer.send('test-context-ready', context),
+  onSaveTestUrl: (callback) => {
+    ipcRenderer.on('save-test-url', (_, url) => callback(url))
+    return () => ipcRenderer.removeAllListeners('save-test-url')
+  },
+  onTestWindowClosed: (callback) => {
+    ipcRenderer.on('test-window-closed', () => callback())
+    return () => ipcRenderer.removeAllListeners('test-window-closed')
+  },
+  closeTestWindow: () => ipcRenderer.send('close-test-window'),
+  saveTestUrl: (url) => ipcRenderer.send('test-window-save-url', url),
 })

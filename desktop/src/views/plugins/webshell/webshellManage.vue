@@ -83,6 +83,7 @@ export default {
         const res = await listPluginHosts()
         this.hosts = res.data || []
       } catch (e) {
+        alert('加载主机列表失败: ' + (e.message || e))
         console.error('加载主机列表失败:', e)
       }
     },
@@ -109,6 +110,7 @@ export default {
         this.deleteVisible = false
         this.fetchList()
       } catch (e) {
+        alert('删除失败: ' + (e.message || e))
         console.error('删除失败:', e)
       } finally {
         this.deleteLoading = false

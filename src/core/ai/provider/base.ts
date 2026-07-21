@@ -44,6 +44,7 @@ export interface ProviderToolResult {
   success: boolean;
   output?: string;
   error?: string;
+  metadata?: Record<string, any>;
 }
 
 export interface AIProvider {

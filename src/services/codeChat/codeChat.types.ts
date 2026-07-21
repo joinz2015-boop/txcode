@@ -14,6 +14,7 @@ export interface ChatInput {
   mediaFiles?: MediaFile[];
   agentName?: string;
   planFilePath?: string;
+  webContentsId?: number;
   onStep?: (step: Step, iteration: number, usage?: any) => void;
   onCompact?: (info: { beforeTokens: number; afterTokens: number; summary?: string }) => void;
 }
@@ -27,6 +28,7 @@ export interface ChatOptions {
   mediaFiles?: MediaFile[];
   agentName?: string;
   planFilePath?: string;
+  webContentsId?: number;
   onStep?: (step: Step, iteration: number, usage?: any) => void;
   onCompact?: (info: { beforeTokens: number; afterTokens: number; summary?: string }) => void;
 }

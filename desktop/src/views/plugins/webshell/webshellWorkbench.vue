@@ -15,13 +15,15 @@
         <ShellTerminal ref="term" :onData="handleTermData" />
       </div>
       <div class="resize-handle" @mousedown="startResize"></div>
-      <div class="chat-panel-wrap">
+      <div class="chat-panel-wrap" :style="{ width: chatWidth + 'px', flexShrink: 0 }">
         <AiChatPanel
           ref="chatPanel"
           :disabled="processing"
           :ws="shellWs"
           :sessionId="sessionId"
+          :modelName="modelName"
           @send="handleChatSend"
+          @open-model-select="$emit('open-model-select')"
         />
       </div>
     </div>
@@ -45,8 +47,13 @@ export default {
       connected: false,
       processing: false,
       shellWs: null,
-      termRatio: 0.6,
+      chatWidth: 400,
     }
+  },
+  computed: {
+    modelName() {
+      return this.desktopState?.currentModel || ''
+    },
   },
   methods: {
     handleTermData(data) {
@@ -150,21 +157,20 @@ export default {
     startResize(e) {
       e.preventDefault()
       const startX = e.clientX
-      const startRatio = this.termRatio
-      const panel = this.$refs.termPanel
-      const totalWidth = panel?.parentElement?.offsetWidth || window.innerWidth
-
+      const startW = this.chatWidth
       const onMove = (ev) => {
-        const dx = ev.clientX - startX
-        const newRatio = Math.max(0.3, Math.min(0.8, startRatio + dx / totalWidth))
-        this.termRatio = newRatio
+        this.chatWidth = Math.max(260, Math.min(600, startW + (startX - ev.clientX)))
       }
       const onUp = () => {
         document.removeEventListener('mousemove', onMove)
         document.removeEventListener('mouseup', onUp)
+        document.body.style.cursor = ''
+        document.body.style.userSelect = ''
       }
       document.addEventListener('mousemove', onMove)
       document.addEventListener('mouseup', onUp)
+      document.body.style.cursor = 'col-resize'
+      document.body.style.userSelect = 'none'
     },
   },
   async mounted() {
@@ -261,21 +267,24 @@ export default {
   overflow: hidden;
 }
 .terminal-panel {
-  width: v-bind(termWidth);
+  flex: 1;
   height: 100%;
-  flex-shrink: 0;
+  min-width: 0;
+  padding: 14px 0 14px 14px;
+  box-sizing: border-box;
 }
 .resize-handle {
   width: 5px;
   cursor: col-resize;
-  background: var(--border);
   flex-shrink: 0;
   transition: background 0.15s;
+  border-radius: 2px;
 }
-.resize-handle:hover { background: var(--accent); }
+.resize-handle:hover { background: var(--accent); opacity: 0.5; }
 .chat-panel-wrap {
   flex: 1;
   height: 100%;
   overflow: hidden;
+  padding: 14px 14px 14px 0;
 }
 </style>

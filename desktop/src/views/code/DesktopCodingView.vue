@@ -133,6 +133,8 @@ export default {
       _renameUnsub: null,
       _unsubFileChanged: null,
       _unsubSwitchMode: null,
+      _unsubReqContext: null,
+      _unsubSaveUrl: null,
     }
   },
   computed: {
@@ -438,6 +440,25 @@ export default {
     this._unsubSwitchMode = eventBus.on('coding:switchMode', (mode) => {
       this.onSwitchMode(mode)
     })
+
+    this._unsubReqContext = window.electronAPI?.onRequestTestContext(() => {
+      const meta = this.currentPlanSession?.meta || {}
+      window.electronAPI.sendTestContext({
+        planFolderName: this.planFolderName,
+        planFilePath: this.planFilePath,
+        testUrl: meta.testUrl || '',
+        modelName: this.currentModel,
+        sessionId: meta.testSessionId || '',
+      })
+    })
+
+    this._unsubSaveUrl = window.electronAPI?.onSaveTestUrl(async (testUrl) => {
+      if (!this.currentPlanSession) return
+      const { saveMeta } = await import('@/api/index')
+      const meta = { ...this.currentPlanSession.meta, testUrl }
+      await saveMeta(this.planFolderName, meta)
+      this.currentPlanSession.meta = meta
+    })
   },
   activated() {
     if (this.currentPlanSession && this.currentMode === 'code') {
@@ -463,6 +484,8 @@ export default {
     if (this._renameUnsub) { this._renameUnsub(); this._renameUnsub = null }
     if (this._unsubFileChanged) { this._unsubFileChanged(); this._unsubFileChanged = null }
     if (this._unsubSwitchMode) { this._unsubSwitchMode(); this._unsubSwitchMode = null }
+    if (this._unsubReqContext) { this._unsubReqContext(); this._unsubReqContext = null }
+    if (this._unsubSaveUrl) { this._unsubSaveUrl(); this._unsubSaveUrl = null }
   },
 }
 </script>

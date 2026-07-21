@@ -1,52 +1,67 @@
 <template>
   <div class="chat-panel">
-    <div class="chat-header">AI 运维助手</div>
     <div class="chat-messages" ref="msgContainer">
-      <div v-if="messages.length === 0" class="empty-hint">
+      <div v-if="messages.length === 0 && !thinking" class="assistant-empty">
         向 AI 发送消息，自动分析并执行远程命令
       </div>
       <div v-for="(msg, idx) in messages" :key="idx" class="msg-item" :class="msg.role">
-        <div v-if="msg.role === 'user'" class="msg-bubble user-bubble">{{ msg.content }}</div>
-        <div v-else-if="msg.role === 'assistant'" class="msg-bubble assistant-bubble" v-html="renderMarkdown(msg.content)"></div>
-        <div v-else-if="msg.role === 'tool'" class="msg-bubble tool-bubble">
-          <div class="tool-label">工具执行</div>
-          <pre>{{ msg.content }}</pre>
+        <div v-if="msg.role === 'user'" class="amsg-text user-text">{{ msg.content }}</div>
+        <div v-else-if="msg.role === 'assistant'" class="amsg-text ai-text" v-html="renderMarkdown(msg.content)"></div>
+        <div v-else-if="msg.role === 'tool'" class="log-mute">
+          <span class="tool-label">{{ msg.toolName || '工具执行' }}</span>
+          <pre class="tool-args">{{ msg.content }}</pre>
         </div>
       </div>
       <div v-if="streaming" class="msg-item assistant">
-        <div class="msg-bubble assistant-bubble" v-html="renderMarkdown(streamContent)"></div>
+        <div class="amsg-text ai-text" v-html="renderMarkdown(streamContent)"></div>
       </div>
       <div v-if="thinking" class="msg-item assistant">
-        <div class="msg-bubble assistant-bubble thinking-bubble">思考中...</div>
+        <div class="amsg-text ai-text" style="color:var(--text-muted)">思考中...</div>
       </div>
     </div>
-    <div class="chat-input-area">
-      <textarea
-        v-model="input"
-        class="chat-input"
-        placeholder="输入运维需求，如：检查磁盘使用情况"
-        rows="2"
-        :disabled="disabled"
-        @keydown.enter.exact.prevent="handleSend"
-      ></textarea>
-      <button
-        class="send-btn"
-        :disabled="disabled || !input.trim()"
-        @click="handleSend"
-      >
-        发送
-      </button>
+    <div class="assistant-input-area">
+      <div class="assistant-input-wrap">
+        <DesktopResizableTextarea
+          v-model="input"
+          :rows="3"
+          :minRows="2"
+          :maxRows="15"
+          placeholder="输入运维需求，如：检查磁盘使用情况"
+          :disabled="disabled"
+          @keydown.enter.exact.prevent="handleSend"
+        />
+        <div class="assistant-input-actions-row">
+          <div class="input-actions-left"></div>
+          <div class="input-actions-right">
+            <button class="btn-send" :disabled="disabled || !input.trim()" @click="handleSend">发送</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="assistant-status-bar">
+      <span :style="{ color: disabled ? '#f59e0b' : '#22c55e' }">
+        <span v-if="disabled" class="thinking-spinner"></span>
+        {{ disabled ? '处理中' : '✓ 就绪' }}
+      </span>
+      <span class="sep">|</span>
+      <span class="status-action" @click="$emit('open-model-select')" @mousedown.prevent>模型: {{ modelName }} ▾</span>
+      <span class="sep">|</span>
+      <span>会话: {{ sessionId ? sessionId.slice(0, 8) : '未创建' }}</span>
     </div>
   </div>
 </template>
 
 <script>
+import DesktopResizableTextarea from '@/components/chat/DesktopResizableTextarea.vue'
+
 export default {
   name: 'AiChatPanel',
+  components: { DesktopResizableTextarea },
   props: {
     disabled: Boolean,
     ws: Object,
     sessionId: String,
+    modelName: { type: String, default: '' },
   },
   data() {
     return {
@@ -84,8 +99,18 @@ export default {
     },
 
     addTool(content) {
-      this.messages.push({ role: 'tool', content })
+      const toolInfo = this.parseToolInfo(content)
+      this.messages.push({ role: 'tool', content: toolInfo.args, toolName: toolInfo.name })
       this.$nextTick(() => this.scrollBottom())
+    },
+
+    parseToolInfo(content) {
+      try {
+        const parsed = JSON.parse(content)
+        return { name: parsed.name || '工具执行', args: content }
+      } catch {
+        return { name: '工具执行', args: content }
+      }
     },
 
     setStreaming(content) {
@@ -131,59 +156,54 @@ export default {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: #fafafa;
-}
-.chat-header {
-  padding: 10px 14px;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-primary);
-  border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
 }
 .chat-messages {
   flex: 1;
   overflow-y: auto;
-  padding: 12px;
+  padding: 12px 16px 16px;
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
-.empty-hint {
+.assistant-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
   color: var(--text-muted);
-  font-size: 12px;
-  text-align: center;
-  margin-top: 40px;
-}
-.msg-item { display: flex; }
-.msg-item.user { justify-content: flex-end; }
-.msg-bubble {
-  max-width: 90%;
-  padding: 8px 12px;
-  border-radius: 10px;
   font-size: 13px;
-  line-height: 1.5;
-  word-break: break-all;
+  text-align: center;
+  padding: 20px;
 }
-.user-bubble {
-  background: var(--accent);
-  color: #fff;
-  border-bottom-right-radius: 4px;
+.msg-item { margin-bottom: 8px; font-size: 12.5px; line-height: 1.6; }
+.msg-item.user { text-align: right; }
+.amsg-text {
+  display: inline-block;
+  max-width: 85%;
+  padding: 6px 12px;
 }
-.assistant-bubble {
-  background: #fff;
-  border: 1px solid var(--border);
-  border-bottom-left-radius: 4px;
+.user-text {
+  background: var(--accent-light);
+  color: var(--accent);
+  border-radius: 10px 2px 10px 10px;
+  text-align: left;
+}
+.ai-text {
+  background: var(--bg-input);
   color: var(--text-primary);
+  border-radius: 2px 10px 10px 10px;
 }
-.tool-bubble {
-  background: #f0f9ff;
-  border: 1px solid #bae6fd;
-  border-radius: 8px;
-  font-size: 12px;
-  width: 100%;
-}
-.tool-bubble pre {
+.ai-text :deep(p) { margin: 3px 0; }
+.ai-text :deep(pre) { background: #f1f2f6; border-radius: 4px; padding: 6px 10px; font-size: 11px; overflow-x: auto; margin: 4px 0; }
+.ai-text :deep(code) { background: #f1f2f6; padding: 1px 4px; border-radius: 3px; font-size: 11px; }
+
+.log-mute { color: var(--text-muted); padding: 3px 0; font-size: 12px; }
+.tool-label { font-size: 11px; color: var(--accent); font-weight: 600; }
+.tool-args {
   margin: 4px 0 0;
   padding: 6px;
   background: #f8fafc;
@@ -191,47 +211,89 @@ export default {
   overflow-x: auto;
   font-size: 11px;
   white-space: pre-wrap;
+  font-family: monospace;
 }
-.tool-label {
-  font-size: 11px;
-  color: #0369a1;
-  font-weight: 600;
-}
-.thinking-bubble {
-  color: var(--text-muted);
-  font-style: italic;
-}
-.chat-input-area {
-  display: flex;
-  gap: 8px;
-  padding: 10px 12px;
+
+.assistant-input-area {
   border-top: 1px solid var(--border);
-  flex-shrink: 0;
-}
-.chat-input {
-  flex: 1;
-  resize: none;
-  padding: 8px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  font-size: 13px;
-  font-family: inherit;
-  outline: none;
+  padding: 8px 10px;
   background: #fff;
 }
-.chat-input:focus { border-color: var(--accent); }
-.chat-input:disabled { opacity: 0.5; }
-.send-btn {
-  padding: 0 16px;
-  background: var(--accent);
-  color: #fff;
-  border: none;
+.assistant-input-wrap {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-input);
   border-radius: 8px;
-  font-size: 13px;
+  border: 1.5px solid transparent;
+  transition: all 0.2s;
+}
+.assistant-input-wrap:focus-within {
+  border-color: var(--accent);
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(79,110,247,0.06);
+}
+.assistant-input-wrap :deep(textarea) { resize: none; }
+.assistant-input-actions-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 8px;
+  border-top: 1px solid var(--border);
+  gap: 6px;
+}
+.input-actions-left {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.input-actions-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.btn-send {
+  padding: 4px 14px;
+  font-size: 12px;
+  border: none;
+  border-radius: 5px;
   cursor: pointer;
   font-family: inherit;
-  white-space: nowrap;
+  background: var(--accent);
+  color: #fff;
 }
-.send-btn:hover { opacity: 0.9; }
-.send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-send:hover { background: #6366f1; }
+.btn-send:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.assistant-status-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  border-top: 1px solid var(--border);
+  font-size: 10.5px;
+  color: var(--text-muted);
+  background: var(--bg-titlebar);
+}
+.sep { color: var(--border); }
+.status-action {
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.status-action:hover { color: var(--accent); }
+
+.thinking-spinner {
+  width: 10px; height: 10px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  display: inline-block;
+  animation: spin 0.8s linear infinite;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
 </style>

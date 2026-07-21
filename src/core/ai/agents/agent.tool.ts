@@ -36,7 +36,7 @@ export interface ExecuteOptions {
   abortSignal?: AbortSignal;
 }
 
-export type ToolExecutionResult = { success: boolean; data?: any; error?: string };
+export type ToolExecutionResult = { success: boolean; data?: any; error?: string; metadata?: Record<string, any> };
 
 /**
  * Agent 工具注册器
@@ -111,7 +111,7 @@ export class AgentToolRegistry {
         throw new Error(`Tool not found: ${name}${suffix}`);
       }
       const result = await tool.execute(args, context);
-      return { success: result.success, data: result.output, error: result.error };
+      return { success: result.success, data: result.output, error: result.error, metadata: result.metadata };
     } catch (error) {
       return {
         success: false,

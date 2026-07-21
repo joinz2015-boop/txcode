@@ -11,6 +11,7 @@ export { DesignAgent } from './design/design.agent.js';
 export { PlanAgent } from './plan/plan.agent.js';
 export { DiscussionAgent } from './discuss/discuss.agent.js';
 export { NameAgent } from './name/name.agent.js';
+export { TestAgent } from './test/test.agent.js';
 
 export { CODE_TOOLS } from './code/agent_tool.js';
 export { CHAT_TOOLS } from './chat/agent_tool.js';
@@ -23,5 +24,6 @@ export { SUMMARIZER_TOOLS } from './summarizer/agent_tool.js';
 export { DESIGN_TOOLS } from './design/agent_tool.js';
 export { PLAN_TOOLS } from './plan/agent_tool.js';
 export { DISCUSS_TOOLS } from './discuss/agent_tool.js';
+export { TEST_TOOLS } from './test/agent_tool.js';
 export { ShellAgent } from './shell/shell.agent.js';
 export { SHELL_TOOLS } from './shell/agent_tool.js';

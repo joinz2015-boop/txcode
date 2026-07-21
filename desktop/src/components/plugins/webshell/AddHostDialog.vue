@@ -53,6 +53,10 @@ import { createPluginHost, updatePluginHost, testPluginHost } from '@/api/plugin
 
 export default {
   name: 'AddHostDialog',
+  model: {
+    prop: 'modelValue',
+    event: 'update:modelValue'
+  },
   props: {
     modelValue: Boolean,
     hostData: Object,
