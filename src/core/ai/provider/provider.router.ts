@@ -1,5 +1,6 @@
 import { OpenAIProvider } from './openai.provider.js';
 import { DeepSeekProvider } from './deepseek.provider.js';
+import { KimiProvider } from './kimi.provider.js';
 import { BaseProvider } from '../../../entity/ai.entity.js';
 import { ProxyAgent } from 'undici';
 import { configService } from '../../../services/config/config.service.js';
@@ -34,6 +35,24 @@ export function createProvider(config: ProviderConfig): BaseProvider {
 
   if(model.toLowerCase().includes('deepseek')) {
     return new DeepSeekProvider({
+      apiKey: config.apiKey,
+      baseUrl: baseUrl,
+      defaultModel: config.defaultModel,
+      fetchOptions,
+    });
+  }
+
+  if (baseUrl.includes('moonshot.cn')) {
+    return new KimiProvider({
+      apiKey: config.apiKey,
+      baseUrl: baseUrl,
+      defaultModel: config.defaultModel,
+      fetchOptions,
+    });
+  }
+
+  if (model.toLowerCase().includes('kimi-')) {
+    return new KimiProvider({
       apiKey: config.apiKey,
       baseUrl: baseUrl,
       defaultModel: config.defaultModel,

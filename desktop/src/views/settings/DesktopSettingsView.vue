@@ -153,6 +153,7 @@
               <option value="">自定义</option>
               <option value="openai">OpenAI</option>
               <option value="deepseek">DeepSeek</option>
+              <option value="kimi">Kimi (Moonshot)</option>
               <option value="minimax">MiniMax</option>
               <option value="zlm">ZLM</option>
               <option value="qwen">Qwen</option>
@@ -287,6 +288,7 @@ import {
 const presets = [
   { name: 'openai', nameValue: 'OpenAI', baseUrlValue: 'https://api.openai.com/v1' },
   { name: 'deepseek', nameValue: 'DeepSeek', baseUrlValue: 'https://api.deepseek.com/v1' },
+  { name: 'kimi', nameValue: 'Kimi', baseUrlValue: 'https://api.moonshot.cn/v1' },
   { name: 'minimax', nameValue: 'MiniMax', baseUrlValue: 'https://api.minimax.io/v1' },
   { name: 'zlm', nameValue: 'ZLM', baseUrlValue: 'https://open.bigmodel.cn/api/paas/v4/' },
   { name: 'qwen', nameValue: 'Qwen', baseUrlValue: 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1' },

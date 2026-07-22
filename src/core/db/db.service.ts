@@ -341,6 +341,10 @@ export class DbService {
       'claude-4-opus': 200000,
       'deepseek-chat': 64000,
       'deepseek-coder': 16000,
+      'moonshot-v1-8k': 8192,
+      'moonshot-v1-32k': 32768,
+      'moonshot-v1-128k': 131072,
+      'kimi-k2-0905-preview': 131072,
     };
 
     for (const [modelId, contextWindow] of Object.entries(modelContextWindows)) {

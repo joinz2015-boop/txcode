@@ -51,6 +51,7 @@ export default {
       presets: [
         { name: 'openai', label: 'OpenAI', nameValue: 'OpenAI', baseUrlValue: 'https://api.openai.com/v1' },
         { name: 'deepseek', label: 'DeepSeek', nameValue: 'DeepSeek', baseUrlValue: 'https://api.deepseek.com/v1' },
+        { name: 'kimi', label: 'Kimi (Moonshot)', nameValue: 'Kimi', baseUrlValue: 'https://api.moonshot.cn/v1' },
         { name: 'minimax', label: 'MiniMax', nameValue: 'MiniMax', baseUrlValue: 'https://api.minimax.io/v1' },
         { name: 'zlm', label: 'ZLM', nameValue: 'ZLM', baseUrlValue: 'https://open.bigmodel.cn/api/paas/v4/' },
         { name: 'qwen', label: 'Qwen', nameValue: 'Qwen', baseUrlValue: 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1' },
