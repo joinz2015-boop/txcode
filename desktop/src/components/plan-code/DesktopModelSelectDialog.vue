@@ -26,7 +26,7 @@
 </template>
 
 <script>
-import { getModels } from '@/api/index'
+import { getModels, setConfig } from '@/api/index'
 
 export default {
   name: 'DesktopModelSelectDialog',
@@ -57,6 +57,9 @@ export default {
       }
     },
     handleSelect(model) {
+      const parts = model.name.split('/')
+      const name = parts.length > 2 ? parts.slice(1).join('/') : model.name
+      setConfig('defaultModel', name).catch(() => {})
       this.$emit('select', model)
       this.$emit('close')
     }

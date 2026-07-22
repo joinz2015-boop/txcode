@@ -24,8 +24,16 @@ export function isExcludedUrl(url: string): boolean {
   return url === 'about:blank'
     || url.startsWith('chrome://')
     || url.startsWith('devtools://')
-    || url.startsWith('file://')
     || url.startsWith('chrome-extension://');
+}
+
+export function isTestWindowUrl(url: string): boolean {
+  try {
+    const hash = new URL(url).hash;
+    return hash.startsWith('#/views/test/testWindow');
+  } catch {
+    return url.includes('#/views/test/testWindow');
+  }
 }
 
 export async function detectPageMode(page: Page): Promise<PageMode> {
@@ -65,6 +73,66 @@ class PlaywrightManager {
 
   getWebContentsIdBySession(sessionId: string): number | undefined {
     return this.sessionPageMap.get(sessionId);
+  }
+
+  async getOrCreatePage(sessionId: string): Promise<AttachResult> {
+    const wcId = this.sessionPageMap.get(sessionId);
+    if (wcId) return this.attachPage(wcId);
+
+    if (!this.browser || !this.connected) {
+      await this.connect();
+    }
+
+    const contexts = this.browser!.contexts();
+    for (const ctx of contexts) {
+      for (const page of ctx.pages()) {
+        try {
+          const url = page.url();
+          if (isTestWindowUrl(url)) {
+            const tempId = Date.now();
+            this.pageMap.set(tempId, page);
+            this.sessionPageMap.set(sessionId, tempId);
+            console.log(`[PlaywrightManager] Auto-attached testWindow: ${url}`);
+            return { page, mode: 'normal' };
+          }
+        } catch {}
+      }
+    }
+
+    const { codeWebSocketHandler } = await import(
+      '../../gateway/websocket/code.websocket.js'
+    );
+    codeWebSocketHandler.broadcast({
+      type: 'request_open_test_window',
+      sessionId: sessionId,
+    });
+    console.log('[PlaywrightManager] No testWindow found, requested via WebSocket, polling...');
+
+    for (let i = 0; i < 20; i++) {
+      await new Promise(r => setTimeout(r, 500));
+      for (const ctx of this.browser!.contexts()) {
+        for (const page of ctx.pages()) {
+          try {
+            const url = page.url();
+            if (isTestWindowUrl(url)) {
+              const alreadyAttached = [...this.sessionPageMap.values()]
+                .some(id => this.pageMap.get(id) === page);
+              if (alreadyAttached) continue;
+
+              const tempId = Date.now();
+              this.pageMap.set(tempId, page);
+              this.sessionPageMap.set(sessionId, tempId);
+              console.log(`[PlaywrightManager] Attached new testWindow: ${url}`);
+              return { page, mode: 'normal' };
+            }
+          } catch {}
+        }
+      }
+    }
+
+    throw new Error(
+      '无法创建测试页面。请确保 Electron 应用已启动并支持打开测试窗口。'
+    );
   }
 
   async connect(): Promise<void> {
@@ -187,16 +255,7 @@ class PlaywrightManager {
       }
     }
 
-    // Step 4: no existing page found, try creating a new one
-    try {
-      const ctx = contexts[0] || await this.browser!.newContext();
-      const page = await ctx.newPage();
-      this.pageMap.set(webContentsId, page);
-      console.log(`[PlaywrightManager] Created new page for webContentsId=${webContentsId}`);
-      return { page, mode: 'normal' };
-    } catch (e: any) {
-      throw new Error(`找不到 webContentsId=${webContentsId} 对应的 Page，且创建新页面失败: ${e.message}`);
-    }
+    throw new Error(`找不到 webContentsId=${webContentsId} 对应的浏览器页面`);
   }
 
   getPage(webContentsId: number): Page | undefined {

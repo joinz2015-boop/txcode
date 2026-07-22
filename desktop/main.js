@@ -2,7 +2,7 @@ import { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage, dialog } from 'el
 import { spawn, exec } from 'child_process'
 import { createServer } from 'net'
 import { join, dirname } from 'path'
-import { fileURLToPath } from 'url'
+import { fileURLToPath, pathToFileURL } from 'url'
 import { existsSync } from 'fs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -43,7 +43,21 @@ function startBackend(port) {
   })
 
   backendProcess.stdout.on('data', (data) => {
-    console.log('[Backend]', data.toString())
+    const text = data.toString()
+    console.log('[Backend]', text)
+
+    const actionMatch = text.match(/__TXCODE_ACTION__:(.+)/)
+    if (actionMatch) {
+      try {
+        const action = JSON.parse(actionMatch[1])
+        if (action.action === 'open-test-window') {
+          const ctx = action.context || {}
+          createTestWindow({ ...ctx, backendPort: ctx.backendPort || backendPort })
+        }
+      } catch (e) {
+        console.error('[Backend Action Parse Error]', e)
+      }
+    }
   })
 
   backendProcess.stderr.on('data', (data) => {
@@ -252,10 +266,13 @@ function createTestWindow(context) {
   const distIndex = join(__dirname, 'dist', 'index.html')
 
   if (isDev) {
-    testWindow.loadURL(`http://localhost:5173/#/test?${query}`)
+    testWindow.loadURL(`http://localhost:5173/#/views/test/testWindow?${query}`)
   } else {
-    testWindow.loadFile(distIndex, { hash: `/test?${query}` })
+    const fileUrl = pathToFileURL(distIndex).href + `#/views/test/testWindow?${query}`
+    testWindow.loadURL(fileUrl)
   }
+
+  testWindow.focus()
 
   testWindow.on('closed', () => {
     if (mainWindow && !mainWindow.isDestroyed()) {

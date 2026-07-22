@@ -38,7 +38,7 @@ export class CodeWebSocketHandler {
     });
   }
 
-  private broadcast(message: any): void {
+  broadcast(message: any): void {
     const data = JSON.stringify(message);
     for (const client of this.wsClients) {
       if (client.readyState === WebSocket.OPEN) {

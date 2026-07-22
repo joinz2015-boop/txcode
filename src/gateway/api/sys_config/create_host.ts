@@ -5,7 +5,7 @@ export async function POST(req: Request, res: Response) {
   const { name, ip, port } = req.body;
   if (!name || !ip) return res.status(400).json({ success: false, error: "name 和 ip 必填" });
   try {
-    const host = configService.createHost({ name, ip, port: port || 40000 });
+    const host = configService.createHost({ name, ip, port: port || 41000 });
     res.json({ success: true, data: host });
   } catch (e: any) {
     res.status(500).json({ success: false, error: e.message });

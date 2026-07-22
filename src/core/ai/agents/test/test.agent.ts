@@ -216,6 +216,7 @@ export class TestAgent implements AIProvider {
   private async buildPrompt(_builtinTools: any[] = []): Promise<string> {
     const platform = process.platform;
     const workdir = this.projectPath || process.cwd();
+    const backendPort = process.env.TXCODE_BACKEND_PORT || '41000';
 
     const platformName = platform === 'win32' ? 'Windows'
       : platform === 'darwin' ? 'macOS'
@@ -250,6 +251,12 @@ export class TestAgent implements AIProvider {
 5. 使用 test_assert_element、test_assert_text 验证结果
 6. 在操作过程中适当使用 test_wait 等待页面加载或元素出现
 
+## 浏览器控制
+
+你通过 Playwright 直接操控浏览器页面。使用 test_navigate 导航时，
+系统会自动创建或复用浏览器页面，无需手动打开窗口。
+直接使用 test_navigate(url) 即可开始测试。
+
 ## 测试工具
 
 - test_navigate(url) - 导航到指定页面
@@ -271,6 +278,7 @@ export class TestAgent implements AIProvider {
 ## 运行环境
 - 操作系统: ${platformName}
 - 工作目录: ${workdir}
+- 后端端口: ${backendPort}
 `.replace('{skills}', skillsPrompt);
   }
 

@@ -10,7 +10,7 @@
         <button class="mode-tab" :class="{ active: currentMode === 'code' }" @click="switchMode('code')">编码模式</button>
         <button class="mode-tab" :class="{ active: currentMode === 'plan' }" @click="switchMode('plan')">方案模式</button>
         <span class="mode-sep"></span>
-        <button class="mode-tab" @click="openTestWindow">测试</button>
+        <button class="mode-tab" :class="{ active: currentMode === 'test' }" @click="switchMode('test')">测试模式</button>
       </div>
     </div>
     <div class="titlebar-right">
@@ -44,7 +44,7 @@
 
 <script>
 import DesktopProjectSwitcher from '@/components/DesktopProjectSwitcher.vue'
-import { minimizeWindow, maximizeWindow, closeWindow, openTestWindow } from '@/utils/ipc'
+import { minimizeWindow, maximizeWindow, closeWindow } from '@/utils/ipc'
 import { eventBus } from '@/utils/eventBus'
 import logoPng from '../../assets/logo.png'
 
@@ -80,7 +80,6 @@ export default {
     minimizeWindow,
     maximizeWindow,
     closeWindow,
-    openTestWindow,
     switchMode(mode) {
       this.currentMode = mode
       eventBus.emit('coding:switchMode', mode)

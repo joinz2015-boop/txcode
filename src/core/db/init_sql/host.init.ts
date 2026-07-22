@@ -6,7 +6,7 @@ export function initHostTables(db: SqlJsDatabase): void {
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
       ip TEXT NOT NULL,
-      port INTEGER NOT NULL DEFAULT 40000,
+      port INTEGER NOT NULL DEFAULT 41000,
       is_local INTEGER NOT NULL DEFAULT 0,
       is_active INTEGER NOT NULL DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -14,5 +14,5 @@ export function initHostTables(db: SqlJsDatabase): void {
     )
   `);
 
-  db.run(`INSERT OR IGNORE INTO hosts (id, name, ip, port, is_local, is_active) VALUES ('local', '本地开发', 'localhost', 40000, 1, 1)`);
+  db.run(`INSERT OR IGNORE INTO hosts (id, name, ip, port, is_local, is_active) VALUES ('local', '本地开发', 'localhost', 41000, 1, 1)`);
 }

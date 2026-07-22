@@ -253,7 +253,7 @@
           </div>
           <div class="form-group">
             <label class="form-label">端口</label>
-            <input class="form-input" type="number" v-model.number="hostForm.port" placeholder="40000" min="1" max="65535" />
+            <input class="form-input" type="number" v-model.number="hostForm.port" placeholder="41000" min="1" max="65535" />
             <span v-if="hostFormError.port" class="form-error">{{ hostFormError.port }}</span>
           </div>
           <div class="host-tip">
@@ -336,7 +336,7 @@ export default {
       hosts: [],
       showHostDialog: false,
       editingHost: null,
-      hostForm: { name: '', ip: '', port: 40000 },
+      hostForm: { name: '', ip: '', port: 41000 },
       hostFormError: { name: '', ip: '', port: '' },
       hostSaving: false,
       hostTestingId: null,
@@ -693,7 +693,7 @@ export default {
       if (host) {
         this.hostForm = { name: host.name, ip: host.ip, port: host.port }
       } else {
-        this.hostForm = { name: '', ip: '', port: 40000 }
+        this.hostForm = { name: '', ip: '', port: 41000 }
       }
       this.showHostDialog = true
     },
@@ -742,18 +742,20 @@ export default {
       }
     },
     async handleSwitchHost(host) {
-      this.hostTestingId = host.id
-      try {
-        const res = await testHost(host.ip, host.port)
-        if (!res.data || !res.data.reachable) {
-          alert(`主机"${host.name}" (${host.ip}:${host.port}) 无法连接`)
+      if (!host.isLocal) {
+        this.hostTestingId = host.id
+        try {
+          const res = await testHost(host.ip, host.port)
+          if (!res.data || !res.data.reachable) {
+            alert(`主机"${host.name}" (${host.ip}:${host.port}) 无法连接`)
+            return
+          }
+        } catch (e) {
+          alert(`连接测试失败: ${e.message}`)
           return
+        } finally {
+          this.hostTestingId = null
         }
-      } catch (e) {
-        alert(`连接测试失败: ${e.message}`)
-        return
-      } finally {
-        this.hostTestingId = null
       }
       try {
         const r = await switchHost(host.id)

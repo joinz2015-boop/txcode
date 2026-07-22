@@ -168,7 +168,7 @@ export class ConfigRepository extends BaseRepository {
     const id = data.id || uuidv4();
     this.execute(
       `INSERT INTO hosts (id, name, ip, port, is_local, is_active) VALUES (?, ?, ?, ?, 0, 0)`,
-      [id, data.name, data.ip, data.port || 40000]
+      [id, data.name, data.ip, data.port || 41000]
     );
     return id;
   }

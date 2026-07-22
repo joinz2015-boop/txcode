@@ -5,13 +5,13 @@ Vue.use(VueRouter)
 
 const routes = [
   { path: '/', redirect: '/views/code/coding' },
-  { path: '/test', name: 'test', component: () => import('../views/test/testWindow.vue') },
   {
     path: '/views',
     component: () => import('../layouts/DesktopLayout.vue'),
     redirect: '/views/code/coding',
     children: [
       { path: 'code/coding', name: 'coding', component: () => import('../views/code/DesktopCodingView.vue') },
+      { path: 'test/testWindow', name: 'testWindow', component: () => import('../views/test/testWindow.vue') },
       { path: 'design/designView', name: 'design', component: () => import('../views/design/DesktopDesignView.vue') },
       { path: 'specs/specsView', name: 'specs', component: () => import('../views/specs/DesktopSpecsView.vue') },
       { path: 'skills/skillsView', name: 'skills', component: () => import('../views/skills/DesktopSkillsView.vue') },

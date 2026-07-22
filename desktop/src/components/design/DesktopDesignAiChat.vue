@@ -165,7 +165,7 @@
 
 <script>
 import { getItem, setItem } from '@/utils/storage'
-import { getFileContent, writeFile, createSession, getSession, getMessages, getConfig, setConfig, uploadChatImage, browseFilesystem } from '@/api/index'
+import { getFileContent, writeFile, createSession, getSession, getMessages, getConfig, uploadChatImage, browseFilesystem } from '@/api/index'
 import { ws } from '@/utils/websocket'
 import { marked } from 'marked'
 import DesktopModelSelectDialog from '@/components/plan-code/DesktopModelSelectDialog.vue'
@@ -629,7 +629,6 @@ export default {
     onModelSelected(model) {
       const parts = model.name.split('/')
       this.modelName = parts.length > 2 ? parts.slice(1).join('/') : model.name
-      setConfig('defaultModel', this.modelName).catch(() => {})
     },
 
     openCommandDialog() {

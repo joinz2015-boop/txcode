@@ -228,7 +228,16 @@ export default {
   },
   activated() {
     this.$refs.term?.reset()
-    if (!this.connected && this.hostId) {
+    const newHostId = this.$route.query.hostId || ''
+    if (newHostId && newHostId !== this.hostId) {
+      this.hostId = newHostId
+      if (this.shellWs) {
+        this.shellWs.close()
+        this.shellWs = null
+        this.connected = false
+      }
+      this.reconnect()
+    } else if (!this.connected && this.hostId) {
       this.reconnect()
     }
   },

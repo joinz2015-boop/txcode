@@ -27,6 +27,18 @@
           @preview-image="openImagePreview"
         />
 
+        <DesktopTestPanel
+          ref="testPanel"
+          v-show="currentMode === 'test'"
+          :currentModel="currentModel"
+          :currentSession="currentPlanSession"
+          :runningSessionIds="runningSessionIds"
+          :planFilePath="planFilePath"
+          :projectPath="desktopState.currentProject?.path || ''"
+          @open-model-select="handleOpenModelSelect('test')"
+          @preview-image="openImagePreview"
+        />
+
         <template v-if="currentMode === 'plan'">
           <DesktopPlanEditor
             ref="planEditor"
@@ -104,14 +116,15 @@ import DesktopModelSelectDialog from '@/components/plan-code/DesktopModelSelectD
 import DesktopCreateSubPlanDialog from '@/components/plan-code/DesktopCreateSubPlanDialog.vue'
 import DesktopGitChangesDialog from '@/components/plan-code/DesktopGitChangesDialog.vue'
 import DesktopPlanCodeTest from '@/components/coding/DesktopPlanCodeTest.vue'
-import { listPlanSessions, createPlanSession, renamePlanSession, deletePlanSession, readPlan, getModels, listCustomActions, getConfig, getBaseURL } from '@/api/index'
+import DesktopTestPanel from '@/components/test/DesktopTestPanel.vue'
+import { listPlanSessions, createPlanSession, renamePlanSession, deletePlanSession, readPlan, getModels, listCustomActions, getConfig, setConfig, getBaseURL } from '@/api/index'
 import { getItem, setItem } from '@/utils/storage'
 import { ws } from '@/utils/websocket'
 import { eventBus } from '@/utils/eventBus'
 
 export default {
   name: 'DesktopCodingView',
-  components: { DesktopCodingPanel, DesktopPlanEditor, DesktopAssistantPanel, DesktopPlanSessionSidebar, DesktopModelSelectDialog, DesktopCreateSubPlanDialog, DesktopGitChangesDialog, DesktopPlanCodeTest },
+  components: { DesktopCodingPanel, DesktopTestPanel, DesktopPlanEditor, DesktopAssistantPanel, DesktopPlanSessionSidebar, DesktopModelSelectDialog, DesktopCreateSubPlanDialog, DesktopGitChangesDialog, DesktopPlanCodeTest },
   inject: ['desktopState'],
   data() {
     return {
@@ -136,6 +149,7 @@ export default {
       _unsubSwitchMode: null,
       _unsubReqContext: null,
       _unsubSaveUrl: null,
+      _unsubReqTestWindow: null,
     }
   },
   computed: {
@@ -149,12 +163,16 @@ export default {
   watch: {
     currentMode(val) {
       if (val === 'plan') this.$nextTick(() => this.loadPlanContent())
+      if (val === 'code') this.$nextTick(() => this.restoreCodeScrollTop())
+      if (val === 'test') this.$nextTick(() => this.restoreTestScrollTop())
     },
     currentModel(val) {
       setItem('model:current', val)
       const cp = this.$refs.codingPanel
+      const tp = this.$refs.testPanel
       const ap = this.$refs.assistantPanel
       if (cp) cp.panel.modelName = val
+      if (tp) tp.panel.modelName = val
       if (ap) {
         ap.designPanel.modelName = val
         ap.discussPanel.modelName = val
@@ -188,10 +206,15 @@ export default {
       this.currentPlanSession = session
       setItem('planSession:current', session)
       this.planFilePath = session.meta.planFilePath || ''
-      const state = this.loadState(session.folderName)
-      if (state && state.currentMode) {
-        this.currentMode = state.currentMode
-      } else {
+      try {
+        const r = await getConfig('chatMode')
+        const chatMode = r.data?.value
+        if (chatMode === 'code' || chatMode === 'plan' || chatMode === 'test') {
+          this.currentMode = chatMode
+        } else {
+          this.currentMode = 'code'
+        }
+      } catch (e) {
         this.currentMode = 'code'
       }
       this.saveChatMode(session.folderName)
@@ -342,6 +365,14 @@ export default {
       const cp = this.$refs.codingPanel
       if (cp) cp.restoreCodeScrollTop()
     },
+    saveTestScrollTop() {
+      const tp = this.$refs.testPanel
+      if (tp) tp.saveTestScrollTop()
+    },
+    restoreTestScrollTop() {
+      const tp = this.$refs.testPanel
+      if (tp) tp.restoreTestScrollTop()
+    },
     getStoreKey(folderName) {
       return `txcode:plan-code:${folderName}:state`
     },
@@ -369,6 +400,7 @@ export default {
       this.currentMode = mode
       this.saveState()
       this.saveChatMode(this.planFolderName)
+      setConfig('chatMode', mode).catch(() => {})
       eventBus.emit('coding:modeChanged', mode)
       if (mode === 'plan') this.$nextTick(() => this.loadPlanContent())
     },
@@ -461,6 +493,10 @@ export default {
       await saveMeta(this.planFolderName, meta)
       this.currentPlanSession.meta = meta
     })
+
+    this._unsubReqTestWindow = ws.on('request_open_test_window', () => {
+      window.electronAPI?.openTestWindow?.()
+    })
   },
   activated() {
     if (this.currentPlanSession && this.currentMode === 'code') {
@@ -469,13 +505,23 @@ export default {
         cp.subscribePanel(cp.panel.sessionId)
       }
     }
+    if (this.currentPlanSession && this.currentMode === 'test') {
+      const tp = this.$refs.testPanel
+      if (tp && tp.panel.sessionId) {
+        tp.subscribePanel(tp.panel.sessionId)
+      }
+    }
     this.restoreCodeScrollTop()
+    this.restoreTestScrollTop()
   },
   deactivated() {
     this.saveCodeScrollTop()
+    this.saveTestScrollTop()
     this.saveState()
     const cp = this.$refs.codingPanel
     if (cp) cp.unsubscribePanel()
+    const tp = this.$refs.testPanel
+    if (tp) tp.unsubscribePanel()
     const ap = this.$refs.assistantPanel
     if (ap) {
       ap.unsubscribeDesign()
@@ -488,6 +534,7 @@ export default {
     if (this._unsubSwitchMode) { this._unsubSwitchMode(); this._unsubSwitchMode = null }
     if (this._unsubReqContext) { this._unsubReqContext(); this._unsubReqContext = null }
     if (this._unsubSaveUrl) { this._unsubSaveUrl(); this._unsubSaveUrl = null }
+    if (this._unsubReqTestWindow) { this._unsubReqTestWindow(); this._unsubReqTestWindow = null }
   },
 }
 </script>

@@ -22,10 +22,21 @@ async function getHostWebviewInfo(page: Page): Promise<{ title: string; url: str
   return info;
 }
 
+async function executeInWebview<T>(page: Page, jsCode: string): Promise<T> {
+  return page.evaluate((code: string) => {
+    const wv = document.querySelector('webview') as any;
+    if (!wv || typeof wv.executeJavaScript !== 'function') {
+      throw new Error('页面中未找到可用的 webview 元素');
+    }
+    return wv.executeJavaScript(code);
+  }, jsCode);
+}
+
 export async function navigate(webContentsId: number, url: string): Promise<BrowserToolResult> {
   try {
     const { page, mode } = await getPage(webContentsId);
     if (mode === 'host') {
+      console.log('[testBrowserTools] Host mode triggered in navigate (deprecated, should not normally execute)');
       await page.evaluate((u: string) => {
         const wv = document.querySelector('webview') as any;
         if (wv && wv.loadURL) {
@@ -50,9 +61,22 @@ export async function navigate(webContentsId: number, url: string): Promise<Brow
 
 export async function click(webContentsId: number, selector: string): Promise<BrowserToolResult> {
   try {
-    const { page } = await getPage(webContentsId);
-    await page.waitForSelector(selector, { timeout: 10000 });
-    await page.click(selector);
+    const { page, mode } = await getPage(webContentsId);
+    if (mode === 'host') {
+      console.log('[testBrowserTools] Host mode triggered (deprecated, should not normally execute)');
+      await executeInWebview(page, `
+        (function() {
+          const el = document.querySelector(${JSON.stringify(selector)});
+          if (!el) throw new Error('元素不存在: ${selector}');
+          el.scrollIntoView({ block: 'center' });
+          el.click();
+          return true;
+        })()
+      `);
+    } else {
+      await page.waitForSelector(selector, { timeout: 10000 });
+      await page.click(selector);
+    }
     return { success: true, data: { selector } };
   } catch (e: any) {
     return { success: false, error: e.message };
@@ -61,9 +85,24 @@ export async function click(webContentsId: number, selector: string): Promise<Br
 
 export async function typeText(webContentsId: number, selector: string, text: string): Promise<BrowserToolResult> {
   try {
-    const { page } = await getPage(webContentsId);
-    await page.waitForSelector(selector, { timeout: 10000 });
-    await page.fill(selector, text);
+    const { page, mode } = await getPage(webContentsId);
+    if (mode === 'host') {
+      console.log('[testBrowserTools] Host mode triggered (deprecated, should not normally execute)');
+      await executeInWebview(page, `
+        (function() {
+          const el = document.querySelector(${JSON.stringify(selector)});
+          if (!el) throw new Error('元素不存在: ${selector}');
+          el.focus();
+          el.value = ${JSON.stringify(text)};
+          el.dispatchEvent(new Event('input', { bubbles: true }));
+          el.dispatchEvent(new Event('change', { bubbles: true }));
+          return true;
+        })()
+      `);
+    } else {
+      await page.waitForSelector(selector, { timeout: 10000 });
+      await page.fill(selector, text);
+    }
     return { success: true, data: { selector, text } };
   } catch (e: any) {
     return { success: false, error: e.message };
@@ -75,6 +114,7 @@ export async function screenshot(webContentsId: number): Promise<BrowserToolResu
     const { page, mode } = await getPage(webContentsId);
     let buffer: Buffer;
     if (mode === 'host') {
+      console.log('[testBrowserTools] Host mode triggered in screenshot (deprecated, should not normally execute)');
       const element = await page.locator('webview').elementHandle();
       if (element) {
         buffer = await element.screenshot({ type: 'png' });
@@ -93,9 +133,22 @@ export async function screenshot(webContentsId: number): Promise<BrowserToolResu
 
 export async function hover(webContentsId: number, selector: string): Promise<BrowserToolResult> {
   try {
-    const { page } = await getPage(webContentsId);
-    await page.waitForSelector(selector, { timeout: 10000 });
-    await page.hover(selector);
+    const { page, mode } = await getPage(webContentsId);
+    if (mode === 'host') {
+      console.log('[testBrowserTools] Host mode triggered (deprecated, should not normally execute)');
+      await executeInWebview(page, `
+        (function() {
+          const el = document.querySelector(${JSON.stringify(selector)});
+          if (!el) throw new Error('元素不存在: ${selector}');
+          el.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+          el.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+          return true;
+        })()
+      `);
+    } else {
+      await page.waitForSelector(selector, { timeout: 10000 });
+      await page.hover(selector);
+    }
     return { success: true, data: { selector } };
   } catch (e: any) {
     return { success: false, error: e.message };
@@ -104,9 +157,22 @@ export async function hover(webContentsId: number, selector: string): Promise<Br
 
 export async function selectOption(webContentsId: number, selector: string, value: string): Promise<BrowserToolResult> {
   try {
-    const { page } = await getPage(webContentsId);
-    await page.waitForSelector(selector, { timeout: 10000 });
-    await page.selectOption(selector, value);
+    const { page, mode } = await getPage(webContentsId);
+    if (mode === 'host') {
+      console.log('[testBrowserTools] Host mode triggered (deprecated, should not normally execute)');
+      await executeInWebview(page, `
+        (function() {
+          const el = document.querySelector(${JSON.stringify(selector)});
+          if (!el) throw new Error('元素不存在: ${selector}');
+          el.value = ${JSON.stringify(value)};
+          el.dispatchEvent(new Event('change', { bubbles: true }));
+          return true;
+        })()
+      `);
+    } else {
+      await page.waitForSelector(selector, { timeout: 10000 });
+      await page.selectOption(selector, value);
+    }
     return { success: true, data: { selector, value } };
   } catch (e: any) {
     return { success: false, error: e.message };
@@ -115,13 +181,31 @@ export async function selectOption(webContentsId: number, selector: string, valu
 
 export async function waitFor(webContentsId: number, target: string): Promise<BrowserToolResult> {
   try {
-    const { page } = await getPage(webContentsId);
+    const { page, mode } = await getPage(webContentsId);
     const ms = parseInt(target, 10);
     if (!isNaN(ms) && ms > 0) {
       await page.waitForTimeout(ms);
       return { success: true, data: { waitedMs: ms } };
     }
-    await page.waitForSelector(target, { timeout: 15000 });
+    if (mode === 'host') {
+      console.log('[testBrowserTools] Host mode triggered (deprecated, should not normally execute)');
+      await executeInWebview(page, `
+        new Promise((resolve, reject) => {
+          const timeout = setTimeout(() => reject(new Error('等待元素超时: ${target}')), 15000);
+          const check = () => {
+            if (document.querySelector(${JSON.stringify(target)})) {
+              clearTimeout(timeout);
+              resolve(true);
+            } else {
+              requestAnimationFrame(check);
+            }
+          };
+          check();
+        })
+      `);
+    } else {
+      await page.waitForSelector(target, { timeout: 15000 });
+    }
     return { success: true, data: { selector: target } };
   } catch (e: any) {
     return { success: false, error: e.message };
@@ -130,8 +214,14 @@ export async function waitFor(webContentsId: number, target: string): Promise<Br
 
 export async function getContent(webContentsId: number): Promise<BrowserToolResult> {
   try {
-    const { page } = await getPage(webContentsId);
-    const html = await page.content();
+    const { page, mode } = await getPage(webContentsId);
+    let html: string;
+    if (mode === 'host') {
+      console.log('[testBrowserTools] Host mode triggered (deprecated, should not normally execute)');
+      html = await executeInWebview<string>(page, 'document.documentElement.outerHTML');
+    } else {
+      html = await page.content();
+    }
     let summary = html;
     if (html.length > 50000) {
       summary = html.substring(0, 50000) + `\n\n... (截断，全文共 ${html.length} 字符)`;
@@ -144,8 +234,17 @@ export async function getContent(webContentsId: number): Promise<BrowserToolResu
 
 export async function assertElement(webContentsId: number, selector: string): Promise<BrowserToolResult> {
   try {
-    const { page } = await getPage(webContentsId);
-    const count = await page.locator(selector).count();
+    const { page, mode } = await getPage(webContentsId);
+    let count: number;
+    if (mode === 'host') {
+      console.log('[testBrowserTools] Host mode triggered (deprecated, should not normally execute)');
+      count = await executeInWebview<number>(page, 
+
+        `document.querySelectorAll(${JSON.stringify(selector)}).length`
+      );
+    } else {
+      count = await page.locator(selector).count();
+    }
     if (count > 0) {
       return { success: true, data: { selector, count } };
     }
@@ -157,8 +256,20 @@ export async function assertElement(webContentsId: number, selector: string): Pr
 
 export async function assertText(webContentsId: number, text: string): Promise<BrowserToolResult> {
   try {
-    const { page } = await getPage(webContentsId);
-    const visible = await page.getByText(text).first().isVisible();
+    const { page, mode } = await getPage(webContentsId);
+    let visible: boolean;
+    if (mode === 'host') {
+      console.log('[testBrowserTools] Host mode triggered (deprecated, should not normally execute)');
+      visible = await executeInWebview<boolean>(page, `
+        (function() {
+          const body = document.body;
+          if (!body) return false;
+          return (body.innerText || body.textContent || '').includes(${JSON.stringify(text)});
+        })()
+      `);
+    } else {
+      visible = await page.getByText(text).first().isVisible();
+    }
     if (visible) {
       return { success: true, data: { text } };
     }
@@ -172,6 +283,7 @@ export async function getPageUrl(webContentsId: number): Promise<BrowserToolResu
   try {
     const { page, mode } = await getPage(webContentsId);
     if (mode === 'host') {
+      console.log('[testBrowserTools] Host mode triggered (deprecated, should not normally execute)');
       const info = await getHostWebviewInfo(page);
       return { success: true, data: { url: info.url, title: info.title } };
     }

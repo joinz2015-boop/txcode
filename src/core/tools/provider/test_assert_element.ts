@@ -16,9 +16,12 @@ export const testAssertElementTool: Tool = {
     required: ['selector'],
   },
   execute: async (params: { selector: string }, context: ToolContext): Promise<ToolResult> => {
-    const wcId = playwrightManager.getWebContentsIdBySession(context.sessionId);
-    if (!wcId) {
-      return { success: false, output: '', error: '未注册 webview' };
+    let wcId: number;
+    try {
+      await playwrightManager.getOrCreatePage(context.sessionId);
+      wcId = playwrightManager.getWebContentsIdBySession(context.sessionId)!;
+    } catch (e: any) {
+      return { success: false, output: '', error: `无法创建测试页面: ${e.message}` };
     }
     const result = await assertElement(wcId, params.selector);
     if (result.success) {

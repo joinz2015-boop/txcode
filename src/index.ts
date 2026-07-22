@@ -58,6 +58,7 @@ async function main() {
     if (availablePort !== args.port) {
       console.log(`端口 ${args.port} 被占用，使用端口 ${availablePort}`);
     }
+    process.env.TXCODE_BACKEND_PORT = String(availablePort);
 
     const { WebService } = await import('./gateway/server/web.server.js');
     const webService = new WebService(availablePort);
