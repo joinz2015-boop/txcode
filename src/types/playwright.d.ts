@@ -4,11 +4,13 @@ declare var document: any;
 declare module 'playwright' {
   export interface Browser {
     contexts(): BrowserContext[];
+    newContext(options?: any): Promise<BrowserContext>;
     close(): Promise<void>;
   }
 
   export interface BrowserContext {
     pages(): Page[];
+    newPage(options?: any): Promise<Page>;
     close(): Promise<void>;
   }
 
@@ -24,8 +26,9 @@ declare module 'playwright' {
     selectOption(selector: string, value: string, options?: any): Promise<void>;
     waitForSelector(selector: string, options?: any): Promise<any>;
     waitForTimeout(ms: number): Promise<void>;
+    waitForFunction(fn: any, arg?: any, options?: any): Promise<any>;
     screenshot(options?: any): Promise<Buffer>;
-    locator(selector: string): { count(): Promise<number> };
+    locator(selector: string): { count(): Promise<number>; elementHandle(): Promise<any> };
     getByText(text: string): { first(): { isVisible(): Promise<boolean> } };
     bringToFront(): Promise<void>;
     close(): Promise<void>;

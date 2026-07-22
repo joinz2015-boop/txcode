@@ -413,20 +413,31 @@ export default {
         await this.ensureCodeSession()
       } catch (e) { return }
       this.subscribePanel(this.panel.sessionId)
+      const urls = await this.uploadMediaAndGetUrls()
+      const sentMediaFiles = this.mediaFiles.filter(f => !f.uploading).map(f => ({
+        dataUrl: f.dataUrl,
+        filePath: f.filePath,
+        type: f.file ? (f.file.type || 'image/png') : 'image/png'
+      }))
       const payload = {
         message: text,
         sessionId: this.panel.sessionId,
         modelName: this.panel.modelName || this.currentModel || undefined,
         agent: 'code',
+        mediaFiles: sentMediaFiles.map(f => ({ filePath: f.filePath, type: f.type }))
       }
       if (this.planFilePath) {
         payload.planFilePath = this.planFilePath
+      }
+      if (urls.length > 0) {
+        const urlText = '\n图片: ' + urls.join(', ')
+        payload.message = payload.message + urlText
       }
       this.inputText = ''
       this.panel.disabled = true
       this._manuallyEnded = false
       this.stopping = false
-      this.pushLogItem({ type: 'chat', content: text })
+      this.pushLogItem({ type: 'chat', content: text, mediaFiles: sentMediaFiles })
       this.$nextTick(() => this.scrollToBottom())
       ws.send('chat', payload)
       this.mediaFiles = []

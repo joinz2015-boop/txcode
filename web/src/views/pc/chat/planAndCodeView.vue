@@ -363,8 +363,9 @@ export default {
       if ((!c && !hasMedia) || p.disabled) return
       try { await this.ensureSession('codePanel'); this.subscribePanel(p, 'code') } catch { return }
       const payload = buildChatPayload({ input: c, session: { id: p.sessionId }, chatMode: 'code', enableDevLog: false, modelName: p.modelName, mediaFiles: (p.mediaFiles || []).filter(f => !f.uploading && f.filePath) })
+      const sentMediaFiles = (p.mediaFiles || []).filter(f => !f.uploading && f.filePath).map(f => ({ filePath: f.filePath, type: f.type, dataUrl: f.dataUrl }))
       p.input = ''; p.disabled = true; p.stopping = false
-      this.pushLogItem(p, { type: 'chat', content: c, mediaFiles: payload.mediaFiles })
+      this.pushLogItem(p, { type: 'chat', content: c, mediaFiles: sentMediaFiles })
       this.scrollCodeToBottom(); ws.send('chat', payload); p.mediaFiles = []
       if (this.currentPlanSession && this.currentPlanSession.meta.sessionName === '新计划会话') {
         ws.send('name_session', { sessionId: p.sessionId, folderName: this.planFolderName, userInput: c })

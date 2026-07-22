@@ -517,7 +517,12 @@ export default {
       try {
         const sid = await this.ensureDesignSession()
         this.subscribePanel('design', sid)
-        this.pushLogItem('designLogItems', { type: 'chat', content: val, role: 'user' })
+        const sentMediaFiles = this.designMediaFiles.filter(f => !f.uploading).map(f => ({
+          dataUrl: f.dataUrl,
+          filePath: f.filePath || '',
+          type: f.file ? (f.file.type || 'image/png') : 'image/png'
+        }))
+        this.pushLogItem('designLogItems', { type: 'chat', content: val, role: 'user', mediaFiles: sentMediaFiles })
         this.designPanel.input = ''
 
         const imageUrls = await this.uploadDesignMediaAndGetUrls()
@@ -540,7 +545,8 @@ export default {
           sessionId: sid,
           modelName: this.currentModel,
           agent: 'plan',
-          planFilePath: this.planFilePath
+          planFilePath: this.planFilePath,
+          mediaFiles: sentMediaFiles.map(f => ({ filePath: f.filePath, type: f.type }))
         })
 
         if (this.currentSession && this.currentSession.meta.sessionName === '新计划会话') {
@@ -564,7 +570,12 @@ export default {
       const hasMedia = this.discussMediaFiles.length > 0
       if ((!val && !hasMedia) || this.discussPanel.disabled || !this.discussPanel.sessionId) return
       this.subscribePanel('discuss', this.discussPanel.sessionId)
-      this.pushLogItem('discussLogItems', { type: 'chat', content: val, role: 'user' })
+      const sentMediaFiles = this.discussMediaFiles.filter(f => !f.uploading).map(f => ({
+        dataUrl: f.dataUrl,
+        filePath: f.filePath || '',
+        type: f.file ? (f.file.type || 'image/png') : 'image/png'
+      }))
+      this.pushLogItem('discussLogItems', { type: 'chat', content: val, role: 'user', mediaFiles: sentMediaFiles })
       this.discussPanel.input = ''
 
       const imageUrls = await this.uploadDiscussMediaAndGetUrls()
@@ -580,7 +591,8 @@ export default {
         message: `方案路径：${this.planFilePath}\n\n这个是对这个方案的探讨 你只需要回答用户的问题即可 不需要修改方案 也不要修改代码\n\n用户输入: ${fullMessage}`,
         sessionId: this.discussPanel.sessionId,
         modelName: this.currentModel,
-        agent: 'discuss'
+        agent: 'discuss',
+        mediaFiles: sentMediaFiles.map(f => ({ filePath: f.filePath, type: f.type }))
       })
       this.$nextTick(() => this.scrollMessages('discuss'))
     },

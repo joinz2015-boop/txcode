@@ -11,6 +11,7 @@ export async function uploadSingleMedia(file) {
   return {
     dataUrl,
     filePath: res.data.filePath,
+    url: res.data.url,
     type: res.data.filePath.endsWith('.png') ? 'image/png' : (file.type || 'image/jpeg')
   }
 }

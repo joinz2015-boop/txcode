@@ -32,6 +32,8 @@ export async function POST(req: Request, res: Response) {
     if (err) return res.status(400).json({ success: false, error: err.message });
     if (!req.file) return res.status(400).json({ success: false, error: '未上传文件' });
     const filePath = req.file.path;
-    res.json({ success: true, data: { filePath } });
+    const date = new Date().toISOString().slice(0, 10);
+    const url = '/uploads/' + date + '/' + req.file.filename;
+    res.json({ success: true, data: { filePath, url } });
   });
 }

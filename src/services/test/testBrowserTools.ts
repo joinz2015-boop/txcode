@@ -26,7 +26,7 @@ export async function navigate(webContentsId: number, url: string): Promise<Brow
   try {
     const { page, mode } = await getPage(webContentsId);
     if (mode === 'host') {
-      await page.evaluate((u) => {
+      await page.evaluate((u: string) => {
         const wv = document.querySelector('webview') as any;
         if (wv && wv.loadURL) {
           wv.loadURL(u);
