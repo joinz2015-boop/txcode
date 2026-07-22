@@ -1,4 +1,4 @@
-import { BaseProvider, ChatMessage, MultimodalContent } from '@/entity/ai.entity.js';
+import { BaseProvider, ChatMessage, MultimodalContent } from '../../../../entity/ai.entity.js';
 import { createIterationSignal } from '../../helpers/abort.helper.js';
 import { buildProviderPrompt } from './prompts.js';
 import { AgentToolRegistry, buildToolContext } from '../agent.tool.js';

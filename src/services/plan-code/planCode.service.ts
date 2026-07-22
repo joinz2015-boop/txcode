@@ -13,6 +13,13 @@ interface PlanCodeMeta {
     title: string;
     createdAt: string;
   }>;
+  testSessions: Array<{
+    id: string;
+    sessionId: string;
+    title: string;
+    testUrl: string;
+    createdAt: string;
+  }>;
   planFilePath: string;
   parentPlanPath?: string;
   createdAt: string;
@@ -103,6 +110,7 @@ export class PlanCodeService {
       codeSessionId: '',
       designSessionId: '',
       discussSessions: [],
+      testSessions: [],
       planFilePath,
       createdAt: nowIso,
       updatedAt: nowIso,
@@ -185,6 +193,13 @@ export class PlanCodeService {
           for (const disc of meta.discussSessions) {
             if (disc.sessionId) {
               try { sessionService.delete(disc.sessionId); } catch {}
+            }
+          }
+        }
+        if (meta.testSessions) {
+          for (const ts of meta.testSessions) {
+            if (ts.sessionId) {
+              try { sessionService.delete(ts.sessionId); } catch {}
             }
           }
         }

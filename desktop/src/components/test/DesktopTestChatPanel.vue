@@ -1,5 +1,35 @@
 <template>
   <div class="test-chat-panel" :style="{ width: width + 'px', flexShrink: 0 }">
+    <div class="session-header">
+      <div class="session-dropdown" v-if="testSessions.length > 0">
+        <button class="session-dropdown-toggle" @click="sessionDropdownOpen = !sessionDropdownOpen">
+          <span class="session-title-text">{{ currentTestSession ? currentTestSession.title : '选择会话' }}</span>
+          <span class="dropdown-arrow" :class="{ open: sessionDropdownOpen }">▾</span>
+        </button>
+        <div v-if="sessionDropdownOpen" class="session-dropdown-menu">
+          <div
+            v-for="s in testSessions"
+            :key="s.id"
+            class="session-dropdown-item"
+            :class="{ active: currentTestSession && currentTestSession.id === s.id }"
+          >
+            <span class="s-item-title" @click="switchTestSession(s)">{{ s.title }}</span>
+            <span class="s-item-meta">{{ s.testUrl }}</span>
+            <span class="s-item-actions" @click.stop>
+              <span class="menu-trigger" @click.stop="menuId = menuId === s.id ? null : s.id">⋮</span>
+              <div class="disc-menu-popup" v-if="menuId === s.id">
+                <div class="menu-item" @click.stop="startRename(s)">重命名</div>
+                <div class="menu-item danger" @click.stop="confirmDelete(s)">删除</div>
+              </div>
+            </span>
+          </div>
+          <button class="session-new-btn" @click="createTestSession">+ 新建测试会话</button>
+        </div>
+      </div>
+      <button v-else class="session-new-btn-standalone" @click="createTestSession">+ 新建测试会话</button>
+      <span v-if="currentTestSession && currentTestSession.testUrl" class="session-url-badge">{{ currentTestSession.testUrl }}</span>
+    </div>
+
     <div class="chat-messages" ref="messagesContainer">
       <div v-if="logItems.length === 0" class="empty-hint">
         <p>输入测试要求，AI 将通过 Playwright 自动操控浏览器</p>
@@ -61,6 +91,29 @@
         </div>
       </div>
     </div>
+
+    <div v-if="renameVisible" class="rename-dialog-overlay" @click.self="renameVisible = false">
+      <div class="rename-dialog">
+        <div class="rename-dialog-title">重命名会话</div>
+        <input v-model="renameValue" class="rename-input" @keydown.enter="doRename" />
+        <div class="rename-dialog-actions">
+          <button class="action-btn" @click="renameVisible = false">取消</button>
+          <button class="action-btn btn-send" @click="doRename">确定</button>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="deleteVisible" class="rename-dialog-overlay" @click.self="deleteVisible = false">
+      <div class="rename-dialog">
+        <div class="rename-dialog-title">删除确认</div>
+        <p style="text-align:center;padding:12px 0;">确定要删除会话 <strong>{{ deleteTarget ? deleteTarget.title : '' }}</strong> 吗？此操作不可恢复。</p>
+        <div class="rename-dialog-actions">
+          <button class="action-btn" @click="deleteVisible = false">取消</button>
+          <button class="action-btn btn-stop" @click="doDelete">确定删除</button>
+        </div>
+      </div>
+    </div>
+
     <div v-if="previewImage" class="image-lightbox" @click="previewImage = null">
       <span class="lightbox-close" @click="previewImage = null">&times;</span>
       <img :src="'data:image/png;base64,' + previewImage" class="lightbox-image" @click.stop />
@@ -71,6 +124,7 @@
 <script>
 import { marked } from 'marked'
 import { setItem } from '@/utils/storage'
+import { getPlanSessionDetail, saveMeta, createSession, getMessages, deleteSession } from '@/api'
 
 let logSeq = 0
 
@@ -98,6 +152,16 @@ export default {
       previewImage: null,
       ws: null,
       _wsUnsubs: [],
+      testSessions: [],
+      currentTestSession: null,
+      sessionDropdownOpen: false,
+      menuId: null,
+      renameVisible: false,
+      renameTarget: null,
+      renameValue: '',
+      deleteVisible: false,
+      deleteTarget: null,
+      _metaLoaded: false,
     }
   },
   computed: {
@@ -112,6 +176,142 @@ export default {
     getBaseURL() {
       return `http://localhost:${this.backendPort}`
     },
+
+    async loadMeta() {
+      if (!this.planFolderName || this._metaLoaded) return
+      try {
+        const r = await getPlanSessionDetail(this.planFolderName)
+        if (r.data && r.data.meta) {
+          const meta = r.data.meta
+          this.testSessions = meta.testSessions || []
+          if (this.testSessions.length > 0 && !this.currentTestSession) {
+            this.switchTestSession(this.testSessions[0])
+          }
+        }
+        this._metaLoaded = true
+      } catch (e) {
+        console.error('加载测试会话列表失败:', e)
+      }
+    },
+
+    async persistMeta() {
+      if (!this.planFolderName) return
+      try {
+        const r = await getPlanSessionDetail(this.planFolderName)
+        if (r.data && r.data.meta) {
+          const meta = r.data.meta
+          meta.testSessions = this.testSessions
+          meta.updatedAt = new Date().toISOString()
+          await saveMeta(this.planFolderName, meta)
+        }
+      } catch (e) {
+        console.error('保存测试会话列表失败:', e)
+      }
+    },
+
+    async createTestSession() {
+      const title = `测试${this.testSessions.length + 1}`
+      try {
+        const r = await createSession(title)
+        const s = {
+          id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
+          sessionId: r.data.id,
+          title,
+          testUrl: '',
+          createdAt: new Date().toISOString(),
+        }
+        this.testSessions.push(s)
+        await this.persistMeta()
+        this.switchTestSession(s)
+        this.sessionDropdownOpen = false
+      } catch (e) {
+        console.error('创建测试会话失败:', e)
+        alert('创建测试会话失败: ' + e.message)
+      }
+    },
+
+    switchTestSession(s) {
+      if (!s) return
+      this.disabled = false
+      this.stopping = false
+      this.currentTestSession = s
+      this.currentSessionId = s.sessionId
+      this.logItems = []
+      this.promptTokens = 0
+      this.sessionDropdownOpen = false
+      this.loadHistoryMessages(s.sessionId)
+      this.connectWS()
+      this.$emit('session-created', s.sessionId)
+    },
+
+    async loadHistoryMessages(sessionId) {
+      try {
+        const r = await getMessages(sessionId)
+        const msgs = r.data || []
+        this.logItems = msgs.map(i => {
+          if (i.type === 'think') return { type: 'think', content: i.content || '', _seq: ++logSeq }
+          if (i.type === 'step') return { type: 'step', ...i, _seq: ++logSeq }
+          if (i.type === 'todos') return { type: 'todos', todos: i.todos, _seq: ++logSeq }
+          if (i.type === 'chat') return { type: 'chat', content: i.content, role: i.role, _seq: ++logSeq }
+          if (i.type === 'system') return { type: 'system', content: i.content, _seq: ++logSeq }
+          return { role: i.role, content: i.content, _seq: ++logSeq }
+        })
+        this.$nextTick(() => this.scrollToBottom())
+      } catch (e) {
+        console.error('加载历史消息失败:', e)
+        this.logItems = []
+      }
+    },
+
+    startRename(s) {
+      this.menuId = null
+      this.renameTarget = s
+      this.renameValue = s.title
+      this.renameVisible = true
+    },
+
+    async doRename() {
+      const newName = this.renameValue.trim()
+      if (!newName || !this.renameTarget) return
+      this.renameTarget.title = newName
+      if (this.currentTestSession && this.currentTestSession.id === this.renameTarget.id) {
+        this.currentTestSession.title = newName
+      }
+      await this.persistMeta()
+      this.renameVisible = false
+      this.renameTarget = null
+    },
+
+    confirmDelete(s) {
+      this.menuId = null
+      this.deleteTarget = s
+      this.deleteVisible = true
+    },
+
+    async doDelete() {
+      if (!this.deleteTarget) return
+      const item = this.deleteTarget
+      const wasActive = this.currentTestSession && this.currentTestSession.id === item.id
+      try {
+        if (item.sessionId) await deleteSession(item.sessionId)
+      } catch (e) {}
+      this.testSessions = this.testSessions.filter(s => s.id !== item.id)
+      await this.persistMeta()
+      this.deleteVisible = false
+      this.deleteTarget = null
+
+      if (wasActive) {
+        if (this.testSessions.length > 0) {
+          this.switchTestSession(this.testSessions[0])
+        } else {
+          this.currentTestSession = null
+          this.currentSessionId = ''
+          this.logItems = []
+          this.promptTokens = 0
+        }
+      }
+    },
+
     connectWS() {
       if (this.ws && this.ws.readyState === WebSocket.OPEN) return
       const url = `ws://localhost:${this.backendPort}/ws/code`
@@ -188,9 +388,11 @@ export default {
       if (!text || this.disabled) return
       this.connectWS()
 
+      if (!this.currentTestSession) {
+        await this.createTestSession()
+      }
       if (!this.currentSessionId) {
-        this.currentSessionId = 'test_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8)
-        this.$emit('session-created', this.currentSessionId)
+        this.currentSessionId = this.currentTestSession ? this.currentTestSession.sessionId : ''
       }
 
       this.logItems.push({ type: 'chat', content: text, _seq: ++logSeq })
@@ -303,6 +505,10 @@ export default {
   },
   mounted() {
     this.connectWS()
+    this.loadMeta()
+  },
+  activated() {
+    this.loadMeta()
   },
   beforeDestroy() {
     if (this.ws) {
@@ -319,6 +525,166 @@ export default {
   flex-direction: column;
   background: #fff;
   border-left: 1px solid var(--border, #e0e0e0);
+}
+
+.session-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border, #e0e0e0);
+  background: var(--bg-titlebar, #fafafa);
+  min-height: 36px;
+}
+
+.session-dropdown {
+  position: relative;
+  flex: 1;
+}
+
+.session-dropdown-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 4px 8px;
+  border: 1px solid var(--border, #d0d0d0);
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 12px;
+  font-family: inherit;
+  text-align: left;
+}
+
+.session-title-text {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dropdown-arrow {
+  font-size: 10px;
+  transition: transform 0.15s;
+}
+.dropdown-arrow.open { transform: rotate(180deg); }
+
+.session-dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: #fff;
+  border: 1px solid var(--border, #d0d0d0);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  z-index: 100;
+  max-height: 240px;
+  overflow-y: auto;
+  margin-top: 2px;
+}
+
+.session-dropdown-item {
+  display: flex;
+  align-items: center;
+  padding: 6px 10px;
+  gap: 6px;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 12px;
+}
+
+.session-dropdown-item:hover { background: #f5f6fa; }
+.session-dropdown-item.active { background: #e8f0fe; }
+
+.s-item-title {
+  flex: 1;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.s-item-meta {
+  font-size: 10px;
+  color: var(--text-muted, #999);
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.s-item-actions {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.menu-trigger {
+  cursor: pointer;
+  padding: 2px 4px;
+  font-size: 14px;
+  color: var(--text-muted, #888);
+  border-radius: 4px;
+}
+.menu-trigger:hover { background: #e0e0e0; }
+
+.disc-menu-popup {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  background: #fff;
+  border: 1px solid var(--border, #d0d0d0);
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+  z-index: 101;
+  min-width: 80px;
+  white-space: nowrap;
+}
+
+.menu-item {
+  padding: 6px 14px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.menu-item:hover { background: #f0f0f0; }
+.menu-item.danger { color: #ef4444; }
+
+.session-new-btn {
+  width: 100%;
+  padding: 8px;
+  border: none;
+  background: transparent;
+  color: var(--accent, #4f6ef7);
+  cursor: pointer;
+  font-size: 12px;
+  font-family: inherit;
+}
+.session-new-btn:hover { background: #e8f0fe; }
+
+.session-new-btn-standalone {
+  flex: 1;
+  padding: 6px 12px;
+  border: 1px dashed var(--border, #d0d0d0);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--accent, #4f6ef7);
+  cursor: pointer;
+  font-size: 12px;
+  font-family: inherit;
+}
+.session-new-btn-standalone:hover { background: #f0f5ff; }
+
+.session-url-badge {
+  font-size: 10px;
+  color: var(--text-muted, #999);
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 2px 6px;
+  background: #f0f0f0;
+  border-radius: 4px;
+  flex-shrink: 0;
 }
 
 .chat-messages {
@@ -481,5 +847,46 @@ textarea:focus { border-color: var(--accent, #4f6ef7); }
 }
 .lightbox-image {
   max-width: 90%; max-height: 90%; border-radius: 8px;
+}
+
+.rename-dialog-overlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10001;
+}
+
+.rename-dialog {
+  background: #fff;
+  border-radius: 8px;
+  padding: 20px;
+  min-width: 300px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+}
+
+.rename-dialog-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.rename-input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border, #d0d0d0);
+  border-radius: 6px;
+  font-size: 13px;
+  outline: none;
+  box-sizing: border-box;
+}
+.rename-input:focus { border-color: var(--accent, #4f6ef7); }
+
+.rename-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
 }
 </style>

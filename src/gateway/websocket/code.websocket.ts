@@ -11,7 +11,7 @@ import type { Session } from '../../entity/session.entity.js';
 import { codeChatService } from '../../services/codeChat/index.js';
 import { commandChatService } from '../../services/commandChat/index.js';
 import { isCommand } from '../cli/commands.js';
-import { projectService } from '@/services/project/project.service.js';
+import { projectService } from '../../services/project/project.service.js';
 import { memoryService } from '../../services/memory/index.js';
 import { getProvider } from '../../core/ai/provider/provider.router.js';
 import { NameAgent } from '../../core/ai/agents/name/name.agent.js';
