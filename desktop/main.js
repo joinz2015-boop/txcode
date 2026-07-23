@@ -1,5 +1,5 @@
 import { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage, dialog } from 'electron'
-import { spawn, exec } from 'child_process'
+import { spawn, fork, exec } from 'child_process'
 import { createServer } from 'net'
 import { join, dirname } from 'path'
 import { fileURLToPath, pathToFileURL } from 'url'
@@ -36,11 +36,19 @@ function startBackend(port) {
   console.log('Starting backend from:', distIndex)
   console.log('Backend port:', port)
 
-  backendProcess = spawn('node', [distIndex, 'desktop', '--port', String(port)], {
-    cwd: rootDir,
-    env: { ...process.env, NODE_ENV: process.env.NODE_ENV || 'production' },
-    stdio: ['pipe', 'pipe', 'pipe']
-  })
+  if (isDev) {
+    backendProcess = spawn('node', [distIndex, 'desktop', '--port', String(port)], {
+      cwd: rootDir,
+      env: { ...process.env, NODE_ENV: process.env.NODE_ENV || 'production' },
+      stdio: ['pipe', 'pipe', 'pipe']
+    })
+  } else {
+    backendProcess = fork(distIndex, ['desktop', '--port', String(port)], {
+      cwd: rootDir,
+      env: { ...process.env, NODE_ENV: process.env.NODE_ENV || 'production' },
+      silent: true
+    })
+  }
 
   backendProcess.stdout.on('data', (data) => {
     const text = data.toString()
@@ -129,15 +137,12 @@ function createWindow() {
 
 function getIconPath() {
   const isDev = !app.isPackaged
-  const basePath = isDev ? __dirname : process.resourcesPath
+  const basePath = isDev ? __dirname : app.getAppPath()
   const logoPath = join(basePath, 'assets', 'logo.png')
   if (existsSync(logoPath)) return logoPath
   if (process.platform === 'win32') {
     const icoPath = join(basePath, 'assets', 'icon.ico')
     if (existsSync(icoPath)) return icoPath
-  } else if (process.platform === 'darwin') {
-    const icnsPath = join(basePath, 'assets', 'icon.icns')
-    if (existsSync(icnsPath)) return icnsPath
   }
   const pngPath = join(basePath, 'assets', 'icon.png')
   if (existsSync(pngPath)) return pngPath
@@ -145,13 +150,35 @@ function getIconPath() {
 }
 
 function createTray() {
-  const trayIconPath = getIconPath()
+  const isDev = !app.isPackaged
+  const basePath = isDev ? __dirname : app.getAppPath()
+
+  let trayIconPath = null
+
+  if (process.platform === 'darwin') {
+    const templatePath = join(basePath, 'assets', 'trayIconTemplate.png')
+    if (existsSync(templatePath)) {
+      trayIconPath = templatePath
+    }
+  }
+
   if (!trayIconPath || !existsSync(trayIconPath)) {
+    trayIconPath = join(basePath, 'assets', 'logo.png')
+  }
+
+  if (!existsSync(trayIconPath)) {
+    console.warn('[Tray] 托盘图标文件不存在，使用空白图标')
     const icon = nativeImage.createEmpty()
     tray = new Tray(icon.resize({ width: 16, height: 16 }))
   } else {
     const icon = nativeImage.createFromPath(trayIconPath)
-    tray = new Tray(icon.resize({ width: 16, height: 16 }))
+    if (icon.isEmpty()) {
+      console.warn('[Tray] 图标加载失败，文件路径:', trayIconPath)
+      const emptyIcon = nativeImage.createEmpty()
+      tray = new Tray(emptyIcon.resize({ width: 16, height: 16 }))
+    } else {
+      tray = new Tray(icon.resize({ width: 16, height: 16 }))
+    }
   }
 
   const contextMenu = Menu.buildFromTemplate([
@@ -195,6 +222,10 @@ ipcMain.handle('get-app-version', () => {
 
 ipcMain.handle('get-node-version', () => {
   return process.version
+})
+
+ipcMain.handle('get-platform', () => {
+  return process.platform
 })
 
 ipcMain.on('minimize-window', () => {
@@ -245,6 +276,7 @@ function createTestWindow(context) {
     minHeight: 600,
     frame: true,
     title: '测试 - ' + (context.planFolderName || ''),
+    icon: getIconPath(),
     webPreferences: {
       preload: preloadPath,
       contextIsolation: true,

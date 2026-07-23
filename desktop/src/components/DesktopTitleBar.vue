@@ -1,5 +1,5 @@
 <template>
-  <div class="titlebar">
+  <div class="titlebar" :style="titlebarStyle">
     <div class="titlebar-left">
       <img :src="logoPng" class="titlebar-logo" />
       <span class="titlebar-title">txcode</span>
@@ -21,7 +21,7 @@
         @deleteProject="$emit('deleteProject', $event)"
         @openProject="$emit('openProject')"
       />
-      <div class="titlebar-actions">
+      <div class="titlebar-actions" v-if="!isMac">
         <button class="win-btn" title="最小化" @click="minimizeWindow">
           <svg width="10" height="10" viewBox="0 0 10 10">
             <rect x="1" y="4" width="8" height="1.2" rx="0.6" fill="currentColor"/>
@@ -44,7 +44,7 @@
 
 <script>
 import DesktopProjectSwitcher from '@/components/DesktopProjectSwitcher.vue'
-import { minimizeWindow, maximizeWindow, closeWindow } from '@/utils/ipc'
+import { minimizeWindow, maximizeWindow, closeWindow, getPlatform } from '@/utils/ipc'
 import { eventBus } from '@/utils/eventBus'
 import logoPng from '../../assets/logo.png'
 
@@ -64,6 +64,7 @@ export default {
     return {
       logoPng,
       currentMode: 'code',
+      isMac: false,
     }
   },
   props: {
@@ -74,6 +75,9 @@ export default {
     viewLabel() {
       const routeName = this.$route.name
       return viewLabels[routeName] || '编码'
+    },
+    titlebarStyle() {
+      return this.isMac ? { paddingLeft: '78px' } : {}
     },
   },
   methods: {
@@ -88,6 +92,9 @@ export default {
   mounted() {
     this._unsubMode = eventBus.on('coding:modeChanged', (mode) => {
       this.currentMode = mode
+    })
+    getPlatform().then(platform => {
+      this.isMac = platform === 'darwin'
     })
   },
   beforeDestroy() {
@@ -110,6 +117,8 @@ export default {
 }
 .titlebar-left { flex: 1; display: flex; align-items: center; gap: 10px; }
 .titlebar-logo { width: 24px; height: 24px; border-radius: 4px; object-fit: contain; }
+.titlebar-title { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.titlebar-subtitle { font-size: 11.5px; color: var(--text-muted); }
 .titlebar-center {
   flex: 0 0 auto;
   -webkit-app-region: no-drag;

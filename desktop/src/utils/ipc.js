@@ -33,6 +33,13 @@ export function getNodeVersion() {
   return ''
 }
 
+export function getPlatform() {
+  if (electronAPI.getPlatform) {
+    return electronAPI.getPlatform()
+  }
+  return 'win32'
+}
+
 export function onBackendReady(callback) {
   if (electronAPI.onBackendReady) {
     electronAPI.onBackendReady(callback)

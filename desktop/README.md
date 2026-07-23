@@ -30,7 +30,8 @@ npm run electron:dev
 npm run build:win
 
 # macOS
-npm run build:mac
+npm install . --registry=https://registry.npmmirror.com
+npm run build && ELECTRON_CACHE=/Users/wuxuewen/.electron-cache npm run desktop:build:mac
 ```
 
 构建产物输出到 `release/` 目录。

@@ -30,7 +30,7 @@ win:
     - target: nsis
       arch:
         - x64
-  icon: assets/logo.png
+  icon: assets/icon.ico
 
 nsis:
   oneClick: false
