@@ -68,7 +68,6 @@
           :minRows="2"
           :maxRows="20"
           placeholder="输入测试要求... (Enter 发送, Shift+Enter 换行，可粘贴图片)"
-          :disabled="disabled"
           class="test-textarea"
           @keydown="handleKeydown"
           @paste-image="handlePasteImages"
@@ -123,7 +122,7 @@ import DesktopCommandDialog from '@/components/common/DesktopCommandDialog.vue'
 import DesktopImagePreviewList from '@/components/chat/DesktopImagePreviewList.vue'
 import DesktopResizableTextarea from '@/components/chat/DesktopResizableTextarea.vue'
 import DesktopInputHistory from '@/components/chat/DesktopInputHistory.vue'
-import { getItem, setItem } from '@/utils/storage'
+import { setItem } from '@/utils/storage'
 import { createSession, getMessages, saveMeta, uploadChatImage } from '@/api/index'
 import { ws } from '@/utils/websocket'
 import { marked } from 'marked'
@@ -150,6 +149,7 @@ export default {
     projectPath: { type: String, default: '' }
   },
   emits: ['open-model-select', 'preview-image'],
+  inject: ['getSessionState', 'updateSessionState'],
   data() {
     return {
       inputText: '',
@@ -193,6 +193,13 @@ export default {
           return
         }
         if (oldVal && oldVal.folderName === val.folderName) return
+
+        if (oldVal && this.$refs.messagesContainer) {
+          this.updateSessionState(oldVal.folderName, {
+            testScrollTop: this.$refs.messagesContainer.scrollTop
+          })
+        }
+
         this.initSession(val)
       },
       immediate: true
@@ -219,7 +226,6 @@ export default {
     },
 
     async initSession(session) {
-      this.saveTestScrollTop()
       this.unsubscribePanel()
       this.panel = this.createPanel()
 
@@ -238,20 +244,14 @@ export default {
     saveTestScrollTop() {
       const el = this.$refs.messagesContainer
       if (el && this.currentSession) {
-        const key = `txcode:plan-code:${this.currentSession.folderName}:state`
-        const raw = localStorage.getItem(key)
-        const existing = raw ? JSON.parse(raw) : {}
-        existing.testScrollTop = el.scrollTop
-        localStorage.setItem(key, JSON.stringify(existing))
+        this.updateSessionState(this.currentSession.folderName, { testScrollTop: el.scrollTop })
       }
     },
 
     restoreTestScrollTop() {
       const el = this.$refs.messagesContainer
       if (el && this.currentSession) {
-        const key = `txcode:plan-code:${this.currentSession.folderName}:state`
-        const raw = localStorage.getItem(key)
-        const state = raw ? JSON.parse(raw) : null
+        const state = this.getSessionState(this.currentSession.folderName)
         const top = (state && state.testScrollTop != null) ? state.testScrollTop : 0
         if (top > 0) {
           this.$nextTick(() => { el.scrollTop = top })

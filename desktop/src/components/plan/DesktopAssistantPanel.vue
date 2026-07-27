@@ -65,7 +65,6 @@
             :minRows="2"
             :maxRows="15"
             placeholder="输入需求描述... (Enter 发送, Ctrl+Enter 换行，可粘贴图片)"
-            :disabled="designPanel.disabled"
             @keydown="handleAssistKeydown($event, 'design')"
             @paste-image="handleDesignPasteImages"
           />
@@ -183,7 +182,6 @@
                 :minRows="2"
                 :maxRows="15"
                 placeholder="输入探讨内容... (Enter 发送, Ctrl+Enter 换行，可粘贴图片)"
-                :disabled="discussPanel.disabled"
                 @keydown="handleAssistKeydown($event, 'discuss')"
                 @paste-image="handleDiscussPasteImages"
               />

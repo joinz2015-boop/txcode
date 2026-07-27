@@ -117,7 +117,7 @@ import DesktopCreateSubPlanDialog from '@/components/plan-code/DesktopCreateSubP
 import DesktopGitChangesDialog from '@/components/plan-code/DesktopGitChangesDialog.vue'
 import DesktopPlanCodeTest from '@/components/coding/DesktopPlanCodeTest.vue'
 import DesktopTestPanel from '@/components/test/DesktopTestPanel.vue'
-import { listPlanSessions, createPlanSession, renamePlanSession, deletePlanSession, readPlan, getModels, listCustomActions, getConfig, setConfig, getBaseURL } from '@/api/index'
+import { listPlanSessions, createPlanSession, renamePlanSession, deletePlanSession, readPlan, getModels, listCustomActions, getConfig, getBaseURL } from '@/api/index'
 import { getItem, setItem } from '@/utils/storage'
 import { ws } from '@/utils/websocket'
 import { eventBus } from '@/utils/eventBus'
@@ -126,6 +126,12 @@ export default {
   name: 'DesktopCodingView',
   components: { DesktopCodingPanel, DesktopTestPanel, DesktopPlanEditor, DesktopAssistantPanel, DesktopPlanSessionSidebar, DesktopModelSelectDialog, DesktopCreateSubPlanDialog, DesktopGitChangesDialog, DesktopPlanCodeTest },
   inject: ['desktopState'],
+  provide() {
+    return {
+      getSessionState: this.getSessionState,
+      updateSessionState: this.updateSessionState,
+    }
+  },
   data() {
     return {
       currentModel: getItem('model:current', 'DeepSeek V3'),
@@ -206,18 +212,13 @@ export default {
       this.currentPlanSession = session
       setItem('planSession:current', session)
       this.planFilePath = session.meta.planFilePath || ''
-      try {
-        const r = await getConfig('chatMode')
-        const chatMode = r.data?.value
-        if (chatMode === 'code' || chatMode === 'plan' || chatMode === 'test') {
-          this.currentMode = chatMode
-        } else {
-          this.currentMode = 'code'
-        }
-      } catch (e) {
+      const state = this.getSessionState(session.folderName)
+      if (state && (state.chatMode === 'code' || state.chatMode === 'plan' || state.chatMode === 'test')) {
+        this.currentMode = state.chatMode
+      } else {
         this.currentMode = 'code'
+        this.updateSessionState(session.folderName, { chatMode: 'code' })
       }
-      this.saveChatMode(session.folderName)
       eventBus.emit('coding:modeChanged', this.currentMode)
       if (this.currentMode === 'plan') {
         await this.loadPlanContent()
@@ -271,13 +272,11 @@ export default {
     async onSubPlanConfirm() {
       this.subPlanDialogVisible = false
       try {
-        this.saveState()
         await createPlanSession('新计划会话', this.planFilePath)
         await this.loadPlanSessions()
         const s = this.planSessions[0]
         if (s) {
-          const key = this.getStoreKey(s.folderName)
-          localStorage.setItem(key, JSON.stringify({ currentMode: 'plan' }))
+          this.updateSessionState(s.folderName, { chatMode: 'plan' })
           await this.selectPlanSession(s)
         }
       } catch (e) {
@@ -346,7 +345,6 @@ export default {
     },
     fillDevPlan() {
       this.currentMode = 'code'
-      this.saveState()
       eventBus.emit('coding:modeChanged', 'code')
       this.$nextTick(() => {
         const cp = this.$refs.codingPanel
@@ -373,34 +371,35 @@ export default {
       const tp = this.$refs.testPanel
       if (tp) tp.restoreTestScrollTop()
     },
-    getStoreKey(folderName) {
-      return `txcode:plan-code:${folderName}:state`
+    getAllSessionStates() {
+      try {
+        const raw = localStorage.getItem('txcode:session-states')
+        return raw ? JSON.parse(raw) : []
+      } catch { return [] }
     },
-    loadState(folderName) {
-      if (!folderName) return null
-      const raw = localStorage.getItem(this.getStoreKey(folderName))
-      return raw ? JSON.parse(raw) : null
+    setAllSessionStates(arr) {
+      localStorage.setItem('txcode:session-states', JSON.stringify(arr))
     },
-    saveState() {
-      if (!this.planFolderName) return
-      const key = this.getStoreKey(this.planFolderName)
-      const existing = this.loadState(this.planFolderName) || {}
-      existing.currentMode = this.currentMode
-      localStorage.setItem(key, JSON.stringify(existing))
+    getSessionState(folderName) {
+      const arr = this.getAllSessionStates()
+      return arr.find(s => s.folderName === folderName) || null
     },
-    saveChatMode(folderName) {
-      if (!folderName) return
-      localStorage.setItem(`txcode:code-view:${folderName}:chatMode`, this.currentMode)
-    },
-    loadChatMode(folderName) {
-      return localStorage.getItem(`txcode:code-view:${folderName}:chatMode`) || null
+    updateSessionState(folderName, fields) {
+      const arr = this.getAllSessionStates()
+      const idx = arr.findIndex(s => s.folderName === folderName)
+      if (idx >= 0) {
+        arr[idx] = { ...arr[idx], ...fields }
+      } else {
+        arr.push({ folderName, chatMode: 'code', codeScrollTop: 0, testScrollTop: 0, ...fields })
+      }
+      this.setAllSessionStates(arr)
     },
     onSwitchMode(mode) {
       if (this.currentMode === mode) return
       this.currentMode = mode
-      this.saveState()
-      this.saveChatMode(this.planFolderName)
-      setConfig('chatMode', mode).catch(() => {})
+      if (this.planFolderName) {
+        this.updateSessionState(this.planFolderName, { chatMode: mode })
+      }
       eventBus.emit('coding:modeChanged', mode)
       if (mode === 'plan') this.$nextTick(() => this.loadPlanContent())
     },
@@ -517,7 +516,6 @@ export default {
   deactivated() {
     this.saveCodeScrollTop()
     this.saveTestScrollTop()
-    this.saveState()
     const cp = this.$refs.codingPanel
     if (cp) cp.unsubscribePanel()
     const tp = this.$refs.testPanel

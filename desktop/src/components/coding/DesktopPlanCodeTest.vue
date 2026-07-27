@@ -49,7 +49,6 @@
             v-model="inputMessage"
             placeholder="输入测试要求... (Enter 发送, Shift+Enter 换行)"
             rows="3"
-            :disabled="disabled"
             @keydown="handleKeydown"
           ></textarea>
           <div class="input-actions">

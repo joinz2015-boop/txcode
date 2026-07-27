@@ -65,7 +65,6 @@
           :minRows="2"
           :maxRows="20"
           placeholder="输入消息... (Enter 发送, Shift+Enter 换行，可粘贴图片)"
-          :disabled="disabled"
           class="code-textarea"
           @keydown="handleKeydown"
           @paste-image="handlePasteImages"
@@ -122,10 +121,7 @@ import DesktopCommandDialog from '@/components/common/DesktopCommandDialog.vue'
 import DesktopImagePreviewList from '@/components/chat/DesktopImagePreviewList.vue'
 import DesktopResizableTextarea from '@/components/chat/DesktopResizableTextarea.vue'
 import DesktopInputHistory from '@/components/chat/DesktopInputHistory.vue'
-import { getItem, setItem } from '@/utils/storage'
-import { createSession, getMessages } from '@/api/index'
-import { saveMeta } from '@/api/index'
-import { uploadChatImage } from '@/api/index'
+import { createSession, getMessages, saveMeta, uploadChatImage } from '@/api/index'
 import { ws } from '@/utils/websocket'
 import { marked } from 'marked'
 
@@ -152,6 +148,7 @@ export default {
     customActions: { type: Array, default: () => [] }
   },
   emits: ['open-model-select', 'custom-action', 'open-git-changes', 'open-test', 'preview-image'],
+  inject: ['getSessionState', 'updateSessionState'],
   data() {
     return {
       inputText: '',
@@ -194,6 +191,13 @@ export default {
           return
         }
         if (oldVal && oldVal.folderName === val.folderName) return
+
+        if (oldVal && this.$refs.messagesContainer) {
+          this.updateSessionState(oldVal.folderName, {
+            codeScrollTop: this.$refs.messagesContainer.scrollTop
+          })
+        }
+
         this.initSession(val)
       },
       immediate: true
@@ -220,7 +224,6 @@ export default {
     },
 
     async initSession(session) {
-      this.saveCodeScrollTop()
       this.unsubscribePanel()
       this.panel = this.createPanel()
 
@@ -238,35 +241,18 @@ export default {
 
     saveCodeScrollTop() {
       const el = this.$refs.messagesContainer
-      if (el) {
-        const key = this.currentSession ? `txcode:plan-code:${this.currentSession.folderName}:state` : 'coding:scrollTop'
-        if (this.currentSession) {
-          const raw = localStorage.getItem(key)
-          const existing = raw ? JSON.parse(raw) : {}
-          existing.codeScrollTop = el.scrollTop
-          localStorage.setItem(key, JSON.stringify(existing))
-        } else {
-          setItem(key, el.scrollTop)
-        }
+      if (el && this.currentSession) {
+        this.updateSessionState(this.currentSession.folderName, { codeScrollTop: el.scrollTop })
       }
     },
 
     restoreCodeScrollTop() {
       const el = this.$refs.messagesContainer
-      if (el) {
-        const key = this.currentSession ? `txcode:plan-code:${this.currentSession.folderName}:state` : 'coding:scrollTop'
-        if (this.currentSession) {
-          const raw = localStorage.getItem(key)
-          const state = raw ? JSON.parse(raw) : null
-          const top = (state && state.codeScrollTop != null) ? state.codeScrollTop : 0
-          if (top > 0) {
-            this.$nextTick(() => { el.scrollTop = top })
-          }
-        } else {
-          const top = getItem(key, 0)
-          if (top > 0) {
-            this.$nextTick(() => { el.scrollTop = top })
-          }
+      if (el && this.currentSession) {
+        const state = this.getSessionState(this.currentSession.folderName)
+        const top = (state && state.codeScrollTop != null) ? state.codeScrollTop : 0
+        if (top > 0) {
+          this.$nextTick(() => { el.scrollTop = top })
         }
       }
     },
