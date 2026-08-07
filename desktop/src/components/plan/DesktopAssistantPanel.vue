@@ -251,6 +251,7 @@ import { ws } from '@/utils/websocket'
 import { createSession, deleteSession, saveMeta, getMessages } from '@/api/index'
 import { setItem } from '@/utils/storage'
 import { uploadChatImage } from '@/api/index'
+import { scrollToBottom as smartScroll, snapshotScroll } from '@/utils/scroll'
 import DesktopFileSelectDialog from '@/components/file/DesktopFileSelectDialog.vue'
 import DesktopSkillSelectDialog from '@/components/skill/DesktopSkillSelectDialog.vue'
 import DesktopDesignSelectDialog from '@/components/design/DesktopDesignSelectDialog.vue'
@@ -520,6 +521,7 @@ export default {
           filePath: f.filePath || '',
           type: f.file ? (f.file.type || 'image/png') : 'image/png'
         }))
+        const snap = snapshotScroll(this.$refs.designMessages)
         this.pushLogItem('designLogItems', { type: 'chat', content: val, role: 'user', mediaFiles: sentMediaFiles })
         this.designPanel.input = ''
 
@@ -550,7 +552,7 @@ export default {
         if (this.currentSession && this.currentSession.meta.sessionName === '新计划会话') {
           ws.send('name_session', { sessionId: sid, folderName: this.currentSession.folderName, userInput: val })
         }
-        this.$nextTick(() => this.scrollMessages('design'))
+        this.scrollMessages('design', snap)
       } catch (e) {
         console.error('发送失败:', e)
         alert('发送失败: ' + e.message)
@@ -573,6 +575,7 @@ export default {
         filePath: f.filePath || '',
         type: f.file ? (f.file.type || 'image/png') : 'image/png'
       }))
+      const snap = snapshotScroll(this.$refs.discussMessages)
       this.pushLogItem('discussLogItems', { type: 'chat', content: val, role: 'user', mediaFiles: sentMediaFiles })
       this.discussPanel.input = ''
 
@@ -592,7 +595,7 @@ export default {
         agent: 'discuss',
         mediaFiles: sentMediaFiles.map(f => ({ filePath: f.filePath, type: f.type }))
       })
-      this.$nextTick(() => this.scrollMessages('discuss'))
+      this.scrollMessages('discuss', snap)
     },
 
     stopDiscuss() {
@@ -610,25 +613,27 @@ export default {
 
       this[panelKey].wsUnsubscribe = ws.subscribe(sessionId, {
         done: (d) => {
+          const snap = snapshotScroll(this.$refs[key + 'Messages'])
           this[logKey] = this[logKey].filter(item => !(item.type === 'step' && item._executing))
           this[panelKey].disabled = false
           this['_' + key + 'ManuallyEnded'] = true
           this[stoppingKey] = false
           if (d.response) {
             this.pushLogItem(logKey, { type: 'think', content: d.response })
-            this.$nextTick(() => this.scrollMessages(key))
+            this.scrollMessages(key, snap)
           }
           if (key === 'design') {
             this.$emit('planUpdated')
           }
         },
         stopped: () => {
+          const snap = snapshotScroll(this.$refs[key + 'Messages'])
           this[logKey] = this[logKey].filter(item => !(item.type === 'step' && item._executing))
           this[panelKey].disabled = false
           this['_' + key + 'ManuallyEnded'] = true
           this[stoppingKey] = false
           this.pushLogItem(logKey, { type: 'think', content: '【已停止】' })
-          this.$nextTick(() => this.scrollMessages(key))
+          this.scrollMessages(key, snap)
         },
         error: (d) => {
           this[logKey] = this[logKey].filter(item => !(item.type === 'step' && item._executing))
@@ -638,6 +643,7 @@ export default {
           alert(d.error || '发生错误')
         },
         step: (d) => {
+          const snap = snapshotScroll(this.$refs[key + 'Messages'])
           const hasExecuting = d.toolCalls && d.toolCalls.some(tc => tc.status === 'executing')
           if (hasExecuting) {
             this[logKey] = this[logKey].filter(
@@ -651,11 +657,12 @@ export default {
             this.pushLogItem(logKey, { type: 'step', thought: d.reasoning || d.thought, toolCalls: d.toolCalls, success: d.success, iteration: d.iteration })
           }
           if (d.usage && d.usage.promptTokens) this[panelKey].promptTokens = d.usage.promptTokens
-          this.$nextTick(() => this.scrollMessages(key))
+          this.scrollMessages(key, snap)
         },
         todos: (d) => {
+          const snap = snapshotScroll(this.$refs[key + 'Messages'])
           this.pushLogItem(logKey, { type: 'todos', todos: d.todos })
-          this.$nextTick(() => this.scrollMessages(key))
+          this.scrollMessages(key, snap)
         },
         compact: () => {
           if (key === 'design') this.loadDesignMessages(this[panelKey].sessionId)
@@ -863,12 +870,10 @@ export default {
       return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     },
 
-    scrollMessages(type) {
+    scrollMessages(type, snap = null) {
       const ref = type === 'design' ? 'designMessages' : 'discussMessages'
       const el = this.$refs[ref]
-      if (el) {
-        this.$nextTick(() => { el.scrollTop = el.scrollHeight })
-      }
+      if (el) this.$nextTick(() => smartScroll(el, { prevSnapshot: snap }))
     },
 
     onFileSelected(path) {

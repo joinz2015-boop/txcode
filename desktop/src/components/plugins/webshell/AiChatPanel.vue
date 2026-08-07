@@ -74,6 +74,7 @@
 <script>
 import DesktopResizableTextarea from '@/components/chat/DesktopResizableTextarea.vue'
 import { marked } from 'marked'
+import { scrollToBottom as smartScroll, snapshotScroll } from '@/utils/scroll'
 
 export default {
   name: 'AiChatPanel',
@@ -138,11 +139,12 @@ export default {
     handleSend() {
       const msg = this.input.trim()
       if (!msg || this.disabled) return
+      const snap = snapshotScroll(this.$refs.msgContainer)
       this.logItems.push({ type: 'chat', role: 'user', content: msg })
       this.input = ''
       this.thinking = true
       this.$emit('send', msg)
-      this.$nextTick(() => this.scrollBottom())
+      this.scheduleScroll(snap)
     },
 
     handleStop() {
@@ -150,6 +152,7 @@ export default {
     },
 
     addStep(data) {
+      const snap = snapshotScroll(this.$refs.msgContainer)
       const hasExecuting = data.toolCalls && data.toolCalls.some(tc => tc.status === 'executing')
       if (hasExecuting) {
         this.logItems = this.logItems.filter(
@@ -162,29 +165,32 @@ export default {
         )
         this.logItems.push({ type: 'step', thought: data.reasoning || data.thought, toolCalls: data.toolCalls, success: data.success, iteration: data.iteration })
       }
-      this.$nextTick(() => this.scrollBottom())
+      this.scheduleScroll(snap)
     },
 
     addAssistant(content) {
+      const snap = snapshotScroll(this.$refs.msgContainer)
       this.logItems.push({ type: 'think', content })
-      this.$nextTick(() => this.scrollBottom())
+      this.scheduleScroll(snap)
     },
 
     setStreaming(content) {
+      const snap = snapshotScroll(this.$refs.msgContainer)
       this.streaming = true
       this.streamContent = content
       this.thinking = false
-      this.$nextTick(() => this.scrollBottom())
+      this.scheduleScroll(snap)
     },
 
     finishStreaming(content) {
+      const snap = snapshotScroll(this.$refs.msgContainer)
       this.streaming = false
       this.thinking = false
       if (content) {
         this.logItems.push({ type: 'think', content })
       }
       this.streamContent = ''
-      this.$nextTick(() => this.scrollBottom())
+      this.scheduleScroll(snap)
     },
 
     setThinking(val) {
@@ -208,11 +214,16 @@ export default {
       }
     },
 
-    scrollBottom() {
+    scrollBottom(force = false) {
       const el = this.$refs.msgContainer
-      if (el) {
-        el.scrollTop = el.scrollHeight
-      }
+      if (!el) return
+      const snap = snapshotScroll(el)
+      this.$nextTick(() => smartScroll(el, { force, prevSnapshot: snap }))
+    },
+
+    scheduleScroll(snap = null) {
+      const el = this.$refs.msgContainer
+      if (el) this.$nextTick(() => smartScroll(el, { prevSnapshot: snap }))
     },
   },
 }

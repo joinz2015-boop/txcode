@@ -168,6 +168,7 @@ import { getItem, setItem } from '@/utils/storage'
 import { getFileContent, writeFile, createSession, getSession, getMessages, getConfig, uploadChatImage, browseFilesystem } from '@/api/index'
 import { ws } from '@/utils/websocket'
 import { marked } from 'marked'
+import { scrollToBottom as smartScroll, snapshotScroll } from '@/utils/scroll'
 import DesktopModelSelectDialog from '@/components/plan-code/DesktopModelSelectDialog.vue'
 import DesktopCommandDialog from '@/components/common/DesktopCommandDialog.vue'
 import DesktopFileSelectDialog from '@/components/file/DesktopFileSelectDialog.vue'
@@ -357,6 +358,7 @@ export default {
           this.$emit('status-change', this.sessionStatus)
         },
         step: (data) => {
+          const snap = snapshotScroll(this.$refs.chatBody)
           const hasExecuting = data.toolCalls?.some(tc => tc.status === 'executing')
           if (hasExecuting) {
             this.logItems = this.logItems.filter(
@@ -371,9 +373,10 @@ export default {
           }
           this.thinking = true
           if (data.usage?.promptTokens) this.promptTokens = data.usage.promptTokens
-          this.$nextTick(() => this.scrollToBottom())
+          this.scheduleScroll(snap)
         },
         done: (data) => {
+          const snap = snapshotScroll(this.$refs.chatBody)
           this.logItems = this.logItems.filter(item => !(item.type === 'step' && item._executing))
           this.disabled = false
           this.stopping = false
@@ -383,10 +386,11 @@ export default {
           if (data?.modelName) this.modelName = data.modelName
           if (data?.usage?.promptTokens) this.promptTokens = data.usage.promptTokens
           if (data?.response) this.logItems.push({ type: 'think', content: data.response })
-          this.$nextTick(() => this.scrollToBottom())
+          this.scheduleScroll(snap)
           this.$emit('design-updated')
         },
         stopped: () => {
+          const snap = snapshotScroll(this.$refs.chatBody)
           this.logItems = this.logItems.filter(item => !(item.type === 'step' && item._executing))
           this.disabled = false
           this.stopping = false
@@ -394,7 +398,7 @@ export default {
           this.sessionStatus = 'idle'
           this.$emit('status-change', 'idle')
           this.logItems.push({ type: 'think', content: '【已停止】' })
-          this.$nextTick(() => this.scrollToBottom())
+          this.scheduleScroll(snap)
         },
         error: (data) => {
           this.logItems = this.logItems.filter(item => !(item.type === 'step' && item._executing))
@@ -497,14 +501,13 @@ export default {
     scrollToBottom(force = false) {
       const el = this.$refs.chatBody
       if (!el) return
-      if (force) {
-        el.scrollTop = el.scrollHeight
-        return
-      }
-      const dist = el.scrollHeight - el.scrollTop - el.clientHeight
-      if (dist <= 150) {
-        el.scrollTop = el.scrollHeight
-      }
+      const snap = snapshotScroll(el)
+      this.$nextTick(() => smartScroll(el, { force, prevSnapshot: snap }))
+    },
+
+    scheduleScroll(snap = null) {
+      const el = this.$refs.chatBody
+      if (el) this.$nextTick(() => smartScroll(el, { prevSnapshot: snap }))
     },
 
     renderMarkdown(content) {

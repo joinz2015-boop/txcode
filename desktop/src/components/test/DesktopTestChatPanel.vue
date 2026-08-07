@@ -124,6 +124,7 @@
 import { marked } from 'marked'
 import { setItem } from '@/utils/storage'
 import { getPlanSessionDetail, saveMeta, createSession, getMessages, deleteSession } from '@/api'
+import { scrollToBottom as smartScroll, snapshotScroll } from '@/utils/scroll'
 
 let logSeq = 0
 
@@ -244,6 +245,7 @@ export default {
     },
 
     async loadHistoryMessages(sessionId) {
+      const snap = snapshotScroll(this.$refs.messagesContainer)
       try {
         const r = await getMessages(sessionId)
         const msgs = r.data || []
@@ -255,7 +257,7 @@ export default {
           if (i.type === 'system') return { type: 'system', content: i.content, _seq: ++logSeq }
           return { role: i.role, content: i.content, _seq: ++logSeq }
         })
-        this.$nextTick(() => this.scrollToBottom())
+        this.scheduleScroll(snap)
       } catch (e) {
         console.error('加载历史消息失败:', e)
         this.logItems = []
@@ -332,6 +334,7 @@ export default {
       }
     },
     handleWSMessage(msg) {
+      const snap = snapshotScroll(this.$refs.messagesContainer)
       switch (msg.type) {
         case 'step': {
           const step = msg.data || msg
@@ -374,13 +377,17 @@ export default {
         default:
           break
       }
-      this.$nextTick(() => this.scrollToBottom())
+      this.scheduleScroll(snap)
     },
-    scrollToBottom() {
+    scrollToBottom(force = false) {
       const c = this.$refs.messagesContainer
-      if (c) {
-        c.scrollTop = c.scrollHeight
-      }
+      if (!c) return
+      const snap = snapshotScroll(c)
+      this.$nextTick(() => smartScroll(c, { force, prevSnapshot: snap }))
+    },
+    scheduleScroll(snap = null) {
+      const c = this.$refs.messagesContainer
+      if (c) this.$nextTick(() => smartScroll(c, { prevSnapshot: snap }))
     },
     async sendMessage() {
       const text = this.inputMessage.trim()
@@ -394,10 +401,11 @@ export default {
         this.currentSessionId = this.currentTestSession ? this.currentTestSession.sessionId : ''
       }
 
+      const snap = snapshotScroll(this.$refs.messagesContainer)
       this.logItems.push({ type: 'chat', content: text, _seq: ++logSeq })
       this.disabled = true
       this.inputMessage = ''
-      this.$nextTick(() => this.scrollToBottom())
+      this.scheduleScroll(snap)
 
       if (this.ws && this.ws.readyState === WebSocket.OPEN) {
         const payload = {

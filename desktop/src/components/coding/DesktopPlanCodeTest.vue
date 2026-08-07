@@ -78,6 +78,7 @@ import { createSession, getMessages } from '@/api/index'
 import { saveMeta } from '@/api/index'
 import { setItem } from '@/utils/storage'
 import { marked } from 'marked'
+import { scrollToBottom as smartScroll, snapshotScroll } from '@/utils/scroll'
 
 let logSeq = 0
 
@@ -153,8 +154,9 @@ export default {
       this.inputMessage = ''
       this.disabled = true
       this.stopping = false
+      const snap = snapshotScroll(this.$refs.messagesContainer)
       this.logItems.push(this.withLogId({ type: 'chat', content }))
-      this.$nextTick(() => this.scrollToBottom())
+      this.scheduleScroll(snap)
       ws.send('chat', {
         message: content,
         sessionId: this.sessionId,
@@ -173,10 +175,12 @@ export default {
       if (this.wsUnsubscribe) this.wsUnsubscribe()
       this.wsUnsubscribe = ws.subscribe(this.sessionId, {
         todos: (d) => {
+          const snap = snapshotScroll(this.$refs.messagesContainer)
           if (d && d.todos) this.logItems.push(this.withLogId({ type: 'todos', todos: d.todos }))
-          this.$nextTick(() => this.scrollToBottom())
+          this.scheduleScroll(snap)
         },
         step: (d) => {
+          const snap = snapshotScroll(this.$refs.messagesContainer)
           const hasExecuting = d.toolCalls && d.toolCalls.some(tc => tc.status === 'executing')
           if (hasExecuting) {
             this.logItems = this.logItems.filter(item => !(item.type === 'step' && item.iteration === d.iteration && item._executing))
@@ -186,12 +190,13 @@ export default {
             this.logItems.push(this.withLogId({ type: 'step', thought: d.reasoning || d.thought, toolCalls: d.toolCalls, success: d.success, iteration: d.iteration }))
           }
           if (d.usage && d.usage.promptTokens) this.promptTokens = d.usage.promptTokens
-          this.$nextTick(() => this.scrollToBottom())
+          this.scheduleScroll(snap)
         },
         compact: () => {
           if (this.sessionId) this.loadMessages()
         },
         done: (d) => {
+          const snap = snapshotScroll(this.$refs.messagesContainer)
           if (d && d.sessionId && this.sessionId && d.sessionId !== this.sessionId) return
           this.logItems = this.logItems.filter(item => !(item.type === 'step' && item._executing))
           this.disabled = false
@@ -200,15 +205,16 @@ export default {
           if (d.usage && d.usage.promptTokens) this.promptTokens = d.usage.promptTokens
           if (d.response) {
             this.logItems.push(this.withLogId({ type: 'think', content: d.response }))
-            this.$nextTick(() => this.scrollToBottom())
+            this.scheduleScroll(snap)
           }
         },
         stopped: () => {
+          const snap = snapshotScroll(this.$refs.messagesContainer)
           this.logItems = this.logItems.filter(item => !(item.type === 'step' && item._executing))
           this.disabled = false
           this.stopping = false
           this.logItems.push(this.withLogId({ type: 'think', content: '【已停止】' }))
-          this.$nextTick(() => this.scrollToBottom())
+          this.scheduleScroll(snap)
         },
         error: (d) => {
           this.logItems = this.logItems.filter(item => !(item.type === 'step' && item._executing))
@@ -220,6 +226,7 @@ export default {
     },
     async loadMessages() {
       if (!this.sessionId) return
+      const snap = snapshotScroll(this.$refs.messagesContainer)
       try {
         const r = await getMessages(this.sessionId)
         this.logItems = (r.data || []).map(i => {
@@ -230,16 +237,20 @@ export default {
       } catch (e) {
         this.logItems = []
       }
-      this.$nextTick(() => this.scrollToBottom())
+      this.scheduleScroll(snap)
     },
     withLogId(item) {
       return { ...item, logId: ++logSeq }
     },
-    scrollToBottom() {
+    scrollToBottom(force = false) {
       const el = this.$refs.messagesContainer
-      if (el) {
-        this.$nextTick(() => { el.scrollTop = el.scrollHeight })
-      }
+      if (!el) return
+      const snap = snapshotScroll(el)
+      this.$nextTick(() => smartScroll(el, { force, prevSnapshot: snap }))
+    },
+    scheduleScroll(snap = null) {
+      const el = this.$refs.messagesContainer
+      if (el) this.$nextTick(() => smartScroll(el, { prevSnapshot: snap }))
     },
     renderMarkdown(text) {
       if (!text) return ''
