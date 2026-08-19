@@ -82,12 +82,6 @@ const routes = [
         meta: { title: 'AI 日志' },
       },
       {
-        path: 'tasks',
-        name: 'tasks',
-        component: () => import('../views/pc/task/taskView.vue'),
-        meta: { title: '任务列表' },
-      },
-      {
         path: 'devWorkflow',
         name: 'devWorkflow',
         component: () => import('../views/pc/workflow/devWorkflowView.vue'),
@@ -110,12 +104,6 @@ const routes = [
         name: 'customActions',
         component: () => import('../views/pc/customAction/customActionsView.vue'),
         meta: { title: '自定义操作' },
-      },
-      {
-        path: 'wiki',
-        name: 'wiki',
-        component: () => import('../views/pc/wiki/wikiView.vue'),
-        meta: { title: '文档' },
       },
       {
         path: 'deploy',

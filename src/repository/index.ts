@@ -15,8 +15,6 @@ export { SkillRepository, skillRepository } from './skill.repository.js';
 export type { SkillRepoRow } from '../entity/skill.entity.js';
 export { SpecRepository, specRepository } from './spec.repository.js';
 export type { SpecRepoRow } from '../entity/spec.entity.js';
-export { SchedulerRepository, schedulerRepository } from './scheduler.repository.js';
-export type { ScheduledTaskRow, TaskSkillRow, TaskLogRow } from '../entity/scheduler.entity.js';
 export { EmailRepository, emailRepository } from './email.repository.js';
 export type { EmailConfigRow } from '../entity/email.entity.js';
 export { GatewayRepository, gatewayRepository } from './gateway.repository.js';

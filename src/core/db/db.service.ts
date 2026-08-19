@@ -25,7 +25,6 @@ import { initConfigTables } from './init_sql/config.init.js';
 import { initDingdingTables } from './init_sql/dingding.init.js';
 import { initLspTables } from './init_sql/lsp.init.js';
 import { initAiLogTables } from './init_sql/ai_log.init.js';
-import { initSchedulerTables } from './init_sql/scheduler.init.js';
 import { initEmailTables } from './init_sql/email.init.js';
 import { initCustomActionTables } from './init_sql/custom_action.init.js';
 import { initWafGatewayTables } from './init_sql/waf_gateway.init.js';
@@ -235,7 +234,6 @@ export class DbService {
       () => this.migration004AddProjects(),
       () => this.migration005AddAiCallLogs(),
       () => this.migration006AddDingdingConfig(),
-      () => this.migration007AddScheduledTasks(),
       () => this.migration008AddEmailConfig(),
       () => this.migration009AddSessionStatus(),
       () => this.migration010AddCustomActions(),
@@ -376,11 +374,6 @@ export class DbService {
   private migration006AddDingdingConfig(): void {
     if (!this.db) return;
     initDingdingTables(this.db);
-  }
-
-  private migration007AddScheduledTasks(): void {
-    if (!this.db) return;
-    initSchedulerTables(this.db);
   }
 
   private migration008AddEmailConfig(): void {

@@ -76,14 +76,8 @@
           <router-link to="/views/pc/db" class="w-10 h-10 mb-2 rounded flex items-center justify-center" :class="$route.name === 'db' ? 'text-white border-l-2 border-accent bg-sidebar' : 'text-textMuted hover:text-white border-l-2 border-transparent'" title="数据库">
             <i class="fa-solid fa-database text-xl"></i>
           </router-link>
-          <router-link to="/views/pc/tasks" class="w-10 h-10 mb-2 rounded flex items-center justify-center" :class="$route.name === 'tasks' ? 'text-white border-l-2 border-accent bg-sidebar' : 'text-textMuted hover:text-white border-l-2 border-transparent'" title="任务">
-            <i class="fa-solid fa-clock text-xl"></i>
-          </router-link>
           <router-link to="/views/pc/aiLogs" class="w-10 h-10 mb-2 rounded flex items-center justify-center" :class="$route.name === 'aiLogs' ? 'text-white border-l-2 border-accent bg-sidebar' : 'text-textMuted hover:text-white border-l-2 border-transparent'" title="AI 日志">
             <i class="fa-solid fa-robot text-xl"></i>
-          </router-link>
-          <router-link to="/views/pc/wiki" class="w-10 h-10 mb-2 rounded flex items-center justify-center" :class="$route.name === 'wiki' ? 'text-white border-l-2 border-accent bg-sidebar' : 'text-textMuted hover:text-white border-l-2 border-transparent'" title="文档">
-            <i class="fa-solid fa-book text-xl"></i>
           </router-link>
           <router-link to="/views/pc/fileZihao" class="w-10 h-10 mb-2 rounded flex items-center justify-center" :class="$route.name === 'fileZihao' ? 'text-white border-l-2 border-accent bg-sidebar' : 'text-textMuted hover:text-white border-l-2 border-transparent'" title="文件互联">
             <i class="fa-solid fa-server text-xl"></i>

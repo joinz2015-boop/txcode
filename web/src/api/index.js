@@ -400,44 +400,6 @@ export const api = {
     return request('GET', `/ai_log/list_ai_log?page=${page}&pageSize=${pageSize}`);
   },
 
-  // ==================== 定时任务管理 ====================
-
-  getScheduledTasks() {
-    return request('GET', '/scheduler/list_scheduler');
-  },
-
-  getScheduledTask(id) {
-    return request('GET', `/scheduler/logs_scheduler?id=${id}`);
-  },
-
-  createScheduledTask(task) {
-    return request('POST', '/scheduler/create_scheduler', task);
-  },
-
-  updateScheduledTask(id, task) {
-    return request('POST', '/scheduler/update_scheduler', { id, ...task });
-  },
-
-  deleteScheduledTask(id) {
-    return request('POST', '/scheduler/delete_scheduler', { id });
-  },
-
-  startScheduledTask(id) {
-    return request('POST', `/scheduler/start_scheduler`, { id });
-  },
-
-  stopScheduledTask(id) {
-    return request('POST', `/scheduler/stop_scheduler`, { id });
-  },
-
-  runTaskNow(id) {
-    return request('POST', `/scheduler/run_scheduler`, { id });
-  },
-
-  getTaskLogs(taskId, limit = 50) {
-    return request('GET', `/scheduler/logs_scheduler?id=${taskId}&limit=${limit}`);
-  },
-
   // ==================== WebSocket 通信 ====================
 
   ws: wsManager,
@@ -708,20 +670,6 @@ export const api = {
 
   getProjectPath() {
     return request('GET', '/project/current_project');
-  },
-
-  // ==================== Wiki ====================
-
-  getWikiMenu() {
-    return request('GET', '/wiki/menu_wiki');
-  },
-
-  getWikiContent(path) {
-    return request('GET', `/wiki/content_wiki?path=${encodeURIComponent(path)}`);
-  },
-
-  getWikiAsset(path) {
-    return `${API_BASE}/wiki/asset_wiki?path=${encodeURIComponent(path)}`;
   },
 
   // ==================== 记忆管理 ====================
