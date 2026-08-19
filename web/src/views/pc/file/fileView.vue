@@ -195,6 +195,7 @@
 import FileTreeNode from '../../../components/pc/file/FileTreeNode.vue'
 import CopyPathDialog from '../../../components/pc/common/CopyPathDialog.vue'
 import { api } from '../../../api'
+import { sortFileItems } from '../../../utils/fileSort'
 import * as monaco from 'monaco-editor'
 
 export default {
@@ -243,14 +244,8 @@ export default {
     }
   },
   computed: {
-    fileTreeData() {
-      const items = this.browseResult.items.map(item => this.transformNode(item))
-      return items.sort((a, b) => {
-        if (a.is_directory === b.is_directory) {
-          return a.name.localeCompare(b.name)
-        }
-        return a.is_directory ? -1 : 1
-      })
+fileTreeData() {
+      return sortFileItems(this.browseResult.items.map(item => this.transformNode(item)))
     },
     hasChanges() {
       if (!this.editor) return false
@@ -383,17 +378,11 @@ export default {
         this.saving = false
       }
     },
-    async handleLoadChildren({ path, callback }) {
+async handleLoadChildren({ path, callback }) {
       try {
         const res = await api.browseFilesystem(path)
         const children = (res.data.items || []).map(item => this.transformNode(item))
-        const sortedChildren = children.sort((a, b) => {
-          if (a.is_directory === b.is_directory) {
-            return a.name.localeCompare(b.name)
-          }
-          return a.is_directory ? -1 : 1
-        })
-        callback(sortedChildren)
+        callback(sortFileItems(children))
       } catch (e) {
         console.error('Load children failed:', e)
         callback([])

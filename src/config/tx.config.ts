@@ -62,15 +62,15 @@ const userConfig = loadUserConfig();
 const config: TxConfig = {
   debug: defaults.debug,
   log: {
-    enabled: userConfig?.log?.enabled ?? defaults.log.enabled,
+    enabled: defaults.log.enabled,
     dir: defaults.log.dir,
     accessLog: defaults.log.accessLog,
   },
-  maxToolIterations: userConfig?.maxToolIterations ?? defaults.maxToolIterations,
+  maxToolIterations: defaults.maxToolIterations,
   ai: {
     context: {
       mode: defaults.ai.context.mode,
-      maxTokens: userConfig?.ai?.context?.maxTokens ?? defaults.ai.context.maxTokens,
+      maxTokens: defaults.ai.context.maxTokens,
       percentage: defaults.ai.context.percentage,
       autoCompact: defaults.ai.context.autoCompact,
     },

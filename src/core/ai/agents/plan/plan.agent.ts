@@ -95,7 +95,7 @@ export class PlanAgent implements AIProvider {
 
   constructor(config: PlanAgentConfig) {
     this.provider = config.provider;
-    this.maxIterations = config.maxIterations || 50;
+    this.maxIterations = config.maxIterations || 1000;
     this.projectPath = config.projectPath;
     this.sessionId = config.sessionId;
     this.memoryService = config.memoryService;

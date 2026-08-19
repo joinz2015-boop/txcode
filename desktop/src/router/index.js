@@ -11,6 +11,7 @@ const routes = [
     redirect: '/views/code/coding',
     children: [
       { path: 'code/coding', name: 'coding', component: () => import('../views/code/DesktopCodingView.vue') },
+      { path: 'file/fileView', name: 'files', component: () => import('../views/file/DesktopFileView.vue') },
       { path: 'test/testWindow', name: 'testWindow', component: () => import('../views/test/testWindow.vue') },
       { path: 'design/designView', name: 'design', component: () => import('../views/design/DesktopDesignView.vue') },
       { path: 'specs/specsView', name: 'specs', component: () => import('../views/specs/DesktopSpecsView.vue') },

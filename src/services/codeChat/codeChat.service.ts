@@ -112,10 +112,11 @@ export class CodeChatService {
     }
 
     let agent: CodeAgent | DesignAgent | PlanAgent | DiscussionAgent | TestAgent;
+    const maxIterations = this.configService.getMaxIterations();
     if (options.agentName === 'design') {
       agent = new DesignAgent({
         provider,
-        maxIterations: 50,
+        maxIterations,
         projectPath: options.projectPath,
         sessionId,
         memoryService,
@@ -125,7 +126,7 @@ export class CodeChatService {
     } else if (options.agentName === 'plan') {
       agent = new PlanAgent({
         provider,
-        maxIterations: 50,
+        maxIterations,
         projectPath: options.projectPath,
         sessionId,
         memoryService,
@@ -136,7 +137,7 @@ export class CodeChatService {
     } else if (options.agentName === 'discuss') {
       agent = new DiscussionAgent({
         provider,
-        maxIterations: 50,
+        maxIterations,
         projectPath: options.projectPath,
         sessionId,
         memoryService,
@@ -146,7 +147,7 @@ export class CodeChatService {
     } else if (options.agentName === 'test') {
       agent = new TestAgent({
         provider,
-        maxIterations: 50,
+        maxIterations,
         projectPath: options.projectPath,
         sessionId,
         memoryService,
@@ -155,7 +156,7 @@ export class CodeChatService {
     } else {
       agent = new CodeAgent({
         provider,
-        maxIterations: 50,
+        maxIterations,
         projectPath: options.projectPath,
         sessionId,
         memoryService,

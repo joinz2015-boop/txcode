@@ -53,7 +53,7 @@ export class TestAgent implements AIProvider {
 
   constructor(config: TestAgentConfig) {
     this.provider = config.provider;
-    this.maxIterations = config.maxIterations || 50;
+    this.maxIterations = config.maxIterations || 1000;
     this.projectPath = config.projectPath;
     this.sessionId = config.sessionId;
     this.memoryService = config.memoryService;

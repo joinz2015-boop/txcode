@@ -94,6 +94,25 @@ export class ConfigService {
     this.repo.setConfig(key, strValue);
   }
 
+  /** 上下文大小，读取不到默认 150000 */
+  getMaxContextTokens(): number {
+    const v = this.get<number>('ai.context.maxTokens');
+    return typeof v === 'number' && v > 0 ? v : 150000;
+  }
+
+  /** 循环次数，读取不到默认 1000 */
+  getMaxIterations(): number {
+    const v = this.get<number>('ai.maxIterations');
+    return typeof v === 'number' && v > 0 ? v : 1000;
+  }
+
+  /** 日志开关，读取不到默认 false（关） */
+  isLogEnabled(): boolean {
+    const v = this.get<boolean>('log.enabled');
+    return v === true;
+  }
+
+
   getModelProvider(modelName: string): Provider | undefined {
     const row = this.repo.getModelProvider(modelName);
     return row ? this.rowToProvider(row) : undefined;

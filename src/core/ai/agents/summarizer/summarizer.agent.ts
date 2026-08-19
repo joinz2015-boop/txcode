@@ -3,7 +3,6 @@ import { getProvider } from '../../provider/provider.router.js';
 import { SummarizerResult, SummarizerOptions, CompactionCheckResult } from '../../../../entity/summarizer.entity.js';
 import { SessionService } from '../../../../services/session/session.service.js';
 import { MemoryService } from '../../../../services/memory/memory.service.js';
-import txConfig from '../../../../config/tx.config.js';
 
 async function loadRoleTemplate(): Promise<string> {
   try {
@@ -39,16 +38,6 @@ export class SummarizerAgent {
       this.roleTemplate = await loadRoleTemplate();
     }
     return this.roleTemplate;
-  }
-
-  private getContextConfig() {
-    return txConfig.ai.context;
-  }
-
-  private getCurrentModel() {
-    const modelName = this.configService.getDefaultModel();
-    const models = this.configService.getAllModels();
-    return models.find(m => m.name === modelName) || null;
   }
 
   async compact(options: SummarizerOptions): Promise<SummarizerResult> {
@@ -174,19 +163,7 @@ export class SummarizerAgent {
   }
 
   checkNeedsCompact(sessionId: string, promptTokens: number = 0): CompactionCheckResult {
-    const config = this.getContextConfig();
-    const model = this.getCurrentModel();
-
-    let threshold: number;
-    if (config.mode === 'percentage' && model?.contextWindow) {
-      threshold = Math.floor(model.contextWindow * config.percentage);
-    } else {
-      threshold = config.maxTokens;
-    }
-
-    if (!config.autoCompact) {
-      return { needed: false, reason: 'Auto compact disabled', promptTokens, threshold };
-    }
+    const threshold = this.configService.getMaxContextTokens();
 
     if (promptTokens < threshold) {
       return {

@@ -443,3 +443,23 @@ export function switchHost(id) {
 export function testHost(ip, port) {
   return hostRequest('GET', '/sys_config/test_host', { ip, port: String(port) })
 }
+
+// ========== System Config API (上下文/循环/日志，通过本地后端) ==========
+export async function getSystemConfig() {
+  const [ctx, iter, log] = await Promise.all([
+    hostRequest('GET', '/sys_config/get_config', { key: 'ai.context.maxTokens' }),
+    hostRequest('GET', '/sys_config/get_config', { key: 'ai.maxIterations' }),
+    hostRequest('GET', '/sys_config/get_config', { key: 'log.enabled' }),
+  ])
+  return {
+    contextTokens: ctx.data?.value ?? 150000,
+    maxIterations: iter.data?.value ?? 1000,
+    logEnabled: log.data?.value === true,
+  }
+}
+
+export async function saveSystemConfig(data) {
+  await hostRequest('POST', '/sys_config/set_config', { key: 'ai.context.maxTokens', value: data.contextTokens })
+  await hostRequest('POST', '/sys_config/set_config', { key: 'ai.maxIterations', value: data.maxIterations })
+  await hostRequest('POST', '/sys_config/set_config', { key: 'log.enabled', value: data.logEnabled })
+}

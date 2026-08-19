@@ -50,6 +50,7 @@ import logoPng from '../../assets/logo.png'
 
 const viewLabels = {
   coding: '编码',
+  files: '文件',
   design: '设计',
   specs: '规范',
   skills: 'Skill',

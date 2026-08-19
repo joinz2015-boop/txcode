@@ -41,6 +41,7 @@
 <script>
 import FileSelectTreeNode from './FileSelectTreeNode.vue'
 import { api } from '../../../api/index.js'
+import { sortFileItems } from '../../../utils/fileSort'
 
 export default {
   name: 'FileSelectDialog',
@@ -66,20 +67,14 @@ export default {
     }
   },
   methods: {
-    async loadFileTree(path = '') {
+async loadFileTree(path = '') {
       this.loading = true
       try {
         const res = await api.browseFilesystem(path)
         this.currentPath = res.data?.current_path || path
         this.parentPath = res.data?.parent_path
         const items = (res.data?.items || []).map(item => this.transformNode(item))
-        items.sort((a, b) => {
-          if (a.is_directory === b.is_directory) {
-            return a.name.localeCompare(b.name)
-          }
-          return a.is_directory ? -1 : 1
-        })
-        this.fileTreeData = items
+        this.fileTreeData = sortFileItems(items)
       } catch (e) {
         console.error('Load file tree failed:', e)
         this.fileTreeData = []
@@ -107,17 +102,11 @@ export default {
       this.$emit('select', this.selectedPath)
       this.$emit('update:visible', false)
     },
-    async handleLoadChildren({ path, callback }) {
+async handleLoadChildren({ path, callback }) {
       try {
         const res = await api.browseFilesystem(path)
         const children = (res.data?.items || []).map(item => this.transformNode(item))
-        children.sort((a, b) => {
-          if (a.is_directory === b.is_directory) {
-            return a.name.localeCompare(b.name)
-          }
-          return a.is_directory ? -1 : 1
-        })
-        callback(children)
+        callback(sortFileItems(children))
       } catch (e) {
         console.error('Load children failed:', e)
         callback([])

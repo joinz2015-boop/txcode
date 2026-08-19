@@ -143,6 +143,7 @@
 
 <script>
 import { api } from '../../../api'
+import { sortFileItems } from '../../../utils/fileSort'
 import * as monaco from 'monaco-editor'
 
 export default {
@@ -185,14 +186,8 @@ export default {
     }
   },
   computed: {
-    fileTreeData() {
-      const items = this.browseResult.items.map(item => this.transformNode(item))
-      return items.sort((a, b) => {
-        if (a.is_directory === b.is_directory) {
-          return a.name.localeCompare(b.name)
-        }
-        return a.is_directory ? -1 : 1
-      })
+fileTreeData() {
+      return sortFileItems(this.browseResult.items.map(item => this.transformNode(item)))
     },
     currentDirName() {
       const path = this.browseResult.current_path

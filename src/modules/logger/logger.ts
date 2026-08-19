@@ -9,6 +9,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import config from '../../config/tx.config.js';
+import { configService } from '../../services/config/config.service.js';
 
 function stripTools(obj: any): any {
   if (Array.isArray(obj)) {
@@ -34,16 +35,16 @@ export interface AccessLogEntry {
 
 class Logger {
   private logDir: string;
-  private enabled: boolean;
 
   constructor() {
-    this.enabled = config.log.enabled;
     this.logDir = config.log.dir;
-    this.ensureLogDir();
+  }
+
+  private isEnabled(): boolean {
+    return configService.isLogEnabled();
   }
 
   private ensureLogDir(): void {
-    if (!this.enabled) return;
     if (!fs.existsSync(this.logDir)) {
       fs.mkdirSync(this.logDir, { recursive: true });
     }
@@ -54,7 +55,8 @@ class Logger {
   }
 
   logRequest(url: string, data: any): void {
-    if (!this.enabled) return;
+    if (!this.isEnabled()) return;
+    this.ensureLogDir();
 
     const entry: AccessLogEntry = {
       timestamp: new Date().toISOString(),
@@ -67,7 +69,8 @@ class Logger {
   }
 
   logResponse(url: string, data: any): void {
-    if (!this.enabled) return;
+    if (!this.isEnabled()) return;
+    this.ensureLogDir();
 
     const entry: AccessLogEntry = {
       timestamp: new Date().toISOString(),

@@ -26,7 +26,9 @@ export function initConfigTables(db: SqlJsDatabase): void {
   db.run(`INSERT OR IGNORE INTO config (key, value) VALUES ('ai.maxSessionCompression', '5')`);
   db.run(`INSERT OR IGNORE INTO config (key, value) VALUES ('web.port', '41000')`);
   db.run(`INSERT OR IGNORE INTO config (key, value) VALUES ('ai.context.mode', '"fixed"')`);
-  db.run(`INSERT OR IGNORE INTO config (key, value) VALUES ('ai.context.maxTokens', '100000')`);
+  db.run(`INSERT OR IGNORE INTO config (key, value) VALUES ('ai.context.maxTokens', '150000')`);
+  db.run(`INSERT OR IGNORE INTO config (key, value) VALUES ('ai.maxIterations', '1000')`);
+  db.run(`INSERT OR IGNORE INTO config (key, value) VALUES ('log.enabled', 'false')`);
   db.run(`INSERT OR IGNORE INTO config (key, value) VALUES ('ai.context.percentage', '0.95')`);
   db.run(`INSERT OR IGNORE INTO config (key, value) VALUES ('ai.context.autoCompact', 'true')`);
 }

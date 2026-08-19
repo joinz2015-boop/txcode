@@ -2,6 +2,7 @@ import { Client, ClientChannel } from 'ssh2';
 import { WebSocket } from 'ws';
 import { memoryService } from '../memory/index.js';
 import { ShellAgent } from '../../core/ai/agents/shell/shell.agent.js';
+import { configService } from '../config/config.service.js';
 import type { BaseProvider } from '../../core/ai/ai.types.js';
 import type { ProviderTokenUsage } from '../../core/ai/provider/base.js';
 
@@ -136,7 +137,7 @@ export class ShellChatService {
   ): Promise<{ answer: string; steps: any[]; success: boolean; iterations: number; usage?: ProviderTokenUsage; error?: string }> {
     const agent = new ShellAgent({
       provider,
-      maxIterations: 50,
+      maxIterations: configService.getMaxIterations(),
       sessionId,
       memoryService,
     });

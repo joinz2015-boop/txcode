@@ -137,6 +137,39 @@
           </div>
         </div>
       </div>
+
+      <div v-show="activeTab === 'system'" class="system-panel">
+        <h3 class="panel-title">系统配置</h3>
+        <div class="system-form">
+          <div class="form-group">
+            <label class="form-label">上下文大小</label>
+            <select class="form-select" v-model="systemConfig.contextTokens" @change="saveSystem">
+              <option :value="128000">128K</option>
+              <option :value="150000">150k</option>
+              <option :value="200000">200k</option>
+              <option :value="320000">320k</option>
+              <option :value="1000000">1M</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">循环次数</label>
+            <select class="form-select" v-model="systemConfig.maxIterations" @change="saveSystem">
+              <option :value="100">100 次</option>
+              <option :value="500">500 次</option>
+              <option :value="1000">1000 次</option>
+              <option :value="5000">5000 次</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">日志开关</label>
+            <select class="form-select" v-model="systemConfig.logEnabled" @change="saveSystem">
+              <option :value="true">开</option>
+              <option :value="false">关</option>
+            </select>
+          </div>
+          <div class="form-hint">修改后立即保存，下次 Agent 运行 / 日志写入时生效</div>
+        </div>
+      </div>
     </div>
 
     <!-- Provider Dialog -->
@@ -282,7 +315,8 @@ import {
   exportConfig, importConfig,
   getProxyConfig, updateProxyConfig,
   getSongbingConfig, startSongbingAuth, verifySongbingAuth, cancelSongbingAuth, syncSongbingModels,
-  listHosts, createHost, updateHost, deleteHost, switchHost, testHost, setBaseURLByHost
+  listHosts, createHost, updateHost, deleteHost, switchHost, testHost, setBaseURLByHost,
+  getSystemConfig, saveSystemConfig
 } from '@/api/index'
 
 const presets = [
@@ -307,6 +341,7 @@ export default {
         { key: 'providers', label: 'AI 服务商' },
         { key: 'proxy', label: '代理设置' },
         { key: 'hosts', label: '主机管理' },
+        { key: 'system', label: '系统配置' },
       ],
       providers: [],
       models: [],
@@ -340,6 +375,12 @@ export default {
       hostFormError: { name: '', ip: '', port: '' },
       hostSaving: false,
       hostTestingId: null,
+      systemConfig: {
+        contextTokens: 150000,
+        maxIterations: 1000,
+        logEnabled: false,
+      },
+      systemSaving: false,
     }
   },
   computed: {
@@ -766,11 +807,37 @@ export default {
         alert('切换失败: ' + e.message)
       }
     },
+
+    // System Config
+    async loadSystemConfig() {
+      try {
+        const data = await getSystemConfig()
+        this.systemConfig = {
+          contextTokens: data.contextTokens,
+          maxIterations: data.maxIterations,
+          logEnabled: data.logEnabled,
+        }
+      } catch (e) {
+        console.error('加载系统配置失败:', e)
+      }
+    },
+    async saveSystem() {
+      if (this.systemSaving) return
+      this.systemSaving = true
+      try {
+        await saveSystemConfig(this.systemConfig)
+      } catch (e) {
+        alert('保存系统配置失败: ' + e.message)
+      } finally {
+        this.systemSaving = false
+      }
+    },
   },
   mounted() {
     this.loadData()
     this.loadProxyConfig()
     this.loadHosts()
+    this.loadSystemConfig()
   },
   beforeDestroy() {
     if (this.pollTimer) clearInterval(this.pollTimer)
@@ -977,6 +1044,16 @@ export default {
   margin: 0 0 20px 0;
 }
 .proxy-form {
+  max-width: 480px;
+}
+
+/* System Config Panel */
+.system-panel {
+  flex: 1;
+  padding: 20px 24px;
+  overflow-y: auto;
+}
+.system-form {
   max-width: 480px;
 }
 

@@ -1,6 +1,7 @@
 import { BaseProvider } from '../../ai.types.js'
 import { AgentToolRegistry, buildToolContext } from '../agent.tool.js'
 import { DREAM_TOOLS } from './agent_tool.js'
+import { configService } from '../../../../services/config/config.service.js'
 import type { ChatMessage } from '../../ai.types.js'
 
 export interface DreamAgentConfig {
@@ -36,7 +37,7 @@ export class DreamAgent {
   }
 
   private async runLoop(messages: ChatMessage[]): Promise<void> {
-    const maxIterations = 50
+    const maxIterations = configService.getMaxIterations()
     let iteration = 0
     const toolDefs = await this.toolRegistry.getDefinitions()
     const context = buildToolContext({ sessionId: 'dream-agent', projectPath: this.workDir })
