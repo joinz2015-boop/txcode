@@ -41,7 +41,6 @@
 <script>
 import FileSelectTreeNode from './FileSelectTreeNode.vue'
 import { api } from '../../../api/index.js'
-import { sortFileItems } from '../../../utils/fileSort'
 
 export default {
   name: 'FileSelectDialog',
@@ -74,7 +73,13 @@ async loadFileTree(path = '') {
         this.currentPath = res.data?.current_path || path
         this.parentPath = res.data?.parent_path
         const items = (res.data?.items || []).map(item => this.transformNode(item))
-        this.fileTreeData = sortFileItems(items)
+        items.sort((a, b) => {
+          if (a.is_directory === b.is_directory) {
+            return a.name.localeCompare(b.name)
+          }
+          return a.is_directory ? -1 : 1
+        })
+        this.fileTreeData = items
       } catch (e) {
         console.error('Load file tree failed:', e)
         this.fileTreeData = []
@@ -106,7 +111,13 @@ async handleLoadChildren({ path, callback }) {
       try {
         const res = await api.browseFilesystem(path)
         const children = (res.data?.items || []).map(item => this.transformNode(item))
-        callback(sortFileItems(children))
+        children.sort((a, b) => {
+          if (a.is_directory === b.is_directory) {
+            return a.name.localeCompare(b.name)
+          }
+          return a.is_directory ? -1 : 1
+        })
+        callback(children)
       } catch (e) {
         console.error('Load children failed:', e)
         callback([])

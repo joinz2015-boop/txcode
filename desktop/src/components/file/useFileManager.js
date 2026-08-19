@@ -10,22 +10,16 @@ import {
 } from '@/api/index'
 import { getItem, setItem } from '@/utils/storage'
 import { eventBus } from '@/utils/eventBus'
+import { sortFileItems } from '@/utils/fileSort'
 
 const STORAGE_KEY = 'file:state'
 
 function sortNodes(nodes) {
-  return (nodes || []).slice().sort((a, b) => {
-    if (a.type !== b.type) return a.type === 'dir' ? -1 : 1
-    const na = (a.name || '').toLowerCase()
-    const nb = (b.name || '').toLowerCase()
-    if (na < nb) return -1
-    if (na > nb) return 1
-    return 0
-  })
+  return sortFileItems(nodes)
 }
 
 function normalizeTree(nodes, parentPath) {
-  return sortNodes(nodes).map(n => ({
+  return sortFileItems(nodes).map(n => ({
     name: n.name,
     path: n.path,
     type: n.type === 'directory' ? 'dir' : 'file',

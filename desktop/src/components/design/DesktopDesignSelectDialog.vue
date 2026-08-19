@@ -72,6 +72,7 @@
 
 <script>
 import { browseFilesystem, getBaseURL } from '@/api/index'
+import { sortFileItems } from '@/utils/fileSort'
 import DesktopFileSelectTreeNode from '@/components/file/DesktopFileSelectTreeNode.vue'
 
 export default {
@@ -103,16 +104,12 @@ export default {
       try {
         const r = await browseFilesystem(browsePath)
         const d = (r && r.data) || {}
-        const items = (d.items || [])
+        const items = sortFileItems((d.items || [])
           .filter(e => {
             if (e.name === 'session.json') return false
             if (e.is_directory) return true
             return e.name.endsWith('.html')
-          })
-        items.sort((a, b) => {
-          if (a.is_directory === b.is_directory) return a.name.localeCompare(b.name)
-          return a.is_directory ? -1 : 1
-        })
+          }))
         const nodes = items.map(e => {
           const node = {
             name: e.name,

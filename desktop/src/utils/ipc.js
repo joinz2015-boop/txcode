@@ -33,7 +33,7 @@ export function getNodeVersion() {
   return ''
 }
 
-export function getPlatform() {
+export async function getPlatform() {
   if (electronAPI.getPlatform) {
     return electronAPI.getPlatform()
   }

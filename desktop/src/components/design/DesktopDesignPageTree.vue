@@ -126,6 +126,7 @@
 
 <script>
 import { browseFilesystem, getFileContent, writeFile, createDirectory, deleteFile, renameFile, exportFolder } from '@/api/index'
+import { sortFileItems } from '@/utils/fileSort'
 import DesktopFileSelectTreeNode from '@/components/file/DesktopFileSelectTreeNode.vue'
 
 const DESIGN_BASE = '.txcode/design'
@@ -187,7 +188,7 @@ export default {
     },
 
     buildTreeNodes(items) {
-      return (items || [])
+      const nodes = (items || [])
         .filter(item => item.name !== 'session.json' && item.name !== '.template')
         .map(item => ({
           name: item.name,
@@ -195,10 +196,7 @@ export default {
           isDirectory: item.is_directory,
           hasChildren: item.is_directory
         }))
-        .sort((a, b) => {
-          if (a.isDirectory === b.isDirectory) return a.name.localeCompare(b.name)
-          return a.isDirectory ? -1 : 1
-        })
+      return sortFileItems(nodes)
     },
 
     async refresh() {

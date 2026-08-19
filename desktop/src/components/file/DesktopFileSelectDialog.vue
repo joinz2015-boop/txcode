@@ -39,6 +39,7 @@
 
 <script>
 import { browseFilesystem } from '@/api/index'
+import { sortFileItems } from '@/utils/fileSort'
 import DesktopFileSelectTreeNode from './DesktopFileSelectTreeNode.vue'
 
 export default {
@@ -66,11 +67,7 @@ export default {
         const r = await browseFilesystem(path)
         const d = (r && r.data) || {}
         this.currentPath = d.current_path || path || ''
-        const items = d.items || []
-        items.sort((a, b) => {
-          if (a.is_directory === b.is_directory) return a.name.localeCompare(b.name)
-          return a.is_directory ? -1 : 1
-        })
+        const items = sortFileItems(d.items || [])
         this.rootNodes = items.map(e => ({
           name: e.name,
           path: e.path,
@@ -91,11 +88,7 @@ export default {
       try {
         const r = await browseFilesystem(path)
         const d = (r && r.data) || {}
-        const items = d.items || []
-        items.sort((a, b) => {
-          if (a.is_directory === b.is_directory) return a.name.localeCompare(b.name)
-          return a.is_directory ? -1 : 1
-        })
+        const items = sortFileItems(d.items || [])
         callback(items.map(e => ({
           name: e.name,
           path: e.path,
