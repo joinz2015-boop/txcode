@@ -6,9 +6,11 @@
 
 import { WebSocket } from 'ws';
 import { terminalService } from '../../modules/terminal/index.js';
+import { log } from '../../modules/logger/index.js';
 
 export class TerminalWebSocketHandler {
   handle(ws: WebSocket, sessionId: string): void {
+    log.debug('[TerminalWebSocket]', 'connection, sessionId:', sessionId);
     if (!terminalService.isSessionAlive(sessionId)) {
       ws.send(JSON.stringify({ type: 'error', message: 'Terminal session not found' }));
       ws.close();
@@ -55,7 +57,7 @@ export class TerminalWebSocketHandler {
     });
 
     ws.on('close', () => {
-      console.log(`Terminal WebSocket [${sessionId}] closed`);
+      log.debug('[TerminalWebSocket]', 'closed, sessionId:', sessionId);
     });
 
     ws.on('error', (err) => {

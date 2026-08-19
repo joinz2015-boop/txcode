@@ -14,6 +14,7 @@ import type { MemoryService } from '../../../../services/memory/memory.service.j
 import type { SummarizerAgent } from '../summarizer/summarizer.agent.js';
 import type { SessionService } from '../../../../services/session/session.service.js';
 import { specInjector } from '../../../../modules/spec/index.js';
+import { log } from '../../../../modules/logger/index.js';
 
 export interface CommonAgentConfig {
   provider: BaseProvider;
@@ -122,6 +123,8 @@ export class CommonAgent implements AIProvider {
 
       iteration++;
 
+      log.debug('[AgentLoop]', 'iteration:', iteration);
+
       const messages: ChatMessage[] = [
         { role: 'system', content: systemPrompt },
         ...baseMessages,
@@ -134,6 +137,10 @@ export class CommonAgent implements AIProvider {
         sessionId: this.sessionId,
         modelName: this.provider.getModel(),
       }).finally(() => cleanup());
+
+      log.debug('[AgentLoop]', 'provider response, iteration:', iteration,
+        'finishReason:', response.finishReason,
+        'usage:', JSON.stringify(response.usage || {}));
 
       // 检查取消信号
       if (abortSignal?.aborted) {
@@ -154,6 +161,8 @@ export class CommonAgent implements AIProvider {
 
       if (response.finishReason === 'tool_calls' && response.toolCalls && response.toolCalls.length > 0) {
         const toolCalls = AgentToolRegistry.parseToolCalls(response.toolCalls);
+        log.debug('[AgentLoop]', 'tool calls, iteration:', iteration, 'count:', toolCalls.length,
+          'names:', toolCalls.map(t => t.name).join(','));
 
         const results: ProviderToolResult[] = [];
         const toolContext = buildToolContext({ sessionId: this.sessionId || '', projectPath: this.projectPath });
@@ -254,6 +263,8 @@ export class CommonAgent implements AIProvider {
     );
 
     if (!check.needed) return;
+
+    log.debug('[AgentLoop]', 'context compact triggered, promptTokens:', check.promptTokens);
 
     const currentToolResults = baseMessages.slice(newMessagesStartIndex).filter(
       msg => msg.role === 'tool' || (msg.role === 'assistant' && msg.toolCalls)

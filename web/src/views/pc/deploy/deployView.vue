@@ -12,13 +12,6 @@
           :file-path="releasePath"
           @content-change="onContentChange"
         />
-        <DeployAssistant
-          ref="assistantRef"
-          :has-content="!!editorContent"
-          :doc-content="editorContent"
-          :project-path="projectPath"
-          :release-path="releasePath"
-        />
       </div>
     </template>
 
@@ -35,12 +28,11 @@
 import { deployApi } from '../../../api/deploy/deploy.js'
 import { api } from '../../../api'
 import DeployEditor from '../../../components/pc/deploy/DeployEditor.vue'
-import DeployAssistant from '../../../components/pc/deploy/DeployAssistant.vue'
 import DeployImport from '../../../components/pc/deploy/DeployImport.vue'
 
 export default {
   name: 'deployView',
-  components: { DeployEditor, DeployAssistant, DeployImport },
+  components: { DeployEditor, DeployImport },
   data() {
     return {
       loading: true,

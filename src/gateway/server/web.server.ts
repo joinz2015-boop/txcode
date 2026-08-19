@@ -34,6 +34,7 @@ import { dbService } from '../../core/db/db.service.js';
 import { configService } from '../../services/config/config.service.js';
 import { logger } from '../../modules/logger/logger.js';
 import { projectService } from '../../services/project/project.service.js';
+import { log } from '../../modules/logger/index.js';
 
 /**
  * WebService 类
@@ -94,6 +95,15 @@ export class WebService {
     
     // URL 编码解析中间件 - 解析表单数据
     this.app.use(express.urlencoded({ extended: true }));
+
+    // HTTP 请求耗时 debug 日志中间件（--log-level debug 时打印每个请求）
+    this.app.use((req: Request, res: Response, next: any) => {
+      const start = Date.now();
+      res.on('finish', () => {
+        log.debug('[HTTP]', `${req.method} ${req.originalUrl} ${res.statusCode} ${Date.now() - start}ms`);
+      });
+      next();
+    });
   }
 
   /**
@@ -237,6 +247,7 @@ export class WebService {
 
     // 注册新的显式路由系统（自动扫描 gateway/api/**/*_routes.ts）
     await registerAllRoutes(this.app as any);
+    log.debug('[WebServer]', 'routes registered');
 
     // SPA fallback：必须在 API 路由之后注册，否则会拦截所有 /api/* 请求返回 404
     const devWebDistPath = path.join(process.cwd(), 'web', 'dist');
@@ -244,6 +255,7 @@ export class WebService {
     const webDistPath = fs.existsSync(devWebDistPath) ? devWebDistPath : prodWebDistPath;
 
     if (fs.existsSync(webDistPath)) {
+      log.debug('[WebServer]', 'frontend dist found:', webDistPath);
       this.app.get('/{*splat}', (req: Request, res: Response) => {
         if (req.path.startsWith('/api')) {
           return res.status(404).json({ success: false, error: 'Not Found' });
@@ -251,6 +263,7 @@ export class WebService {
         res.sendFile(path.join(webDistPath, 'index.html'));
       });
     } else {
+      log.debug('[WebServer]', 'frontend dist not found, SPA fallback disabled');
       this.app.use('/{*splat}', (req: Request, res: Response) => {
         if (req.path.startsWith('/api')) {
           return res.status(404).json({ success: false, error: 'Not Found' });
@@ -268,6 +281,7 @@ export class WebService {
 
       this.server.listen(this.port, () => {
         // ========== 步骤 3: 打印服务信息 ==========
+        log.debug('[WebServer]', 'listening on port:', this.port);
         console.log(`TXCode Web 服务已启动: http://localhost:${this.port}`);
         
         const devWebDistPath = path.join(process.cwd(), 'web', 'dist');
@@ -308,6 +322,7 @@ export class WebService {
          * - 防止服务挂起无法退出
          */
         const shutdown = async () => {
+          log.debug('[WebServer]', 'shutdown triggered');
           console.log('\n正在关闭服务...');
           webSocketService.close();
           this.server?.close(async () => {

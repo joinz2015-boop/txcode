@@ -17,6 +17,25 @@ import { getProviderTools } from '../../tools/provider/index.js';
 import { getOpenAITools } from '../../tools/provider/tools.js';
 import { ProviderToolCall } from '../provider/base.js';
 import { ToolDefinition } from '../ai.types.js';
+import { log } from '../../../modules/logger/index.js';
+
+/** 日志摘要截断长度 */
+const SUMMARY_LIMIT = 200;
+
+function summarize(value: any): string {
+  let text: string;
+  if (typeof value === 'string') {
+    text = value;
+  } else {
+    try {
+      text = JSON.stringify(value);
+    } catch {
+      text = String(value);
+    }
+  }
+  if (text.length <= SUMMARY_LIMIT) return text;
+  return text.slice(0, SUMMARY_LIMIT) + '...';
+}
 
 export interface AgentToolRegistryOptions {
   /**
@@ -110,9 +129,12 @@ export class AgentToolRegistry {
         const suffix = this.verboseError ? `. Available tools: ${available}` : '';
         throw new Error(`Tool not found: ${name}${suffix}`);
       }
+      log.debug('[Tool]', `execute ${name}`, 'args:', summarize(args));
       const result = await tool.execute(args, context);
+      log.debug('[Tool]', `${name} done, success:`, result.success, 'output:', summarize(result.output));
       return { success: result.success, data: result.output, error: result.error, metadata: result.metadata };
     } catch (error) {
+      log.debug('[Tool]', `${name} failed:`, error instanceof Error ? error.message : String(error));
       return {
         success: false,
         error: error instanceof Error ? error.message : String(error),

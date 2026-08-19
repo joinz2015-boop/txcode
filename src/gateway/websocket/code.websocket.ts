@@ -9,12 +9,11 @@ import { WebSocket } from 'ws';
 import { sessionService } from '../../services/session/index.js';
 import type { Session } from '../../entity/session.entity.js';
 import { codeChatService } from '../../services/codeChat/index.js';
-import { commandChatService } from '../../services/commandChat/index.js';
-import { isCommand } from '../cli/commands.js';
 import { projectService } from '../../services/project/project.service.js';
 import { memoryService } from '../../services/memory/index.js';
 import { getProvider } from '../../core/ai/provider/provider.router.js';
 import { NameAgent } from '../../core/ai/agents/name/name.agent.js';
+import { log } from '../../modules/logger/index.js';
 
 export class CodeWebSocketHandler {
   private wsClients: Set<WebSocket> = new Set();
@@ -22,11 +21,13 @@ export class CodeWebSocketHandler {
 
   handle(ws: WebSocket): void {
     this.wsClients.add(ws);
+    log.debug('[CodeWebSocket]', 'client connected, total:', this.wsClients.size);
     ws.send(JSON.stringify({ type: 'connected', message: 'WebSocket connected' }));
 
     ws.on('message', async (data: Buffer) => {
       try {
         const msg = JSON.parse(data.toString());
+        log.debug('[CodeWebSocket]', 'message received:', msg.type);
         await this.handleMessage(ws, msg);
       } catch (e) {
         ws.send(JSON.stringify({ type: 'error', error: 'Invalid message format' }));
@@ -35,6 +36,7 @@ export class CodeWebSocketHandler {
 
     ws.on('close', () => {
       this.wsClients.delete(ws);
+      log.debug('[CodeWebSocket]', 'client disconnected, remaining:', this.wsClients.size);
     });
   }
 
@@ -140,68 +142,47 @@ export class CodeWebSocketHandler {
       sessionService.switchTo(session.id);
       sessionService.setProcessing(session.id);
 
-      console.log('[CodeWebSocket] Chat message:', message);
+      log.debug('[CodeWebSocket]', 'chat start, sessionId:', session.id);
 
-      const isCmd = isCommand(message);
+      const result = await codeChatService.handleChat({
+        message: chatMessage,
+        sessionId: session.id,
+        projectPath: projectPath || session.projectPath || projectService.getCurrentProjectPath(),
+        enableDevLog,
+        abortSignal: abortController.signal,
+        mediaFiles: processedMediaFiles,
+        agentName: agent || 'code',
+        planFilePath,
+        webContentsId,
+        onStep: (step: any, iteration: number, usage?: any) => {
+          this.broadcast({ type: 'step', data: { ...step, iteration, sessionId: session.id, usage: usage ? {
+            promptTokens: usage.promptTokens,
+            completionTokens: usage.completionTokens,
+            totalTokens: usage.totalTokens,
+          } : undefined } });
+        },
+        onCompact: (info: { beforeTokens: number; afterTokens: number; summary?: string }) => {
+          this.broadcast({ type: 'compact', data: { ...info, sessionId: session.id } });
+        },
+      });
 
-      if (isCmd) {
-        const result = await commandChatService.handleCommand({
-          message,
+      log.debug('[CodeWebSocket]', 'chat completed, sessionId:', session.id, 'iterations:', result.iterations);
+
+      this.broadcast({
+        type: 'done',
+        data: {
           sessionId: session.id,
-        });
-
-        this.broadcast({ type: 'command', data: { ...result, sessionId: session.id } });
-        this.broadcast({
-          type: 'done',
-          data: {
-            sessionId: session.id,
-            response: result.answer,
-            success: result.success,
-            commandData: result.data,
-          }
-        });
-        sessionService.setCompleted(session.id);
-        return;
-      } else {
-        const currentSession = session;
-        const result = await codeChatService.handleChat({
-          message: chatMessage,
-          sessionId: session.id,
-          projectPath: projectPath || session.projectPath || projectService.getCurrentProjectPath(),
-          enableDevLog,
-          abortSignal: abortController.signal,
-          mediaFiles: processedMediaFiles,
-          agentName: agent || 'code',
-          planFilePath,
-          webContentsId,
-          onStep: (step: any, iteration: number, usage?: any) => {
-            this.broadcast({ type: 'step', data: { ...step, iteration, sessionId: currentSession.id, usage: usage ? {
-              promptTokens: usage.promptTokens,
-              completionTokens: usage.completionTokens,
-              totalTokens: usage.totalTokens,
-            } : undefined } });
-          },
-          onCompact: (info: { beforeTokens: number; afterTokens: number; summary?: string }) => {
-            this.broadcast({ type: 'compact', data: { ...info, sessionId: currentSession.id } });
-          },
-        });
-
-        this.broadcast({
-          type: 'done',
-          data: {
-            sessionId: session.id,
-            response: result.answer,
-            iterations: result.iterations,
-            success: result.success,
-            usage: result.usage ? {
-              promptTokens: result.usage.promptTokens,
-              completionTokens: result.usage.completionTokens,
-              totalTokens: result.usage.totalTokens,
-            } : undefined,
-          }
-        });
-        sessionService.setCompleted(session.id);
-      }
+          response: result.answer,
+          iterations: result.iterations,
+          success: result.success,
+          usage: result.usage ? {
+            promptTokens: result.usage.promptTokens,
+            completionTokens: result.usage.completionTokens,
+            totalTokens: result.usage.totalTokens,
+          } : undefined,
+        }
+      });
+      sessionService.setCompleted(session.id);
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : 'Unknown error';
       const isAbort = error instanceof Error && (

@@ -3,6 +3,7 @@ import { sessionRepository, SessionRow } from '../../repository/session.reposito
 import { memoryService } from '../../services/memory/index.js';
 import { Session, SessionState, CompactionResult, SessionStats } from './session.types.js';
 import type { Message } from '../../entity/message.entity.js';
+import { log } from '../../modules/logger/index.js';
 
 export class SessionService {
   private state: SessionState = {
@@ -18,6 +19,7 @@ export class SessionService {
     sessionRepository.insert({ id, title, projectPath });
     const session = this.get(id)!;
     this.state.sessions.unshift(session);
+    log.debug('[Session]', 'created:', id, title);
     return session;
   }
 
@@ -61,6 +63,7 @@ export class SessionService {
     if (!session) return undefined;
     this.state.currentSessionId = id;
     this.touch(id);
+    log.debug('[Session]', 'switched to:', id);
     return session;
   }
 
@@ -109,14 +112,17 @@ export class SessionService {
 
   setProcessing(sessionId: string): void {
     this.update(sessionId, { status: 'processing' });
+    log.debug('[Session]', 'status -> processing:', sessionId);
   }
 
   setCompleted(sessionId: string): void {
     this.update(sessionId, { status: 'completed' });
+    log.debug('[Session]', 'status -> completed:', sessionId);
   }
 
   setIdle(sessionId: string): void {
     this.update(sessionId, { status: 'idle' });
+    log.debug('[Session]', 'status -> idle:', sessionId);
   }
 
   cleanStaleSessions(): void {

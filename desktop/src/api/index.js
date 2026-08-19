@@ -225,10 +225,9 @@ export function syncSongbingModels() {
 }
 
 // ========== Image Upload ==========
-export function uploadChatImage(file, sessionId) {
+export function uploadChatImage(file) {
   const formData = new FormData()
-  formData.append('image', file)
-  formData.append('sessionId', sessionId || '')
+  formData.append('file', file)
   return fetch(`${getBaseURL()}/api/chat/upload_image_chat`, {
     method: 'POST',
     body: formData

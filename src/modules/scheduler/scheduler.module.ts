@@ -6,6 +6,7 @@ import { getProvider } from '../../core/ai/provider/provider.router.js';
 import { TaskAgent } from '../../core/ai/agents/task/task.agent.js';
 import { taskLogService, TaskLog } from './task-log.module.js';
 import { notifyService } from './notify.module.js';
+import { log } from '../logger/index.js';
 
 export type { ScheduleType, ScheduledTaskConfig };
 
@@ -18,6 +19,7 @@ export class SchedulerService {
     for (const row of taskRows) {
       this.createTaskFromDb(row);
     }
+    log.debug('[Scheduler]', `initialized ${this.tasks.size} scheduled tasks`);
     console.log(`[Scheduler] Initialized ${this.tasks.size} scheduled tasks`);
   }
 
@@ -43,6 +45,7 @@ export class SchedulerService {
     this.tasks.set(config.id!, task);
     if (config.enabled) {
       task.start();
+      log.debug('[Scheduler]', 'task started, id:', config.id, 'name:', config.name);
     }
   }
 
@@ -163,6 +166,7 @@ export class SchedulerService {
       return { success: false, error: 'Task is already running' };
     }
     this.runningTasks.add(taskId);
+    log.debug('[Scheduler]', 'task executing, id:', taskId);
 
     const logId = uuid();
     const startTime = Date.now();
@@ -181,7 +185,7 @@ export class SchedulerService {
 
       const result = await agent.run(userMessage);
 
-      const log: TaskLog = {
+      const taskLog: TaskLog = {
         id: logId,
         taskId: taskId,
         status: result.success ? 'success' : 'failed',
@@ -191,7 +195,7 @@ export class SchedulerService {
         duration: Date.now() - startTime,
         executedAt: new Date(),
       };
-      taskLogService.createLog(log);
+      taskLogService.createLog(taskLog);
 
       if (result.success) {
         await notifyService.send(taskConfig.notifyType, {
@@ -200,14 +204,16 @@ export class SchedulerService {
         });
       }
 
+      log.debug('[Scheduler]', 'task completed, id:', taskId, 'success:', result.success);
       return {
         success: result.success,
         result: result.answer,
         error: result.error,
       };
     } catch (error) {
+      log.error('[Scheduler]', 'task failed, id:', taskId, 'error:', error instanceof Error ? error.message : String(error));
       const errorMessage = error instanceof Error ? error.message : String(error);
-      const log: TaskLog = {
+      const taskLog: TaskLog = {
         id: logId,
         taskId: taskId,
         status: 'failed',
@@ -217,7 +223,7 @@ export class SchedulerService {
         duration: Date.now() - startTime,
         executedAt: new Date(),
       };
-      taskLogService.createLog(log);
+      taskLogService.createLog(taskLog);
 
       return { success: false, error: errorMessage };
     } finally {
@@ -236,9 +242,11 @@ export class SchedulerService {
   shutdown(): void {
     for (const [id, task] of this.tasks) {
       task.stop();
+      log.debug('[Scheduler]', 'task stopped, id:', id);
       console.log(`[Scheduler] Stopped task ${id}`);
     }
     this.tasks.clear();
+    log.debug('[Scheduler]', 'shutdown complete');
     console.log('[Scheduler] Shutdown complete');
   }
 }

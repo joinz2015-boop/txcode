@@ -4,12 +4,14 @@ import { getProvider } from '../../../core/ai/provider/provider.router.js'
 import { projectService } from '../../../services/project/project.service.js'
 import * as fs from 'fs'
 import * as path from 'path'
+import { log } from '../../../modules/logger/index.js'
 
 export class InitHandler implements IDreamHandler {
   dreamType = 'init'
 
   async handle(task: DreamTask): Promise<void> {
     console.log('[Dream:init] 开始执行 init 任务, taskId:', task.id)
+    log.debug('[Dream:init]', 'task start, taskId:', task.id)
 
     const workDir = projectService.getCurrentProjectPath()
     const projectDir = path.join(workDir, '.txcode', 'project')
@@ -44,6 +46,7 @@ export class InitHandler implements IDreamHandler {
 
   private async runAgent(workDir: string, userMessage: string): Promise<void> {
     console.log('[Dream:init] runAgent 开始, workDir:', workDir, 'message:', userMessage)
+    log.debug('[Dream:init]', 'runAgent start, workDir:', workDir)
     try {
       const provider = getProvider()
 
@@ -59,7 +62,9 @@ export class InitHandler implements IDreamHandler {
         lastGenerated: new Date().toISOString(),
         projectName: path.basename(workDir),
       }, null, 2))
+      log.debug('[Dream:init]', 'runAgent completed, workDir:', workDir)
     } catch (error) {
+      log.error('[Dream:init]', '生成失败:', error instanceof Error ? error.message : String(error))
       console.error('[Dream:init] 生成失败:', error)
     }
   }

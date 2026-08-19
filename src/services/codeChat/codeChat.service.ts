@@ -9,6 +9,7 @@ import { getProvider } from '../../core/ai/provider/provider.router.js';
 import { CodeAgent, DesignAgent, PlanAgent, DiscussionAgent, TestAgent } from '../../core/ai/agents/index.js';
 import { SummarizerAgent } from '../../core/ai/agents/summarizer/summarizer.agent.js';
 import { ChatMessage } from '../../core/ai/ai.types.js';
+import { log } from '../../modules/logger/index.js';
 
 export class CodeChatService {
   private configService: ConfigService;
@@ -21,6 +22,7 @@ export class CodeChatService {
 
   async handleChat(input: ChatInput): Promise<ChatResult> {
     const session = this.getOrCreateSession(input);
+    log.debug('[CodeChat]', 'session:', session.id, 'agent:', input.agentName || 'code');
 
     return this.chatWithAI(input.message, {
       sessionId: session.id,
@@ -106,6 +108,7 @@ export class CodeChatService {
 
         return chatMsg;
       });
+      log.debug('[CodeChat]', 'history messages:', historyMessages.length);
     }
 
     let agent: CodeAgent | DesignAgent | PlanAgent | DiscussionAgent | TestAgent;
@@ -160,6 +163,7 @@ export class CodeChatService {
         sessionService: this.sessionService,
       });
     }
+    log.debug('[CodeChat]', 'agent type:', agent.name || options.agentName || 'code');
 
     const abortController = new AbortController();
     const abortHandler = () => abortController.abort();
@@ -174,6 +178,7 @@ export class CodeChatService {
         const sessionIdSuffix = sessionId.slice(-12);
         userMessage = message + `\n\n开发过程中你需要在 devlog.md 文件中记录你的修改记录，文件路径为：.txcode/session/${date}/${sessionIdSuffix}/devlog.md`;
       }
+      log.debug('[CodeChat]', 'run start, sessionId:', sessionId);
       const result = await agent.run(userMessage, {
         abortSignal: abortController.signal,
         onStep: (step: any, iteration: number, usage?: any) => {
@@ -214,6 +219,9 @@ export class CodeChatService {
           result.usage.completionTokens
         );
       }
+
+      log.debug('[CodeChat]', 'run completed, iterations:', result.iterations,
+        'usage:', JSON.stringify(result.usage || {}));
 
       return {
         answer: result.answer || '',

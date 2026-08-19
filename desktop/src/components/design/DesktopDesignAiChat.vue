@@ -165,7 +165,8 @@
 
 <script>
 import { getItem, setItem } from '@/utils/storage'
-import { getFileContent, writeFile, createSession, getSession, getMessages, getConfig, uploadChatImage, browseFilesystem } from '@/api/index'
+import { getFileContent, writeFile, createSession, getSession, getMessages, getConfig, browseFilesystem } from '@/api/index'
+import { uploadSingleMedia } from '@/api/chat/media.js'
 import { ws } from '@/utils/websocket'
 import { marked } from 'marked'
 import { scrollToBottom as smartScroll, snapshotScroll } from '@/utils/scroll'
@@ -576,16 +577,10 @@ export default {
         const idx = startIdx + i
         if (idx >= this.mediaFiles.length) continue
         try {
-          const dataUrl = await new Promise((resolve, reject) => {
-            const reader = new FileReader()
-            reader.onload = () => resolve(reader.result)
-            reader.onerror = reject
-            reader.readAsDataURL(file)
-          })
-          const res = await uploadChatImage(file, this.sessionId)
-          this.mediaFiles[idx].dataUrl = dataUrl
-          this.mediaFiles[idx].filePath = res.data.filePath
-          this.mediaFiles[idx].type = res.data.filePath.endsWith('.png') ? 'image/png' : (file.type || 'image/jpeg')
+          const result = await uploadSingleMedia(file)
+          this.mediaFiles[idx].dataUrl = result.dataUrl
+          this.mediaFiles[idx].filePath = result.filePath
+          this.mediaFiles[idx].type = result.type
           this.mediaFiles[idx].uploading = false
         } catch (e) {
           alert('图片上传失败: ' + (e.message || e))

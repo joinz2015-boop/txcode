@@ -119,11 +119,6 @@ export const api = {
     return request('POST', '/chat/send_chat', data);
   },
 
-  chatCommand(message, sessionId) {
-    return request('POST', '/chat/command_chat', { message, sessionId });
-  },
-
-
   uploadChatImage(file, sessionId) {
     const formData = new FormData();
     formData.append('image', file);

@@ -35,6 +35,7 @@ import { initMessageFileTables } from './init_sql/message_file.init.js';
 import { initSystemTables } from './init_sql/system.init.js';
 import { initHostTables } from './init_sql/host.init.js';
 import { initPluginWebshellHostTables } from './init_sql/plugin_webshell_host.init.js';
+import { log } from '../../modules/logger/index.js';
 
 export class DbService {
   private db: SqlJsDatabase | null = null;
@@ -70,6 +71,7 @@ export class DbService {
     this.db.run('PRAGMA foreign_keys = ON');
     this.runMigrations();
     this.save();
+    log.debug('[DB]', 'init completed, dbPath:', this.dbPath);
   }
 
   reset(): void {
@@ -196,6 +198,7 @@ export class DbService {
       this.save();
       this.db.close();
       this.db = null;
+      log.debug('[DB]', 'connection closed');
     }
   }
 

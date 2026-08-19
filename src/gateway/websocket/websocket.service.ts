@@ -5,7 +5,7 @@
  * 
  * 路径映射：
  * - /ws/code -> CodeWebSocketHandler (聊天)
- * - /ws/caller -> CallerWebSocketHandler (外部系统调用)
+ * - /ws/shell -> ShellWebSocketHandler (远程 Shell)
  * - /ws/terminal/* -> TerminalWebSocketHandler (终端)
  */
 
@@ -13,8 +13,8 @@ import { WebSocketServer, WebSocket } from 'ws';
 import * as http from 'http';
 import { codeWebSocketHandler } from './code.websocket.js';
 import { terminalWebSocketHandler } from './terminal.websocket.js';
-import { callerWebSocketHandler } from './caller.websocket.js';
 import { shellWebSocketHandler } from './shell.websocket.js';
+import { log } from '../../modules/logger/index.js';
 
 export class WebSocketService {
   private wss: WebSocketServer | null = null;
@@ -25,17 +25,17 @@ export class WebSocketService {
     // 连接事件：根据 URL 路径分发到不同处理器
     this.wss.on('connection', (ws: WebSocket, req: http.IncomingMessage) => {
       const url = req.url || '';
+      log.debug('[WebSocket]', 'connection:', url);
 
       if (url === '/ws/code' || url.startsWith('/ws/code?')) {
         codeWebSocketHandler.handle(ws);
-      } else if (url === '/ws/caller' || url.startsWith('/ws/caller?')) {
-        callerWebSocketHandler.handle(ws);
       } else if (url === '/ws/shell' || url.startsWith('/ws/shell?')) {
         shellWebSocketHandler.handle(ws);
       } else if (url.startsWith('/ws/terminal/')) {
         const sessionId = url.replace('/ws/terminal/', '');
         terminalWebSocketHandler.handle(ws, sessionId);
       } else {
+        log.debug('[WebSocket]', 'unknown path, closing:', url);
         ws.close();
       }
     });

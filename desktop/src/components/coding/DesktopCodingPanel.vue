@@ -122,7 +122,8 @@ import DesktopImagePreviewList from '@/components/chat/DesktopImagePreviewList.v
 import DesktopResizableTextarea from '@/components/chat/DesktopResizableTextarea.vue'
 import DesktopInputHistory from '@/components/chat/DesktopInputHistory.vue'
 import { setItem } from '@/utils/storage'
-import { createSession, getMessages, saveMeta, uploadChatImage } from '@/api/index'
+import { createSession, getMessages, saveMeta } from '@/api/index'
+import { uploadSingleMedia } from '@/api/chat/media.js'
 import { ws } from '@/utils/websocket'
 import { marked } from 'marked'
 import { scrollToBottom as smartScroll, snapshotScroll } from '@/utils/scroll'
@@ -400,17 +401,16 @@ export default {
 
     async sendMessage() {
       const text = this.inputText.trim()
-      const hasMedia = this.mediaFiles.filter(f => !f.uploading).length > 0
+      const hasMedia = this.mediaFiles.filter(f => !f.uploading && f.filePath).length > 0
       if ((!text && !hasMedia) || this.disabled) return
       try {
         await this.ensureCodeSession()
       } catch (e) { return }
       this.subscribePanel(this.panel.sessionId)
-      const urls = await this.uploadMediaAndGetUrls()
-      const sentMediaFiles = this.mediaFiles.filter(f => !f.uploading).map(f => ({
+      const sentMediaFiles = this.mediaFiles.filter(f => !f.uploading && f.filePath).map(f => ({
         dataUrl: f.dataUrl,
         filePath: f.filePath,
-        type: f.file ? (f.file.type || 'image/png') : 'image/png'
+        type: f.type
       }))
       const payload = {
         message: text,
@@ -422,8 +422,8 @@ export default {
       if (this.planFilePath) {
         payload.planFilePath = this.planFilePath
       }
-      if (urls.length > 0) {
-        const urlText = '\n图片: ' + urls.join(', ')
+      if (sentMediaFiles.length > 0) {
+        const urlText = '\n图片: ' + sentMediaFiles.map(f => f.filePath).join(', ')
         payload.message = payload.message + urlText
       }
       this.inputText = ''
@@ -464,30 +464,20 @@ export default {
     processMediaFile(file) {
       if (!file.type.startsWith('image/')) return
       const id = 'media_' + (++mediaIdCounter)
-      const reader = new FileReader()
-      reader.onload = () => {
-        this.mediaFiles.push({ id, file, dataUrl: reader.result, uploading: false })
-      }
-      reader.readAsDataURL(file)
-    },
-
-    async uploadMediaAndGetUrls() {
-      const sessionId = this.panel.sessionId
-      if (!sessionId || this.mediaFiles.length === 0) return []
-      const results = []
-      for (const mf of this.mediaFiles) {
-        if (mf.uploading) continue
-        mf.uploading = true
-        try {
-          const r = await uploadChatImage(mf.file, sessionId)
-          if (r.data && r.data.url) results.push(r.data.url)
-        } catch (e) {
-          console.error('图片上传失败:', e)
-        } finally {
-          mf.uploading = false
+      this.mediaFiles.push({ id, name: file.name || 'paste.png', dataUrl: '', filePath: '', type: file.type || 'image/png', uploading: true })
+      const idx = this.mediaFiles.length - 1
+      uploadSingleMedia(file).then(result => {
+        if (idx < this.mediaFiles.length && this.mediaFiles[idx].id === id) {
+          this.mediaFiles[idx].dataUrl = result.dataUrl
+          this.mediaFiles[idx].filePath = result.filePath
+          this.mediaFiles[idx].type = result.type
+          this.mediaFiles[idx].uploading = false
         }
-      }
-      return results
+      }).catch(e => {
+        alert('图片上传失败: ' + (e.message || e))
+        const i = this.mediaFiles.findIndex(m => m.id === id)
+        if (i > -1) this.mediaFiles.splice(i, 1)
+      })
     },
 
     removeMedia(id) {

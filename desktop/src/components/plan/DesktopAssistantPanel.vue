@@ -250,7 +250,7 @@ import { marked } from 'marked'
 import { ws } from '@/utils/websocket'
 import { createSession, deleteSession, saveMeta, getMessages } from '@/api/index'
 import { setItem } from '@/utils/storage'
-import { uploadChatImage } from '@/api/index'
+import { uploadSingleMedia } from '@/api/chat/media.js'
 import { scrollToBottom as smartScroll, snapshotScroll } from '@/utils/scroll'
 import DesktopFileSelectDialog from '@/components/file/DesktopFileSelectDialog.vue'
 import DesktopSkillSelectDialog from '@/components/skill/DesktopSkillSelectDialog.vue'
@@ -403,62 +403,42 @@ export default {
       return sid
     },
 
-    async uploadDesignMediaAndGetUrls() {
-      const sessionId = this.designPanel.sessionId
-      if (!sessionId || this.designMediaFiles.length === 0) return []
-      const results = []
-      for (const mf of this.designMediaFiles) {
-        if (mf.uploading) continue
-        mf.uploading = true
-        try {
-          const r = await uploadChatImage(mf.file, sessionId)
-          if (r.data && r.data.url) results.push(r.data.url)
-        } catch (e) {
-          console.error('图片上传失败:', e)
-        } finally {
-          mf.uploading = false
-        }
-      }
-      return results
-    },
-
-    async uploadDiscussMediaAndGetUrls() {
-      const sessionId = this.discussPanel.sessionId
-      if (!sessionId || this.discussMediaFiles.length === 0) return []
-      const results = []
-      for (const mf of this.discussMediaFiles) {
-        if (mf.uploading) continue
-        mf.uploading = true
-        try {
-          const r = await uploadChatImage(mf.file, sessionId)
-          if (r.data && r.data.url) results.push(r.data.url)
-        } catch (e) {
-          console.error('图片上传失败:', e)
-        } finally {
-          mf.uploading = false
-        }
-      }
-      return results
-    },
-
     processDesignMediaFile(file) {
       if (!file.type.startsWith('image/')) return
       const id = 'media_' + (++mediaIdCounter)
-      const reader = new FileReader()
-      reader.onload = () => {
-        this.designMediaFiles.push({ id, file, dataUrl: reader.result, uploading: false })
-      }
-      reader.readAsDataURL(file)
+      this.designMediaFiles.push({ id, name: file.name || 'paste.png', dataUrl: '', filePath: '', type: file.type || 'image/png', uploading: true })
+      const idx = this.designMediaFiles.length - 1
+      uploadSingleMedia(file).then(result => {
+        if (idx < this.designMediaFiles.length && this.designMediaFiles[idx].id === id) {
+          this.designMediaFiles[idx].dataUrl = result.dataUrl
+          this.designMediaFiles[idx].filePath = result.filePath
+          this.designMediaFiles[idx].type = result.type
+          this.designMediaFiles[idx].uploading = false
+        }
+      }).catch(e => {
+        alert('图片上传失败: ' + (e.message || e))
+        const i = this.designMediaFiles.findIndex(m => m.id === id)
+        if (i > -1) this.designMediaFiles.splice(i, 1)
+      })
     },
 
     processDiscussMediaFile(file) {
       if (!file.type.startsWith('image/')) return
       const id = 'media_' + (++mediaIdCounter)
-      const reader = new FileReader()
-      reader.onload = () => {
-        this.discussMediaFiles.push({ id, file, dataUrl: reader.result, uploading: false })
-      }
-      reader.readAsDataURL(file)
+      this.discussMediaFiles.push({ id, name: file.name || 'paste.png', dataUrl: '', filePath: '', type: file.type || 'image/png', uploading: true })
+      const idx = this.discussMediaFiles.length - 1
+      uploadSingleMedia(file).then(result => {
+        if (idx < this.discussMediaFiles.length && this.discussMediaFiles[idx].id === id) {
+          this.discussMediaFiles[idx].dataUrl = result.dataUrl
+          this.discussMediaFiles[idx].filePath = result.filePath
+          this.discussMediaFiles[idx].type = result.type
+          this.discussMediaFiles[idx].uploading = false
+        }
+      }).catch(e => {
+        alert('图片上传失败: ' + (e.message || e))
+        const i = this.discussMediaFiles.findIndex(m => m.id === id)
+        if (i > -1) this.discussMediaFiles.splice(i, 1)
+      })
     },
 
     removeDesignMedia(id) {
@@ -511,23 +491,22 @@ export default {
 
     async sendDesignMessage() {
       const val = this.designPanel.input.trim()
-      const hasMedia = this.designMediaFiles.length > 0
+      const hasMedia = this.designMediaFiles.filter(f => !f.uploading && f.filePath).length > 0
       if ((!val && !hasMedia) || this.designPanel.disabled) return
       try {
         const sid = await this.ensureDesignSession()
         this.subscribePanel('design', sid)
-        const sentMediaFiles = this.designMediaFiles.filter(f => !f.uploading).map(f => ({
+        const sentMediaFiles = this.designMediaFiles.filter(f => !f.uploading && f.filePath).map(f => ({
           dataUrl: f.dataUrl,
-          filePath: f.filePath || '',
-          type: f.file ? (f.file.type || 'image/png') : 'image/png'
+          filePath: f.filePath,
+          type: f.type
         }))
         const snap = snapshotScroll(this.$refs.designMessages)
         this.pushLogItem('designLogItems', { type: 'chat', content: val, role: 'user', mediaFiles: sentMediaFiles })
         this.designPanel.input = ''
 
-        const imageUrls = await this.uploadDesignMediaAndGetUrls()
         let fullMessage = val
-        if (imageUrls.length > 0) fullMessage += '\n图片: ' + imageUrls.join(', ')
+        if (sentMediaFiles.length > 0) fullMessage += '\n图片: ' + sentMediaFiles.map(f => f.filePath).join(', ')
 
         let contextPrefix = ''
         const parentPath = this.currentSession?.meta?.parentPlanPath
@@ -567,21 +546,20 @@ export default {
 
     async sendDiscussMessage() {
       const val = this.discussPanel.input.trim()
-      const hasMedia = this.discussMediaFiles.length > 0
+      const hasMedia = this.discussMediaFiles.filter(f => !f.uploading && f.filePath).length > 0
       if ((!val && !hasMedia) || this.discussPanel.disabled || !this.discussPanel.sessionId) return
       this.subscribePanel('discuss', this.discussPanel.sessionId)
-      const sentMediaFiles = this.discussMediaFiles.filter(f => !f.uploading).map(f => ({
+      const sentMediaFiles = this.discussMediaFiles.filter(f => !f.uploading && f.filePath).map(f => ({
         dataUrl: f.dataUrl,
-        filePath: f.filePath || '',
-        type: f.file ? (f.file.type || 'image/png') : 'image/png'
+        filePath: f.filePath,
+        type: f.type
       }))
       const snap = snapshotScroll(this.$refs.discussMessages)
       this.pushLogItem('discussLogItems', { type: 'chat', content: val, role: 'user', mediaFiles: sentMediaFiles })
       this.discussPanel.input = ''
 
-      const imageUrls = await this.uploadDiscussMediaAndGetUrls()
       let fullMessage = val
-      if (imageUrls.length > 0) fullMessage += '\n图片: ' + imageUrls.join(', ')
+      if (sentMediaFiles.length > 0) fullMessage += '\n图片: ' + sentMediaFiles.map(f => f.filePath).join(', ')
 
       this.discussPanel.disabled = true
       this._discussManuallyEnded = false
