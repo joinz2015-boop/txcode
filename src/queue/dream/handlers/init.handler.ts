@@ -46,13 +46,12 @@ export class InitHandler implements IDreamHandler {
 
   private async runAgent(workDir: string, userMessage: string): Promise<void> {
     console.log('[Dream:init] runAgent 开始, workDir:', workDir, 'message:', userMessage)
-    log.debug('[Dream:init]', 'runAgent start, workDir:', workDir)
+log.debug('[Dream:init]', 'runAgent start, workDir:', workDir)
     try {
       const provider = getProvider()
 
       const agent = new DreamAgent({
         provider,
-        workDir,
       })
 
       await agent.run('init', userMessage)

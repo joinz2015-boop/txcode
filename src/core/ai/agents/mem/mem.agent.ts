@@ -1,7 +1,7 @@
 import { ChatMessage, BaseProvider } from '../../ai.types.js';
 import { AgentToolRegistry, buildToolContext } from '../agent.tool.js';
 import { MEM_TOOLS } from './agent_tool.js';
-import { configService } from '../../../../services/config/config.service.js';
+import { getAgentMaxIterations, getAgentProjectPath } from '../agent.config.js';
 
 export interface MemAgentConfig {
   provider: BaseProvider;
@@ -17,9 +17,9 @@ export class MemAgent {
   private workDir?: string;
   private toolRegistry: AgentToolRegistry;
 
-  constructor(config: MemAgentConfig) {
+constructor(config: MemAgentConfig) {
     this.provider = config.provider;
-    this.workDir = config.workDir;
+    this.workDir = config.workDir || getAgentProjectPath();
     this.toolRegistry = new AgentToolRegistry(MEM_TOOLS, { verboseError: true });
   }
 
@@ -35,8 +35,8 @@ export class MemAgent {
     await this.runLoop(baseMessages);
   }
 
-  private async runLoop(messages: ChatMessage[]): Promise<void> {
-    const maxIterations = configService.getMaxIterations();
+private async runLoop(messages: ChatMessage[]): Promise<void> {
+    const maxIterations = getAgentMaxIterations();
     let iteration = 0;
     const toolDefs = await this.toolRegistry.getDefinitions();
     const context = buildToolContext({ sessionId: 'mem-agent', projectPath: this.workDir });

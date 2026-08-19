@@ -3,6 +3,7 @@ import { createIterationSignal } from '../../helpers/abort.helper.js';
 import { CHAT_TOOLS } from './agent_tool.js';
 import { AgentToolRegistry, buildToolContext } from '../agent.tool.js';
 import { getOpenAITools } from '../../../tools/provider/tools.js';
+import { getAgentMaxIterations, getAgentProjectPath } from '../agent.config.js';
 import {
   AIProvider,
   ProviderRunOptions,
@@ -18,8 +19,6 @@ import { loadProjectContext } from '../../../context/project.context.js';
 
 export interface ChatAgentConfig {
   provider: BaseProvider;
-  maxIterations?: number;
-  projectPath?: string;
   sessionId?: string;
   memoryService?: MemoryService;
 }
@@ -38,8 +37,8 @@ export class ChatAgent implements AIProvider {
 
   constructor(config: ChatAgentConfig) {
     this.provider = config.provider;
-    this.maxIterations = config.maxIterations || 1000;
-    this.projectPath = config.projectPath;
+    this.maxIterations = getAgentMaxIterations();
+    this.projectPath = getAgentProjectPath();
     this.sessionId = config.sessionId;
     this.memoryService = config.memoryService;
     this.toolRegistry = new AgentToolRegistry(CHAT_TOOLS);

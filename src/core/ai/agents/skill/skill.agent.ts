@@ -1,9 +1,9 @@
 import { ChatMessage, BaseProvider } from '../../ai.types.js';
 import { AgentToolRegistry } from '../agent.tool.js';
+import { getAgentMaxIterations } from '../agent.config.js';
 
 export interface SkillAgentConfig {
   provider: BaseProvider;
-  maxIterations?: number;
 }
 
 const SKILL_TOOLS = ['read_file', 'write_file', 'glob', 'grep'];
@@ -17,9 +17,9 @@ export class SkillAgent {
   private maxIterations: number;
   private toolRegistry: AgentToolRegistry;
 
-  constructor(config: SkillAgentConfig) {
+constructor(config: SkillAgentConfig) {
     this.provider = config.provider;
-    this.maxIterations = config.maxIterations || 3;
+    this.maxIterations = getAgentMaxIterations(3);
     this.toolRegistry = new AgentToolRegistry(SKILL_TOOLS);
   }
 

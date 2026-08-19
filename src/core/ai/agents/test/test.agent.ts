@@ -2,6 +2,7 @@ import { ChatMessage, BaseProvider, MultimodalContent } from '../../ai.types.js'
 import { createIterationSignal } from '../../helpers/abort.helper.js';
 import { TEST_TOOLS } from './agent_tool.js';
 import { AgentToolRegistry, buildToolContext } from '../agent.tool.js';
+import { getAgentMaxIterations, getAgentProjectPath } from '../agent.config.js';
 import {
   AIProvider,
   ProviderRunOptions,
@@ -31,8 +32,6 @@ async function loadRoleTemplate(): Promise<string> {
 
 export interface TestAgentConfig {
   provider: BaseProvider;
-  maxIterations?: number;
-  projectPath?: string;
   sessionId?: string;
   memoryService?: MemoryService;
   webContentsId?: number;
@@ -53,8 +52,8 @@ export class TestAgent implements AIProvider {
 
   constructor(config: TestAgentConfig) {
     this.provider = config.provider;
-    this.maxIterations = config.maxIterations || 1000;
-    this.projectPath = config.projectPath;
+    this.maxIterations = getAgentMaxIterations();
+    this.projectPath = getAgentProjectPath();
     this.sessionId = config.sessionId;
     this.memoryService = config.memoryService;
     this.webContentsId = config.webContentsId;

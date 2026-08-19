@@ -2,6 +2,7 @@ import { ChatMessage, BaseProvider, MultimodalContent } from '../../ai.types.js'
 import { createIterationSignal } from '../../helpers/abort.helper.js';
 import { SHELL_TOOLS } from './agent_tool.js';
 import { AgentToolRegistry, buildToolContext } from '../agent.tool.js';
+import { getAgentMaxIterations, getAgentProjectPath } from '../agent.config.js';
 import {
   AIProvider,
   ProviderRunOptions,
@@ -14,8 +15,6 @@ import type { MemoryService } from '../../../../services/memory/memory.service.j
 
 export interface ShellAgentConfig {
   provider: BaseProvider;
-  maxIterations?: number;
-  projectPath?: string;
   sessionId?: string;
   memoryService?: MemoryService;
 }
@@ -34,8 +33,8 @@ export class ShellAgent implements AIProvider {
 
   constructor(config: ShellAgentConfig) {
     this.provider = config.provider;
-    this.maxIterations = config.maxIterations || 1000;
-    this.projectPath = config.projectPath;
+    this.maxIterations = getAgentMaxIterations();
+    this.projectPath = getAgentProjectPath();
     this.sessionId = config.sessionId;
     this.memoryService = config.memoryService;
     this.toolRegistry = new AgentToolRegistry(SHELL_TOOLS);

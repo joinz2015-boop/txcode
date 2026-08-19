@@ -2,6 +2,7 @@ import { ChatMessage, BaseProvider, MultimodalContent } from '../../ai.types.js'
 import { createIterationSignal } from '../../helpers/abort.helper.js';
 import { CODE_TOOLS } from './agent_tool.js';
 import { AgentToolRegistry, buildToolContext } from '../agent.tool.js';
+import { getAgentMaxIterations, getAgentProjectPath } from '../agent.config.js';
 import {
   AIProvider,
   ProviderRunOptions,
@@ -73,8 +74,6 @@ async function buildCodePrompt(
 
 export interface CodeAgentConfig {
   provider: BaseProvider;
-  maxIterations?: number;
-  projectPath?: string;
   sessionId?: string;
   memoryService?: MemoryService;
   summarizer?: SummarizerAgent;
@@ -101,8 +100,8 @@ export class CodeAgent implements AIProvider {
 
   constructor(config: CodeAgentConfig) {
     this.provider = config.provider;
-    this.maxIterations = config.maxIterations || 1000;
-    this.projectPath = config.projectPath;
+    this.maxIterations = getAgentMaxIterations();
+    this.projectPath = getAgentProjectPath();
     this.sessionId = config.sessionId;
     this.memoryService = config.memoryService;
     this.summarizer = config.summarizer;

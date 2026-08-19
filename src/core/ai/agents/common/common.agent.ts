@@ -2,6 +2,7 @@ import { BaseProvider, ChatMessage, MultimodalContent } from '../../../../entity
 import { createIterationSignal } from '../../helpers/abort.helper.js';
 import { buildProviderPrompt } from './prompts.js';
 import { AgentToolRegistry, buildToolContext } from '../agent.tool.js';
+import { getAgentMaxIterations, getAgentProjectPath } from '../agent.config.js';
 import {
   AIProvider,
   ProviderRunOptions,
@@ -19,8 +20,6 @@ import { log } from '../../../../modules/logger/index.js';
 export interface CommonAgentConfig {
   provider: BaseProvider;
   toolService: any;
-  maxIterations?: number;
-  projectPath?: string;
   sessionId?: string;
   memoryService?: MemoryService;
   summarizer?: SummarizerAgent;
@@ -46,8 +45,8 @@ export class CommonAgent implements AIProvider {
   constructor(config: CommonAgentConfig) {
     this.provider = config.provider;
     this.toolService = config.toolService;
-    this.maxIterations = config.maxIterations || 1000;
-    this.projectPath = config.projectPath;
+    this.maxIterations = getAgentMaxIterations();
+    this.projectPath = getAgentProjectPath();
     this.sessionId = config.sessionId;
     this.memoryService = config.memoryService;
     this.summarizer = config.summarizer;
@@ -81,32 +80,32 @@ export class CommonAgent implements AIProvider {
     const messageCount = options?.historyMessages?.length || 0;
 
     if (specInjector.shouldInject(messageCount)) {
-      const injectedMessage = specInjector.injectIntoMessage(userMessage, process.cwd());
+      const injectedMessage = specInjector.injectIntoMessage(userMessage, this.projectPath);
       this.pushUserMessage(baseMessages, injectedMessage, options?.mediaFiles);
     } else {
       const firstUserIndex = baseMessages.findIndex(m => m.role === 'user');
       if (firstUserIndex >= 0) {
         const originalFirstUser = baseMessages[firstUserIndex].content;
         if (typeof originalFirstUser === 'string') {
-          const reinjected = specInjector.injectIntoMessage(originalFirstUser, process.cwd());
+          const reinjected = specInjector.injectIntoMessage(originalFirstUser, this.projectPath);
           baseMessages[firstUserIndex].content = reinjected;
         } else {
           const textPart = originalFirstUser.find((c: MultimodalContent) => c.type === 'text');
           if (textPart) {
             const reinjected = specInjector.injectIntoMessage(
               (textPart as MultimodalContent & { type: 'text' }).text,
-              process.cwd()
+              this.projectPath
             );
             (textPart as MultimodalContent & { type: 'text' }).text = reinjected;
           }
         }
-      } 
+      }
       this.pushUserMessage(baseMessages, userMessage, options?.mediaFiles);
     }
 
     this.mediaFiles = options?.mediaFiles;
     this.injectedUserMessage = specInjector.shouldInject(messageCount)
-      ? specInjector.injectIntoMessage(userMessage, process.cwd())
+      ? specInjector.injectIntoMessage(userMessage, this.projectPath)
       : userMessage;
 
     this.addMessage('user', userMessage, true, true, undefined, undefined, this.sessionId, options?.mediaFiles);

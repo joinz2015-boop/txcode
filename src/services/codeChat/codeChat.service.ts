@@ -108,16 +108,13 @@ export class CodeChatService {
 
         return chatMsg;
       });
-      log.debug('[CodeChat]', 'history messages:', historyMessages.length);
+log.debug('[CodeChat]', 'history messages:', historyMessages.length);
     }
 
     let agent: CodeAgent | DesignAgent | PlanAgent | DiscussionAgent | TestAgent;
-    const maxIterations = this.configService.getMaxIterations();
     if (options.agentName === 'design') {
       agent = new DesignAgent({
         provider,
-        maxIterations,
-        projectPath: options.projectPath,
         sessionId,
         memoryService,
         summarizer,
@@ -126,8 +123,6 @@ export class CodeChatService {
     } else if (options.agentName === 'plan') {
       agent = new PlanAgent({
         provider,
-        maxIterations,
-        projectPath: options.projectPath,
         sessionId,
         memoryService,
         summarizer,
@@ -137,8 +132,6 @@ export class CodeChatService {
     } else if (options.agentName === 'discuss') {
       agent = new DiscussionAgent({
         provider,
-        maxIterations,
-        projectPath: options.projectPath,
         sessionId,
         memoryService,
         summarizer,
@@ -147,8 +140,6 @@ export class CodeChatService {
     } else if (options.agentName === 'test') {
       agent = new TestAgent({
         provider,
-        maxIterations,
-        projectPath: options.projectPath,
         sessionId,
         memoryService,
         webContentsId: options.webContentsId,
@@ -156,8 +147,6 @@ export class CodeChatService {
     } else {
       agent = new CodeAgent({
         provider,
-        maxIterations,
-        projectPath: options.projectPath,
         sessionId,
         memoryService,
         summarizer,

@@ -20,8 +20,7 @@ export class MemoryHandler extends HookHandler {
     try {
       const provider = getProvider();
 
-      const projectPath = this.getProjectPath(message);
-      const memAgent = new MemAgent({ provider, workDir: projectPath });
+      const memAgent = new MemAgent({ provider });
       await memAgent.run(message.messages);
     } catch (error) {
       console.error('[MemoryHandler] Error:', error);
