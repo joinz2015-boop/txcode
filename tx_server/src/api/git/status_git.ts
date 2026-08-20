@@ -7,6 +7,7 @@ interface GitChange {
   status: string;
   statusCode: string;
   isNew: boolean;
+  staged: boolean;
 }
 
 function parsePorcelain(output: string): GitChange[] {
@@ -34,7 +35,13 @@ function parsePorcelain(output: string): GitChange[] {
         filePath = filePath.substring(arrowIdx + 4);
       }
       const info = STATUS_MAP[code] || { status: "modified", isNew: false };
-      return { path: filePath, status: info.status, statusCode: code.trim(), isNew: info.isNew };
+      return {
+        path: filePath,
+        status: info.status,
+        statusCode: code.trim(),
+        isNew: info.isNew,
+        staged: code[0] !== " " && code[0] !== "?",
+      };
     });
 }
 

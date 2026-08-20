@@ -11,6 +11,7 @@ import {
 import { getItem, setItem } from '@/utils/storage'
 import { eventBus } from '@/utils/eventBus'
 import { sortFileItems } from '@/utils/fileSort'
+import { getPort } from '@/utils/ipc'
 
 const STORAGE_KEY = 'file:state'
 
@@ -405,13 +406,22 @@ export function createFileManager() {
       setItem('file:sidebarWidth', w)
     },
 
-    buildCopyLink(node) {
+    async buildCopyLink(node) {
+      const isDir = node.type === 'dir'
+      const qs = `?open=${encodeURIComponent(node.path)}${isDir ? '&dir=1' : ''}`
+      if (window.electronAPI) {
+        const port = await getPort()
+        return {
+          url: `http://localhost:${port}/${qs}`,
+          path: node.path,
+          isDir
+        }
+      }
       const proto = location.protocol || 'https:'
       const host = location.host || 'localhost'
       const base = `${proto}//${host}${location.pathname.replace(/\/[^/]*$/, '/')}`
-      const isDir = node.type === 'dir'
       return {
-        url: `${base}?open=${encodeURIComponent(node.path)}${isDir ? '&dir=1' : ''}`,
+        url: `${base}${qs}`,
         path: node.path,
         isDir
       }

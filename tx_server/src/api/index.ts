@@ -29,7 +29,7 @@ function scanRoutesFiles(dir: string): string[] {
 
 export async function registerAllRoutes(app: { use: (path: string, router: Router) => void }) {
   const apiRouter = Router();
-  const apiDir = path.join(__dirname, 'api');
+  const apiDir = __dirname;
   const files = scanRoutesFiles(apiDir);
 
   let registered = 0;

@@ -143,11 +143,11 @@ export default {
       this.closeCtxMenu()
       if (node && node.type === 'dir') this.fileManager.collapseNode(node)
     },
-    ctxCopyLink() {
+    async ctxCopyLink() {
       const node = this.ctxMenu.node
       this.closeCtxMenu()
       if (!node) return
-      this.copyLink = this.fileManager.buildCopyLink(node)
+      this.copyLink = await this.fileManager.buildCopyLink(node)
       this.copyVisible = true
     },
     ctxRename() {

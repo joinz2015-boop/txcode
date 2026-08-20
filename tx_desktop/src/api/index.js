@@ -288,6 +288,14 @@ export function gitDiff(filePath, isNew) {
   return request('GET', url)
 }
 
+export function gitDiffFull(filePath, opts = {}) {
+  const { staged, path } = opts
+  let url = `/git/diff_full_git?file=${encodeURIComponent(filePath)}`
+  if (staged !== undefined) url += `&staged=${staged}`
+  if (path) url += `&path=${encodeURIComponent(path)}`
+  return request('GET', url)
+}
+
 export function gitRevert(filePath) {
   return request('POST', '/git/revert_git', { file: filePath })
 }

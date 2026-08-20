@@ -30,6 +30,7 @@
         :key="child.path"
         :node="child"
         :level="level + 1"
+        @contextmenu="forwardContextMenu"
       />
       <div v-if="isNewParent" class="tree-row new-row" :style="{ paddingLeft: ((level + 1) * 14 + 4) + 'px' }">
         <input
@@ -124,6 +125,9 @@ export default {
       if (this.isRenaming) return
       this.fileManager.state.selectedPath = this.node.path
       this.$emit('contextmenu', { event: e, node: this.node })
+    },
+    forwardContextMenu(payload) {
+      this.$emit('contextmenu', payload)
     },
     commit() {
       const ed = this.fileManager.state.editing
