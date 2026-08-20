@@ -8,7 +8,7 @@
  * 4. warning/error 级别降噪（console.log/console.info 静默）
  */
 
-import { setupLogging, isDebugEnabled, isLogEnabled, log, LOG_LEVELS } from '../../tx_server/src/modules/logger/log';
+import { setupLogging, isDebugEnabled, isLogEnabled, log, LOG_LEVELS } from '../../tx_server/src/service/logger/log';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';

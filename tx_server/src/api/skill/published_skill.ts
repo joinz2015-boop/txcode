@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { txcodeHubService } from '../../../services/hub/txcode_hub.service.js';
+import { txcodeHubService } from '../../service/hub/txcode_hub.service.js';
 
 export async function GET(req: Request, res: Response) {
   try {

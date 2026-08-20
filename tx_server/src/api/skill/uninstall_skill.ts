@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
-import { skillsManager } from '../../../services/skill/index.js';
-import { projectService } from '../../../services/project/project.service.js';
+import { skillsManager } from '../../service/skill/index.js';
+import { projectService } from '../../service/project/project.service.js';
 
 export async function POST(req: Request, res: Response) {
   const { skillName } = req.body;

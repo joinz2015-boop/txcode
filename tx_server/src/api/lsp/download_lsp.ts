@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { LSPDownloader } from "../../../core/lsp/index.js";
+import { LSPDownloader } from "../../core/lsp/index.js";
 
 export async function POST(req: Request, res: Response) {
   const { id } = req.body;

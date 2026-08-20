@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
-import { getVersion } from '../../../utils/version.js';
-import { txcodeHubService } from '../../../services/hub/txcode_hub.service.js';
+import { getVersion } from '../../utils/version.js';
+import { txcodeHubService } from '../../service/hub/txcode_hub.service.js';
 
 interface LatestVersionInfo {
   version: string;

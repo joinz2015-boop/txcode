@@ -42,3 +42,4 @@ temp/
 .cluade
 nul
 .txcode
+*.backup

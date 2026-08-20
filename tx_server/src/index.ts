@@ -17,9 +17,9 @@ import { setMaxListeners } from 'events';
 setMaxListeners(20);
 
 import { parseArgs, readVersion, helpText } from './args.js';
-import { setupLogging, log } from './modules/logger/index.js';
+import { setupLogging, log } from './service/logger/index.js';
 import { dbService } from './core/db/index.js';
-import { projectService } from './services/project/project.service.js';
+import { projectService } from './service/project/project.service.js';
 
 /**
  * 程序主入口函数
@@ -56,7 +56,7 @@ async function main() {
   projectService.createOrGetProject();
   log.debug('[Startup]', 'project loaded:', projectService.getCurrentProjectPath());
 
-  const { syncOnStartup } = await import('./services/system/device-sync.service.js');
+  const { syncOnStartup } = await import('./service/system/device-sync.service.js');
   syncOnStartup();
   log.debug('[Startup]', 'syncOnStartup triggered');
 
@@ -83,7 +83,7 @@ async function main() {
   log.debug('[Startup]', 'available port:', availablePort);
   process.env.TXCODE_BACKEND_PORT = String(availablePort);
 
-  const { WebService } = await import('./gateway/server/web.server.js');
+  const { WebService } = await import('./infra/server/web.server.js');
   const webService = new WebService(availablePort);
   await webService.start({ noBrowser: args.noBrowser });
 }

@@ -3,7 +3,7 @@
  */
 
 import { DbService } from '../../tx_server/src/core/db/db.service';
-import { ConfigService } from '../../tx_server/src/services/config/config.service';
+import { ConfigService } from '../../tx_server/src/service/config/config.service';
 
 describe('Config 模块', () => {
   let dbService: DbService;

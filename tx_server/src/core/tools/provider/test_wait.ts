@@ -1,6 +1,6 @@
 import { Tool, ToolContext, ToolResult } from '../tool.types.js';
-import { playwrightManager } from '../../../services/test/playwrightManager.js';
-import { waitFor } from '../../../services/test/testBrowserTools.js';
+import { playwrightManager } from '../../../service/test/playwrightManager.js';
+import { waitFor } from '../../../service/test/testBrowserTools.js';
 
 export const testWaitTool: Tool = {
   name: 'test_wait',

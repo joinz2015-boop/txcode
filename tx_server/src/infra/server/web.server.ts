@@ -23,18 +23,18 @@ import * as readline from 'readline';
 import * as http from 'http';
 import * as os from 'os';
 import { exec } from 'child_process';
-import { registerAllRoutes } from '../api_routes.js';
-import { webSocketService } from '../websocket/websocket.service.js';
+import { registerAllRoutes } from '../../api/index.js';
+import { webSocketService } from '../ws/websocket.service.js';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const packageRoot = path.resolve(__dirname, '..', '..', '..');
 import { dbService } from '../../core/db/db.service.js';
-import { configService } from '../../services/config/config.service.js';
-import { logger } from '../../modules/logger/logger.js';
-import { projectService } from '../../services/project/project.service.js';
-import { log } from '../../modules/logger/index.js';
+import { configService } from '../../service/config/config.service.js';
+import { logger } from '../../service/logger/logger.js';
+import { projectService } from '../../service/project/project.service.js';
+import { log } from '../../service/logger/index.js';
 
 /**
  * WebService 类
@@ -142,7 +142,7 @@ export class WebService {
     /**
      * API 路由注册
      *
-     * 由 src/gateway/api_routes.ts 的 registerAllRoutes() 在 start() 中完成
+     * 由 src/api/index.ts 的 registerAllRoutes() 在 start() 中完成
      * 此处不再提前挂载空 Router，避免路由顺序问题。
      */
 
@@ -245,7 +245,7 @@ export class WebService {
   async start(options?: { noBrowser?: boolean }): Promise<void> {
     await dbService.init();
 
-    // 注册新的显式路由系统（自动扫描 gateway/api/**/*_routes.ts）
+    // 注册新的显式路由系统（自动扫描 api/**/*_routes.ts）
     await registerAllRoutes(this.app as any);
     log.debug('[WebServer]', 'routes registered');
 
@@ -272,7 +272,7 @@ export class WebService {
       });
     }
 
-    const { initJobs } = await import('../../modules/job/index.js');
+    const { initJobs } = await import('../../service/job/index.js');
     await initJobs();
 
     return new Promise((resolve, reject) => {
@@ -326,7 +326,7 @@ export class WebService {
           console.log('\n正在关闭服务...');
           webSocketService.close();
           this.server?.close(async () => {
-            const { shutdownJobs } = await import('../../modules/job/index.js');
+            const { shutdownJobs } = await import('../../service/job/index.js');
             await shutdownJobs();
             dbService.close();
             console.log('服务已关闭');

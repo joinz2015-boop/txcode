@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import * as fs from "fs";
 import * as path from "path";
-import { projectService } from "../../../services/project/project.service.js";
+import { projectService } from "../../service/project/project.service.js";
 
 function resolvePath(input: string): string {
   if (path.isAbsolute(input)) return input;

@@ -7,4 +7,4 @@
  * - 管理全局配置项
  */
 
-export { ConfigService, configService } from '../../services/config/config.service.js';
+export { ConfigService, configService } from '../../service/config/config.service.js';

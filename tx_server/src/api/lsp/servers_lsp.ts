@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { LSPManager, getAllServers, LSPServerStatus, LSPConfig } from "../../../core/lsp/index.js";
+import { LSPManager, getAllServers, LSPServerStatus, LSPConfig } from "../../core/lsp/index.js";
 
 interface ServerInfoResponse { id: string; name: string; extensions: string[]; enabled: boolean; autoStart: boolean; status: LSPServerStatus; error?: string; version?: number; }
 

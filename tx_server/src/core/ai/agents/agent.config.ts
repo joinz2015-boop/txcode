@@ -1,5 +1,5 @@
-import { configService } from '../../../services/config/config.service.js';
-import { projectService } from '../../../services/project/project.service.js';
+import { configService } from '../../../service/config/config.service.js';
+import { projectService } from '../../../service/project/project.service.js';
 
 /** 查询 Agent 最大迭代次数（ai.maxIterations），查不到返回 fallback（默认 1000） */
 export function getAgentMaxIterations(fallback: number = 1000): number {

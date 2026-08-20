@@ -1,15 +1,15 @@
-﻿import { configService as defaultConfigService } from '../../services/config/config.service.js';
-import { sessionService as defaultSessionService } from '../../services/session/session.service.js';
-import { memoryService } from '../../services/memory/index.js';
+﻿import { configService as defaultConfigService } from '../../service/config/config.service.js';
+import { sessionService as defaultSessionService } from '../../service/session/session.service.js';
+import { memoryService } from '../../service/memory/index.js';
 import { messageFileRepository } from '../../repository/message_file.repository.js';
 import { ChatInput, ChatOptions, ChatResult, Step } from './codeChat.types.js';
 import type { Session } from '../../entity/session.entity.js';
-import { ConfigService } from '../../services/config/config.service.js';
+import { ConfigService } from '../../service/config/config.service.js';
 import { getProvider } from '../../core/ai/provider/provider.router.js';
 import { CodeAgent, DesignAgent, PlanAgent, DiscussionAgent, TestAgent } from '../../core/ai/agents/index.js';
 import { SummarizerAgent } from '../../core/ai/agents/summarizer/summarizer.agent.js';
 import { ChatMessage } from '../../core/ai/ai.types.js';
-import { log } from '../../modules/logger/index.js';
+import { log } from '../../service/logger/index.js';
 
 export class CodeChatService {
   private configService: ConfigService;

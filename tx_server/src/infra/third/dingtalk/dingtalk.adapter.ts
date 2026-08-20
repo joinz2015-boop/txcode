@@ -1,5 +1,5 @@
-import type { DingtalkMessage } from '../../../services/gateway/gateway.types.js';
-import { MessageHandler, DingtalkAdapter, DingtalkAdapterConfig } from '../../../modules/gateway/gateway.types.js';
+import type { DingtalkMessage } from '../../../service/gateway/gateway.types.js';
+import { MessageHandler, DingtalkAdapter, DingtalkAdapterConfig } from '../../../service/gateway/gateway.types.js';
 
 export class DingtalkStreamAdapter implements DingtalkAdapter {
   private client: any = null;

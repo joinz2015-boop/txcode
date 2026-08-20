@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { configService } from "../../../services/config/index.js";
+import { configService } from "../../service/config/index.js";
 
 export async function GET(_req: Request, res: Response) {
   const proxyConfig = configService.getProxyConfig();

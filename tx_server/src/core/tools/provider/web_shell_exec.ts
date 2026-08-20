@@ -10,7 +10,7 @@ const MAX_BYTES = 50 * 1024
 const MAX_LINES = 2000
 
 async function getShellChatService() {
-  const mod = await import('../../../services/shellChat/shellChat.service.js')
+  const mod = await import('../../../service/shellChat/shellChat.service.js')
   return mod.shellChatService
 }
 

@@ -5,8 +5,8 @@
  */
 
 import { WebSocket } from 'ws';
-import { terminalService } from '../../modules/terminal/index.js';
-import { log } from '../../modules/logger/index.js';
+import { terminalService } from '../../service/terminal/index.js';
+import { log } from '../../service/logger/index.js';
 
 export class TerminalWebSocketHandler {
   handle(ws: WebSocket, sessionId: string): void {

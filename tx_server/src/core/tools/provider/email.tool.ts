@@ -1,5 +1,5 @@
 import { Tool, ToolContext, ToolResult } from '../tool.types.js'
-import { emailService } from '../../../modules/email/index.js'
+import { emailService } from '../../../service/email/index.js'
 
 const description = '发送邮件工具。用于向指定邮箱发送邮件，支持 HTML 格式内容。\n\n参数说明：\n- to: 收件人邮箱地址\n- subject: 邮件主题\n- html: 邮件内容（支持 HTML 格式）\n- configId: 邮件配置 ID（可选，默认使用系统默认配置）'
 

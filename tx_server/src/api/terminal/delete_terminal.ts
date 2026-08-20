@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { terminalService } from "../../../modules/terminal/index.js";
+import { terminalService } from "../../service/terminal/index.js";
 
 export async function POST(req: Request, res: Response) {
   const { id } = req.body;

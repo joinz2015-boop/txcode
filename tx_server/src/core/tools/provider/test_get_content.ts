@@ -1,6 +1,6 @@
 import { Tool, ToolContext, ToolResult } from '../tool.types.js';
-import { playwrightManager } from '../../../services/test/playwrightManager.js';
-import { getContent } from '../../../services/test/testBrowserTools.js';
+import { playwrightManager } from '../../../service/test/playwrightManager.js';
+import { getContent } from '../../../service/test/testBrowserTools.js';
 
 export const testGetContentTool: Tool = {
   name: 'test_get_content',

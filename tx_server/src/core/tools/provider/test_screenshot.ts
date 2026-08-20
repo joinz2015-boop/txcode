@@ -1,6 +1,6 @@
 import { Tool, ToolContext, ToolResult } from '../tool.types.js';
-import { playwrightManager } from '../../../services/test/playwrightManager.js';
-import { screenshot } from '../../../services/test/testBrowserTools.js';
+import { playwrightManager } from '../../../service/test/playwrightManager.js';
+import { screenshot } from '../../../service/test/testBrowserTools.js';
 
 export const testScreenshotTool: Tool = {
   name: 'test_screenshot',

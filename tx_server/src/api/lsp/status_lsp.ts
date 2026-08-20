@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { LSPManager } from "../../../core/lsp/index.js";
+import { LSPManager } from "../../core/lsp/index.js";
 
 export async function GET(req: Request, res: Response) {
   const id = req.query.id as string;

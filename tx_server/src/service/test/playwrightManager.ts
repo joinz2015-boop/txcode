@@ -100,7 +100,7 @@ class PlaywrightManager {
     }
 
     const { codeWebSocketHandler } = await import(
-      '../../gateway/websocket/code.websocket.js'
+      '../../infra/ws/code.websocket.js'
     );
     codeWebSocketHandler.broadcast({
       type: 'request_open_test_window',

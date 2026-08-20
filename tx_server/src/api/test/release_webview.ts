@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { playwrightManager } from '../../../services/test/playwrightManager.js';
+import { playwrightManager } from '../../service/test/playwrightManager.js';
 
 export async function POST(req: Request, res: Response) {
   const { sessionId } = req.body;

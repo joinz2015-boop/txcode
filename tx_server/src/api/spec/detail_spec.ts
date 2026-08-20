@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
-import { specManager } from "../../../modules/spec/index.js";
-import { projectService } from "../../../services/project/project.service.js";
+import { specManager } from "../../service/spec/index.js";
+import { projectService } from "../../service/project/project.service.js";
 
 export async function GET(req: Request, res: Response) {
   const name = req.query.name as string;

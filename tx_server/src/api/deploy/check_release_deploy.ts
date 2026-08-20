@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
-import { dbService } from "../../../core/db/index.js";
-import { getVersion } from "../../../utils/version.js";
+import { dbService } from "../../core/db/index.js";
+import { getVersion } from "../../utils/version.js";
 
 export async function GET(_req: Request, res: Response) {
   const currentVersion = getVersion();

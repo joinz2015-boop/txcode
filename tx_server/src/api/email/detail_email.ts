@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { emailRepository } from "../../../repository/email.repository.js";
+import { emailRepository } from "../../repository/email.repository.js";
 
 export async function GET(req: Request, res: Response) {
   const id = req.query.id as string;

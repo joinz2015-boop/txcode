@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { configService } from "../../../services/config/index.js";
+import { configService } from "../../service/config/index.js";
 
 export async function POST(req: Request, res: Response) {
   const { id, name, apiKey, baseUrl, enabled, isDefault } = req.body;

@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import yaml from "js-yaml";
-import { configExportImportService } from "../../../services/config/config-export-import.service.js";
+import { configExportImportService } from "../../service/config/config-export-import.service.js";
 
 export async function POST(req: Request, res: Response) {
   try {

@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
-import { skillsManager } from '../../../services/skill/index.js';
-import { sessionService } from '../../../services/session/index.js';
-import { projectService } from '../../../services/project/project.service.js';
+import { skillsManager } from '../../service/skill/index.js';
+import { sessionService } from '../../service/session/index.js';
+import { projectService } from '../../service/project/project.service.js';
 
 export async function GET(req: Request, res: Response) {
   const sessionId = req.query.sessionId as string;

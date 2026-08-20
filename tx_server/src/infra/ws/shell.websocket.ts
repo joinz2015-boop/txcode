@@ -1,7 +1,7 @@
 import { WebSocket } from 'ws';
 import { Client, ClientChannel } from 'ssh2';
-import { shellChatService } from '../../services/shellChat/shellChat.service.js';
-import { pluginWebshellHostService } from '../../services/pluginWebshellHost/pluginWebshellHostService.js';
+import { shellChatService } from '../../service/shellChat/shellChat.service.js';
+import { pluginWebshellHostService } from '../../service/pluginWebshellHost/pluginWebshellHostService.js';
 import { getProvider } from '../../core/ai/provider/provider.router.js';
 import type { ProviderTokenUsage } from '../../core/ai/provider/base.js';
 

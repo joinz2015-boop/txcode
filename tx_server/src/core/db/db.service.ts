@@ -34,7 +34,7 @@ import { initMessageFileTables } from './init_sql/message_file.init.js';
 import { initSystemTables } from './init_sql/system.init.js';
 import { initHostTables } from './init_sql/host.init.js';
 import { initPluginWebshellHostTables } from './init_sql/plugin_webshell_host.init.js';
-import { log } from '../../modules/logger/index.js';
+import { log } from '../../service/logger/index.js';
 
 export class DbService {
   private db: SqlJsDatabase | null = null;

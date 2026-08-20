@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { configRepository } from "../../../repository/config.repository.js";
+import { configRepository } from "../../repository/config.repository.js";
 
 export async function GET(_req: Request, res: Response) {
   const config = configRepository.getDingTalkConfig();

@@ -6,14 +6,14 @@
  */
 
 import { WebSocket } from 'ws';
-import { sessionService } from '../../services/session/index.js';
+import { sessionService } from '../../service/session/index.js';
 import type { Session } from '../../entity/session.entity.js';
-import { codeChatService } from '../../services/codeChat/index.js';
-import { projectService } from '../../services/project/project.service.js';
-import { memoryService } from '../../services/memory/index.js';
+import { codeChatService } from '../../service/codeChat/index.js';
+import { projectService } from '../../service/project/project.service.js';
+import { memoryService } from '../../service/memory/index.js';
 import { getProvider } from '../../core/ai/provider/provider.router.js';
 import { NameAgent } from '../../core/ai/agents/name/name.agent.js';
-import { log } from '../../modules/logger/index.js';
+import { log } from '../../service/logger/index.js';
 
 export class CodeWebSocketHandler {
   private wsClients: Set<WebSocket> = new Set();

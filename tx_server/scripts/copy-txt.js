@@ -15,7 +15,7 @@ function copyFile(srcPath, dstPath) {
 }
 
 copyDirFiles('tx_server/src/core/tools/provider', 'dist/core/tools/provider', f => f.endsWith('.txt'));
-copyFile('tx_server/src/services/skill/skill.txt', 'dist/services/skill/skill.txt');
+copyFile('tx_server/src/service/skill/skill.txt', 'dist/service/skill/skill.txt');
 copyFile('tx_server/src/core/ai/agents/common/prompt/role.txt', 'dist/core/ai/agents/common/prompt/role.txt');
 
 const agents = ['code', 'chat', 'mem', 'skill', 'summarizer', 'design','plan','discuss','name','test'];

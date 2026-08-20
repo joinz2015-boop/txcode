@@ -1,6 +1,6 @@
 import { Tool, ToolContext, ToolResult } from '../tool.types.js';
-import { playwrightManager } from '../../../services/test/playwrightManager.js';
-import { assertText } from '../../../services/test/testBrowserTools.js';
+import { playwrightManager } from '../../../service/test/playwrightManager.js';
+import { assertText } from '../../../service/test/testBrowserTools.js';
 
 export const testAssertTextTool: Tool = {
   name: 'test_assert_text',

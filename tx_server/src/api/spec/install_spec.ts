@@ -2,8 +2,8 @@ import { Request, Response } from 'express';
 import * as path from 'path';
 import * as fs from 'fs';
 import AdmZip from 'adm-zip';
-import { txcodeHubService } from '../../../services/hub/txcode_hub.service.js';
-import { projectService } from '../../../services/project/project.service.js';
+import { txcodeHubService } from '../../service/hub/txcode_hub.service.js';
+import { projectService } from '../../service/project/project.service.js';
 
 export async function POST(req: Request, res: Response) {
   const { specId, specName } = req.body;

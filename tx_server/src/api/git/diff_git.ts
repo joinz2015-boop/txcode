@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import { execSync } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
-import { projectService } from "../../../services/project/project.service.js";
+import { projectService } from "../../service/project/project.service.js";
 
 export async function GET(req: Request, res: Response) {
   const file = req.query.file as string;

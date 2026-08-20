@@ -3,12 +3,12 @@
  */
 
 import express, { Express } from "express";
-import { GET as serversLsp } from "../../tx_server/src/gateway/api/lsp/servers_lsp.js";
-import { POST as updateLsp } from "../../tx_server/src/gateway/api/lsp/update_lsp.js";
-import { POST as startLsp } from "../../tx_server/src/gateway/api/lsp/start_lsp.js";
-import { POST as stopLsp } from "../../tx_server/src/gateway/api/lsp/stop_lsp.js";
-import { GET as statusLsp } from "../../tx_server/src/gateway/api/lsp/status_lsp.js";
-import { GET as javaVersionLsp } from "../../tx_server/src/gateway/api/lsp/java_version_lsp.js";
+import { GET as serversLsp } from "../../tx_server/src/api/lsp/servers_lsp.js";
+import { POST as updateLsp } from "../../tx_server/src/api/lsp/update_lsp.js";
+import { POST as startLsp } from "../../tx_server/src/api/lsp/start_lsp.js";
+import { POST as stopLsp } from "../../tx_server/src/api/lsp/stop_lsp.js";
+import { GET as statusLsp } from "../../tx_server/src/api/lsp/status_lsp.js";
+import { GET as javaVersionLsp } from "../../tx_server/src/api/lsp/java_version_lsp.js";
 
 interface ApiResponse {
   success: boolean;

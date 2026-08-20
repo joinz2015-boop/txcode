@@ -9,7 +9,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import config from '../../config/tx.config.js';
-import { configService } from '../../services/config/config.service.js';
+import { configService } from '../../service/config/config.service.js';
 
 function stripTools(obj: any): any {
   if (Array.isArray(obj)) {

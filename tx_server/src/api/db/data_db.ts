@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { dbService } from "../../../core/db/index.js";
+import { dbService } from "../../core/db/index.js";
 
 export async function GET(req: Request, res: Response) {
   const name = req.query.name as string;

@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { skillsManager } from '../../../services/skill/index.js';
+import { skillsManager } from '../../service/skill/index.js';
 
 export async function POST(_req: Request, res: Response) {
   await skillsManager.loadAll();

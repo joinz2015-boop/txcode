@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import * as fs from "fs";
 import * as path from "path";
-import { projectService } from "../../../services/project/project.service.js";
+import { projectService } from "../../service/project/project.service.js";
 
 export async function GET(req: Request, res: Response) {
   const filePath = req.query.path as string;

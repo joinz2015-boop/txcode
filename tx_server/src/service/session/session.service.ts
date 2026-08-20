@@ -1,9 +1,9 @@
 import { v4 as uuidv4 } from 'uuid';
 import { sessionRepository, SessionRow } from '../../repository/session.repository.js';
-import { memoryService } from '../../services/memory/index.js';
+import { memoryService } from '../../service/memory/index.js';
 import { Session, SessionState, CompactionResult, SessionStats } from './session.types.js';
 import type { Message } from '../../entity/message.entity.js';
-import { log } from '../../modules/logger/index.js';
+import { log } from '../../service/logger/index.js';
 
 export class SessionService {
   private state: SessionState = {

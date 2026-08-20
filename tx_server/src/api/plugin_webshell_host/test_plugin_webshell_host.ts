@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { pluginWebshellHostService } from '../../../services/pluginWebshellHost/pluginWebshellHostService.js';
+import { pluginWebshellHostService } from '../../service/pluginWebshellHost/pluginWebshellHostService.js';
 
 export async function POST(req: Request, res: Response) {
   const { id } = req.body;

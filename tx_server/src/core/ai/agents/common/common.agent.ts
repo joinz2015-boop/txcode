@@ -11,11 +11,11 @@ import {
   ProviderToolResult,
   ProviderTokenUsage,
 } from '../../provider/base.js';
-import type { MemoryService } from '../../../../services/memory/memory.service.js';
+import type { MemoryService } from '../../../../service/memory/memory.service.js';
 import type { SummarizerAgent } from '../summarizer/summarizer.agent.js';
-import type { SessionService } from '../../../../services/session/session.service.js';
-import { specInjector } from '../../../../modules/spec/index.js';
-import { log } from '../../../../modules/logger/index.js';
+import type { SessionService } from '../../../../service/session/session.service.js';
+import { specInjector } from '../../../../service/spec/index.js';
+import { log } from '../../../../service/logger/index.js';
 
 export interface CommonAgentConfig {
   provider: BaseProvider;

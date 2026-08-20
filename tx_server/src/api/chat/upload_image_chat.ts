@@ -3,7 +3,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
-import { projectService } from '../../../services/project/project.service.js';
+import { projectService } from '../../service/project/project.service.js';
 
 function getProjectUploadsDir(): string {
   return path.join(projectService.getCurrentProjectPath(), '.txcode', 'uploads');

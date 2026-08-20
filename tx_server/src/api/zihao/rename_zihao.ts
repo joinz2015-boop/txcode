@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { zihaoService } from '../../../services/zihao/zihao.service.js';
+import { zihaoService } from '../../service/zihao/zihao.service.js';
 
 export async function POST(req: Request, res: Response) {
   try {

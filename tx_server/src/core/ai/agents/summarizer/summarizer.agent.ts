@@ -1,8 +1,8 @@
-import { ConfigService, configService } from '../../../../services/config/config.service.js';
+import { ConfigService, configService } from '../../../../service/config/config.service.js';
 import { getProvider } from '../../provider/provider.router.js';
 import { SummarizerResult, SummarizerOptions, CompactionCheckResult } from '../../../../entity/summarizer.entity.js';
-import { SessionService } from '../../../../services/session/session.service.js';
-import { MemoryService } from '../../../../services/memory/memory.service.js';
+import { SessionService } from '../../../../service/session/session.service.js';
+import { MemoryService } from '../../../../service/memory/memory.service.js';
 
 async function loadRoleTemplate(): Promise<string> {
   try {

@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { LSPManager } from "../../../core/lsp/index.js";
+import { LSPManager } from "../../core/lsp/index.js";
 
 export async function GET(_req: Request, res: Response) {
   try { const r = await LSPManager.checkJavaVersion(); res.json({ success: true, data: r }); }

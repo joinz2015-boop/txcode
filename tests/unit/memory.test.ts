@@ -3,8 +3,8 @@
  */
 
 import { DbService } from '../../tx_server/src/core/db/db.service';
-import { SessionService } from '../../tx_server/src/services/session/session.service';
-import { MemoryService } from '../../tx_server/src/services/memory/memory.service';
+import { SessionService } from '../../tx_server/src/service/session/session.service';
+import { MemoryService } from '../../tx_server/src/service/memory/memory.service';
 
 describe('Memory 模块', () => {
   let dbService: DbService;

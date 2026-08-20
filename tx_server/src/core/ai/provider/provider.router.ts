@@ -3,7 +3,7 @@ import { DeepSeekProvider } from './deepseek.provider.js';
 import { KimiProvider } from './kimi.provider.js';
 import { BaseProvider } from '../../../entity/ai.entity.js';
 import { ProxyAgent } from 'undici';
-import { configService } from '../../../services/config/config.service.js';
+import { configService } from '../../../service/config/config.service.js';
 
 export interface ProviderConfig {
   apiKey: string;

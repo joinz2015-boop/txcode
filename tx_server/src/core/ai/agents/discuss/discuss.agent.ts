@@ -11,11 +11,11 @@ import {
   ProviderToolResult,
   ProviderTokenUsage,
 } from '../../provider/base.js';
-import type { MemoryService } from '../../../../services/memory/memory.service.js';
-import { buildAvailableSkillsPrompt } from '../../../../services/skill/skill.tool.js';
+import type { MemoryService } from '../../../../service/memory/memory.service.js';
+import { buildAvailableSkillsPrompt } from '../../../../service/skill/skill.tool.js';
 import type { SummarizerAgent } from '../summarizer/summarizer.agent.js';
-import type { SessionService } from '../../../../services/session/session.service.js';
-import { hooks } from '../../../../modules/hooks/index.js';
+import type { SessionService } from '../../../../service/session/session.service.js';
+import { hooks } from '../../../../service/hooks/index.js';
 import { loadMemory } from '../../../tools/provider/memory.js';
 
 async function loadRoleTemplate(): Promise<string> {

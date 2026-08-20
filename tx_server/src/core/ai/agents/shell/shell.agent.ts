@@ -11,7 +11,7 @@ import {
   ProviderToolResult,
   ProviderTokenUsage,
 } from '../../provider/base.js';
-import type { MemoryService } from '../../../../services/memory/memory.service.js';
+import type { MemoryService } from '../../../../service/memory/memory.service.js';
 
 export interface ShellAgentConfig {
   provider: BaseProvider;

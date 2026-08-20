@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { songbingService } from '../../../services/songbing/songbing.service.js';
+import { songbingService } from '../../service/songbing/songbing.service.js';
 
 export async function POST(req: Request, res: Response) {
   try {

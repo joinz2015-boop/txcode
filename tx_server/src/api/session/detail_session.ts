@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { sessionService } from '../../../services/session/index.js';
+import { sessionService } from '../../service/session/index.js';
 
 export async function GET(req: Request, res: Response) {
   const id = req.query.id as string;

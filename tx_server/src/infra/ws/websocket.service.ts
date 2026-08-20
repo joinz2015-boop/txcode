@@ -14,7 +14,7 @@ import * as http from 'http';
 import { codeWebSocketHandler } from './code.websocket.js';
 import { terminalWebSocketHandler } from './terminal.websocket.js';
 import { shellWebSocketHandler } from './shell.websocket.js';
-import { log } from '../../modules/logger/index.js';
+import { log } from '../../service/logger/index.js';
 
 export class WebSocketService {
   private wss: WebSocketServer | null = null;

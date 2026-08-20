@@ -3,7 +3,7 @@ import multer from 'multer';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { zihaoService } from '../../../services/zihao/zihao.service.js';
+import { zihaoService } from '../../service/zihao/zihao.service.js';
 
 const chunkUpload = multer({
   storage: multer.diskStorage({

@@ -17,7 +17,7 @@ import { getProviderTools } from '../../tools/provider/index.js';
 import { getOpenAITools } from '../../tools/provider/tools.js';
 import { ProviderToolCall } from '../provider/base.js';
 import { ToolDefinition } from '../ai.types.js';
-import { log } from '../../../modules/logger/index.js';
+import { log } from '../../../service/logger/index.js';
 
 /** 日志摘要截断长度 */
 const SUMMARY_LIMIT = 200;

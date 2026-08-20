@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { customActionRepository } from "../../../repository/custom_action.repository.js";
+import { customActionRepository } from "../../repository/custom_action.repository.js";
 
 export async function GET(req: Request, res: Response) {
   try {

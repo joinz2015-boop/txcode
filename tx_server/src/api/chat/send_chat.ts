@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { codeChatService } from '../../../services/codeChat/index.js';
+import { codeChatService } from '../../service/codeChat/index.js';
 import { ChatRequest } from '../api.types.js';
 
 export async function POST(req: Request, res: Response) {

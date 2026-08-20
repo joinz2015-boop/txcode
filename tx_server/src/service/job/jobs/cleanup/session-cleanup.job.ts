@@ -1,5 +1,5 @@
 import type { IJob } from '../../types.js'
-import { sessionService } from '../../../../services/session/index.js'
+import { sessionService } from '../../../../service/session/index.js'
 
 export class SessionCleanupJob implements IJob {
   name = 'session-cleanup'

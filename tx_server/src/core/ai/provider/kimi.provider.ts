@@ -7,8 +7,8 @@ import {
   BaseProvider,
   MultimodalContent,
 } from '../../../entity/ai.entity.js';
-import { logger } from '../../../modules/logger/index.js';
-import { aiLogService } from '../../../services/ai/ai-log.service.js';
+import { logger } from '../../../service/logger/index.js';
+import { aiLogService } from '../../../service/ai/ai-log.service.js';
 import { resolveImageUrl } from '../../../utils/image_base64.js';
 
 export interface KimiConfig {

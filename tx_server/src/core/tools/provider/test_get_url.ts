@@ -1,6 +1,6 @@
 import { Tool, ToolContext, ToolResult } from '../tool.types.js';
-import { playwrightManager } from '../../../services/test/playwrightManager.js';
-import { getPageUrl } from '../../../services/test/testBrowserTools.js';
+import { playwrightManager } from '../../../service/test/playwrightManager.js';
+import { getPageUrl } from '../../../service/test/testBrowserTools.js';
 
 export const testGetUrlTool: Tool = {
   name: 'test_get_url',

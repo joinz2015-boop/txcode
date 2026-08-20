@@ -1,5 +1,5 @@
 import { ChatMessage } from '../../ai.types.js';
-import { specInjector } from '../../../../modules/spec/index.js';
+import { specInjector } from '../../../../service/spec/index.js';
 
 export class RewriteUserMessage {
   private projectPath: string;

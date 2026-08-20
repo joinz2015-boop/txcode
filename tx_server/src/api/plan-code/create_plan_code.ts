@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { planCodeService } from '../../../services/plan-code/planCode.service.js';
+import { planCodeService } from '../../service/plan-code/planCode.service.js';
 
 export async function POST(req: Request, res: Response) {
   try {

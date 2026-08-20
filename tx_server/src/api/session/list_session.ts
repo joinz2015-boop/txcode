@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
-import { sessionService } from '../../../services/session/index.js';
-import { projectService } from '../../../services/project/project.service.js';
+import { sessionService } from '../../service/session/index.js';
+import { projectService } from '../../service/project/project.service.js';
 
 export async function GET(req: Request, res: Response) {
   const limit = Math.min(Number(req.query.limit) || 20, 100);

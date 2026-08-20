@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { execSync } from "child_process";
-import { projectService } from "../../../services/project/project.service.js";
+import { projectService } from "../../service/project/project.service.js";
 
 export async function POST(req: Request, res: Response) {
   const { path: _path } = req.body;

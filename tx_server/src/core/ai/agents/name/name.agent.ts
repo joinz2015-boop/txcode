@@ -1,5 +1,5 @@
 import { BaseProvider, ChatMessage } from '../../../../entity/ai.entity.js';
-import { MemoryService } from '../../../../services/memory/memory.service.js';
+import { MemoryService } from '../../../../service/memory/memory.service.js';
 
 async function loadRoleTemplate(): Promise<string> {
   try {

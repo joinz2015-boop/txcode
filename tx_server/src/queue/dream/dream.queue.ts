@@ -1,5 +1,5 @@
 import { DreamTask, IDreamHandler } from './dream.types.js'
-import { log } from '../../modules/logger/index.js'
+import { log } from '../../service/logger/index.js'
 
 export class DreamQueue {
   private handlers: Map<string, IDreamHandler[]> = new Map()

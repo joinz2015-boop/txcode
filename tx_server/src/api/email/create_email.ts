@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { emailRepository } from "../../../repository/email.repository.js";
+import { emailRepository } from "../../repository/email.repository.js";
 
 export async function POST(req: Request, res: Response) {
   const { name, host, port, user, password, secure, isDefault } = req.body;
