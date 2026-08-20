@@ -2,12 +2,12 @@
  * 项目初始化测试
  * 
  * 测试内容：
- * 1. 精简参数解析（src/args.ts）
+ * 1. 精简参数解析（tx_server/src/args.ts）
  * 2. 默认 Web 模式启动参数
  * 3. --port / --version / --help / --log-level / desktop 参数解析
  */
 
-import { parseArgs, readVersion, helpText } from '../../src/args';
+import { parseArgs, readVersion, helpText } from '../../tx_server/src/args';
 
 describe('项目初始化', () => {
   describe('命令行参数解析', () => {

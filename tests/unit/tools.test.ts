@@ -4,7 +4,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { ToolService } from '../../src/core/tools/tool.service';
+import { ToolService } from '../../tx_server/src/core/tools/tool.service';
 
 describe('Tools Module', () => {
   let toolService: ToolService;

@@ -6,12 +6,12 @@
 
 import * as path from 'path';
 import * as fs from 'fs';
-import { DbService } from '../../src/core/db/db.service';
-import { SessionService } from '../../src/services/session/session.service';
-import { MemoryService } from '../../src/services/memory/memory.service';
-import { ConfigService } from '../../src/services/config/config.service';
-import { ToolService } from '../../src/core/tools/tool.service';
-import { SkillsManager } from '../../src/services/skill/skills.manager';
+import { DbService } from '../../tx_server/src/core/db/db.service';
+import { SessionService } from '../../tx_server/src/services/session/session.service';
+import { MemoryService } from '../../tx_server/src/services/memory/memory.service';
+import { ConfigService } from '../../tx_server/src/services/config/config.service';
+import { ToolService } from '../../tx_server/src/core/tools/tool.service';
+import { SkillsManager } from '../../tx_server/src/services/skill/skills.manager';
 
 describe('集成测试', () => {
   let dbService: DbService;

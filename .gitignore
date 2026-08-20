@@ -32,9 +32,9 @@ coverage/
 *.tsbuildinfo
 
 # Desktop
-desktop/dist/
-desktop/node_modules/
-desktop/release/
+tx_desktop/dist/
+tx_desktop/node_modules/
+tx_desktop/release/
 
 # Temporary files
 *.tmp

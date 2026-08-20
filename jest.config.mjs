@@ -5,10 +5,10 @@ export default {
   roots: ['<rootDir>/tests'],
   testMatch: ['**/*.test.ts'],
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
-  collectCoverageFrom: [
-    'src/**/*.ts',
-    '!src/**/*.d.ts',
-    '!src/index.ts'
+collectCoverageFrom: [
+    'tx_server/src/**/*.ts',
+    '!tx_server/src/**/*.d.ts',
+    '!tx_server/src/index.ts'
   ],
   coverageDirectory: 'coverage',
   verbose: true,

@@ -5,5 +5,5 @@
     "moduleResolution": "bundler",
     "isolatedModules": true
   },
-  "include": ["src/**/*", "tests/**/*"]
+  "include": ["tx_server/src/**/*", "tests/**/*"]
 }

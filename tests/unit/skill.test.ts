@@ -5,10 +5,10 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { SkillsManager } from '../../src/services/skill/skills.manager';
-import { skillHandler } from '../../src/services/skill/skill.tool';
-import { buildAvailableSkillsPrompt } from '../../src/services/skill/skill.tool';
-import { skillsManager as globalSkillsManager } from '../../src/services/skill/skills.manager';
+import { SkillsManager } from '../../tx_server/src/services/skill/skills.manager';
+import { skillHandler } from '../../tx_server/src/services/skill/skill.tool';
+import { buildAvailableSkillsPrompt } from '../../tx_server/src/services/skill/skill.tool';
+import { skillsManager as globalSkillsManager } from '../../tx_server/src/services/skill/skills.manager';
 
 describe('Skill 模块', () => {
   let manager: SkillsManager;

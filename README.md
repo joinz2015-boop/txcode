@@ -74,7 +74,7 @@ txcode
 
 # 启动后，您可以输入自然语言指令，例如：
 > 搜索所有包含 "function" 的 TypeScript 文件
-> 读取 src/index.ts 文件
+> 读取 tx_server/src/index.ts 文件
 > 查看当前 Git 状态
 ```
 
@@ -143,10 +143,13 @@ txcode web --port 40001
 ## 项目结构
 
 ```
-├── src/          # 源代码目录
-│   ├── index.ts          # 主入口文件
-│   ├── modules/          # 功能模块
-│   └── types/           # 类型定义
+├── tx_server/   # 后端源代码目录
+│   └── src/              # 主入口与业务代码
+│       ├── index.ts          # 主入口文件
+│       ├── modules/          # 功能模块
+│       └── types/            # 类型定义
+├── tx_desktop/   # 桌面端源码（Electron + Vue2）
+├── web/          # Web 端源码（保持不动）
 ├── dist/         # 构建输出目录
 ├── tests/        # 测试文件
 └── package.json  # 项目配置

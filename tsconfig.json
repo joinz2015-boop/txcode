@@ -3,14 +3,14 @@
     "target": "ES2020",
     "module": "nodenext",
     "moduleResolution": "nodenext",
-    "baseUrl": "./src",
+"baseUrl": "./tx_server/src",
     "paths": {
       "@/*": ["./*"]
     },
     "lib": ["ES2021"],
     "jsx": "react",
     "outDir": "./dist",
-    "rootDir": "./src",
+    "rootDir": "./tx_server/src",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -19,6 +19,6 @@
     "declarationMap": true,
     "sourceMap": true
   },
-  "include": ["src/**/*"],
+  "include": ["tx_server/src/**/*"],
   "exclude": ["node_modules", "dist", "**/*.test.ts"]
 }

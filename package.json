@@ -10,16 +10,16 @@
   },
   "scripts": {
     "build": "tsc && tsc-alias && npm run copy-txt",
-    "copy-txt": "node scripts/copy-txt.js",
-    "dev": "tsx src/index.ts",
+    "copy-txt": "node tx_server/scripts/copy-txt.js",
+    "dev": "tsx tx_server/src/index.ts",
     "start": "node dist/index.js",
     "start:web": "node dist/index.js web",
     "web:dev": "cd web && npm run dev",
     "web:build": "cd web && npm install && npm run build",
-    "desktop:dev": "cd desktop && npm run dev",
-    "desktop:build:win": "cd desktop && npm run build:win",
-    "desktop:build:mac": "cd desktop && npm run build:mac",
-    "desktop:build:all": "cd desktop && npm run build:all",
+    "desktop:dev": "cd tx_desktop && npm run dev",
+    "desktop:build:win": "cd tx_desktop && npm run build:win",
+    "desktop:build:mac": "cd tx_desktop && npm run build:mac",
+    "desktop:build:all": "cd tx_desktop && npm run build:all",
     "test": "jest",
     "test:coverage": "jest --coverage"
   },
@@ -54,7 +54,7 @@
     "xml2js": "^0.6.2",
     "yaml": "^2.8.3"
   },
-  "devDependencies": {
+"devDependencies": {
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/jest": "^30.0.0",
@@ -73,5 +73,12 @@
     "tsc-alias": "^1.8.10",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"
-  }
+  },
+  "files": [
+    "dist",
+    "web/dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "prepublishOnly": "npm run build && npm run web:build"
 }

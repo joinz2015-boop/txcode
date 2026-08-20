@@ -1,5 +1,5 @@
 # Source files - we only publish compiled files
-src/
+tx_server/src/
 tests/
 web/src/
 
@@ -66,4 +66,4 @@ web/package-lock.json
 web/node_modules/
 
 # Desktop - excluded from npm publish
-desktop/
+tx_desktop/

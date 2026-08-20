@@ -2,8 +2,8 @@
  * LspTool 测试
  */
 
-import { lspTool } from "../../src/core/tools/provider/lsp.js";
-import { ToolContext } from "../../src/core/tools/tool.types.js";
+import { lspTool } from "../../tx_server/src/core/tools/provider/lsp.js";
+import { ToolContext } from "../../tx_server/src/core/tools/tool.types.js";
 
 const mockContext: ToolContext = {
   sessionId: "test-session",
