@@ -11,4 +11,4 @@ export const CHAT_TOOLS: string[] = [
   'web_fetch',
   'memory',
   'skill',
-];
+]; 

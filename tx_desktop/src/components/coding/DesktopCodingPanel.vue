@@ -3,7 +3,7 @@
     <div class="panel-header">
       <span># {{ sessionTitle }}</span>
     </div>
-    <DesktopInputHistory :log-items="logItems" />
+    <div class="chat-wrap">
     <div class="chat-messages" ref="messagesContainer">
       <div v-if="logItems.length === 0" class="chat-empty">
         <span class="chat-empty-icon">&#x1F4AC;</span>
@@ -50,6 +50,13 @@
       <div class="build-info" v-if="panel.modelName || currentModel">
         <span class="icon">▣</span> Build · {{ panel.modelName || currentModel }}
       </div>
+    </div>
+    <DesktopUserRail
+      :log-items="logItems"
+      @scroll-to-top="scrollRailTop"
+      @scroll-to-bottom="scrollRailBottom"
+      @scroll-to-log="scrollToChat"
+    />
     </div>
     <div class="input-block">
       <DesktopImagePreviewList
@@ -120,7 +127,7 @@ import DesktopDesignSelectDialog from '@/components/design/DesktopDesignSelectDi
 import DesktopCommandDialog from '@/components/common/DesktopCommandDialog.vue'
 import DesktopImagePreviewList from '@/components/chat/DesktopImagePreviewList.vue'
 import DesktopResizableTextarea from '@/components/chat/DesktopResizableTextarea.vue'
-import DesktopInputHistory from '@/components/chat/DesktopInputHistory.vue'
+import DesktopUserRail from '@/components/chat/DesktopUserRail.vue'
 import { setItem } from '@/utils/storage'
 import { createSession, getMessages, saveMeta } from '@/api/index'
 import { uploadSingleMedia } from '@/api/chat/media.js'
@@ -140,7 +147,7 @@ export default {
     DesktopCommandDialog,
     DesktopImagePreviewList,
     DesktopResizableTextarea,
-    DesktopInputHistory
+    DesktopUserRail
   },
   props: {
     currentAgent: { type: String, default: 'Code Agent' },
@@ -581,6 +588,23 @@ export default {
       this.$nextTick(() => smartScroll(el, { force, prevSnapshot: snap }))
     },
 
+    scrollRailTop() {
+      const el = this.$refs.messagesContainer
+      if (el) el.scrollTo({ top: 0, behavior: 'smooth' })
+    },
+
+    scrollRailBottom() {
+      const el = this.$refs.messagesContainer
+      if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
+    },
+
+    scrollToChat(logId) {
+      const el = this.$refs.messagesContainer
+      if (!el) return
+      const target = el.querySelector(`[data-log-id="${logId}"]`)
+      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    },
+
     scheduleScroll(snap = null) {
       const el = this.$refs.messagesContainer
       if (el) this.$nextTick(() => smartScroll(el, { prevSnapshot: snap }))
@@ -610,6 +634,12 @@ export default {
   background: var(--bg-chat);
 }
 
+.chat-wrap {
+  flex: 1;
+  position: relative;
+  display: flex;
+  overflow: hidden;
+}
 .chat-messages {
   flex: 1;
   overflow-y: auto;

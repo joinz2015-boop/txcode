@@ -9,6 +9,7 @@
           :stats-map="statsMap"
           @select="selectChange"
           @refresh="refresh"
+          @revert="revertFile"
         />
       </div>
 
@@ -32,10 +33,8 @@
             :diff-data="diffData"
             :loading="diffLoading"
             :view-mode.sync="viewMode"
-            :sync-enabled.sync="syncEnabled"
             :folded.sync="folded"
             @refresh="refresh"
-            @open-file="openFile"
           />
           <div v-if="diffLoading" class="diff-loading">加载差异中...</div>
           <div v-else-if="!diffData" class="empty-state">
@@ -48,11 +47,22 @@
     <div class="gitdiff-toasts">
       <div v-for="t in toasts" :key="t.id" class="gitdiff-toast" :class="t.type">{{ t.msg }}</div>
     </div>
+
+    <div v-if="confirmVisible" class="confirm-overlay" @click.self="cancelConfirm">
+      <div class="confirm-dialog">
+        <div class="confirm-header">确认操作</div>
+        <div class="confirm-body">{{ confirmMessage }}</div>
+        <div class="confirm-footer">
+          <button class="btn-outline" @click="cancelConfirm">取消</button>
+          <button class="btn-danger" @click="executeConfirm">确认</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script>
-import { gitIsRepo, gitStatus, gitDiffFull } from '@/api/index'
+import { gitIsRepo, gitStatus, gitDiffFull, gitRevert, gitDeleteFile } from '@/api/index'
 import DesktopGitChangeList from '@/components/git/DesktopGitChangeList.vue'
 import DesktopGitDiffPanel from '@/components/git/DesktopGitDiffPanel.vue'
 
@@ -73,11 +83,14 @@ export default {
       sidebarWidth: 280,
       resizing: false,
       viewMode: 'split',
-      syncEnabled: true,
       folded: false,
       statsMap: {},
       toasts: [],
-      toastId: 0
+      toastId: 0,
+      confirmVisible: false,
+      confirmMessage: '',
+      confirmAction: '',
+      confirmTarget: null
     }
   },
   computed: {
@@ -165,10 +178,6 @@ export default {
         this.diffLoading = false
       }
     },
-    openFile(change) {
-      if (!change) return
-      this.$router.push('/views/file/fileView')
-    },
     startResize(e) {
       this.resizing = true
       const startX = e.clientX
@@ -194,6 +203,34 @@ export default {
       setTimeout(() => {
         this.toasts = this.toasts.filter(t => t.id !== id)
       }, 2400)
+    },
+    revertFile(change) {
+      const isNew = change.isNew || change.status === 'untracked'
+      this.confirmMessage = isNew
+        ? `确定要删除未跟踪的文件 "${change.path}" 吗？`
+        : `确定要撤销对 "${change.path}" 的修改吗？`
+      this.confirmAction = isNew ? 'delete' : 'revert'
+      this.confirmTarget = change
+      this.confirmVisible = true
+    },
+    cancelConfirm() {
+      this.confirmVisible = false
+    },
+    async executeConfirm() {
+      const target = this.confirmTarget
+      const action = this.confirmAction
+      this.confirmVisible = false
+      try {
+        if (action === 'revert') {
+          await gitRevert(target.path)
+        } else if (action === 'delete') {
+          await gitDeleteFile(target.path)
+        }
+        await this.refresh()
+        this.pushToast(`已撤销 ${target.path}`, 'ok')
+      } catch (e) {
+        this.pushToast('撤销失败: ' + (e.message || e), 'err')
+      }
     }
   }
 }
@@ -324,5 +361,68 @@ export default {
 @keyframes toastIn {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+/* Confirm dialog */
+.confirm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.confirm-dialog {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+  width: 400px;
+  max-width: 90vw;
+  padding: 20px;
+}
+.confirm-header {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 12px;
+}
+.confirm-body {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 20px;
+  line-height: 1.5;
+}
+.confirm-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.btn-outline {
+  padding: 6px 16px;
+  background: #fff;
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.btn-outline:hover {
+  background: var(--bg-hover);
+}
+.btn-danger {
+  padding: 6px 16px;
+  background: #ef4444;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: 600;
+}
+.btn-danger:hover {
+  background: #dc2626;
 }
 </style>

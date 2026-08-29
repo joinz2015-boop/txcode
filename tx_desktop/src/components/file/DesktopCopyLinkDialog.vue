@@ -2,7 +2,7 @@
   <div v-if="visible" class="copy-overlay" @click.self="close">
     <div class="copy-dialog">
       <div class="copy-dialog-header">
-        <span>{{ isDir ? '复制文件夹链接' : '复制文件链接' }}</span>
+        <span>{{ isDir ? '复制文件夹地址' : '复制文件地址' }}</span>
         <button class="copy-dialog-close" @click="close">&times;</button>
       </div>
       <div class="copy-dialog-body">
@@ -15,7 +15,7 @@
           class="copy-link-input"
           readonly
           spellcheck="false"
-          :value="link ? link.url : ''"
+          :value="link ? link.path : ''"
           :title="link ? link.path : ''"
           @click="$event.target.select()"
         />
@@ -77,11 +77,11 @@ export default {
       this.$emit('close')
     },
     doCopy() {
-      const val = this.link && this.link.url
+      const val = this.link && this.link.path
       if (!val) return
       const done = () => {
         this.copied = true
-        this.$emit('toast', { msg: '链接已复制到剪贴板', type: 'ok' })
+        this.$emit('toast', { msg: '地址已复制到剪贴板', type: 'ok' })
         setTimeout(() => {
           this.copied = false
         }, 1800)

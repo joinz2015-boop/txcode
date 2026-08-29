@@ -21,16 +21,9 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16"/></svg>
           </button>
         </div>
-        <button class="tool-btn" :class="{ active: syncEnabled }" @click="$emit('update:syncEnabled', !syncEnabled)" title="同步滚动">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
-          同步
-        </button>
         <button class="tool-btn" :class="{ active: folded }" @click="toggleFold" title="折起未变更">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
           折起
-        </button>
-        <button class="tool-btn" @click="$emit('open-file', change)" title="在编辑器中打开">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
         </button>
         <button class="tool-btn" @click="$emit('refresh')" title="刷新">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
@@ -134,7 +127,6 @@
       </div>
       <div class="sb-right">
         <span class="sb-item">{{ languageLabel }}</span>
-        <span class="sb-item">{{ syncEnabled ? '同步滚动已启用' : '同步滚动已禁用' }}</span>
         <span class="sb-item">{{ currentRange || '第 1 行起' }}</span>
       </div>
     </div>

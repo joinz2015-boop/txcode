@@ -48,7 +48,7 @@ function parsePorcelain(output: string): GitChange[] {
 export async function GET(req: Request, res: Response) {
   const projectPath = req.query.path as string || projectService.getCurrentProjectPath();
   try {
-    const raw = execSync("git status --porcelain", { cwd: projectPath, encoding: "utf-8" });
+    const raw = execSync("git status --porcelain -uall", { cwd: projectPath, encoding: "utf-8" });
     const changes = parsePorcelain(raw);
     res.json({ success: true, data: changes });
   } catch (error) { res.status(500).json({ success: false, error: String(error) }); }

@@ -15,34 +15,18 @@
 
       <div class="dialog-body">
         <div class="sidebar" :style="{ width: sidebarWidth + 'px' }">
-          <div v-if="loading" class="empty-state">加载中...</div>
-          <div v-else-if="!isRepo" class="empty-state">
+          <DesktopGitChangeList
+            v-if="isRepo"
+            :changes="changes"
+            :selected-path="selectedPath"
+            :loading="loading"
+            :stats-map="statsMap"
+            @select="selectChange"
+            @refresh="refresh"
+            @revert="revertFile"
+          />
+          <div v-else class="empty-state">
             <p>当前目录不是 Git 仓库</p>
-          </div>
-          <div v-else-if="changes.length === 0" class="empty-state">
-            <p>没有待提交的变更</p>
-          </div>
-          <div v-else class="change-list">
-            <div
-              v-for="change in changes"
-              :key="change.path"
-              class="change-item"
-              :class="{ selected: selectedChange && selectedChange.path === change.path }"
-              @click="selectChange(change)"
-            >
-              <span class="change-badge" :class="'badge-' + change.status">{{ change.statusCode || statusLabel(change) }}</span>
-              <div class="change-info">
-                <div class="change-name">{{ getFileName(change.path) }}</div>
-                <div class="change-dir">{{ getDirPath(change.path) }}</div>
-              </div>
-              <div class="change-actions" @click.stop>
-                <button class="mini-btn" @click="openFile(change)" title="打开文件">&#x2197;</button>
-                <button class="mini-btn revert" @click="revertFile(change)" title="撤销">&#x21B6;</button>
-              </div>
-            </div>
-          </div>
-          <div class="sidebar-footer" v-if="changes.length > 0">
-            {{ changes.length }} 个文件变更
           </div>
         </div>
 
@@ -53,48 +37,25 @@
             <p>点击文件查看变更详情</p>
           </div>
           <template v-else>
-            <div class="diff-toolbar">
+            <div class="action-bar">
               <span class="change-badge" :class="'badge-' + selectedChange.status">{{ selectedChange.statusCode || statusLabel(selectedChange) }}</span>
-              <span class="diff-path">{{ selectedChange.path }}</span>
-              <div class="diff-actions">
-                <button class="action-btn open" @click="openFile(selectedChange)">打开文件</button>
-                <button class="action-btn revert" @click="revertFile(selectedChange)">撤销</button>
+              <span class="action-path">{{ selectedChange.path }}</span>
+            </div>
+            <div class="diff-area-inner">
+              <DesktopGitDiffPanel
+                v-if="diffData || diffLoading"
+                :change="selectedChange"
+                :diff-data="diffData"
+                :loading="diffLoading"
+                :view-mode.sync="viewMode"
+                :folded.sync="folded"
+                @refresh="refresh"
+              />
+              <div v-if="diffLoading" class="diff-loading">加载差异中...</div>
+              <div v-else-if="!diffData" class="empty-state">
+                <p>无法显示差异</p>
               </div>
             </div>
-            <div v-if="diffLoading" class="empty-state">加载差异中...</div>
-            <div v-else-if="diffContent" class="diff-split">
-              <div class="diff-side">
-                <div class="diff-side-header">旧版本 (Original)</div>
-                <div class="diff-side-body">
-                  <div
-                    v-for="(line, idx) in oldLines"
-                    :key="'old-' + idx"
-                    class="diff-line"
-                    :class="getLineClass(line)"
-                  >
-                    <span class="line-num">{{ line.lineNum || '' }}</span>
-                    <span class="line-prefix">{{ getLinePrefix(line) }}</span>
-                    <span class="line-content">{{ line.content }}</span>
-                  </div>
-                </div>
-              </div>
-              <div class="diff-side">
-                <div class="diff-side-header">新版本 (Modified)</div>
-                <div class="diff-side-body">
-                  <div
-                    v-for="(line, idx) in newLines"
-                    :key="'new-' + idx"
-                    class="diff-line"
-                    :class="getLineClass(line)"
-                  >
-                    <span class="line-num">{{ line.lineNum || '' }}</span>
-                    <span class="line-prefix">{{ getLinePrefix(line) }}</span>
-                    <span class="line-content">{{ line.content }}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div v-else class="empty-state">无法显示差异</div>
           </template>
         </div>
       </div>
@@ -114,27 +75,39 @@
 </template>
 
 <script>
-import { gitIsRepo, gitStatus, gitDiff, gitRevert, gitRevertAll, gitDeleteFile, gitDiscardUntracked } from '@/api/index'
+import { gitIsRepo, gitStatus, gitDiffFull, gitRevert, gitRevertAll, gitDeleteFile, gitDiscardUntracked } from '@/api/index'
+import DesktopGitChangeList from '@/components/git/DesktopGitChangeList.vue'
+import DesktopGitDiffPanel from '@/components/git/DesktopGitDiffPanel.vue'
 
 export default {
   name: 'DesktopGitChangesDialog',
-  emits: ['close', 'open-file'],
+  components: {
+    DesktopGitChangeList,
+    DesktopGitDiffPanel
+  },
+  emits: ['close'],
   data() {
     return {
       isRepo: false,
       changes: [],
       selectedChange: null,
-      diffContent: '',
+      diffData: null,
       loading: false,
       diffLoading: false,
       sidebarWidth: 320,
       isResizing: false,
-      oldLines: [],
-      newLines: [],
+      viewMode: 'split',
+      folded: false,
+      statsMap: {},
       confirmVisible: false,
       confirmMessage: '',
       confirmAction: null,
       confirmTarget: null
+    }
+  },
+  computed: {
+    selectedPath() {
+      return this.selectedChange ? this.selectedChange.path : ''
     }
   },
   mounted() {
@@ -168,17 +141,20 @@ export default {
       this.loading = true
       try {
         const r = await gitStatus()
-        this.changes = r.data || []
+        this.changes = (r.data || []).filter(c => !/[/\\]$/.test(String(c.path || '')))
         if (this.selectedChange) {
           const still = this.changes.find(c => c.path === this.selectedChange.path)
-          if (!still) {
-            this.selectedChange = null
-            this.diffContent = ''
-            this.oldLines = []
-            this.newLines = []
-          } else if (still) {
+          if (still) {
             this.selectedChange = still
+          } else {
+            this.selectedChange = null
+            this.diffData = null
           }
+        }
+        if (!this.selectedChange && this.changes.length > 0) {
+          this.selectChange(this.changes[0])
+        } else if (this.selectedChange) {
+          this.loadDiff(this.selectedChange)
         }
       } catch (e) {
         console.error('Git status error:', e)
@@ -186,24 +162,28 @@ export default {
         this.loading = false
       }
     },
-    async selectChange(change) {
+    selectChange(change) {
       this.selectedChange = change
+      this.loadDiff(change)
+    },
+    async loadDiff(change) {
+      const prev = this.diffData
       this.diffLoading = true
-      this.diffContent = ''
-      this.oldLines = []
-      this.newLines = []
+      this.diffData = null
       try {
-        const r = await gitDiff(change.path, change.isNew)
-        this.diffContent = (r.data && r.data.diff) || ''
-        this.parseDiff(this.diffContent)
+        const r = await gitDiffFull(change.path, { staged: change.staged })
+        this.diffData = r.data || null
+        if (r.data) {
+          const map = { ...this.statsMap }
+          map[change.path] = r.data.stats
+          this.statsMap = map
+        }
       } catch (e) {
-        this.diffContent = ''
+        this.diffData = prev
+        console.error('加载差异失败:', e)
       } finally {
         this.diffLoading = false
       }
-    },
-    openFile(change) {
-      this.$emit('open-file', change.path)
     },
     revertFile(change) {
       const isNew = change.isNew || change.status === 'untracked'
@@ -246,58 +226,6 @@ export default {
       if (change.status === 'renamed') return '重命名'
       if (change.status === 'untracked') return '未跟踪'
       return '修改'
-    },
-    statusCodeLabel(change) {
-      return change.statusCode || this.statusLabel(change)
-    },
-    getFileName(filePath) {
-      return filePath.split('/').pop() || filePath.split('\\').pop() || filePath
-    },
-    getDirPath(filePath) {
-      const parts = filePath.replace(/\\/g, '/').split('/')
-      parts.pop()
-      return parts.join('/') || '.'
-    },
-    getLinePrefix(line) {
-      if (line.removed) return '-'
-      if (line.added) return '+'
-      return ' '
-    },
-    getLineClass(line) {
-      if (line.type === 'header') return 'diff-header'
-      if (line.removed) return 'diff-removed'
-      if (line.added) return 'diff-added'
-      if (line.empty) return 'diff-empty'
-      return 'diff-normal'
-    },
-    parseDiff(diff) {
-      this.oldLines = []
-      this.newLines = []
-      if (!diff) return
-      const lines = diff.split('\n')
-      let oldLineNum = 1
-      let newLineNum = 1
-      for (const line of lines) {
-        if (line.startsWith('@@')) {
-          const match = line.match(/@@ -(\d+),?\d* \+(\d+),?\d* @@/)
-          if (match) {
-            oldLineNum = parseInt(match[1])
-            newLineNum = parseInt(match[2])
-          }
-          this.oldLines.push({ lineNum: '', content: line, type: 'header' })
-          this.newLines.push({ lineNum: '', content: line, type: 'header' })
-        } else if (line.startsWith('---') || line.startsWith('+++') || line.startsWith('diff ') || line.startsWith('index ')) {
-        } else if (line.startsWith('-')) {
-          this.oldLines.push({ lineNum: oldLineNum++, content: line.substring(1), removed: true })
-          this.newLines.push({ lineNum: '', content: '', empty: true })
-        } else if (line.startsWith('+')) {
-          this.oldLines.push({ lineNum: '', content: '', empty: true })
-          this.newLines.push({ lineNum: newLineNum++, content: line.substring(1), added: true })
-        } else {
-          this.oldLines.push({ lineNum: oldLineNum++, content: line })
-          this.newLines.push({ lineNum: newLineNum++, content: line })
-        }
-      }
     },
     startResize(e) {
       this.isResizing = true
@@ -367,15 +295,8 @@ export default {
   display: flex; flex-direction: column;
   background: #fafbfc;
   flex-shrink: 0;
+  overflow: hidden;
 }
-.change-list { flex: 1; overflow-y: auto; }
-.change-item {
-  display: flex; align-items: center; gap: 8px;
-  padding: 8px 12px; cursor: pointer; border-bottom: 1px solid rgba(0,0,0,0.04);
-  font-size: 13px; transition: background 0.1s;
-}
-.change-item:hover { background: var(--bg-hover); }
-.change-item.selected { background: var(--accent-light); border-left: 2px solid var(--accent); padding-left: 10px; }
 .change-badge {
   font-size: 10px; font-weight: 700; padding: 1px 5px; border-radius: 3px;
   color: #fff; flex-shrink: 0; text-align: center; min-width: 32px;
@@ -385,21 +306,6 @@ export default {
 .badge-deleted { background: #ef4444; }
 .badge-untracked { background: #6b7280; }
 .badge-renamed { background: #8b5cf6; }
-.change-info { flex: 1; min-width: 0; }
-.change-name { color: var(--text-primary); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.change-dir { color: var(--text-muted); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.change-actions { display: flex; gap: 2px; flex-shrink: 0; }
-.mini-btn {
-  width: 22px; height: 22px; border: none; background: transparent;
-  color: var(--text-muted); font-size: 13px; cursor: pointer;
-  display: flex; align-items: center; justify-content: center; border-radius: 3px;
-}
-.mini-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
-.mini-btn.revert:hover { color: #ef4444; }
-.sidebar-footer {
-  padding: 8px 12px; border-top: 1px solid var(--border);
-  font-size: 12px; color: var(--text-muted); flex-shrink: 0;
-}
 
 /* Resize handle */
 .resize-handle {
@@ -412,56 +318,26 @@ export default {
 .diff-panel {
   flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0;
 }
-.diff-toolbar {
+
+/* Action bar */
+.action-bar {
   display: flex; align-items: center; gap: 8px;
   padding: 8px 16px; border-bottom: 1px solid var(--border);
   background: var(--bg-titlebar); flex-shrink: 0;
 }
-.diff-path { font-size: 13px; color: var(--text-primary); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.diff-actions { display: flex; gap: 6px; flex-shrink: 0; }
-.action-btn {
-  padding: 4px 12px; border: none; border-radius: 4px; font-size: 12px;
-  cursor: pointer; font-family: inherit; font-weight: 500;
-}
-.action-btn.open { background: #3b82f6; color: #fff; }
-.action-btn.open:hover { background: #2563eb; }
-.action-btn.revert { background: #eab308; color: #fff; }
-.action-btn.revert:hover { background: #ca8a04; }
+.action-path { font-size: 13px; color: var(--text-primary); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* Diff split view */
-.diff-split {
-  flex: 1; display: flex; overflow: hidden; min-height: 0;
+/* Diff panel inner */
+.diff-area-inner {
+  flex: 1; display: flex; flex-direction: column; overflow: hidden; min-height: 0;
+  position: relative;
 }
-.diff-side {
-  flex: 1; display: flex; flex-direction: column; overflow: hidden;
-  border-right: 1px solid var(--border);
+.diff-loading {
+  position: absolute; inset: 0;
+  background: rgba(255, 255, 255, 0.7);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; color: var(--text-muted); z-index: 10;
 }
-.diff-side:last-child { border-right: none; }
-.diff-side-header {
-  padding: 6px 12px; background: var(--bg-titlebar); border-bottom: 1px solid var(--border);
-  font-size: 12px; font-weight: 600; color: var(--text-secondary); flex-shrink: 0;
-}
-.diff-side-body {
-  flex: 1; overflow: auto; font-family: 'JetBrains Mono', Consolas, monospace; font-size: 12px;
-  line-height: 1.5; background: #fafbfc;
-}
-.diff-line {
-  display: flex; min-height: 18px;
-}
-.diff-line.diff-header { background: #eff6ff; color: #3b82f6; }
-.diff-line.diff-removed { background: #fef2f2; color: #dc2626; }
-.diff-line.diff-added { background: #f0fdf4; color: #16a34a; }
-.diff-line.diff-empty { background: #f9fafb; }
-.diff-line.diff-normal { color: var(--text-primary); }
-.line-num {
-  width: 40px; text-align: right; padding-right: 8px; color: var(--text-muted);
-  flex-shrink: 0; user-select: none; font-size: 11px;
-}
-.line-prefix {
-  width: 16px; text-align: center; flex-shrink: 0; user-select: none;
-  font-weight: 700;
-}
-.line-content { flex: 1; white-space: pre; overflow-x: auto; }
 
 .empty-state {
   flex: 1; display: flex; align-items: center; justify-content: center;

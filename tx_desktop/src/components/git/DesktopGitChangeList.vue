@@ -48,6 +48,12 @@
                 <span v-if="statsMap[change.path].removed > 0" class="del">-{{ statsMap[change.path].removed }}</span>
               </span>
               <span v-else-if="change.status === 'untracked'" class="f-stats new">new</span>
+              <button
+                v-if="change.path === selectedPath"
+                class="row-revert"
+                title="撤销该文件"
+                @click.stop="$emit('revert', change)"
+              >&#x21B6;</button>
             </div>
           </template>
         </div>
@@ -68,6 +74,7 @@ export default {
     loading: { type: Boolean, default: false },
     statsMap: { type: Object, default: () => ({}) }
   },
+  emits: ['select', 'refresh', 'revert'],
   data() {
     return {
       searchKey: '',
@@ -357,6 +364,27 @@ export default {
 .f-stats.new {
   color: var(--text-muted);
   font-weight: 400;
+}
+.row-revert {
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: var(--accent-light);
+  color: var(--accent);
+  cursor: pointer;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  font-size: 11px;
+  flex-shrink: 0;
+  font-family: inherit;
+  line-height: 1;
+}
+.row-revert:hover {
+  background: var(--accent);
+  color: #fff;
 }
 .list-empty {
   padding: 24px 12px;
