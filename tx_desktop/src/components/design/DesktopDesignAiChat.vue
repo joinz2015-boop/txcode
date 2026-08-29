@@ -7,7 +7,8 @@
       @session-deleted="onSessionDeleted"
     />
 
-    <div class="chat-body" ref="chatBody">
+    <div class="chat-body-wrap">
+      <div class="chat-body" ref="chatBody">
       <div v-if="!state.activeSessionId && logItems.length === 0" class="chat-empty">
         <p>请在左侧选择设计页面后开始对话</p>
         <p class="chat-empty-hint">或点击"+"创建新会话</p>
@@ -17,7 +18,7 @@
         <p class="chat-empty-hint">Enter 发送，Ctrl+Enter 换行</p>
       </div>
       <div v-for="(item, idx) in logItems" :key="idx">
-        <div v-if="item.type === 'chat'" class="chat-user-row">
+        <div v-if="item.type === 'chat'" class="chat-user-row" :data-log-id="item.logId">
           <div class="user-question">
             <div v-if="item.mediaFiles && item.mediaFiles.length > 0" class="chat-images">
               <img
@@ -58,6 +59,8 @@
       <div class="build-info" v-if="modelName">
         <span class="icon">▣</span> Build · {{ modelName }}
       </div>
+      </div>
+      <DesktopUserRail :log-items="logItems" @scroll-to-top="scrollRailTop" @scroll-to-bottom="scrollRailBottom" @scroll-to-log="scrollToChat" />
     </div>
 
     <div class="chat-foot">
@@ -178,11 +181,13 @@ import DesktopDesignTemplateSelectDialog from './DesktopDesignTemplateSelectDial
 import DesktopDesignImagePreviewList from './DesktopDesignImagePreviewList.vue'
 import DesktopDesignSessionBar from './DesktopDesignSessionBar.vue'
 import DesktopResizableTextarea from '@/components/chat/DesktopResizableTextarea.vue'
+import DesktopUserRail from '@/components/chat/DesktopUserRail.vue'
 import { useSession } from './useSession.js'
 
 const DESIGN_BASE = '.txcode/design'
 const MAX_IMAGES = 5
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024
+let logSeq = 10000
 
 export default {
   name: 'DesktopDesignAiChat',
@@ -194,7 +199,8 @@ export default {
     DesktopDesignTemplateSelectDialog,
     DesktopDesignImagePreviewList,
     DesktopDesignSessionBar,
-    DesktopResizableTextarea
+    DesktopResizableTextarea,
+    DesktopUserRail
   },
   props: {
     currentPage: { type: String, default: '' }
@@ -338,7 +344,9 @@ export default {
         const res = await getMessages(this.sessionId)
         const VALID_TYPES = ['chat', 'system', 'step', 'think']
         const rawItems = res.data || []
-        this.logItems = rawItems.filter(item => item && VALID_TYPES.includes(item.type))
+        this.logItems = rawItems
+          .filter(item => item && VALID_TYPES.includes(item.type))
+          .map(i => this.withLogId(i))
         this.$nextTick(() => this.scrollToBottom(true))
       } catch (e) {
         this.logItems = []
@@ -365,12 +373,12 @@ export default {
             this.logItems = this.logItems.filter(
               item => !(item.type === 'step' && item.iteration === data.iteration && item._executing)
             )
-            this.logItems.push({ type: 'step', thought: data.reasoning || data.thought, toolCalls: data.toolCalls, success: data.success, iteration: data.iteration, _executing: true })
+            this.logItems.push(this.withLogId({ type: 'step', thought: data.reasoning || data.thought, toolCalls: data.toolCalls, success: data.success, iteration: data.iteration, _executing: true }))
           } else {
             this.logItems = this.logItems.filter(
               item => !(item.type === 'step' && item.iteration === data.iteration && item._executing)
             )
-            this.logItems.push({ type: 'step', thought: data.reasoning || data.thought, toolCalls: data.toolCalls, success: data.success, iteration: data.iteration })
+            this.logItems.push(this.withLogId({ type: 'step', thought: data.reasoning || data.thought, toolCalls: data.toolCalls, success: data.success, iteration: data.iteration }))
           }
           this.thinking = true
           if (data.usage?.promptTokens) this.promptTokens = data.usage.promptTokens
@@ -386,7 +394,7 @@ export default {
           this.$emit('status-change', 'completed')
           if (data?.modelName) this.modelName = data.modelName
           if (data?.usage?.promptTokens) this.promptTokens = data.usage.promptTokens
-          if (data?.response) this.logItems.push({ type: 'think', content: data.response })
+          if (data?.response) this.logItems.push(this.withLogId({ type: 'think', content: data.response }))
           this.scheduleScroll(snap)
           this.$emit('design-updated')
         },
@@ -398,7 +406,7 @@ export default {
           this.thinking = false
           this.sessionStatus = 'idle'
           this.$emit('status-change', 'idle')
-          this.logItems.push({ type: 'think', content: '【已停止】' })
+          this.logItems.push(this.withLogId({ type: 'think', content: '【已停止】' }))
           this.scheduleScroll(snap)
         },
         error: (data) => {
@@ -411,7 +419,7 @@ export default {
           this.$emit('status-change', 'idle')
         },
         compact: () => {
-          this.logItems.push({ type: 'system', content: '【会话已压缩】' })
+          this.logItems.push(this.withLogId({ type: 'system', content: '【会话已压缩】' }))
           this.loadMessages()
         }
       })
@@ -472,7 +480,7 @@ export default {
         .filter(f => !f.uploading && f.filePath)
         .map(f => ({ filePath: f.filePath, type: f.type, dataUrl: f.dataUrl }))
 
-      this.logItems.push({ type: 'chat', content, mediaFiles: sentMediaFiles })
+      this.logItems.push(this.withLogId({ type: 'chat', content, mediaFiles: sentMediaFiles }))
       this.chatInput = ''
       this.mediaFiles = []
       this.disabled = true
@@ -509,6 +517,27 @@ export default {
     scheduleScroll(snap = null) {
       const el = this.$refs.chatBody
       if (el) this.$nextTick(() => smartScroll(el, { prevSnapshot: snap }))
+    },
+
+    withLogId(item) {
+      return { ...item, logId: ++logSeq }
+    },
+
+    scrollRailTop() {
+      const el = this.$refs.chatBody
+      if (el) el.scrollTo({ top: 0, behavior: 'smooth' })
+    },
+
+    scrollRailBottom() {
+      const el = this.$refs.chatBody
+      if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
+    },
+
+    scrollToChat(logId) {
+      const el = this.$refs.chatBody
+      if (!el) return
+      const target = el.querySelector(`[data-log-id="${logId}"]`)
+      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'center' })
     },
 
     renderMarkdown(content) {
@@ -687,6 +716,14 @@ export default {
 <style scoped>
 .ai-chat { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
 
+.chat-body-wrap {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
 .chat-body { flex: 1; min-height: 0; overflow-y: auto; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
 .chat-body::-webkit-scrollbar { width: 6px; }
 .chat-body::-webkit-scrollbar-track { background: transparent; }

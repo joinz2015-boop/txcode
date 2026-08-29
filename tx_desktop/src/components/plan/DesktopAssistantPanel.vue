@@ -14,7 +14,8 @@
     </div>
 
     <div v-show="activeTab === 'design'" class="tab-panel">
-      <div class="assistant-chat-messages" ref="designMessages">
+      <div class="assistant-chat-wrap">
+        <div class="assistant-chat-messages" ref="designMessages">
         <div v-if="designLogItems.length === 0" class="assistant-empty">
           <p>输入需求描述，AI 将协助您完善方案。</p>
         </div>
@@ -25,7 +26,7 @@
               <span class="todo-name">{{ todo.name }}</span>
             </div>
           </div>
-          <div v-else-if="item.type === 'chat'" :key="'dc-' + idx" class="assistant-msg user">
+          <div v-else-if="item.type === 'chat'" :key="'dc-' + idx" class="assistant-msg user" :data-log-id="item.logId">
             <div class="amsg-text">{{ item.content }}</div>
           </div>
           <div v-else-if="item.type === 'think'" :key="'dt-' + idx" class="ai-thought" v-html="renderMarkdown(item.content)"></div>
@@ -48,9 +49,11 @@
             <div class="amsg-text" v-html="renderMarkdown(item.content || '')"></div>
           </div>
         </template>
-        <div v-if="designPanel.disabled" class="assistant-msg ai">
-          <div class="amsg-text" style="color:var(--text-muted)">正在思考...</div>
+          <div v-if="designPanel.disabled" class="assistant-msg ai">
+            <div class="amsg-text" style="color:var(--text-muted)">正在思考...</div>
+          </div>
         </div>
+        <DesktopUserRail :log-items="designLogItems" @scroll-to-top="scrollAssistTop('design')" @scroll-to-bottom="scrollAssistBottom('design')" @scroll-to-log="scrollToAssistChat('design', $event)" />
       </div>
       <div class="assistant-input-area">
         <DesktopImagePreviewList
@@ -134,7 +137,8 @@
         </div>
 
         <template v-if="currentDiscuss">
-          <div class="assistant-chat-messages" ref="discussMessages" style="flex:1;">
+          <div class="assistant-chat-wrap">
+            <div class="assistant-chat-messages" ref="discussMessages" style="flex:1;">
             <template v-for="(item, idx) in discussLogItems">
               <div v-if="item.type === 'todos'" :key="'td2-' + idx" class="todos-list">
                 <div v-for="(todo, tIdx) in item.todos" :key="'ti2-' + tIdx" class="todo-item">
@@ -142,7 +146,7 @@
                   <span class="todo-name">{{ todo.name }}</span>
                 </div>
               </div>
-              <div v-else-if="item.type === 'chat'" :key="'dc2-' + idx" class="assistant-msg user">
+              <div v-else-if="item.type === 'chat'" :key="'dc2-' + idx" class="assistant-msg user" :data-log-id="item.logId">
                 <div class="amsg-text">{{ item.content }}</div>
               </div>
               <div v-else-if="item.type === 'think'" :key="'dt2-' + idx" class="ai-thought" v-html="renderMarkdown(item.content)"></div>
@@ -165,9 +169,11 @@
                 <div class="amsg-text" v-html="renderMarkdown(item.content || '')"></div>
               </div>
             </template>
-            <div v-if="discussPanel.disabled" class="assistant-msg ai">
-              <div class="amsg-text" style="color:var(--text-muted)">正在思考...</div>
+              <div v-if="discussPanel.disabled" class="assistant-msg ai">
+                <div class="amsg-text" style="color:var(--text-muted)">正在思考...</div>
+              </div>
             </div>
+            <DesktopUserRail :log-items="discussLogItems" @scroll-to-top="scrollAssistTop('discuss')" @scroll-to-bottom="scrollAssistBottom('discuss')" @scroll-to-log="scrollToAssistChat('discuss', $event)" />
           </div>
           <div class="assistant-input-area">
             <DesktopImagePreviewList
@@ -259,6 +265,7 @@ import DesktopCommandDialog from '@/components/common/DesktopCommandDialog.vue'
 import DesktopImagePreviewList from '@/components/chat/DesktopImagePreviewList.vue'
 import DesktopResizableTextarea from '@/components/chat/DesktopResizableTextarea.vue'
 import DesktopRenameDialog from '@/components/plan/DesktopRenameDialog.vue'
+import DesktopUserRail from '@/components/chat/DesktopUserRail.vue'
 
 let logSeq = 10000
 let mediaIdCounter = 10000
@@ -272,7 +279,8 @@ export default {
     DesktopCommandDialog,
     DesktopImagePreviewList,
     DesktopResizableTextarea,
-    DesktopRenameDialog
+    DesktopRenameDialog,
+    DesktopUserRail
   },
   props: {
     panelWidth: { type: Number, default: 370 },
@@ -854,6 +862,23 @@ export default {
       if (el) this.$nextTick(() => smartScroll(el, { prevSnapshot: snap }))
     },
 
+    scrollAssistTop(key) {
+      const el = this.$refs[key + 'Messages']
+      if (el) el.scrollTo({ top: 0, behavior: 'smooth' })
+    },
+
+    scrollAssistBottom(key) {
+      const el = this.$refs[key + 'Messages']
+      if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
+    },
+
+    scrollToAssistChat(key, logId) {
+      const el = this.$refs[key + 'Messages']
+      if (!el) return
+      const target = el.querySelector(`[data-log-id="${logId}"]`)
+      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    },
+
     onFileSelected(path) {
       const panel = this.activeTab === 'design' ? this.designPanel : this.discussPanel
       panel.input = panel.input + path + ' '
@@ -921,6 +946,14 @@ export default {
   flex: 1;
   overflow-y: auto;
   padding: 12px 16px 16px;
+}
+.assistant-chat-wrap {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 .assistant-empty {
   display: flex;
