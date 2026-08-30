@@ -3,6 +3,7 @@
     <DesktopTitleBar
       :currentProject="currentProject"
       :projects="projects"
+      :appVersion="appVersion"
       @selectProject="handleSelectProject"
       @deleteProject="handleDeleteProject"
       @openProject="handleOpenProject"
@@ -16,12 +17,6 @@
         <div v-else class="init-loading">加载中...</div>
       </div>
     </div>
-    <DesktopStatusBar
-      :currentProjectName="currentProject.name"
-      :currentModel="currentModel"
-      :nodeVersion="nodeVersion"
-      :appVersion="appVersion"
-    />
 
     <DesktopSelectProjectDialog
       v-if="projectDialogVisible"
@@ -53,9 +48,8 @@
 <script>
 import DesktopTitleBar from '@/components/DesktopTitleBar.vue'
 import DesktopNavRail from '@/components/DesktopNavRail.vue'
-import DesktopStatusBar from '@/components/DesktopStatusBar.vue'
 import DesktopSelectProjectDialog from '@/components/config/DesktopSelectProjectDialog.vue'
-import { getPort, getAppVersion, getNodeVersion } from '@/utils/ipc'
+import { getPort } from '@/utils/ipc'
 import { setBaseURL, setLocalBaseURL, setBaseURLByHost, listHosts, getConfig, getProjects, getCurrentProject, setCurrentProject, deleteProject } from '@/api/index'
 import { ws } from '@/utils/websocket'
 import { getItem, setItem } from '@/utils/storage'
@@ -65,7 +59,6 @@ export default {
   components: {
     DesktopTitleBar,
     DesktopNavRail,
-    DesktopStatusBar,
     DesktopSelectProjectDialog,
   },
   provide() {
@@ -78,7 +71,6 @@ export default {
       currentProject: getItem('project:current', { name: 'txcode', path: '', color: '#4f6ef7' }),
       projects: getItem('project:list', [{ name: 'txcode', path: '', color: '#4f6ef7' }]),
       currentModel: getItem('model:current', 'DeepSeek V3'),
-      nodeVersion: '',
       appVersion: '1.0.55',
       runningSessionIds: [],
       unsubRunning: null,
@@ -176,10 +168,6 @@ export default {
       } catch (e) {
         console.error('Init error:', e)
       }
-      try {
-        const nv = await getNodeVersion()
-        this.nodeVersion = nv
-      } catch (e) {}
 
       try {
         const r = await getConfig('defaultModel')

@@ -191,7 +191,7 @@ export class WebService {
      * 静态文件服务与 SPA fallback
      * 
      * 检查前端是否已构建：
-     * - 如果 web/dist 目录存在，提供静态文件服务
+     * - 如果 tx_desktop/dist 目录存在，提供静态文件服务
      * - 如果不存在，返回提示信息
      * 
      * 静态文件服务配置：
@@ -204,8 +204,8 @@ export class WebService {
      * - 这样前端可以处理 /chat、/settings 等前端路由
      * - 跳过以 /api 开头的请求，返回 404
      */
-    const devWebDistPath = path.join(process.cwd(), 'web', 'dist');
-    const prodWebDistPath = path.join(packageRoot, 'web', 'dist');
+    const devWebDistPath = path.join(process.cwd(), 'tx_desktop', 'dist');
+    const prodWebDistPath = path.join(packageRoot, 'tx_desktop', 'dist');
     const webDistPath = fs.existsSync(devWebDistPath) ? devWebDistPath : prodWebDistPath;
     
     if (fs.existsSync(webDistPath)) {
@@ -250,8 +250,8 @@ export class WebService {
     log.debug('[WebServer]', 'routes registered');
 
     // SPA fallback：必须在 API 路由之后注册，否则会拦截所有 /api/* 请求返回 404
-    const devWebDistPath = path.join(process.cwd(), 'web', 'dist');
-    const prodWebDistPath = path.join(packageRoot, 'web', 'dist');
+    const devWebDistPath = path.join(process.cwd(), 'tx_desktop', 'dist');
+    const prodWebDistPath = path.join(packageRoot, 'tx_desktop', 'dist');
     const webDistPath = fs.existsSync(devWebDistPath) ? devWebDistPath : prodWebDistPath;
 
     if (fs.existsSync(webDistPath)) {
@@ -268,7 +268,7 @@ export class WebService {
         if (req.path.startsWith('/api')) {
           return res.status(404).json({ success: false, error: 'Not Found' });
         }
-        res.send(`<h1>TXCode Web</h1><p>前端未构建。请运行：cd web && npm install && npm run build</p>`);
+        res.send(`<h1>TXCode</h1><p>前端未构建。请运行：cd tx_desktop && npm install && npm run build</p>`);
       });
     }
 
@@ -284,13 +284,13 @@ export class WebService {
         log.debug('[WebServer]', 'listening on port:', this.port);
         console.log(`TXCode Web 服务已启动: http://localhost:${this.port}`);
         
-        const devWebDistPath = path.join(process.cwd(), 'web', 'dist');
-        const prodWebDistPath = path.join(packageRoot, 'web', 'dist');
+        const devWebDistPath = path.join(process.cwd(), 'tx_desktop', 'dist');
+        const prodWebDistPath = path.join(packageRoot, 'tx_desktop', 'dist');
         const webDistPathForLog = fs.existsSync(devWebDistPath) ? devWebDistPath : prodWebDistPath;
         if (fs.existsSync(webDistPathForLog)) {
-          console.log(`Web 界面: http://localhost:${this.port}`);
+          console.log(`桌面页面: http://localhost:${this.port}`);
         } else {
-          console.log(`提示: 前端未构建，请 cd web && npm install && npm run build`);
+          console.log(`提示: 前端未构建，请 cd tx_desktop && npm install && npm run build`);
         }
         
         console.log(`API 文档: http://localhost:${this.port}/api`);

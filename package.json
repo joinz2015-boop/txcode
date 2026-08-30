@@ -13,9 +13,7 @@
     "copy-txt": "node tx_server/scripts/copy-txt.js",
     "dev": "tsx tx_server/src/index.ts",
     "start": "node dist/index.js",
-    "start:web": "node dist/index.js web",
-    "web:dev": "cd web && npm run dev",
-    "web:build": "cd web && npm install && npm run build",
+    "desktop:build": "cd tx_desktop && npm install --include=dev && npm run build",
     "desktop:dev": "cd tx_desktop && npm run dev",
     "desktop:build:win": "cd tx_desktop && npm run build:win",
     "desktop:build:mac": "cd tx_desktop && npm run build:mac",
@@ -76,9 +74,9 @@
   },
   "files": [
     "dist",
-    "web/dist",
+    "tx_desktop/dist",
     "README.md",
     "LICENSE"
   ],
-  "prepublishOnly": "npm run build && npm run web:build"
+  "prepublishOnly": "npm run build && npm run desktop:build"
 }

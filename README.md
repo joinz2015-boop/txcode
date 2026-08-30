@@ -18,15 +18,11 @@ npm install -g tianxincode
 安装完成后，直接在终端中运行：
 
 ```bash
-txcode web
-```
-
-访问http://localhost:4000 页面 设置里配置模型提供商和模型，然后可以web端交互，也可以ctrl+c 关闭后启动命令行方式
-![配置提供商和模型](https://github.com/joinz2015-boop/txcode/blob/main/docs/001.png)
-
-```bash
 txcode
 ```
+
+访问http://localhost:40000 页面 设置里配置模型提供商和模型，然后可以在页面交互，也可以ctrl+c 关闭后启动命令行方式
+![配置提供商和模型](https://github.com/joinz2015-boop/txcode/blob/main/docs/001.png)
 
 ## 基本用法
 
@@ -40,16 +36,16 @@ txcode
 txcode
 ```
 
-### 启动 Web 界面
+### 启动桌面页面
 
 ```bash
-txcode web
+txcode
 ```
 
-### 指定 Web 服务端口
+### 指定服务端口
 
 ```bash
-txcode web --port 40001
+txcode --port 40001
 ```
 
 ### 获取帮助（在交互模式中）
@@ -62,7 +58,7 @@ txcode web --port 40001
 - **代码智能分析**：支持代码搜索、文件操作、Git 集成等功能
 - **项目记忆管理**：自动记录项目关键信息，快速定位代码
 - **多工具支持**：内置文件操作、代码搜索、网络搜索等工具
-- **Web 界面**：提供图形化操作界面（可选）
+- **桌面页面**：提供图形化操作界面（可选）
 
 ## 使用示例
 
@@ -78,14 +74,14 @@ txcode
 > 查看当前 Git 状态
 ```
 
-### 2. 使用 Web 界面
+### 2. 使用桌面页面
 
 ```bash
-# 启动 Web 服务（默认端口 40000）
-txcode web
+# 启动服务并自动打开桌面页面（默认端口 40000）
+txcode
 
 # 指定端口启动
-txcode web --port 40001
+txcode --port 40001
 ```
 
 ### 3. 交互式命令
@@ -148,9 +144,8 @@ txcode web --port 40001
 │       ├── index.ts          # 主入口文件
 │       ├── modules/          # 功能模块
 │       └── types/            # 类型定义
-├── tx_desktop/   # 桌面端源码（Electron + Vue2）
-├── web/          # Web 端源码（保持不动）
-├── dist/         # 构建输出目录
+├── tx_desktop/   # 前端源码（Vue2，构建产物由后端静态托管，亦可 Electron 打包）
+├── dist/         # 后端构建输出目录
 ├── tests/        # 测试文件
 └── package.json  # 项目配置
 ```

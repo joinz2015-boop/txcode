@@ -4,7 +4,7 @@ export async function getPort() {
   if (electronAPI.getPort) {
     return electronAPI.getPort()
   }
-  return 40000
+  return window.location.port || 40000
 }
 
 export function minimizeWindow() {

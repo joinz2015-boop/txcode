@@ -1,7 +1,6 @@
 # Source files - we only publish compiled files
 tx_server/src/
 tests/
-web/src/
 
 # Development files
 .gitignore
@@ -11,7 +10,7 @@ web/src/
 
 # Build files (but keep dist/ - that's what we publish)
 # Note: dist/ is built by prepublishOnly and should be included
-# web/dist/ is also built by prepublishOnly and should be included
+# tx_desktop/dist/ is also built by prepublishOnly and should be included
 
 # IDE files
 .idea/
@@ -60,10 +59,22 @@ vite.config.js
 
 # Lock files (npm will handle dependencies)
 package-lock.json
-web/package-lock.json
 
 # Node modules - we don't publish these
-web/node_modules/
+node_modules/
 
-# Desktop - excluded from npm publish
-tx_desktop/
+# Desktop - only publish built frontend dist
+tx_desktop/src/
+tx_desktop/node_modules/
+tx_desktop/release/
+tx_desktop/assets/
+tx_desktop/main.js
+tx_desktop/preload.cjs
+tx_desktop/electron-builder.yml
+tx_desktop/installer.nsh
+tx_desktop/index.html
+tx_desktop/vite.config.js
+tx_desktop/package-lock.json
+tx_desktop/.npmrc
+tx_desktop/.txcode/
+tx_desktop/vite-dev.log

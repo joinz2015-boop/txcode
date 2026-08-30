@@ -106,8 +106,8 @@ export function readVersion(): string {
 export const helpText = `txcode - AI Coding Assistant
 
 用法:
-  txcode                启动 Web 服务（默认端口 40000，自动打开浏览器）
-  txcode --port <端口>  指定端口启动 Web 服务
+  txcode                启动服务（默认端口 40000，自动打开桌面页面）
+  txcode --port <端口>  指定端口启动服务
   txcode --version      输出版本号
   txcode --help         显示帮助信息
   txcode --log-level <级别>  设置日志级别（debug/info/warning/error）

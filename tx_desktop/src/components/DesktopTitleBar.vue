@@ -21,7 +21,8 @@
         @deleteProject="$emit('deleteProject', $event)"
         @openProject="$emit('openProject')"
       />
-      <div class="titlebar-actions" v-if="!isMac">
+      <span class="titlebar-version">v{{ appVersion }}</span>
+      <div class="titlebar-actions" v-if="isDesktop && !isMac">
         <button class="win-btn" title="最小化" @click="minimizeWindow">
           <svg width="10" height="10" viewBox="0 0 10 10">
             <rect x="1" y="4" width="8" height="1.2" rx="0.6" fill="currentColor"/>
@@ -66,11 +67,13 @@ export default {
       logoPng,
       currentMode: 'code',
       isMac: false,
+      isDesktop: !!window.electronAPI,
     }
   },
   props: {
     currentProject: { type: Object, default: () => ({ name: 'txcode', path: '', color: '#4f6ef7' }) },
     projects: { type: Array, default: () => [] },
+    appVersion: { type: String, default: '1.0.55' },
   },
   computed: {
     viewLabel() {
@@ -125,6 +128,7 @@ export default {
   -webkit-app-region: no-drag;
 }
 .titlebar-right { flex: 1; display: flex; align-items: center; justify-content: flex-end; gap: 8px; -webkit-app-region: no-drag; }
+.titlebar-version { font-size: 11.5px; color: var(--text-muted); }
 .titlebar-actions { display: flex; align-items: center; gap: 0; -webkit-app-region: no-drag; }
 .win-btn {
   width: 40px; height: 30px; border: none; background: transparent;

@@ -13,20 +13,6 @@
       </main>
     </div>
 
-    <div class="file-statusbar">
-      <div class="fs-left">
-        <span class="fs-item">
-          <span class="status-dot"></span>
-          txcode
-        </span>
-        <span class="fs-item">已打开 <span class="fs-count">{{ state.tabs.length }}</span> 个文件</span>
-      </div>
-      <div class="fs-right">
-        <span class="fs-item">项目: {{ projectName }}</span>
-        <span class="fs-item">v{{ appVersion }}</span>
-      </div>
-    </div>
-
     <DesktopFileContextMenu
       :visible="ctxMenu.visible"
       :x="ctxMenu.x"
@@ -93,13 +79,6 @@ export default {
     state() {
       return this.fileManager.state
     },
-    projectName() {
-      const p = this.desktopState && this.desktopState.currentProject
-      return (p && p.name) || 'txcode'
-    },
-    appVersion() {
-      return (this.desktopState && this.desktopState.appVersion) || '1.0.56'
-    }
   },
   mounted() {
     this._unsubToast = eventBus.on('file:toast', (d) => {
@@ -247,46 +226,6 @@ export default {
   background: var(--bg-code);
   overflow: hidden;
   min-width: 0;
-}
-.file-statusbar {
-  height: 26px;
-  min-height: 26px;
-  background: var(--bg-titlebar);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 14px;
-  font-size: 11px;
-  color: var(--text-muted);
-  user-select: none;
-  border-top: 1px solid var(--border);
-  flex-shrink: 0;
-}
-.fs-left,
-.fs-right {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-.fs-item {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  cursor: pointer;
-  transition: color 0.15s;
-}
-.fs-item:hover {
-  color: var(--text-primary);
-}
-.fs-count {
-  font-weight: 600;
-}
-.status-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--green);
-  box-shadow: 0 0 4px rgba(16, 185, 129, 0.4);
 }
 .file-toasts {
   position: fixed;
