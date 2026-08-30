@@ -72,6 +72,10 @@ export function getAppInfo() {
   return request('GET', '/system/app_info')
 }
 
+export function checkVersion() {
+  return request('GET', '/system/version_check')
+}
+
 // ========== Plan-Code API ==========
 export function listPlanSessions() {
   return request('GET', '/plan-code/list')

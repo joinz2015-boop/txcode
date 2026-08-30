@@ -21,6 +21,14 @@
         @deleteProject="$emit('deleteProject', $event)"
         @openProject="$emit('openProject')"
       />
+      <button
+        v-if="versionCheckResult && versionCheckResult.hasUpdate"
+        class="update-badge"
+        title="有新版本"
+        @click="updateDialogVisible = true"
+      >
+        <span class="update-dot"></span>有新版本
+      </button>
       <span class="titlebar-version">v{{ appVersion }}</span>
       <div class="titlebar-actions" v-if="isDesktop && !isMac">
         <button class="win-btn" title="最小化" @click="minimizeWindow">
@@ -40,13 +48,23 @@
         </button>
       </div>
     </div>
+
+    <UpdateDialog
+      v-if="updateDialogVisible"
+      :visible="updateDialogVisible"
+      :check-result="versionCheckResult"
+      @close="updateDialogVisible = false"
+    />
   </div>
 </template>
 
 <script>
 import DesktopProjectSwitcher from '@/components/DesktopProjectSwitcher.vue'
+import UpdateDialog from '@/components/business/UpdateDialog.vue'
 import { minimizeWindow, maximizeWindow, closeWindow, getPlatform } from '@/utils/ipc'
 import { eventBus } from '@/utils/eventBus'
+import { checkVersion } from '@/api/index'
+import { getItem, setItem } from '@/utils/storage'
 import logoPng from '../../assets/logo.png'
 
 const viewLabels = {
@@ -60,7 +78,7 @@ const viewLabels = {
 
 export default {
   name: 'DesktopTitleBar',
-  components: { DesktopProjectSwitcher },
+  components: { DesktopProjectSwitcher, UpdateDialog },
   inject: ['desktopState'],
   data() {
     return {
@@ -68,6 +86,9 @@ export default {
       currentMode: 'code',
       isMac: false,
       isDesktop: !!window.electronAPI,
+      versionCheckResult: null,
+      checking: false,
+      updateDialogVisible: false,
     }
   },
   props: {
@@ -92,8 +113,32 @@ export default {
       this.currentMode = mode
       eventBus.emit('coding:switchMode', mode)
     },
+    async checkVersion() {
+      if (this.checking) return
+      this.checking = true
+      try {
+        const res = await checkVersion()
+        const result = res.data
+        if (result && result.hasUpdate) {
+          this.versionCheckResult = result
+          setItem('version:check', result)
+        } else {
+          this.versionCheckResult = null
+          setItem('version:check', result)
+        }
+      } catch (e) {
+        console.error('检查新版本失败:', e)
+      } finally {
+        this.checking = false
+      }
+    },
   },
   mounted() {
+    const cached = getItem('version:check', null)
+    if (cached && cached.hasUpdate) {
+      this.versionCheckResult = cached
+    }
+    this.checkVersion()
     this._unsubMode = eventBus.on('coding:modeChanged', (mode) => {
       this.currentMode = mode
     })
@@ -128,6 +173,28 @@ export default {
   -webkit-app-region: no-drag;
 }
 .titlebar-right { flex: 1; display: flex; align-items: center; justify-content: flex-end; gap: 8px; -webkit-app-region: no-drag; }
+.update-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  font-size: 11.5px;
+  color: #ef4444;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 12px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s ease;
+}
+.update-badge:hover { background: #fee2e2; border-color: #fca5a5; }
+.update-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #ef4444;
+  flex-shrink: 0;
+}
 .titlebar-version { font-size: 11.5px; color: var(--text-muted); }
 .titlebar-actions { display: flex; align-items: center; gap: 0; -webkit-app-region: no-drag; }
 .win-btn {
