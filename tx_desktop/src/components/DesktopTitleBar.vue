@@ -73,7 +73,7 @@ export default {
   props: {
     currentProject: { type: Object, default: () => ({ name: 'txcode', path: '', color: '#4f6ef7' }) },
     projects: { type: Array, default: () => [] },
-    appVersion: { type: String, default: '1.0.55' },
+    appVersion: { type: String, default: '1.0.0' },
   },
   computed: {
     viewLabel() {

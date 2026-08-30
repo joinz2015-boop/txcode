@@ -67,6 +67,11 @@ async function request(method, path, data = null) {
   return json
 }
 
+// ========== App Info API ==========
+export function getAppInfo() {
+  return request('GET', '/system/app_info')
+}
+
 // ========== Plan-Code API ==========
 export function listPlanSessions() {
   return request('GET', '/plan-code/list')

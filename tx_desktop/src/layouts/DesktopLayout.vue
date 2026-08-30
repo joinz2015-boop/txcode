@@ -50,7 +50,7 @@ import DesktopTitleBar from '@/components/DesktopTitleBar.vue'
 import DesktopNavRail from '@/components/DesktopNavRail.vue'
 import DesktopSelectProjectDialog from '@/components/config/DesktopSelectProjectDialog.vue'
 import { getPort } from '@/utils/ipc'
-import { setBaseURL, setLocalBaseURL, setBaseURLByHost, listHosts, getConfig, getProjects, getCurrentProject, setCurrentProject, deleteProject } from '@/api/index'
+import { setBaseURL, setLocalBaseURL, setBaseURLByHost, listHosts, getConfig, getProjects, getCurrentProject, setCurrentProject, deleteProject, getAppInfo } from '@/api/index'
 import { ws } from '@/utils/websocket'
 import { getItem, setItem } from '@/utils/storage'
 
@@ -71,7 +71,7 @@ export default {
       currentProject: getItem('project:current', { name: 'txcode', path: '', color: '#4f6ef7' }),
       projects: getItem('project:list', [{ name: 'txcode', path: '', color: '#4f6ef7' }]),
       currentModel: getItem('model:current', 'DeepSeek V3'),
-      appVersion: '1.0.55',
+      appVersion: '1.0.0',
       runningSessionIds: [],
       unsubRunning: null,
       projectDialogVisible: false,
@@ -176,6 +176,15 @@ export default {
           setItem('model:current', r.data.value)
         }
       } catch (e) {}
+
+      try {
+        const info = await getAppInfo()
+        if (info.data && info.data.version) {
+          this.appVersion = info.data.version
+        }
+      } catch (e) {
+        console.error('获取应用信息失败:', e)
+      }
 
       try {
         await this.loadProjects()
