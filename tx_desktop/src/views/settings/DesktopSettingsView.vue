@@ -161,6 +161,18 @@
             </select>
           </div>
           <div class="form-group">
+            <label class="form-label">思考强度</label>
+            <select class="form-select" v-model="systemConfig.reasoningEffort" @change="saveSystem">
+              <option value="none">none</option>
+              <option value="minimal">minimal</option>
+              <option value="low">low</option>
+              <option value="medium">medium</option>
+              <option value="high">high</option>
+              <option value="xhigh">xhigh</option>
+              <option value="max">max</option>
+            </select>
+          </div>
+          <div class="form-group">
             <label class="form-label">日志开关</label>
             <select class="form-select" v-model="systemConfig.logEnabled" @change="saveSystem">
               <option :value="true">开</option>
@@ -379,6 +391,7 @@ export default {
         contextTokens: 150000,
         maxIterations: 1000,
         logEnabled: false,
+        reasoningEffort: 'max',
       },
       systemSaving: false,
     }
@@ -816,6 +829,7 @@ export default {
           contextTokens: data.contextTokens,
           maxIterations: data.maxIterations,
           logEnabled: data.logEnabled,
+          reasoningEffort: data.reasoningEffort,
         }
       } catch (e) {
         console.error('加载系统配置失败:', e)

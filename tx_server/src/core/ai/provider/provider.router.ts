@@ -23,6 +23,7 @@ export function createProvider(config: ProviderConfig): BaseProvider {
 
   const baseUrl = config.baseUrl || '';
   const model = config.defaultModel || '';
+  const reasoningEffort = configService.getReasoningEffort();
 
   if (baseUrl.includes('deepseek.com') || baseUrl.includes('api.deepseek.com')) {
     return new DeepSeekProvider({
@@ -30,6 +31,7 @@ export function createProvider(config: ProviderConfig): BaseProvider {
       baseUrl: baseUrl,
       defaultModel: config.defaultModel,
       fetchOptions,
+      reasoningEffort,
     });
   }
 
@@ -39,6 +41,7 @@ export function createProvider(config: ProviderConfig): BaseProvider {
       baseUrl: baseUrl,
       defaultModel: config.defaultModel,
       fetchOptions,
+      reasoningEffort,
     });
   }
 
@@ -48,6 +51,7 @@ export function createProvider(config: ProviderConfig): BaseProvider {
       baseUrl: baseUrl,
       defaultModel: config.defaultModel,
       fetchOptions,
+      reasoningEffort,
     });
   }
 
@@ -57,6 +61,7 @@ export function createProvider(config: ProviderConfig): BaseProvider {
       baseUrl: baseUrl,
       defaultModel: config.defaultModel,
       fetchOptions,
+      reasoningEffort,
     });
   }
 
@@ -65,6 +70,7 @@ export function createProvider(config: ProviderConfig): BaseProvider {
     baseUrl: baseUrl,
     defaultModel: config.defaultModel,
     fetchOptions,
+    reasoningEffort,
   });
 }
 

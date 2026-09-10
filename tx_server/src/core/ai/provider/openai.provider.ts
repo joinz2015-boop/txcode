@@ -16,6 +16,7 @@ export interface OpenAIConfig {
   baseUrl?: string;
   defaultModel?: string;
   fetchOptions?: Record<string, any>;
+  reasoningEffort?: string;
 }
 
 export class OpenAIProvider implements BaseProvider {
@@ -38,9 +39,11 @@ export class OpenAIProvider implements BaseProvider {
 
     this.client = new OpenAI(clientConfig);
     this.defaultModel = config.defaultModel || 'gpt-4';
+    this.reasoningEffort = config.reasoningEffort || 'max';
   }
 
   private defaultModel: string;
+  private reasoningEffort: string;
 
   getModel(): string {
     return this.defaultModel;
@@ -67,6 +70,7 @@ export class OpenAIProvider implements BaseProvider {
       messages: await this.resolveMessages(messages),
       temperature,
       max_tokens: maxTokens,
+      reasoning_effort: this.reasoningEffort,
     };
 
     if (tools && tools.length > 0) {

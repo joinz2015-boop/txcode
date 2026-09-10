@@ -461,17 +461,22 @@ export function testHost(ip, port) {
   return hostRequest('GET', '/sys_config/test_host', { ip, port: String(port) })
 }
 
-// ========== System Config API (上下文/循环/日志，通过本地后端) ==========
+// ========== System Config API (上下文/循环/日志/思考强度，通过本地后端) ==========
+const REASONING_EFFORTS = ['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max']
+
 export async function getSystemConfig() {
-  const [ctx, iter, log] = await Promise.all([
+  const [ctx, iter, log, effort] = await Promise.all([
     hostRequest('GET', '/sys_config/get_config', { key: 'ai.context.maxTokens' }),
     hostRequest('GET', '/sys_config/get_config', { key: 'ai.maxIterations' }),
     hostRequest('GET', '/sys_config/get_config', { key: 'log.enabled' }),
+    hostRequest('GET', '/sys_config/get_config', { key: 'ai.reasoningEffort' }),
   ])
+  const effortValue = effort.data?.value
   return {
     contextTokens: ctx.data?.value ?? 150000,
     maxIterations: iter.data?.value ?? 1000,
     logEnabled: log.data?.value === true,
+    reasoningEffort: REASONING_EFFORTS.includes(effortValue) ? effortValue : 'max',
   }
 }
 
@@ -479,4 +484,5 @@ export async function saveSystemConfig(data) {
   await hostRequest('POST', '/sys_config/set_config', { key: 'ai.context.maxTokens', value: data.contextTokens })
   await hostRequest('POST', '/sys_config/set_config', { key: 'ai.maxIterations', value: data.maxIterations })
   await hostRequest('POST', '/sys_config/set_config', { key: 'log.enabled', value: data.logEnabled })
+  await hostRequest('POST', '/sys_config/set_config', { key: 'ai.reasoningEffort', value: data.reasoningEffort })
 }

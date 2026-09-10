@@ -16,6 +16,7 @@ export interface DeepSeekConfig {
   baseUrl?: string;
   defaultModel?: string;
   fetchOptions?: Record<string, any>;
+  reasoningEffort?: string;
 }
 
 export class DeepSeekProvider implements BaseProvider {
@@ -33,9 +34,11 @@ export class DeepSeekProvider implements BaseProvider {
 
     this.client = new OpenAI(clientConfig);
     this.defaultModel = config.defaultModel || 'deepseek-chat';
+    this.reasoningEffort = config.reasoningEffort || 'max';
   }
 
   private defaultModel: string;
+  private reasoningEffort: string;
 
   getModel(): string {
     return this.defaultModel;
@@ -61,11 +64,13 @@ export class DeepSeekProvider implements BaseProvider {
       messages: await this.resolveMessages(messages),
       max_tokens: maxTokens,
       thinking: {
-        type: "enabled",
+        type: this.reasoningEffort === 'none' ? 'disabled' : 'enabled',
       },
-      reasoning_effort: "max",
-
     };
+
+    if (this.reasoningEffort !== 'none') {
+      requestBody.reasoning_effort = this.reasoningEffort;
+    }
 
     if (tools && tools.length > 0) {
       requestBody.tools = tools;

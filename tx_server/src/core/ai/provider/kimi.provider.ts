@@ -16,6 +16,7 @@ export interface KimiConfig {
   baseUrl?: string;
   defaultModel?: string;
   fetchOptions?: Record<string, any>;
+  reasoningEffort?: string;
 }
 
 export class KimiProvider implements BaseProvider {
@@ -37,9 +38,11 @@ export class KimiProvider implements BaseProvider {
 
     this.client = new OpenAI(clientConfig);
     this.defaultModel = config.defaultModel || 'moonshot-v1-8k';
+    this.reasoningEffort = config.reasoningEffort || 'max';
   }
 
   private defaultModel: string;
+  private reasoningEffort: string;
 
   getModel(): string {
     return this.defaultModel;
@@ -66,8 +69,7 @@ export class KimiProvider implements BaseProvider {
       messages: await this.resolveMessages(messages),
       temperature,
       max_tokens: maxTokens,
-      reasoning_effort: "max",
-
+      reasoning_effort: this.reasoningEffort,
     };
 
     if (tools && tools.length > 0) {

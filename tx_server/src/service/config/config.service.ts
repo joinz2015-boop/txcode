@@ -5,6 +5,8 @@ import type { ProxyConfig, Host, HostInput } from '../../entity/config.entity.js
 import type { HostRow } from '../../entity/config.entity.js';
 import { v4 as uuidv4 } from 'uuid';
 
+const REASONING_EFFORTS = ['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'];
+
 export class ConfigService {
   private repo = configRepository;
 
@@ -110,6 +112,12 @@ export class ConfigService {
   isLogEnabled(): boolean {
     const v = this.get<boolean>('log.enabled');
     return v === true;
+  }
+
+  /** 思考强度，读取不到或非法时默认 max */
+  getReasoningEffort(): string {
+    const v = this.get<string>('ai.reasoningEffort');
+    return typeof v === 'string' && REASONING_EFFORTS.includes(v) ? v : 'max';
   }
 
 
