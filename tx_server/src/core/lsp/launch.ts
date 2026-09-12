@@ -2,7 +2,7 @@
  * LSP 进程启动工具
  */
 
-import { spawn, ChildProcess } from "child_process";
+import { spawn, execSync, ChildProcess } from "child_process";
 import * as path from "path";
 import * as fs from "fs";
 
@@ -11,6 +11,27 @@ export interface LaunchOptions {
   args?: string[];
   cwd?: string;
   env?: Record<string, string>;
+}
+
+/**
+ * 强杀指定进程及其子进程树
+ * Windows 上 LSP 服务（如 jdtls）会派生 java 子进程，仅结束父进程会残留占用文件句柄
+ */
+export function killProcessTree(pid: number | undefined | null): void {
+  if (!pid) {
+    return;
+  }
+  try {
+    if (process.platform === "win32") {
+      execSync(`taskkill /F /T /PID ${pid}`, { stdio: "ignore" });
+    } else {
+      process.kill(pid, "SIGKILL");
+    }
+  } catch {
+    try {
+      process.kill(pid, "SIGKILL");
+    } catch { /* 进程已退出 */ }
+  }
 }
 
 export function launchProcess(
@@ -41,6 +62,7 @@ export function launchProcess(
     if (!proc.killed) {
       proc.kill("SIGTERM");
     }
+    killProcessTree(proc.pid);
   };
 
   return { process: proc, cleanup };

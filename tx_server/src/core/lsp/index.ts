@@ -46,3 +46,7 @@ export async function initLSP(): Promise<void> {
 export async function shutdownLSP(): Promise<void> {
   await LSPManager.stopAll();
 }
+
+export function killAllLSP(): void {
+  LSPManager.killAll();
+}

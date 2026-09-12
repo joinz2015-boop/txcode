@@ -11,9 +11,31 @@
  * 2. 不可用时降级到 child_process.spawn (基本功能)
  */
 
-import { spawn, ChildProcess } from 'child_process';
+import { spawn, execSync, ChildProcess } from 'child_process';
 import * as os from 'os';
 import { v4 as uuidv4 } from 'uuid';
+
+/**
+ * 强杀指定进程及其子进程树
+ * Windows 上 pty / spawn 的子进程（conhost、shell 内启动的进程）需要整棵树回收，
+ * 否则宿主退出后会残留并占用安装目录文件句柄
+ */
+function killProcessTree(pid: number | undefined): void {
+  if (!pid) {
+    return;
+  }
+  try {
+    if (process.platform === 'win32') {
+      execSync(`taskkill /F /T /PID ${pid}`, { stdio: 'ignore' });
+    } else {
+      process.kill(pid, 'SIGKILL');
+    }
+  } catch {
+    try {
+      process.kill(pid, 'SIGKILL');
+    } catch { /* 进程已退出 */ }
+  }
+}
 
 export interface TerminalSession {
   id: string;
@@ -342,6 +364,36 @@ class TerminalService {
   isPtyMode(id: string): boolean {
     const ptyEntry = this.ptySessions.get(id);
     return !!ptyEntry;
+  }
+
+  /**
+   * 回收全部终端会话及其进程树（服务关闭时调用）
+   * 同步执行，可在 process.on('exit') 中兜底调用
+   */
+  destroyAll(): void {
+    for (const [id, entry] of this.ptySessions) {
+      try {
+        killProcessTree(entry.pty?.pid);
+        entry.pty.kill();
+      } catch (e) {
+        console.error(`Failed to kill PTY for session ${id}:`, e);
+      }
+    }
+    this.ptySessions.clear();
+
+    for (const [id, entry] of this.spawnSessions) {
+      try {
+        killProcessTree(entry.proc.pid);
+        entry.proc.kill();
+      } catch (e) {
+        console.error(`Failed to kill spawn for session ${id}:`, e);
+      }
+    }
+    this.spawnSessions.clear();
+
+    this.pendingBuffers.clear();
+    this.sessions.clear();
+    console.log('[Terminal] All sessions destroyed');
   }
 }
 

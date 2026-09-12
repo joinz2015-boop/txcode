@@ -10,7 +10,8 @@
  * 4. 静态文件服务 - 提供 Vue 前端构建产物
  * 5. SPA 路由支持 - 所有非 API 路由返回 index.html (支持前端路由)
  * 6. 健康检查 - /health 端点用于服务健康检测
- * 7. 优雅关闭 - 处理 SIGTERM/SIGINT 信号，正确关闭数据库连接
+ * 7. 优雅关闭 - 处理 SIGTERM/SIGINT 信号、父进程 IPC shutdown 消息与 disconnect，
+ *    统一回收 WebSocket、终端进程树、LSP 进程树并关闭数据库连接
  * 
  * 端口配置：默认 40000，可通过命令行参数 --port 指定
  */
@@ -25,6 +26,7 @@ import * as os from 'os';
 import { exec } from 'child_process';
 import { registerAllRoutes } from '../../api/index.js';
 import { webSocketService } from '../ws/websocket.service.js';
+import { terminalService } from '../../service/terminal/index.js';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -310,21 +312,48 @@ export class WebService {
         /**
          * 优雅关闭处理器
          * 
-         * 处理流程：
-         * 1. 接收 SIGTERM (Docker/Kubernetes) 或 SIGINT (Ctrl+C) 信号
-         * 2. 打印关闭提示
-         * 3. 关闭 HTTP 服务器 (停止接受新请求)
-         * 4. 关闭数据库连接
-         * 5. 退出进程
-         * 
+          * 处理流程：
+          * 1. 接收 SIGTERM/SIGINT 信号，或父进程 IPC shutdown 消息 / disconnect
+          * 2. 打印关闭提示
+          * 3. 关闭 WebSocket、回收终端与 LSP 子进程树
+          * 4. 关闭 HTTP 服务器 (停止接受新请求)
+          * 5. 关闭调度任务与数据库连接
+          * 6. 退出进程
+          * 
          * 超时机制：
          * - 如果 3 秒内未正常关闭，强制退出进程
          * - 防止服务挂起无法退出
          */
+        let shuttingDown = false;
+
         const shutdown = async () => {
+          if (shuttingDown) return;
+          shuttingDown = true;
           log.debug('[WebServer]', 'shutdown triggered');
           console.log('\n正在关闭服务...');
+
+          // 先断开实时通道，避免关闭期间客户端重连
           webSocketService.close();
+
+          // 回收子进程：终端进程树、LSP 进程树（同步执行，避免关闭流程被阻塞）
+          try {
+            terminalService.destroyAll();
+          } catch (e) {
+            log.debug('[WebServer]', 'destroy terminals failed:', String(e));
+          }
+
+          try {
+            const { killAllLSP } = await import('../../core/lsp/index.js');
+            killAllLSP();
+          } catch (e) {
+            log.debug('[WebServer]', 'kill lsp failed:', String(e));
+          }
+
+          // 断开 Electron CDP 调试连接（尽力而为，不阻塞关闭流程）
+          import('../../service/test/playwrightManager.js')
+            .then(({ playwrightManager }) => playwrightManager.disconnect())
+            .catch(() => { /* 忽略断开异常 */ });
+
           this.server?.close(async () => {
             const { shutdownJobs } = await import('../../service/job/index.js');
             await shutdownJobs();
@@ -341,6 +370,28 @@ export class WebService {
         // 注册信号处理器
         process.on('SIGTERM', shutdown);  // Docker/K8s 发送的终止信号
         process.on('SIGINT', shutdown);   // Ctrl+C 发送的中断信号
+
+        // 父进程（桌面端 main.js）通过 fork 的 IPC 通道通知关闭
+        process.on('message', (message: unknown) => {
+          if ((message as { type?: string } | null)?.type === 'shutdown') {
+            void shutdown();
+          }
+        });
+
+        // 父进程被强杀时 IPC 通道断开，兜底关闭，避免成为孤儿进程
+        process.on('disconnect', () => {
+          void shutdown();
+        });
+
+        // 进程退出兜底：同步回收终端进程树
+        process.on('exit', () => {
+          try {
+            webSocketService.close();
+          } catch { /* 忽略关闭异常 */ }
+          try {
+            terminalService.destroyAll();
+          } catch { /* 忽略关闭异常 */ }
+        });
 
         // ========== Windows 平台特殊处理 ==========
         // Windows 上使用 readline 处理 Ctrl+C 事件

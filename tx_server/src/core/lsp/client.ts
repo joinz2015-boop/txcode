@@ -6,7 +6,7 @@
 
 import { ChildProcess } from "child_process";
 import { EventEmitter } from "events";
-import { launchProcess } from "./launch.js";
+import { launchProcess, killProcessTree } from "./launch.js";
 import { LSPServerInfo } from "./types.js";
 
 interface JSONRPCMessage {
@@ -220,6 +220,8 @@ export class LSPClient extends EventEmitter {
     if (this.cleanupFn) {
       this.cleanupFn();
       this.cleanupFn = null;
+    } else if (this.process?.pid) {
+      killProcessTree(this.process.pid);
     }
     this.process = null;
   }

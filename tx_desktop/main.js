@@ -3,15 +3,33 @@ import { spawn, fork, exec } from 'child_process'
 import { createServer } from 'net'
 import { join, dirname } from 'path'
 import { fileURLToPath, pathToFileURL } from 'url'
-import { existsSync } from 'fs'
+import { existsSync, unlinkSync } from 'fs'
+import { tmpdir } from 'os'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
+
+const UPGRADE_MARK_FILE = join(tmpdir(), 'txcode-upgrade.lock')
+const isUpdated = process.argv.includes('--updated')
 
 let mainWindow = null
 let testWindow = null
 let backendProcess = null
 let tray = null
 let backendPort = 41000
+let cleanupPromise = null
+let cleanupDone = false
+
+function isUpgradeClosing() {
+  return existsSync(UPGRADE_MARK_FILE)
+}
+
+function clearUpgradeMark() {
+  try {
+    if (existsSync(UPGRADE_MARK_FILE)) unlinkSync(UPGRADE_MARK_FILE)
+  } catch (err) {
+    console.error('[Upgrade] remove upgrade mark failed:', err)
+  }
+}
 
 function findAvailablePort(startPort) {
   return new Promise((resolve) => {
@@ -111,6 +129,12 @@ function createWindow() {
 
   mainWindow.on('close', async (e) => {
     if (!app.isQuitting) {
+      if (isUpgradeClosing()) {
+        console.log('[Upgrade] upgrade in progress, quit silently')
+        app.isQuitting = true
+        app.quit()
+        return
+      }
       e.preventDefault()
       const { response } = await dialog.showMessageBox(mainWindow, {
         type: 'question',
@@ -226,6 +250,10 @@ ipcMain.handle('get-node-version', () => {
 
 ipcMain.handle('get-platform', () => {
   return process.platform
+})
+
+ipcMain.handle('is-updated', () => {
+  return isUpdated
 })
 
 ipcMain.on('minimize-window', () => {
@@ -391,6 +419,10 @@ ipcMain.on('test-window-save-url', (event, testUrl) => {
 app.commandLine.appendSwitch('remote-debugging-port', '9222')
 
 app.whenReady().then(async () => {
+  clearUpgradeMark()
+  if (isUpdated) {
+    console.log('[Startup] launched after update (--updated)')
+  }
   backendPort = await findAvailablePort(41000)
   startBackend(backendPort)
 
@@ -412,29 +444,102 @@ app.on('window-all-closed', () => {
   }
 })
 
+function isProcessAlive(pid) {
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch {
+    return false
+  }
+}
+
+function waitForExit(pid, timeout) {
+  return new Promise((resolve) => {
+    const deadline = Date.now() + timeout
+    const timer = setInterval(() => {
+      if (!isProcessAlive(pid)) {
+        clearInterval(timer)
+        resolve(true)
+      } else if (Date.now() >= deadline) {
+        clearInterval(timer)
+        resolve(false)
+      }
+    }, 100)
+  })
+}
+
+function killProcessTree(pid) {
+  if (!pid) return
+  if (process.platform === 'win32') {
+    exec(`taskkill /F /T /PID ${pid}`, () => { /* 忽略错误 */ })
+  } else {
+    try {
+      process.kill(pid, 'SIGKILL')
+    } catch { /* 进程已退出 */ }
+  }
+}
+
+function cleanup() {
+  if (cleanupPromise) return cleanupPromise
+  cleanupPromise = (async () => {
+    if (tray) {
+      try { tray.destroy() } catch { /* 忽略错误 */ }
+      tray = null
+    }
+    if (testWindow && !testWindow.isDestroyed()) {
+      testWindow.destroy()
+    }
+    testWindow = null
+
+    const proc = backendProcess
+    backendProcess = null
+    const pid = proc?.pid
+    if (!pid) return
+
+    try {
+      if (proc.connected) proc.send({ type: 'shutdown' })
+    } catch (err) {
+      console.error('[Quit] send shutdown to backend failed:', err)
+    }
+    const exited = await waitForExit(pid, 1500)
+    if (!exited) {
+      killProcessTree(pid)
+      await waitForExit(pid, 1500)
+    }
+  })()
+  return cleanupPromise
+}
+
+function quitWithCleanup(code) {
+  const guard = new Promise((resolve) => setTimeout(resolve, 6000))
+  Promise.race([cleanup(), guard]).then(() => {
+    cleanupDone = true
+    app.exit(code)
+  })
+}
+
 app.on('before-quit', () => {
   app.isQuitting = true
-  if (testWindow && !testWindow.isDestroyed()) {
-    testWindow.close()
-  }
-  testWindow = null
-  if (backendProcess && backendProcess.pid) {
-    const pid = backendProcess.pid
-    backendProcess.kill('SIGTERM')
-    setTimeout(() => {
-      try {
-        process.kill(pid, 0)
-        if (process.platform === 'win32') {
-          exec(`taskkill /F /T /PID ${pid}`)
-        } else {
-          process.kill(pid, 'SIGKILL')
-        }
-      } catch { /* 进程已退出 */ }
-    }, 2000)
-  }
-  backendProcess = null
-  if (tray) {
-    tray.destroy()
-    tray = null
-  }
+})
+
+app.on('will-quit', (e) => {
+  if (cleanupDone) return
+  e.preventDefault()
+  quitWithCleanup(0)
+})
+
+process.on('uncaughtException', (err) => {
+  console.error('[Main] uncaught exception:', err)
+  app.isQuitting = true
+  quitWithCleanup(1)
+})
+
+process.on('SIGTERM', () => {
+  app.isQuitting = true
+  app.quit()
+})
+
+process.on('SIGINT', () => {
+  app.isQuitting = true
+  app.quit()
 })

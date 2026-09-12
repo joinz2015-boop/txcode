@@ -34,11 +34,14 @@ win:
 
 nsis:
   oneClick: false
+  perMachine: true
+  allowElevation: true
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
   createStartMenuShortcut: true
   shortcutName: txcode
   artifactName: txcode_${version}_win.${ext}
+  deleteAppDataOnUninstall: false
   include: installer.nsh
 
 mac:

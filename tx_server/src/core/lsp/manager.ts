@@ -233,6 +233,24 @@ export namespace LSPManager {
     }
   }
 
+  /**
+   * 强制回收全部 LSP 进程树（不等待协议握手，服务关闭时调用）
+   */
+  export function killAll(): void {
+    for (const serverId of serverStates.keys()) {
+      const state = serverStates.get(serverId);
+      if (state?.client) {
+        try {
+          state.client.disconnect();
+        } catch (e) {
+          console.error(`Failed to kill LSP client ${serverId}:`, e);
+        }
+        state.client = null;
+      }
+      updateServerStatus(serverId, LSPServerStatus.Stopped);
+    }
+  }
+
   function updateServerStatus(
     serverId: string,
     status: LSPServerStatus,

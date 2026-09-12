@@ -5,6 +5,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getAppVersion: () => ipcRenderer.invoke('get-app-version'),
   getNodeVersion: () => ipcRenderer.invoke('get-node-version'),
   getPlatform: () => ipcRenderer.invoke('get-platform'),
+  isUpdated: () => ipcRenderer.invoke('is-updated'),
   minimizeWindow: () => ipcRenderer.send('minimize-window'),
   maximizeWindow: () => ipcRenderer.send('maximize-window'),
   closeWindow: () => ipcRenderer.send('close-window'),
