@@ -27,6 +27,7 @@ import tsWorker from 'monaco-editor/esm/vs/language/typescript/ts.worker?worker'
 import jsonWorker from 'monaco-editor/esm/vs/language/json/json.worker?worker'
 import cssWorker from 'monaco-editor/esm/vs/language/css/css.worker?worker'
 import htmlWorker from 'monaco-editor/esm/vs/language/html/html.worker?worker'
+import { showError } from '@/utils/toast'
 
 self.MonacoEnvironment = {
   getWorker(_, label) {
@@ -140,7 +141,7 @@ export default {
         this.$emit('content-changed', false)
         this.$emit('content-saved', content)
       } catch (e) {
-        alert('保存文件失败: ' + (e.message || e))
+        showError('保存文件失败: ' + (e.message || e))
       } finally {
         this.saving = false
       }

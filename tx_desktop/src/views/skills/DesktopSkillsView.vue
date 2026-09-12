@@ -82,6 +82,7 @@
 <script>
 import { getSkillCategories, getPublishedSkills, getLocalSkills, installSkillApi, uninstallSkillApi } from '@/api/index'
 import DesktopSkillViewer from '@/components/skill/DesktopSkillViewer.vue'
+import { showError } from '@/utils/toast'
 
 export default {
   name: 'DesktopSkillsView',
@@ -239,7 +240,7 @@ export default {
         await installSkillApi(skill.id, skill.name)
         await this.loadLocalSkills()
       } catch (e) {
-        alert('安装失败: ' + (e.message || '未知错误'))
+        showError('安装失败: ' + (e.message || '未知错误'))
       } finally {
         this.$set(this.installingIds, skill.id, false)
       }
@@ -250,7 +251,7 @@ export default {
         await uninstallSkillApi(skill.name)
         await this.loadLocalSkills()
       } catch (e) {
-        alert('卸载失败: ' + (e.message || '未知错误'))
+        showError('卸载失败: ' + (e.message || '未知错误'))
       }
     },
     viewSkill(skill) {

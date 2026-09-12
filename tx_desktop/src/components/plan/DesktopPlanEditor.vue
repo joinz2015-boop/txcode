@@ -34,6 +34,7 @@
 
 <script>
 import { readPlan, savePlan, getFileContent, writeFile } from '@/api/index'
+import { showError } from '@/utils/toast'
 
 export default {
   name: 'DesktopPlanEditor',
@@ -112,7 +113,7 @@ export default {
         this.$emit('update:content', this.localContent)
       } catch (e) {
         console.error('保存方案失败:', e)
-        alert('保存失败: ' + e.message)
+        showError('保存失败: ' + e.message)
       } finally {
         this.saving = false
       }

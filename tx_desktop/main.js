@@ -246,6 +246,59 @@ ipcMain.on('close-window', () => {
   mainWindow && mainWindow.hide()
 })
 
+function refocusMainWindow() {
+  if (!mainWindow || mainWindow.isDestroyed()) return
+  try {
+    if (!mainWindow.isVisible()) mainWindow.show()
+    mainWindow.blur()
+    mainWindow.focus()
+  } catch (err) {
+    console.error('[Focus] restore focus failed:', err)
+  }
+}
+
+ipcMain.on('app-alert', (event, payload) => {
+  const window = BrowserWindow.fromWebContents(event.sender) || mainWindow
+  try {
+    dialog.showMessageBoxSync(window, {
+      type: 'warning',
+      title: 'txcode',
+      message: (payload && payload.message) || '',
+      buttons: ['确定'],
+      defaultId: 0,
+      noLink: true,
+    })
+  } catch (err) {
+    console.error('[Dialog] alert failed:', err)
+  }
+  refocusMainWindow()
+  event.returnValue = undefined
+})
+
+ipcMain.on('app-confirm', (event, payload) => {
+  const window = BrowserWindow.fromWebContents(event.sender) || mainWindow
+  let response = 1
+  try {
+    response = dialog.showMessageBoxSync(window, {
+      type: 'question',
+      title: 'txcode',
+      message: (payload && payload.message) || '',
+      buttons: ['取消', '确定'],
+      defaultId: 1,
+      cancelId: 0,
+      noLink: true,
+    })
+  } catch (err) {
+    console.error('[Dialog] confirm failed:', err)
+  }
+  refocusMainWindow()
+  event.returnValue = response === 1
+})
+
+ipcMain.on('focus-fix', () => {
+  refocusMainWindow()
+})
+
 const gotTheLock = app.requestSingleInstanceLock()
 
 if (!gotTheLock) {

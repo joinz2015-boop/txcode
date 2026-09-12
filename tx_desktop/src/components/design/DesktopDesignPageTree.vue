@@ -127,6 +127,7 @@
 <script>
 import { browseFilesystem, getFileContent, writeFile, createDirectory, deleteFile, renameFile, exportFolder } from '@/api/index'
 import { sortFileItems } from '@/utils/fileSort'
+import { showToast, showError } from '@/utils/toast'
 import DesktopFileSelectTreeNode from '@/components/file/DesktopFileSelectTreeNode.vue'
 
 const DESIGN_BASE = '.txcode/design'
@@ -297,7 +298,7 @@ export default {
         this.newPageDialog.visible = false
         await this.refresh()
       } catch (e) {
-        alert('创建网页失败: ' + e.message)
+        showError('创建网页失败: ' + e.message)
       }
     },
 
@@ -365,7 +366,7 @@ export default {
         this.renameDialog.visible = false
         await this.refresh()
       } catch (e) {
-        alert((action === 'createFolder' ? '创建文件夹' : '重命名') + '失败: ' + e.message)
+        showError((action === 'createFolder' ? '创建文件夹' : '重命名') + '失败: ' + e.message)
       }
     },
 
@@ -391,7 +392,7 @@ export default {
         }
         await this.refresh()
       } catch (e) {
-        alert('删除失败: ' + e.message)
+        showError('删除失败: ' + e.message)
       }
     },
 
@@ -401,9 +402,9 @@ export default {
       if (!target) return
       try {
         await exportFolder(target.path)
-        alert('导出成功')
+        showToast('导出成功')
       } catch (e) {
-        alert('导出失败: ' + e.message)
+        showError('导出失败: ' + e.message)
       }
     },
 
@@ -439,7 +440,7 @@ export default {
         document.body.removeChild(a)
         URL.revokeObjectURL(url)
       } catch (e) {
-        alert('下载失败: ' + e.message)
+        showError('下载失败: ' + e.message)
       }
     },
 

@@ -121,6 +121,7 @@ import { listPlanSessions, createPlanSession, renamePlanSession, deletePlanSessi
 import { getItem, setItem } from '@/utils/storage'
 import { ws } from '@/utils/websocket'
 import { eventBus } from '@/utils/eventBus'
+import { showError } from '@/utils/toast'
 
 export default {
   name: 'DesktopCodingView',
@@ -264,7 +265,7 @@ export default {
           document.body.removeChild(a)
           URL.revokeObjectURL(downloadUrl)
         })
-        .catch(e => alert('导出失败: ' + e.message))
+        .catch(e => showError('导出失败: ' + e.message))
     },
     async createSubPlan() {
       this.subPlanDialogVisible = true
@@ -510,6 +511,7 @@ export default {
         tp.subscribePanel(tp.panel.sessionId)
       }
     }
+    ws.refreshRunningSessions()
     this.restoreCodeScrollTop()
     this.restoreTestScrollTop()
   },

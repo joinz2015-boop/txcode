@@ -125,6 +125,7 @@ import { marked } from 'marked'
 import { setItem } from '@/utils/storage'
 import { getPlanSessionDetail, saveMeta, createSession, getMessages, deleteSession } from '@/api'
 import { scrollToBottom as smartScroll, snapshotScroll } from '@/utils/scroll'
+import { showError } from '@/utils/toast'
 
 let logSeq = 0
 
@@ -226,7 +227,7 @@ export default {
         this.sessionDropdownOpen = false
       } catch (e) {
         console.error('创建测试会话失败:', e)
-        alert('创建测试会话失败: ' + e.message)
+        showError('创建测试会话失败: ' + e.message)
       }
     },
 

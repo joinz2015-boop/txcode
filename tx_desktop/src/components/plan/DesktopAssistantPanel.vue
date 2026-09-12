@@ -258,6 +258,7 @@ import { createSession, deleteSession, saveMeta, getMessages } from '@/api/index
 import { setItem } from '@/utils/storage'
 import { uploadSingleMedia } from '@/api/chat/media.js'
 import { scrollToBottom as smartScroll, snapshotScroll } from '@/utils/scroll'
+import { showError } from '@/utils/toast'
 import DesktopFileSelectDialog from '@/components/file/DesktopFileSelectDialog.vue'
 import DesktopSkillSelectDialog from '@/components/skill/DesktopSkillSelectDialog.vue'
 import DesktopDesignSelectDialog from '@/components/design/DesktopDesignSelectDialog.vue'
@@ -424,7 +425,7 @@ export default {
           this.designMediaFiles[idx].uploading = false
         }
       }).catch(e => {
-        alert('图片上传失败: ' + (e.message || e))
+        showError('图片上传失败: ' + (e.message || e))
         const i = this.designMediaFiles.findIndex(m => m.id === id)
         if (i > -1) this.designMediaFiles.splice(i, 1)
       })
@@ -443,7 +444,7 @@ export default {
           this.discussMediaFiles[idx].uploading = false
         }
       }).catch(e => {
-        alert('图片上传失败: ' + (e.message || e))
+        showError('图片上传失败: ' + (e.message || e))
         const i = this.discussMediaFiles.findIndex(m => m.id === id)
         if (i > -1) this.discussMediaFiles.splice(i, 1)
       })
@@ -542,7 +543,7 @@ export default {
         this.scrollMessages('design', snap)
       } catch (e) {
         console.error('发送失败:', e)
-        alert('发送失败: ' + e.message)
+        showError('发送失败: ' + e.message)
       }
     },
 
@@ -622,11 +623,15 @@ export default {
           this.scrollMessages(key, snap)
         },
         error: (d) => {
+          const snap = snapshotScroll(this.$refs[key + 'Messages'])
           this[logKey] = this[logKey].filter(item => !(item.type === 'step' && item._executing))
           this[panelKey].disabled = false
           this['_' + key + 'ManuallyEnded'] = true
           this[stoppingKey] = false
-          alert(d.error || '发生错误')
+          const msg = d.error || '发生错误'
+          this.pushLogItem(logKey, { type: 'system', content: `错误：${msg}` })
+          showError(msg)
+          this.scrollMessages(key, snap)
         },
         step: (d) => {
           const snap = snapshotScroll(this.$refs[key + 'Messages'])
@@ -708,7 +713,7 @@ export default {
         this.discussDropdownOpen = false
       } catch (e) {
         console.error('创建探讨失败:', e)
-        alert('创建探讨失败: ' + e.message)
+        showError('创建探讨失败: ' + e.message)
       }
     },
 

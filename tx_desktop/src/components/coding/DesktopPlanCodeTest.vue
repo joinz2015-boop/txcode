@@ -74,6 +74,7 @@
 
 <script>
 import { ws } from '@/utils/websocket'
+import { showError } from '@/utils/toast'
 import { createSession, getMessages } from '@/api/index'
 import { saveMeta } from '@/api/index'
 import { setItem } from '@/utils/storage'
@@ -217,10 +218,14 @@ export default {
           this.scheduleScroll(snap)
         },
         error: (d) => {
+          const snap = snapshotScroll(this.$refs.messagesContainer)
           this.logItems = this.logItems.filter(item => !(item.type === 'step' && item._executing))
-          alert(d.error || '发生错误')
           this.disabled = false
           this.stopping = false
+          const msg = d.error || '发生错误'
+          this.logItems.push(this.withLogId({ type: 'system', content: `错误：${msg}` }))
+          showError(msg)
+          this.scheduleScroll(snap)
         }
       })
     },

@@ -126,6 +126,7 @@ import { setItem } from '@/utils/storage'
 import { createSession, getMessages, saveMeta } from '@/api/index'
 import { uploadSingleMedia } from '@/api/chat/media.js'
 import { ws } from '@/utils/websocket'
+import { showError } from '@/utils/toast'
 import { marked } from 'marked'
 import { scrollToBottom as smartScroll, snapshotScroll } from '@/utils/scroll'
 
@@ -331,11 +332,15 @@ export default {
           this.scheduleScroll(snap)
         },
         error: (d) => {
+          const snap = snapshotScroll(this.$refs.messagesContainer)
           this.panel.logItems = this.panel.logItems.filter(item => !(item.type === 'step' && item._executing))
           this.panel.disabled = false
           this._manuallyEnded = true
           this.stopping = false
-          alert(d.error || '发生错误')
+          const msg = d.error || '发生错误'
+          this.pushLogItem({ type: 'system', content: `错误：${msg}` })
+          showError(msg)
+          this.scheduleScroll(snap)
         },
         todos: (d) => {
           const snap = snapshotScroll(this.$refs.messagesContainer)
@@ -346,6 +351,7 @@ export default {
           if (this.panel.sessionId) this.loadMessages(this.panel.sessionId)
         },
         running_sessions: (d) => {
+          if (this._manuallyEnded) return
           const runningIds = d.runningSessionIds || []
           if (this.panel.sessionId && runningIds.includes(this.panel.sessionId)) {
             this.panel.disabled = true
@@ -481,7 +487,7 @@ export default {
           this.mediaFiles[idx].uploading = false
         }
       }).catch(e => {
-        alert('图片上传失败: ' + (e.message || e))
+        showError('图片上传失败: ' + (e.message || e))
         const i = this.mediaFiles.findIndex(m => m.id === id)
         if (i > -1) this.mediaFiles.splice(i, 1)
       })

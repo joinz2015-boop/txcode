@@ -94,6 +94,7 @@
 <script>
 import { getSpecCategories, getPublishedSpecs, getLocalSpecs, installSpec, uninstallSpec } from '@/api/index'
 import DesktopSpecViewer from '@/components/spec/DesktopSpecViewer.vue'
+import { showError } from '@/utils/toast'
 
 export default {
   name: 'DesktopSpecsView',
@@ -265,7 +266,7 @@ export default {
         await installSpec(spec.id, spec.name)
         await this.loadLocalSpecs()
       } catch (e) {
-        alert('安装失败: ' + (e.message || '未知错误'))
+        showError('安装失败: ' + (e.message || '未知错误'))
       } finally {
         this.$set(this.installingIds, spec.id, false)
       }
@@ -276,7 +277,7 @@ export default {
         await uninstallSpec(spec.name)
         await this.loadLocalSpecs()
       } catch (e) {
-        alert('移除失败: ' + (e.message || '未知错误'))
+        showError('移除失败: ' + (e.message || '未知错误'))
       }
     },
     viewSpec(spec) {

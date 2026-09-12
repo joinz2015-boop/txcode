@@ -173,6 +173,7 @@ import { uploadSingleMedia } from '@/api/chat/media.js'
 import { ws } from '@/utils/websocket'
 import { marked } from 'marked'
 import { scrollToBottom as smartScroll, snapshotScroll } from '@/utils/scroll'
+import { showError } from '@/utils/toast'
 import DesktopModelSelectDialog from '@/components/plan-code/DesktopModelSelectDialog.vue'
 import DesktopCommandDialog from '@/components/common/DesktopCommandDialog.vue'
 import DesktopFileSelectDialog from '@/components/file/DesktopFileSelectDialog.vue'
@@ -410,13 +411,17 @@ export default {
           this.scheduleScroll(snap)
         },
         error: (data) => {
+          const snap = snapshotScroll(this.$refs.chatBody)
           this.logItems = this.logItems.filter(item => !(item.type === 'step' && item._executing))
-          alert(data?.error || '发生错误')
           this.disabled = false
           this.stopping = false
           this.thinking = false
           this.sessionStatus = 'idle'
           this.$emit('status-change', 'idle')
+          const msg = data?.error || '发生错误'
+          this.logItems.push(this.withLogId({ type: 'system', content: `错误：${msg}` }))
+          showError(msg)
+          this.scheduleScroll(snap)
         },
         compact: () => {
           this.logItems.push(this.withLogId({ type: 'system', content: '【会话已压缩】' }))
@@ -454,7 +459,7 @@ export default {
       if ((!content && !hasMedia) || this.disabled) return
 
       if (!this.currentPage || !this.currentPage.endsWith('.html')) {
-        alert('请先在左侧选择设计页面')
+        showError('请先在左侧选择设计页面')
         return
       }
 
@@ -463,7 +468,7 @@ export default {
           const session = await this.createSessionFn(this.basePath)
           this.activateSession(session.id)
         } catch (e) {
-          alert('创建会话失败: ' + (e.message || e))
+          showError('创建会话失败: ' + (e.message || e))
           return
         }
       }
@@ -582,7 +587,7 @@ export default {
       const currentCount = (this.mediaFiles || []).length
       const remaining = MAX_IMAGES - currentCount
       if (remaining <= 0) {
-        alert('最多上传' + MAX_IMAGES + '张图片')
+        showError('最多上传' + MAX_IMAGES + '张图片')
         return
       }
       const toProcess = Math.min(files.length, remaining)
@@ -591,7 +596,7 @@ export default {
       for (let i = 0; i < toProcess; i++) {
         const file = files[i]
         if (file.size > MAX_IMAGE_SIZE) {
-          alert('图片「' + (file.name || 'paste.png') + '」超过5MB，无法上传')
+          showError('图片「' + (file.name || 'paste.png') + '」超过5MB，无法上传')
           continue
         }
         const id = Date.now() + '_' + i + '_' + Math.random().toString(36).slice(2)
@@ -612,7 +617,7 @@ export default {
           this.mediaFiles[idx].type = result.type
           this.mediaFiles[idx].uploading = false
         } catch (e) {
-          alert('图片上传失败: ' + (e.message || e))
+          showError('图片上传失败: ' + (e.message || e))
           this.mediaFiles.splice(idx, 1)
         }
       }

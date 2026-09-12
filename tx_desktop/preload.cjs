@@ -1,4 +1,4 @@
-const { contextBridge, ipcRenderer } = require('electron')
+const { contextBridge, ipcRenderer, webFrame } = require('electron')
 
 contextBridge.exposeInMainWorld('electronAPI', {
   getPort: () => ipcRenderer.invoke('get-port'),
@@ -27,4 +27,41 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   closeTestWindow: () => ipcRenderer.send('close-test-window'),
   saveTestUrl: (url) => ipcRenderer.send('test-window-save-url', url),
+  focusFix: () => ipcRenderer.send('focus-fix'),
 })
+
+contextBridge.exposeInMainWorld('__txcodeDialog', {
+  alert: (message) => {
+    try {
+      return ipcRenderer.sendSync('app-alert', { message: message == null ? '' : String(message) })
+    } catch (err) {
+      return undefined
+    }
+  },
+  confirm: (message) => {
+    try {
+      return !!ipcRenderer.sendSync('app-confirm', { message: message == null ? '' : String(message) })
+    } catch (err) {
+      return false
+    }
+  },
+})
+
+webFrame.executeJavaScript(`(() => {
+  if (window.__txcodeDialogPatched) return
+  window.__txcodeDialogPatched = true
+
+  const bridge = window.__txcodeDialog
+  const origAlert = window.alert
+  const origConfirm = window.confirm
+
+  window.alert = function (message) {
+    if (bridge) return bridge.alert(message)
+    return origAlert(message)
+  }
+
+  window.confirm = function (message) {
+    if (bridge) return bridge.confirm(message)
+    return origConfirm(message)
+  }
+})()`)

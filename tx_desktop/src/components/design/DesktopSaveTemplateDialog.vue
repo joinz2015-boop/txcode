@@ -29,6 +29,7 @@
 
 <script>
 import { getFileContent, writeFile, browseFilesystem, createDirectory } from '@/api/index'
+import { showError } from '@/utils/toast'
 
 const DESIGN_BASE = '.txcode/design'
 const TEMPLATE_DIR = DESIGN_BASE + '/.template'
@@ -87,7 +88,7 @@ export default {
         this.$emit('update:visible', false)
         this.$emit('success', templatePath)
       } catch (e) {
-        alert('保存模版失败: ' + (e.message || e))
+        showError('保存模版失败: ' + (e.message || e))
       } finally {
         this.saving = false
       }

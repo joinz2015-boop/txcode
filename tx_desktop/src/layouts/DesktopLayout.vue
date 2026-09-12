@@ -24,6 +24,8 @@
       @success="handleProjectDialogSuccess"
     />
 
+    <DesktopToast />
+
     <div class="overlay" v-if="deleteConfirmVisible" @click.self="deleteConfirmVisible = false">
       <div class="confirm-dialog">
         <div class="dialog-header">
@@ -49,6 +51,7 @@
 import DesktopTitleBar from '@/components/DesktopTitleBar.vue'
 import DesktopNavRail from '@/components/DesktopNavRail.vue'
 import DesktopSelectProjectDialog from '@/components/config/DesktopSelectProjectDialog.vue'
+import DesktopToast from '@/components/common/DesktopToast.vue'
 import { getPort } from '@/utils/ipc'
 import { setBaseURL, setLocalBaseURL, setBaseURLByHost, listHosts, getConfig, getProjects, getCurrentProject, setCurrentProject, deleteProject, getAppInfo } from '@/api/index'
 import { ws } from '@/utils/websocket'
@@ -60,6 +63,7 @@ export default {
     DesktopTitleBar,
     DesktopNavRail,
     DesktopSelectProjectDialog,
+    DesktopToast,
   },
   provide() {
     return {

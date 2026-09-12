@@ -330,6 +330,7 @@ import {
   listHosts, createHost, updateHost, deleteHost, switchHost, testHost, setBaseURLByHost,
   getSystemConfig, saveSystemConfig
 } from '@/api/index'
+import { showError } from '@/utils/toast'
 
 const presets = [
   { name: 'openai', nameValue: 'OpenAI', baseUrlValue: 'https://api.openai.com/v1' },
@@ -485,7 +486,7 @@ export default {
         await this.loadProviders()
         await this.loadModels()
       } catch (e) {
-        alert('设置默认失败: ' + e.message)
+        showError('设置默认失败: ' + e.message)
       }
     },
 
@@ -554,7 +555,7 @@ export default {
         await this.loadProviders()
         this.closeProviderDialog()
       } catch (e) {
-        alert('保存失败: ' + e.message)
+        showError('保存失败: ' + e.message)
       } finally {
         this.providerSaving = false
       }
@@ -566,7 +567,7 @@ export default {
         await this.loadProviders()
         await this.loadModels()
       } catch (e) {
-        alert('删除失败: ' + e.message)
+        showError('删除失败: ' + e.message)
       }
     },
 
@@ -610,7 +611,7 @@ export default {
         await this.loadModels()
         this.closeModelDialog()
       } catch (e) {
-        alert('保存失败: ' + e.message)
+        showError('保存失败: ' + e.message)
       } finally {
         this.modelSaving = false
       }
@@ -621,7 +622,7 @@ export default {
         await deleteModel(model.id)
         await this.loadModels()
       } catch (e) {
-        alert('删除失败: ' + e.message)
+        showError('删除失败: ' + e.message)
       }
     },
 
@@ -645,7 +646,7 @@ export default {
         document.body.removeChild(a)
         URL.revokeObjectURL(url)
       } catch (e) {
-        alert('导出失败: ' + e.message)
+        showError('导出失败: ' + e.message)
       }
     },
     handleImportConfig() {
@@ -661,10 +662,10 @@ export default {
           if (res.success) {
             await this.loadData()
           } else {
-            alert('导入失败: ' + res.error)
+            showError('导入失败: ' + res.error)
           }
         } catch (e) {
-          alert('导入失败: ' + e.message)
+          showError('导入失败: ' + e.message)
         }
       }
       input.click()
@@ -677,9 +678,9 @@ export default {
     },
     async handleConfirmAuth() {
       const platformUrl = this.authForm.platformUrl.trim()
-      if (!platformUrl) { alert('请输入平台地址'); return }
+      if (!platformUrl) { showError('请输入平台地址'); return }
       if (!platformUrl.startsWith('http://') && !platformUrl.startsWith('https://')) {
-        alert('平台地址必须以 http:// 或 https:// 开头'); return
+        showError('平台地址必须以 http:// 或 https:// 开头'); return
       }
       this.showAuthDialog = false
       this.authLoading = true
@@ -709,7 +710,7 @@ export default {
           } catch (e) {}
         }, 3000)
       } catch (e) {
-        alert('认证失败: ' + e.message)
+        showError('认证失败: ' + e.message)
         this.authLoading = false
       }
     },
@@ -720,7 +721,7 @@ export default {
         await this.loadProviders()
         await this.loadModels()
       } catch (e) {
-        alert('取消认证失败: ' + e.message)
+        showError('取消认证失败: ' + e.message)
       }
     },
     async handleSyncSongbingModels() {
@@ -728,7 +729,7 @@ export default {
         await syncSongbingModels()
         await this.loadModels()
       } catch (e) {
-        alert('同步模型失败: ' + e.message)
+        showError('同步模型失败: ' + e.message)
       }
     },
 
@@ -781,7 +782,7 @@ export default {
         await this.loadHosts()
         this.closeHostDialog()
       } catch (e) {
-        alert('保存失败: ' + e.message)
+        showError('保存失败: ' + e.message)
       } finally {
         this.hostSaving = false
       }
@@ -792,7 +793,7 @@ export default {
         await deleteHost(host.id)
         await this.loadHosts()
       } catch (e) {
-        alert('删除失败: ' + e.message)
+        showError('删除失败: ' + e.message)
       }
     },
     async handleSwitchHost(host) {
@@ -801,11 +802,11 @@ export default {
         try {
           const res = await testHost(host.ip, host.port)
           if (!res.data || !res.data.reachable) {
-            alert(`主机"${host.name}" (${host.ip}:${host.port}) 无法连接`)
+            showError(`主机"${host.name}" (${host.ip}:${host.port}) 无法连接`)
             return
           }
         } catch (e) {
-          alert(`连接测试失败: ${e.message}`)
+          showError(`连接测试失败: ${e.message}`)
           return
         } finally {
           this.hostTestingId = null
@@ -817,7 +818,7 @@ export default {
         setBaseURLByHost(h)
         location.reload()
       } catch (e) {
-        alert('切换失败: ' + e.message)
+        showError('切换失败: ' + e.message)
       }
     },
 
@@ -841,7 +842,7 @@ export default {
       try {
         await saveSystemConfig(this.systemConfig)
       } catch (e) {
-        alert('保存系统配置失败: ' + e.message)
+        showError('保存系统配置失败: ' + e.message)
       } finally {
         this.systemSaving = false
       }

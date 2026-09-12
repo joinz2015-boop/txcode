@@ -74,6 +74,7 @@
 
 <script>
 import { useSession } from './useSession.js'
+import { showError } from '@/utils/toast'
 
 export default {
   name: 'DesktopDesignSessionBar',
@@ -121,7 +122,7 @@ export default {
         this.dropdownVisible = false
         this.$emit('session-created', session)
       } catch (e) {
-        alert('创建会话失败: ' + (e.message || e))
+        showError('创建会话失败: ' + (e.message || e))
       }
     },
     handleSelect(session) {

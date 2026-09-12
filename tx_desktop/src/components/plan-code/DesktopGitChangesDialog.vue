@@ -78,6 +78,7 @@
 import { gitIsRepo, gitStatus, gitDiffFull, gitRevert, gitRevertAll, gitDeleteFile, gitDiscardUntracked } from '@/api/index'
 import DesktopGitChangeList from '@/components/git/DesktopGitChangeList.vue'
 import DesktopGitDiffPanel from '@/components/git/DesktopGitDiffPanel.vue'
+import { showError } from '@/utils/toast'
 
 export default {
   name: 'DesktopGitChangesDialog',
@@ -217,7 +218,7 @@ export default {
         }
         await this.refresh()
       } catch (e) {
-        alert('操作失败: ' + (e.message || '未知错误'))
+        showError('操作失败: ' + (e.message || '未知错误'))
       }
     },
     statusLabel(change) {

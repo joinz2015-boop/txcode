@@ -170,6 +170,10 @@ export const ws = {
 
   isConnected,
 
+  refreshRunningSessions() {
+    return send('get_running_sessions', {})
+  },
+
   on(type, callback) {
     const typeListeners = getListeners(type)
     typeListeners.push(callback)

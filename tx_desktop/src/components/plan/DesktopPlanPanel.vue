@@ -34,6 +34,7 @@
 import DesktopPlanEditor from './DesktopPlanEditor.vue'
 import DesktopAssistantPanel from './DesktopAssistantPanel.vue'
 import { createPlanSession, getBaseURL } from '@/api/index'
+import { showToast, showError } from '@/utils/toast'
 
 export default {
   name: 'DesktopPlanPanel',
@@ -96,7 +97,7 @@ export default {
     },
     exportPlan() {
       if (!this.planFilePath) {
-        alert('请先选择方案')
+        showError('请先选择方案')
         return
       }
       const fileName = this.planFilePath.split('/').pop() || '方案.md'
@@ -116,16 +117,16 @@ export default {
           document.body.removeChild(a)
           URL.revokeObjectURL(downloadUrl)
         })
-        .catch(e => alert('导出失败: ' + e.message))
+        .catch(e => showError('导出失败: ' + e.message))
     },
     async createSubPlan() {
       try {
         await createPlanSession('新计划会话', this.planFilePath)
         this.$emit('refreshSessions')
-        alert('子方案已创建，请在左侧会话列表中查看')
+        showToast('子方案已创建，请在左侧会话列表中查看')
       } catch (e) {
         console.error('创建子方案失败:', e)
-        alert('创建失败: ' + e.message)
+        showError('创建失败: ' + e.message)
       }
     },
     startResize(e) {
