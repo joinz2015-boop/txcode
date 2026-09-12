@@ -3,13 +3,19 @@ import { spawn, fork, exec } from 'child_process'
 import { createServer } from 'net'
 import { join, dirname } from 'path'
 import { fileURLToPath, pathToFileURL } from 'url'
-import { existsSync, unlinkSync } from 'fs'
+import { existsSync } from 'fs'
 import { tmpdir } from 'os'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
 const UPGRADE_MARK_FILE = join(tmpdir(), 'txcode-upgrade.lock')
+const UPGRADE_MARK_FILE_ALL_USERS = join(
+  process.env.ProgramData || join(process.env.SystemDrive || 'C:', 'ProgramData'),
+  'txcode',
+  'upgrade.lock'
+)
 const isUpdated = process.argv.includes('--updated')
+const isQuitRequest = process.argv.includes('--quit')
 
 let mainWindow = null
 let testWindow = null
@@ -20,15 +26,7 @@ let cleanupPromise = null
 let cleanupDone = false
 
 function isUpgradeClosing() {
-  return existsSync(UPGRADE_MARK_FILE)
-}
-
-function clearUpgradeMark() {
-  try {
-    if (existsSync(UPGRADE_MARK_FILE)) unlinkSync(UPGRADE_MARK_FILE)
-  } catch (err) {
-    console.error('[Upgrade] remove upgrade mark failed:', err)
-  }
+  return existsSync(UPGRADE_MARK_FILE) || existsSync(UPGRADE_MARK_FILE_ALL_USERS)
 }
 
 function findAvailablePort(startPort) {
@@ -332,7 +330,13 @@ const gotTheLock = app.requestSingleInstanceLock()
 if (!gotTheLock) {
   app.quit()
 } else {
-  app.on('second-instance', () => {
+  app.on('second-instance', (event, argv) => {
+    if (argv && argv.includes('--quit')) {
+      console.log('[Upgrade] received --quit from installer, quitting silently')
+      app.isQuitting = true
+      app.quit()
+      return
+    }
     if (mainWindow) {
       if (mainWindow.isMinimized()) mainWindow.restore()
       mainWindow.show()
@@ -419,7 +423,12 @@ ipcMain.on('test-window-save-url', (event, testUrl) => {
 app.commandLine.appendSwitch('remote-debugging-port', '9222')
 
 app.whenReady().then(async () => {
-  clearUpgradeMark()
+  if (isQuitRequest) {
+    console.log('[Upgrade] --quit requested but no running instance, exiting without starting')
+    app.isQuitting = true
+    app.exit(0)
+    return
+  }
   if (isUpdated) {
     console.log('[Startup] launched after update (--updated)')
   }
