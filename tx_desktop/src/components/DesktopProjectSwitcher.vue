@@ -72,6 +72,7 @@ export default {
 <style scoped>
 .project-switcher-wrap {
   position: relative;
+  -webkit-app-region: no-drag;
 }
 .project-switcher {
   display: flex;

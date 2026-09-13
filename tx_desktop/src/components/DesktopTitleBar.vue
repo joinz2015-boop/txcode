@@ -172,7 +172,8 @@ export default {
   flex: 0 0 auto;
   -webkit-app-region: no-drag;
 }
-.titlebar-right { flex: 1; display: flex; align-items: center; justify-content: flex-end; gap: 8px; -webkit-app-region: no-drag; }
+/* 约定：标题栏内可点击元素必须显式 no-drag，非交互空白保持 drag 可拖窗 */
+.titlebar-right { flex: 1; display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
 .update-badge {
   display: inline-flex;
   align-items: center;
@@ -186,6 +187,7 @@ export default {
   cursor: pointer;
   font-family: inherit;
   transition: all 0.15s ease;
+  -webkit-app-region: no-drag;
 }
 .update-badge:hover { background: #fee2e2; border-color: #fca5a5; }
 .update-dot {
