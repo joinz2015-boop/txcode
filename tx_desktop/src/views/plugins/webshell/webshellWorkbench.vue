@@ -33,7 +33,7 @@
 <script>
 import ShellTerminal from '@/components/plugins/webshell/ShellTerminal.vue'
 import AiChatPanel from '@/components/plugins/webshell/AiChatPanel.vue'
-import { getPort } from '@/utils/ipc'
+import { getLocalBaseURL } from '@/api/index'
 
 export default {
   name: 'webshellWorkbench',
@@ -64,9 +64,9 @@ export default {
     },
 
     async connectWebSocket() {
-      const port = await getPort()
+      // /ws/shell 由本机后端提供（SSH 中继 + 终端会话），故固定使用本机地址
+      const wsUrl = `${getLocalBaseURL().replace(/^http/, 'ws')}/ws/shell`
       return new Promise((resolve, reject) => {
-        const wsUrl = `ws://localhost:${port}/ws/shell`
         const ws = new WebSocket(wsUrl)
         ws.onopen = () => {
           this.shellWs = ws

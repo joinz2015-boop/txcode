@@ -76,7 +76,7 @@
 </template>
 
 <script>
-import { getDrives, browseFilesystem, createProject, setCurrentProject } from '@/api/index'
+import { getDrives, browseFilesystem, createProject, setCurrentProject, awaitHostReady } from '@/api/index'
 
 export default {
   name: 'DesktopSelectProjectDialog',
@@ -100,6 +100,7 @@ export default {
   methods: {
     async loadDrives() {
       try {
+        await awaitHostReady()
         const res = await getDrives()
         this.drives = (res.data && res.data.items) || []
         if (this.drives.length > 0) {

@@ -1,17 +1,75 @@
+import { getItem, setItem, removeItem } from '@/utils/storage'
+
+const ACTIVE_HOST_KEY = 'host:active'
+const HOST_READY_TIMEOUT = 3000
+
 let baseURL = 'http://localhost:41000'
 let localBaseURL = 'http://localhost:41000'
+let activeHost = null
+
+let hostReadySettled = false
+let resolveHostReady = null
+const hostReadyPromise = new Promise((resolve) => { resolveHostReady = resolve })
+
+function markHostReady() {
+  if (hostReadySettled) return
+  hostReadySettled = true
+  if (resolveHostReady) resolveHostReady()
+}
+
+export function awaitHostReady() {
+  if (hostReadySettled) return Promise.resolve()
+  return Promise.race([
+    hostReadyPromise,
+    new Promise((resolve) => {
+      setTimeout(() => {
+        if (!hostReadySettled) {
+          console.warn('[api] 等待活动主机就绪超时，按当前地址继续:', getBaseURL())
+        }
+        resolve()
+      }, HOST_READY_TIMEOUT)
+    })
+  ])
+}
 
 export function setBaseURL(port) {
   baseURL = `http://localhost:${port}`
+  setActiveHost(null)
+  markHostReady()
 }
 
 export function setLocalBaseURL(port) {
   localBaseURL = `http://localhost:${port}`
 }
 
+export function setActiveHost(host) {
+  if (host && host.ip && host.port) {
+    activeHost = {
+      ip: host.ip,
+      port: Number(host.port),
+      name: host.name || '',
+      isLocal: !!host.isLocal,
+    }
+    setItem(ACTIVE_HOST_KEY, activeHost)
+  } else {
+    activeHost = null
+    removeItem(ACTIVE_HOST_KEY)
+  }
+}
+
+export function getActiveHost() {
+  return activeHost
+}
+
+export function getHostBaseURL() {
+  return activeHost ? `http://${activeHost.ip}:${activeHost.port}` : localBaseURL
+}
+
 export function setBaseURLByHost(host) {
   if (host && host.ip && host.port) {
     baseURL = `http://${host.ip}:${host.port}`
+    setActiveHost(host)
+    markHostReady()
   }
 }
 
@@ -21,6 +79,12 @@ export function getBaseURL() {
 
 export function getLocalBaseURL() {
   return localBaseURL
+}
+
+// 模块加载即恢复上次活动主机，消除「默认本机」窗口期；无记录时才退回本机默认地址
+const persistedHost = getItem(ACTIVE_HOST_KEY, null)
+if (persistedHost && persistedHost.ip && persistedHost.port) {
+  setBaseURLByHost(persistedHost)
 }
 
 async function hostRequest(method, path, data = null) {
@@ -46,6 +110,7 @@ async function hostRequest(method, path, data = null) {
 }
 
 async function request(method, path, data = null) {
+  await awaitHostReady()
   const url = `${getBaseURL()}/api${path}`
   const options = {
     method,
@@ -200,7 +265,8 @@ export function deleteModel(id) {
 }
 
 // ========== Config Export/Import ==========
-export function exportConfig() {
+export async function exportConfig() {
+  await awaitHostReady()
   const url = `${getBaseURL()}/api/sys_config/export_config`
   return fetch(url).then(res => {
     if (!res.ok) throw new Error('导出失败')
@@ -234,7 +300,8 @@ export function syncSongbingModels() {
 }
 
 // ========== Image Upload ==========
-export function uploadChatImage(file) {
+export async function uploadChatImage(file) {
+  await awaitHostReady()
   const formData = new FormData()
   formData.append('file', file)
   return fetch(`${getBaseURL()}/api/chat/upload_image_chat`, {
@@ -375,7 +442,8 @@ export function getFileTree(path = '/') {
   return request('GET', '/file/tree_file', { path })
 }
 
-export function exportFolder(path) {
+export async function exportFolder(path) {
+  await awaitHostReady()
   const url = `${getBaseURL()}/api/file/export_folder?path=${encodeURIComponent(path || '')}`
   return fetch(url).then((response) => {
     if (!response.ok) {
@@ -461,15 +529,15 @@ export function testHost(ip, port) {
   return hostRequest('GET', '/sys_config/test_host', { ip, port: String(port) })
 }
 
-// ========== System Config API (上下文/循环/日志/思考强度，通过本地后端) ==========
+// ========== System Config API (上下文/循环/日志/思考强度，跟随活动主机) ==========
 const REASONING_EFFORTS = ['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max']
 
 export async function getSystemConfig() {
   const [ctx, iter, log, effort] = await Promise.all([
-    hostRequest('GET', '/sys_config/get_config', { key: 'ai.context.maxTokens' }),
-    hostRequest('GET', '/sys_config/get_config', { key: 'ai.maxIterations' }),
-    hostRequest('GET', '/sys_config/get_config', { key: 'log.enabled' }),
-    hostRequest('GET', '/sys_config/get_config', { key: 'ai.reasoningEffort' }),
+    request('GET', '/sys_config/get_config', { key: 'ai.context.maxTokens' }),
+    request('GET', '/sys_config/get_config', { key: 'ai.maxIterations' }),
+    request('GET', '/sys_config/get_config', { key: 'log.enabled' }),
+    request('GET', '/sys_config/get_config', { key: 'ai.reasoningEffort' }),
   ])
   const effortValue = effort.data?.value
   return {
@@ -481,8 +549,8 @@ export async function getSystemConfig() {
 }
 
 export async function saveSystemConfig(data) {
-  await hostRequest('POST', '/sys_config/set_config', { key: 'ai.context.maxTokens', value: data.contextTokens })
-  await hostRequest('POST', '/sys_config/set_config', { key: 'ai.maxIterations', value: data.maxIterations })
-  await hostRequest('POST', '/sys_config/set_config', { key: 'log.enabled', value: data.logEnabled })
-  await hostRequest('POST', '/sys_config/set_config', { key: 'ai.reasoningEffort', value: data.reasoningEffort })
+  await request('POST', '/sys_config/set_config', { key: 'ai.context.maxTokens', value: data.contextTokens })
+  await request('POST', '/sys_config/set_config', { key: 'ai.maxIterations', value: data.maxIterations })
+  await request('POST', '/sys_config/set_config', { key: 'log.enabled', value: data.logEnabled })
+  await request('POST', '/sys_config/set_config', { key: 'ai.reasoningEffort', value: data.reasoningEffort })
 }

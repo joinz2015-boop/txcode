@@ -142,6 +142,13 @@
         <h3 class="panel-title">系统配置</h3>
         <div class="system-form">
           <div class="form-group">
+            <label class="form-label">生效主机</label>
+            <div class="form-static">
+              {{ activeHostLabel }}
+              <span v-if="activeHostIsLocal" class="tag tag-local">本机</span>
+            </div>
+          </div>
+          <div class="form-group">
             <label class="form-label">上下文大小</label>
             <select class="form-select" v-model="systemConfig.contextTokens" @change="saveSystem">
               <option :value="128000">128K</option>
@@ -179,7 +186,7 @@
               <option :value="false">关</option>
             </select>
           </div>
-          <div class="form-hint">修改后立即保存，下次 Agent 运行 / 日志写入时生效</div>
+          <div class="form-hint">保存到当前生效主机，下次该主机上 Agent 运行生效</div>
         </div>
       </div>
     </div>
@@ -328,6 +335,7 @@ import {
   getProxyConfig, updateProxyConfig,
   getSongbingConfig, startSongbingAuth, verifySongbingAuth, cancelSongbingAuth, syncSongbingModels,
   listHosts, createHost, updateHost, deleteHost, switchHost, testHost, setBaseURLByHost,
+  getActiveHost, getHostBaseURL,
   getSystemConfig, saveSystemConfig
 } from '@/api/index'
 import { showError } from '@/utils/toast'
@@ -395,6 +403,8 @@ export default {
         reasoningEffort: 'max',
       },
       systemSaving: false,
+      activeHostLabel: '',
+      activeHostIsLocal: true,
     }
   },
   computed: {
@@ -815,6 +825,7 @@ export default {
       try {
         const r = await switchHost(host.id)
         const h = r.data
+        // 同步并持久化活动主机，刷新后首屏直接指向该主机
         setBaseURLByHost(h)
         location.reload()
       } catch (e) {
@@ -823,6 +834,11 @@ export default {
     },
 
     // System Config
+    refreshActiveHost() {
+      const host = getActiveHost()
+      this.activeHostIsLocal = !host
+      this.activeHostLabel = getHostBaseURL()
+    },
     async loadSystemConfig() {
       try {
         const data = await getSystemConfig()
@@ -833,7 +849,7 @@ export default {
           reasoningEffort: data.reasoningEffort,
         }
       } catch (e) {
-        console.error('加载系统配置失败:', e)
+        showError('加载系统配置失败: ' + e.message)
       }
     },
     async saveSystem() {
@@ -852,6 +868,7 @@ export default {
     this.loadData()
     this.loadProxyConfig()
     this.loadHosts()
+    this.refreshActiveHost()
     this.loadSystemConfig()
   },
   beforeDestroy() {
@@ -1102,6 +1119,7 @@ export default {
 .form-input:disabled { opacity: 0.5; cursor: not-allowed; }
 .form-select { width: 100%; padding: 8px 12px; font-size: 13px; border: 1px solid var(--border); border-radius: 6px; color: var(--text-primary); background: #fafbfc; outline: none; font-family: inherit; box-sizing: border-box; }
 .form-select:disabled { opacity: 0.5; cursor: not-allowed; }
+.form-static { display: flex; align-items: center; gap: 6px; width: 100%; padding: 8px 12px; font-size: 13px; border: 1px solid var(--border); border-radius: 6px; color: var(--text-primary); background: #f0f4ff; box-sizing: border-box; }
 .form-error { font-size: 11px; color: #ef4444; margin-top: 2px; display: block; }
 .form-hint { font-size: 11px; color: var(--text-muted); margin-top: 8px; padding: 8px; background: #f0f4ff; border-radius: 4px; }
 .host-tip { margin-top: 12px; padding: 10px 12px; background: #fefce8; border: 1px solid #fde68a; border-radius: 6px; font-size: 12px; color: #92400e; line-height: 1.6; }

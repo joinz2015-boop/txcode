@@ -123,7 +123,7 @@
 <script>
 import { marked } from 'marked'
 import { setItem } from '@/utils/storage'
-import { getPlanSessionDetail, saveMeta, createSession, getMessages, deleteSession } from '@/api'
+import { getPlanSessionDetail, saveMeta, createSession, getMessages, deleteSession, getBaseURL as getApiBaseURL, getActiveHost, getLocalBaseURL } from '@/api'
 import { scrollToBottom as smartScroll, snapshotScroll } from '@/utils/scroll'
 import { showError } from '@/utils/toast'
 
@@ -137,7 +137,6 @@ export default {
     planFolderName: { type: String, default: '' },
     webContentsId: { type: Number, default: null },
     modelName: { type: String, default: '' },
-    backendPort: { type: String, default: '41000' },
     projectPath: { type: String, default: '' },
     width: { type: Number, default: 420 },
   },
@@ -175,7 +174,13 @@ export default {
   },
   methods: {
     getBaseURL() {
-      return `http://localhost:${this.backendPort}`
+      return getApiBaseURL()
+    },
+
+    getWsBaseURL() {
+      const host = getActiveHost()
+      const base = host && host.ip ? `http://${host.ip}:${host.port}` : getLocalBaseURL()
+      return base.replace(/^http/, 'ws')
     },
 
     async loadMeta() {
@@ -316,7 +321,7 @@ export default {
 
     connectWS() {
       if (this.ws && this.ws.readyState === WebSocket.OPEN) return
-      const url = `ws://localhost:${this.backendPort}/ws/code`
+      const url = `${this.getWsBaseURL()}/ws/code`
       this.ws = new WebSocket(url)
       this.ws.onopen = () => {
         console.log('[TestChatPanel] WS connected')

@@ -19,7 +19,7 @@
     </div>
 
     <DesktopSelectProjectDialog
-      v-if="projectDialogVisible"
+      v-if="initialized && projectDialogVisible"
       @close="projectDialogVisible = false"
       @success="handleProjectDialogSuccess"
     />
@@ -158,10 +158,12 @@ export default {
           const hosts = res.data || []
           const activeHost = hosts.find(h => h.isActive === true)
           if (activeHost && !activeHost.isLocal) {
+            // 同步活动主机地址 + 持久化，供下次刷新立即使用
             setBaseURLByHost(activeHost)
             wsHost = activeHost.ip
             wsPort = activeHost.port
           } else {
+            // 本机：清除持久化的远端主机，避免失效地址被复用
             setBaseURL(port)
           }
         } catch (e) {
