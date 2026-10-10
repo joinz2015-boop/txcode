@@ -13,7 +13,52 @@ export interface ExportData {
   proxy?: { enabled: boolean; type: string; host: string; port: number };
 }
 
+export interface ImportStats {
+  providers: number;
+  models: number;
+  projects: number;
+  skipped: string[];
+}
+
+export interface ImportResult {
+  success: boolean;
+  message: string;
+  data?: ImportStats;
+}
+
+const MASKED_API_KEY_PREFIX = 'sk-***';
+
 export class ConfigExportImportService {
+  /** 模型 upsert：id 命中 → 更新；否则同 (provider, name) 命中 → 更新该条；否则新增（保留文件 id）。 */
+  private importModel(providerId: string, m: any, stats: ImportStats): void {
+    const name = typeof m?.name === 'string' ? m.name.trim() : '';
+    if (!name) {
+      stats.skipped.push('模型缺少 name');
+      return;
+    }
+    const existing = m?.id ? configRepository.getModel(m.id) : undefined;
+    const sameName = existing
+      ? undefined
+      : configRepository.listModels(providerId).find(row => row.name === name);
+    if (existing) {
+      configRepository.updateModel(existing.id, { name, enabled: m.enabled });
+    } else if (sameName) {
+      configRepository.updateModel(sameName.id, { name, enabled: m.enabled });
+    } else {
+      configRepository.insertModel({
+        id: m?.id,
+        providerId,
+        name,
+        contextWindow: m?.contextWindow,
+        maxOutputTokens: m?.maxOutputTokens,
+        supportsVision: m?.supportsVision,
+        supportsTools: m?.supportsTools,
+        enabled: m?.enabled,
+      });
+    }
+    stats.models += 1;
+  }
+
   exportAll(): ExportData {
     const data: ExportData = {};
 
@@ -96,52 +141,70 @@ export class ConfigExportImportService {
     return data;
   }
 
-  importData(data: ExportData): { success: boolean; message: string } {
+  importData(data: ExportData): ImportResult {
     try {
+      const stats: ImportStats = { providers: 0, models: 0, projects: 0, skipped: [] };
+      const providerIdMap = new Map<string, string>();
+
       if (data.providers && Array.isArray(data.providers)) {
         for (const p of data.providers) {
-          const existing = configRepository.getProvider(p.id);
-          if (existing) {
-            configRepository.updateProvider(p.id, {
-              name: p.name,
-              apiKey: p.apiKey,
-              baseUrl: p.baseUrl,
-              enabled: p.enabled,
-              isDefault: p.isDefault,
-            });
+          const name = typeof p?.name === 'string' ? p.name.trim() : '';
+          if (!name) {
+            stats.skipped.push('供应商缺少 name');
+            continue;
+          }
+          const byId = p.id ? configRepository.getProvider(p.id) : undefined;
+          const byName = byId ? undefined : configRepository.listProviders().find(row => row.name === name);
+          if (!byId && !byName && !p.apiKey) {
+            stats.skipped.push(`供应商 ${name}（缺少 apiKey）`);
+            continue;
+          }
+
+          const patch: { name: string; apiKey?: string; baseUrl?: string; enabled?: boolean; isDefault?: boolean } = { name };
+          if (p.apiKey && !String(p.apiKey).startsWith(MASKED_API_KEY_PREFIX)) patch.apiKey = p.apiKey;
+          if (p.baseUrl) patch.baseUrl = p.baseUrl;
+          if (p.enabled !== undefined) patch.enabled = Boolean(p.enabled);
+          if (p.isDefault !== undefined) patch.isDefault = Boolean(p.isDefault);
+
+          let targetId: string;
+          if (byId) {
+            configRepository.updateProvider(byId.id, patch);
+            targetId = byId.id;
+          } else if (byName) {
+            configRepository.updateProvider(byName.id, patch);
+            targetId = byName.id;
           } else {
-            configRepository.insertProvider({
+            targetId = configRepository.insertProvider({
               id: p.id,
-              name: p.name,
+              name,
               apiKey: p.apiKey,
               baseUrl: p.baseUrl,
               enabled: p.enabled,
               isDefault: p.isDefault,
             });
+          }
+          if (p.id) providerIdMap.set(p.id, targetId);
+          providerIdMap.set(targetId, targetId);
+          stats.providers += 1;
+
+          // 兼容旧 SDK 导出格式：供应商内联 models（顶层 models 之外）
+          if (Array.isArray(p.models)) {
+            for (const inline of p.models) this.importModel(targetId, inline, stats);
           }
         }
       }
 
       if (data.models && Array.isArray(data.models)) {
         for (const m of data.models) {
-          const existing = configRepository.getModel(m.id);
-          if (existing) {
-            configRepository.updateModel(m.id, {
-              name: m.name,
-              enabled: m.enabled,
-            });
-          } else {
-            configRepository.insertModel({
-              id: m.id,
-              providerId: m.providerId,
-              name: m.name,
-              contextWindow: m.contextWindow,
-              maxOutputTokens: m.maxOutputTokens,
-              supportsVision: m.supportsVision,
-              supportsTools: m.supportsTools,
-              enabled: m.enabled,
-            });
+          const name = typeof m?.name === 'string' ? m.name.trim() : '';
+          const rawProviderId = m?.providerId ? String(m.providerId) : '';
+          const providerId = providerIdMap.get(rawProviderId)
+            || (rawProviderId && configRepository.getProvider(rawProviderId) ? rawProviderId : '');
+          if (!name || !providerId) {
+            stats.skipped.push(`模型 ${name || '?'}（供应商 ${rawProviderId || '?'} 不存在）`);
+            continue;
           }
+          this.importModel(providerId, m, stats);
         }
       }
 
@@ -206,7 +269,7 @@ export class ConfigExportImportService {
         });
       }
 
-      return { success: true, message: '配置导入成功' };
+      return { success: true, message: '配置导入成功', data: stats };
     } catch (error: any) {
       return { success: false, message: '配置导入失败: ' + error.message };
     }

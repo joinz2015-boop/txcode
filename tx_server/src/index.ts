@@ -20,6 +20,7 @@ import { parseArgs, readVersion, helpText } from './args.js';
 import { setupLogging, log } from './service/logger/index.js';
 import { dbService } from './core/db/index.js';
 import { projectService } from './service/project/project.service.js';
+import { configService } from './service/config/index.js';
 
 /**
  * 程序主入口函数
@@ -55,6 +56,10 @@ async function main() {
 
   projectService.createOrGetProject();
   log.debug('[Startup]', 'project loaded:', projectService.getCurrentProjectPath());
+
+  // 重启后主机状态确定性为本地（活动主机重置，桌面端首屏即本地）
+  const activeHost = configService.resetActiveHostToLocal();
+  log.debug('[Startup]', 'active host reset to local:', activeHost?.id || 'none');
 
   const { syncOnStartup } = await import('./service/system/device-sync.service.js');
   syncOnStartup();

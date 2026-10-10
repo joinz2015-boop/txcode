@@ -279,8 +279,7 @@
         </div>
         <div class="modal-footer">
           <button class="btn-outline" @click="showAuthDialog = false">取消</button>
-      <button class="btn-primary" @click="handleConfirmAuth" :disabled="authLoading">{{ authLoading ? '认证中...' : '开始认证' }}</button>
-          <button class="btn-outline" @click="showAuthDialog = false">取消</button>
+          <button class="btn-primary" @click="handleConfirmAuth" :disabled="authLoading">{{ authLoading ? '认证中...' : '开始认证' }}</button>
         </div>
       </div>
     </div>
@@ -309,10 +308,10 @@
             <span v-if="hostFormError.port" class="form-error">{{ hostFormError.port }}</span>
           </div>
           <div class="host-tip">
-            <p><strong>温馨提示：</strong>目标主机需先安装 txcode：</p>
-            <p><code>npm install -g tianxincode</code></p>
-            <p>然后后台运行 web 模式：</p>
-            <p><code>nohup txcode web &</code></p>
+            <p><strong>温馨提示：</strong>目标主机需先安装 txcode-sdk：</p>
+            <p><code>pip install txcode-sdk</code></p>
+            <p>然后后台运行：</p>
+            <p><code>nohup txcode-sdk &</code></p>
           </div>
         </div>
         <div class="modal-footer">
@@ -320,8 +319,6 @@
           <button class="btn-primary" @click="handleSaveHost" :disabled="hostSaving">{{ hostSaving ? '保存中...' : '保存' }}</button>
         </div>
       </div>
-    </div>
-  </div>
     </div>
   </div>
 </template>
@@ -335,10 +332,12 @@ import {
   getProxyConfig, updateProxyConfig,
   getSongbingConfig, startSongbingAuth, verifySongbingAuth, cancelSongbingAuth, syncSongbingModels,
   listHosts, createHost, updateHost, deleteHost, switchHost, testHost, setBaseURLByHost,
+  setLocalBaseURL, setBaseURL,
   getActiveHost, getHostBaseURL,
   getSystemConfig, saveSystemConfig
 } from '@/api/index'
-import { showError } from '@/utils/toast'
+import { getPort } from '@/utils/ipc'
+import { showToast, showError } from '@/utils/toast'
 
 const presets = [
   { name: 'openai', nameValue: 'OpenAI', baseUrlValue: 'https://api.openai.com/v1' },
@@ -662,7 +661,7 @@ export default {
     handleImportConfig() {
       const input = document.createElement('input')
       input.type = 'file'
-      input.accept = '.yml,.yaml'
+      input.accept = '.yml,.yaml,.json'
       input.onchange = async (e) => {
         const file = e.target.files[0]
         if (!file) return
@@ -670,6 +669,13 @@ export default {
           const content = await file.text()
           const res = await importConfig(content)
           if (res.success) {
+            const stats = res.data || {}
+            const parts = []
+            if (typeof stats.providers === 'number') parts.push(`供应商 ${stats.providers}`)
+            if (typeof stats.models === 'number') parts.push(`模型 ${stats.models}`)
+            if (typeof stats.projects === 'number' && stats.projects > 0) parts.push(`项目 ${stats.projects}`)
+            if (Array.isArray(stats.skipped) && stats.skipped.length > 0) parts.push(`跳过 ${stats.skipped.length}`)
+            showToast(parts.length > 0 ? `导入成功：${parts.join('、')}` : (res.message || '导入成功'))
             await this.loadData()
           } else {
             showError('导入失败: ' + res.error)
@@ -825,8 +831,15 @@ export default {
       try {
         const r = await switchHost(host.id)
         const h = r.data
-        // 同步并持久化活动主机，刷新后首屏直接指向该主机
-        setBaseURLByHost(h)
+        if (h && h.isLocal) {
+          // 切回本地：地址取真实后端端口（41000 被占用时可能是 41001）
+          const port = await getPort()
+          setLocalBaseURL(port)
+          setBaseURL(port)
+        } else {
+          // 切到远端：同步并持久化活动主机地址
+          setBaseURLByHost(h)
+        }
         location.reload()
       } catch (e) {
         showError('切换失败: ' + e.message)
@@ -1124,6 +1137,7 @@ export default {
 .form-hint { font-size: 11px; color: var(--text-muted); margin-top: 8px; padding: 8px; background: #f0f4ff; border-radius: 4px; }
 .host-tip { margin-top: 12px; padding: 10px 12px; background: #fefce8; border: 1px solid #fde68a; border-radius: 6px; font-size: 12px; color: #92400e; line-height: 1.6; }
 .host-tip p { margin: 0; }
+.host-tip p + p { margin-top: 4px; }
 .host-tip code { background: #fef3c7; padding: 1px 6px; border-radius: 3px; font-size: 11px; }
 .form-checkbox { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--text-secondary); cursor: pointer; }
 .form-checkbox input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--accent); }

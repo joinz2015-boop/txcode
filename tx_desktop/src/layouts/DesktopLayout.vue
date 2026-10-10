@@ -53,7 +53,8 @@ import DesktopNavRail from '@/components/DesktopNavRail.vue'
 import DesktopSelectProjectDialog from '@/components/config/DesktopSelectProjectDialog.vue'
 import DesktopToast from '@/components/common/DesktopToast.vue'
 import { getPort } from '@/utils/ipc'
-import { setBaseURL, setLocalBaseURL, setBaseURLByHost, listHosts, getConfig, getProjects, getCurrentProject, setCurrentProject, deleteProject, getAppInfo } from '@/api/index'
+import { setBaseURL, setLocalBaseURL, setBaseURLByHost, awaitHostReady, listHosts, getConfig, getProjects, getCurrentProject, setCurrentProject, deleteProject, getAppInfo } from '@/api/index'
+import { showError } from '@/utils/toast'
 import { ws } from '@/utils/websocket'
 import { getItem, setItem } from '@/utils/storage'
 
@@ -146,28 +147,40 @@ export default {
         console.error('加载项目失败:', e)
       }
     },
+    async loadHostsWithRetry(attempts = 3) {
+      let lastError = null
+      for (let i = 0; i < attempts; i++) {
+        try {
+          return await listHosts()
+        } catch (e) {
+          lastError = e
+          await new Promise((resolve) => setTimeout(resolve, 300 * (i + 1)))
+        }
+      }
+      console.warn('加载主机列表失败:', lastError)
+      showError('本地服务未就绪，请稍后重试')
+      return null
+    },
     async initBase() {
       try {
+        // 启动固定本地：等本地后端就绪 → 显式设为本地真实端口 → 再同步服务端活动主机
+        await awaitHostReady()
         const port = await getPort()
         setLocalBaseURL(port)
+        setBaseURL(port)
 
         let wsPort = port
         let wsHost = null
-        try {
-          const res = await listHosts()
+        const res = await this.loadHostsWithRetry()
+        if (res) {
           const hosts = res.data || []
           const activeHost = hosts.find(h => h.isActive === true)
           if (activeHost && !activeHost.isLocal) {
-            // 同步活动主机地址 + 持久化，供下次刷新立即使用
+            // 运行中已切到远端主机：同步地址 + 持久化，供本次会话的后续请求使用
             setBaseURLByHost(activeHost)
             wsHost = activeHost.ip
             wsPort = activeHost.port
-          } else {
-            // 本机：清除持久化的远端主机，避免失效地址被复用
-            setBaseURL(port)
           }
-        } catch (e) {
-          setBaseURL(port)
         }
 
         ws.init(wsPort, wsHost)

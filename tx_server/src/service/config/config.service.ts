@@ -179,8 +179,14 @@ export class ConfigService {
     });
   }
 
+  /** 主机列表（本地主机行的端口取真实后端端口，避免 41000/41001 错位） */
   getHosts(): Host[] {
-    return this.repo.listHosts().map(this.rowToHost);
+    const backendPort = Number(process.env.TXCODE_BACKEND_PORT || 0);
+    return this.repo.listHosts().map(row => {
+      const host = this.rowToHost(row);
+      if (host.isLocal && backendPort > 0) host.port = backendPort;
+      return host;
+    });
   }
 
   getHost(id: string): Host | undefined {
@@ -215,6 +221,14 @@ export class ConfigService {
     const row = this.repo.switchHost(id);
     if (!row) throw new Error('主机不存在');
     return this.rowToHost(row);
+  }
+
+  /** 启动重置：活动主机固定为本地行（重启后主机状态确定性为本地）。 */
+  resetActiveHostToLocal(): Host | undefined {
+    const local = this.repo.listHosts().find(h => h.is_local === 1);
+    if (!local) return undefined;
+    const row = this.repo.switchHost(local.id);
+    return row ? this.rowToHost(row) : undefined;
   }
 
   async testHost(ip: string, port: number): Promise<boolean> {

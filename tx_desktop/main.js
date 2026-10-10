@@ -1,6 +1,6 @@
 import { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage, dialog } from 'electron'
 import { spawn, fork, exec } from 'child_process'
-import { createServer } from 'net'
+import { createServer, Socket } from 'net'
 import { join, dirname } from 'path'
 import { fileURLToPath, pathToFileURL } from 'url'
 import { existsSync } from 'fs'
@@ -22,6 +22,7 @@ let testWindow = null
 let backendProcess = null
 let tray = null
 let backendPort = 41000
+let backendReady = false
 let cleanupPromise = null
 let cleanupDone = false
 
@@ -39,6 +40,39 @@ function findAvailablePort(startPort) {
       resolve(await findAvailablePort(startPort + 1))
     })
   })
+}
+
+function probeBackend(port, timeout = 1000) {
+  return new Promise((resolve) => {
+    const socket = new Socket()
+    let settled = false
+    const done = (ok) => {
+      if (settled) return
+      settled = true
+      socket.destroy()
+      resolve(ok)
+    }
+    socket.setTimeout(timeout)
+    socket.once('connect', () => done(true))
+    socket.once('error', () => done(false))
+    socket.once('timeout', () => done(false))
+    socket.connect(port, '127.0.0.1')
+  })
+}
+
+async function waitForBackend(port, timeout = 30000) {
+  const deadline = Date.now() + timeout
+  while (Date.now() < deadline) {
+    if (await probeBackend(port)) return true
+    await new Promise((resolve) => setTimeout(resolve, 300))
+  }
+  return false
+}
+
+function notifyBackendReady() {
+  if (!backendReady) return
+  if (!mainWindow || mainWindow.isDestroyed()) return
+  mainWindow.webContents.send('backend-ready', backendPort)
 }
 
 function startBackend(port) {
@@ -124,6 +158,10 @@ function createWindow() {
   } else {
     mainWindow.loadURL('http://localhost:5173')
   }
+
+  mainWindow.webContents.on('did-finish-load', () => {
+    notifyBackendReady()
+  })
 
   mainWindow.on('close', async (e) => {
     if (!app.isQuitting) {
@@ -437,6 +475,15 @@ app.whenReady().then(async () => {
 
   createWindow()
   createTray()
+
+  waitForBackend(backendPort).then((ready) => {
+    if (!ready) {
+      console.warn('[Backend] 等待后端就绪超时:', backendPort)
+      return
+    }
+    backendReady = true
+    notifyBackendReady()
+  })
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {

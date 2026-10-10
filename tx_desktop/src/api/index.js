@@ -1,10 +1,12 @@
-import { getItem, setItem, removeItem } from '@/utils/storage'
+import { setItem, removeItem } from '@/utils/storage'
+import { onBackendReady } from '@/utils/ipc'
 
 const ACTIVE_HOST_KEY = 'host:active'
 const HOST_READY_TIMEOUT = 3000
+const DEFAULT_BACKEND_PORT = 41000
 
-let baseURL = 'http://localhost:41000'
-let localBaseURL = 'http://localhost:41000'
+let baseURL = `http://localhost:${DEFAULT_BACKEND_PORT}`
+let localBaseURL = `http://localhost:${DEFAULT_BACKEND_PORT}`
 let activeHost = null
 
 let hostReadySettled = false
@@ -81,10 +83,22 @@ export function getLocalBaseURL() {
   return localBaseURL
 }
 
-// 模块加载即恢复上次活动主机，消除「默认本机」窗口期；无记录时才退回本机默认地址
-const persistedHost = getItem(ACTIVE_HOST_KEY, null)
-if (persistedHost && persistedHost.ip && persistedHost.port) {
-  setBaseURLByHost(persistedHost)
+// 重启固定恢复本地主机：清除上次远端主机残留，不再用 localStorage 恢复首屏地址
+// （运行中切主机的真实状态以本地后端 hosts.is_active 为准，由 DesktopLayout.initBase 同步）
+removeItem(ACTIVE_HOST_KEY)
+
+if (typeof window !== 'undefined' && window.electronAPI) {
+  // Electron：主进程探测到本地后端 listen 后推送真实端口 → 记录本地地址并放开首屏请求
+  onBackendReady((port) => {
+    if (port) {
+      setLocalBaseURL(Number(port))
+      setBaseURL(Number(port))
+    }
+    markHostReady()
+  })
+} else if (typeof window !== 'undefined') {
+  // 非 Electron（浏览器直连本地后端/开发代理）无需等待 backend-ready，避免首屏请求等待超时
+  markHostReady()
 }
 
 async function hostRequest(method, path, data = null) {
